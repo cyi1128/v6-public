@@ -1,0 +1,13 @@
+{
+ "hourly|2026-10-28|11": true,
+ "noon|2026-10-28": true,
+ "hourly|2026-10-28|13": true,
+ "hourly|2026-10-28|14": true,
+ "warn|2026-10-29": true,
+ "pre|2026-10-29": true,
+ "auction|2026-10-29": true,
+ "hourly|2026-10-29|10": true,
+ "hourly|2026-10-29|11": true,
+ "noon|2026-10-29": true,
+ "hourly|2026-10-29|13": true
+}

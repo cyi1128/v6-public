@@ -1,0 +1,198 @@
+{
+ "2026-10-28": {
+  "汽车零部": {
+   "leaders": [
+    "襄阳轴承",
+    "光洋股份",
+    "凯众股份"
+   ],
+   "reason": "11只涨停·龙头襄阳轴承",
+   "strength": 10,
+   "max_lbc": 5,
+   "fbt": 93215,
+   "divergence": false
+  },
+  "通用设备": {
+   "leaders": [
+    "宁波东力",
+    "五洲新春",
+    "神驰机电"
+   ],
+   "reason": "8只涨停·龙头宁波东力",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 93139,
+   "divergence": false
+  },
+  "专用设备": {
+   "leaders": [
+    "江顺科技",
+    "山东矿机",
+    "大丰实业"
+   ],
+   "reason": "5只涨停·龙头江顺科技",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 110539,
+   "divergence": false
+  },
+  "元件": {
+   "leaders": [
+    "金安国纪",
+    "方正科技",
+    "世运电路"
+   ],
+   "reason": "3只涨停·龙头金安国纪",
+   "strength": 9,
+   "max_lbc": 1,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "半导体": {
+   "leaders": [
+    "富瀚微",
+    "必易微",
+    "金海通"
+   ],
+   "reason": "3只涨停·龙头富瀚微",
+   "strength": 9,
+   "max_lbc": 1,
+   "fbt": 93239,
+   "divergence": false
+  },
+  "化学制品": {
+   "leaders": [
+    "中欣氟材",
+    "福莱蒽特",
+    "宏柏新材"
+   ],
+   "reason": "3只涨停·龙头中欣氟材",
+   "strength": 9,
+   "max_lbc": 1,
+   "fbt": 102248,
+   "divergence": false
+  },
+  "电网设备": {
+   "leaders": [
+    "长城科技",
+    "长缆科技"
+   ],
+   "reason": "2只涨停·龙头长城科技",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93005,
+   "divergence": false
+  },
+  "家电零部": {
+   "leaders": [
+    "东贝集团",
+    "振邦智能"
+   ],
+   "reason": "2只涨停·龙头东贝集团",
+   "strength": 9,
+   "max_lbc": 2,
+   "fbt": 93017,
+   "divergence": false
+  }
+ },
+ "2026-10-27": {},
+ "2026-10-26": {
+  "汽车零部": {
+   "leaders": [
+    "正裕工业",
+    "襄阳轴承",
+    "万向钱潮"
+   ],
+   "reason": "6只涨停·龙头正裕工业",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 92502,
+   "divergence": false
+  },
+  "专用设备": {
+   "leaders": [
+    "林州重机",
+    "杰克科技",
+    "永创智能"
+   ],
+   "reason": "6只涨停·龙头林州重机",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 93100,
+   "divergence": false
+  },
+  "通用设备": {
+   "leaders": [
+    "赛福天",
+    "锋龙股份",
+    "大西洋"
+   ],
+   "reason": "5只涨停·龙头赛福天",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 92502,
+   "divergence": false
+  },
+  "塑料": {
+   "leaders": [
+    "福莱新材",
+    "泛亚微透",
+    "上纬新材"
+   ],
+   "reason": "3只涨停·龙头福莱新材",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 93025,
+   "divergence": false
+  },
+  "休闲食品": {
+   "leaders": [
+    "青岛食品",
+    "良品铺子",
+    "桂发祥"
+   ],
+   "reason": "3只涨停·龙头青岛食品",
+   "strength": 9,
+   "max_lbc": 1,
+   "fbt": 93033,
+   "divergence": false
+  },
+  "软件开发": {
+   "leaders": [
+    "多伦科技",
+    "延华智能"
+   ],
+   "reason": "2只涨停·龙头多伦科技",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 92502,
+   "divergence": false
+  },
+  "消费电子": {
+   "leaders": [
+    "朗特智能",
+    "达瑞电子"
+   ],
+   "reason": "2只涨停·龙头朗特智能",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93306,
+   "divergence": false
+  },
+  "医药商业": {
+   "leaders": [
+    "塞力医疗",
+    "英特集团"
+   ],
+   "reason": "2只涨停·龙头塞力医疗",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 94501,
+   "divergence": false
+  }
+ },
+ "2026-10-23": {
+  "lu": 35,
+  "zb": 20
+ }
+}

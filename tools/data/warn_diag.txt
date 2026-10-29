@@ -1,0 +1,81 @@
+16:36:35 [build_warn] 进入；新闻条数=20
+16:36:35 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+16:52:52 [build_warn] 进入；新闻条数=20
+16:52:52 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+16:53:28 [build_warn] LLM 返回长度=762
+22:38:13 [build_warn] 进入；新闻条数=20
+22:38:13 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+22:38:51 [build_warn] LLM 返回长度=1118
+00:01:39 [build_warn] 进入；新闻条数=20
+00:01:39 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+00:02:38 [build_warn] LLM 返回长度=2499
+00:20:31 [build_warn] 进入；新闻条数=20
+00:20:31 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+00:21:18 [build_warn] LLM 返回长度=2088
+00:20:33 [build_warn] 进入；新闻条数=20
+00:20:33 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+00:21:38 [build_warn] LLM 返回长度=2302
+05:15:29 [反模板命中:intra] 半山腰 (try1)
+05:16:30 [反模板命中:intra] 情绪回暖 (try2)
+05:43:59 [反模板命中:intra] 情绪回暖 (try1)
+06:02:12 [反模板命中:news2h_good] 管住手 (try1)
+06:04:41 [反模板命中:news2h] 管住手 (try1)
+06:05:41 [反模板命中:news2h] 管住手 (try2)
+07:12:10 [反模板命中:brief] 管住手 (try1)
+07:19:10 [反模板命中:brief_retry] 管住手 (try1)
+07:20:43 [反模板命中:brief_retry] 管住手 (try2)
+00:20:33 [build_warn] 进入；新闻条数=20
+00:20:33 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+00:21:41 [build_warn] LLM 返回长度=2939
+00:32:59 [反模板命中:pre_news_deep] 管住手 (try1)
+01:34:40 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（基于提供快照） 数据时点：盘中快照（具体分钟未知，参考验证节点 09:45-14:00） 数据类型：盘中快照 是否
+01:44:32 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：当日（具体日期未提供，按输入数据当日处理） 数据时点：输入数据快照（无精确分钟级时间戳） 数据类型：盘中快照 是否已收盘
+01:54:02 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（基于输入数据快照） 数据时点：截至 10:00（根据验证节点反推） 数据类型：盘中快照 是否已收盘：否 主要数据来
+02:06:00 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：今日（基于提供数据快照） 数据时点：盘中快照（具体时分未明示，以输入价格为准） 数据类型：盘中快照 是否已收盘：否 主要
+02:26:39 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：今日（基于提供数据快照） 数据时点：10:30（依据验证节点推断的盘中快照） 数据类型：盘中快照 是否已收盘：否 主要数
+02:41:32 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（输入未提供具体日期） 数据时点：未知（输入未提供具体分钟，依据验证节点推测为盘中） 数据类型：盘中快照 是否已收盘
+02:54:15 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（输入未提供具体日期） 数据时点：盘中快照（基于输入 JSON 数据） 数据类型：盘中快照 是否已收盘：否（根据“盘
+03:04:35 [反模板命中:batch_deep] 半山腰 (try1)
+03:06:04 [反模板命中:batch_deep] 管住手 (try2)
+03:22:04 [反模板命中:board_deep] 管住手 (try1)
+03:26:55 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（基于输入快照） 数据时点：输入数据生成时刻（未提供具体 HH:MM） 数据类型：盘中快照 是否已收盘：否 主要数据
+03:40:13 [反模板命中:brief] 资金认可 (try1)
+03:41:54 [反模板命中:brief] 资金认可 (try2)
+04:22:51 [反模板命中:brief_summary] 管住手 (try1)
+04:23:52 [反模板命中:brief_summary] 管住手 (try2)
+05:07:57 [反模板命中:brief_summary] 管住手 (try1)
+05:43:30 [反模板命中:board_why] 资金认可 (try1)
+05:49:35 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：当日（具体日期未提供） 数据时点：未知（输入未包含具体 HH:MM，仅含快照状态） 数据类型：盘中快照 是否已收盘：否 
+05:56:40 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（基于输入数据推断为当日盘中） 数据时点：未知（输入未标注具体分钟，按验证节点推断为 10:30 前） 数据类型：盘
+06:22:07 [反模板命中:watch_news] 管住手 (try1)
+06:29:17 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（基于输入快照） 数据时点：盘中快照（具体分钟未提供） 数据类型：盘中快照 是否已收盘：否 主要数据来源：用户提供的
+06:35:15 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：当日（根据输入数据推断） 数据时点：10:30（基于验证节点推断） 数据类型：盘中快照 是否已收盘：否 主要数据来源：用
+06:57:07 [反模板命中:noon_v4] 管住手 (try1)
+07:26:38 [反模板命中:sec2_deep] 半山腰 (try1)
+07:27:23 [反模板命中:sec2_deep] 半山腰 (try2)
+07:33:10 [反模板命中:eod] 值得关注/管住手 (try1)
+07:34:03 [反模板命中:eod] 值得关注 (try2)
+16:20:00 [ask_deepseek] ModelScope 两次尝试均失败，purpose=watch_news
+00:20:33 [build_warn] 进入；新闻条数=20
+00:20:33 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+00:21:18 [build_warn] LLM 返回长度=2943
+00:33:32 [反模板命中:pre] 值得关注 (try1)
+01:53:32 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（基于输入快照） 数据时点：盘中快照（具体时间未标注） 数据类型：盘中快照 是否已收盘：否 主要数据来源：用户输入数
+02:02:00 [反模板命中:hourly_ds] 管住手 (try1)
+02:04:22 [反模板命中:batch_deep] 半山腰 (try1)
+02:11:58 [反模板命中:board_deep] 管住手 (try1)
+02:15:32 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（需以实际交易日为准） 数据时点：基于输入快照（无具体分钟级时间戳） 数据类型：盘中快照 是否已收盘：否 主要数据来
+02:24:08 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：今日（具体日期需结合盘面确认） 数据时点：盘中快照（具体分钟未知，基于验证节点推断约为 10:30 前后） 数据类型：盘
+02:26:53 [反模板命中:board_deep] 资金认可 (try1)
+02:30:06 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（基于任务输入快照） 数据时点：盘中快照（具体分钟未提供） 数据类型：盘中快照 是否已收盘：否 主要数据来源：用户任
+02:34:16 [反模板命中:board_watch] 资金认可 (try1)
+02:35:07 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（依据输入数据快照，未提供具体日历日期） 数据时点：盘中快照（具体时间未标注，按输入数据生成时刻处理） 数据类型：盘
+02:54:12 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（输入未提供具体交易日） 数据时点：盘中快照（根据验证节点推断为交易时段内） 数据类型：盘中快照 是否已收盘：否 主
+03:02:25 [反模板命中:hourly_ds] 管住手 (try1)
+03:27:31 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（输入未提供具体日期） 数据时点：未知（输入仅显示快照，无具体时间戳） 数据类型：盘中快照 是否已收盘：否（根据“盘
+03:40:50 [反模板命中:batch_deep] 半山腰 (try1)
+05:01:57 [反模板命中:hourly_ds] 管住手 (try1)
+05:04:14 [反模板命中:batch_deep] 管住手 (try1)
+05:05:22 [反模板命中:batch_deep] 资金认可/半山腰/管住手 (try2)
+05:18:25 [反模板命中:news2h] 管住手 (try1)
+05:19:20 [反模板命中:news2h] 管住手 (try2)
