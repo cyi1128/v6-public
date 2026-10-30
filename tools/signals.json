@@ -173,7 +173,7 @@
   "name": "电科蓝天",
   "close": 41.47,
   "pct": 15.9,
-  "next_open_pct": null
+  "next_open_pct": 11.815770436460094
  },
  {
   "date": "2026-10-28",
@@ -181,7 +181,7 @@
   "name": "宏明电子",
   "close": 117.98,
   "pct": 15.55,
-  "next_open_pct": null
+  "next_open_pct": -6.357009662654689
  },
  {
   "date": "2026-10-28",
@@ -189,7 +189,7 @@
   "name": "君正股份",
   "close": 111.98,
   "pct": 18.37,
-  "next_open_pct": null
+  "next_open_pct": -3.554206108233615
  },
  {
   "date": "2026-10-28",
@@ -197,7 +197,7 @@
   "name": "灿芯股份",
   "close": 57.27,
   "pct": 17.5,
-  "next_open_pct": null
+  "next_open_pct": -6.251091321808988
  },
  {
   "date": "2026-10-28",
@@ -205,7 +205,7 @@
   "name": "伟创电气",
   "close": 45.04,
   "pct": 18.84,
-  "next_open_pct": null
+  "next_open_pct": -4.551509769094131
  },
  {
   "date": "2026-10-28",
@@ -213,6 +213,6 @@
   "name": "田中精机",
   "close": 40.0,
   "pct": 19.05,
-  "next_open_pct": null
+  "next_open_pct": -4.949999999999988
  }
 ]
