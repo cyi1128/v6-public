@@ -1,4 +1,5 @@
 ﻿name: daily-review
+# inputs-cache-refresh: v2
 
 on:
   workflow_dispatch:
