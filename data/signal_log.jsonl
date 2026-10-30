@@ -163,8 +163,8 @@
 {"date": "2026-10-27", "slot": "watch", "type": "启动埋伏", "code": "002284", "name": "亚太股份", "next_open": 9.59, "next_close": 9.97}
 {"date": "2026-10-27", "slot": "watch", "type": "启动埋伏", "code": "300976", "name": "达瑞电子", "next_open": 58.8, "next_close": 59.01}
 {"date": "2026-10-27", "slot": "watch", "type": "逼近涨停", "code": "300961", "name": "深水海纳", "next_open": 11.95, "next_close": 12.39}
-{"date": "2026-10-28", "slot": "watch", "type": "启动埋伏", "code": "300507", "name": "苏奥传感", "next_open": "", "next_close": ""}
-{"date": "2026-10-28", "slot": "watch", "type": "启动埋伏", "code": "300976", "name": "达瑞电子", "next_open": "", "next_close": ""}
-{"date": "2026-10-28", "slot": "watch", "type": "逼近涨停", "code": "300969", "name": "恒帅股份", "next_open": "", "next_close": ""}
-{"date": "2026-10-28", "slot": "watch", "type": "逼近涨停", "code": "301366", "name": "一博科技", "next_open": "", "next_close": ""}
-{"date": "2026-10-28", "slot": "watch", "type": "逼近涨停", "code": "688293", "name": "奥浦迈", "next_open": "", "next_close": ""}
+{"date": "2026-10-28", "slot": "watch", "type": "启动埋伏", "code": "300507", "name": "苏奥传感", "next_open": 5.78, "next_close": 5.42}
+{"date": "2026-10-28", "slot": "watch", "type": "启动埋伏", "code": "300976", "name": "达瑞电子", "next_open": 52.95, "next_close": 49.3}
+{"date": "2026-10-28", "slot": "watch", "type": "逼近涨停", "code": "300969", "name": "恒帅股份", "next_open": 74.06, "next_close": 70.6}
+{"date": "2026-10-28", "slot": "watch", "type": "逼近涨停", "code": "301366", "name": "一博科技", "next_open": 46.8, "next_close": 47.6}
+{"date": "2026-10-28", "slot": "watch", "type": "逼近涨停", "code": "688293", "name": "奥浦迈", "next_open": 61.54, "next_close": 61.0}
