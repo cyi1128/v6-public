@@ -1,4 +1,4 @@
-# FOLLOW_V6
+﻿# FOLLOW_V6
 # FOLLOW_V5
 # BRIEF_TOTAL_V1
 # FOLLOW_V4
@@ -67,6 +67,8 @@ def _git_commit_push(path, msg):
                                 'commit', '-m', msg], check=False, timeout=15, capture_output=True)
             if r.returncode != 0 and 'nothing to commit' not in (r.stdout or b'').decode(errors='ignore') + (r.stderr or b'').decode(errors='ignore'):
                 print(f'[git] commit attempt{attempt}: {r.stderr[:100] if r.stderr else ""}')
+            # 先拉后推（rebase+autostash）化解并发写回冲突（FIX: 并发 run push rejected fetch first）
+            subprocess.run(['git', 'pull', '--rebase', '--autostash'], check=False, timeout=30, capture_output=True)
             rp = subprocess.run(['git', 'push'], check=False, timeout=30, capture_output=True)
             if rp.returncode == 0:
                 print(f'[git] writeback ok attempt{attempt}')
