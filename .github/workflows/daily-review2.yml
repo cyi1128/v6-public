@@ -14,6 +14,7 @@ on:
         type: choice
         options: ['pre', 'auction', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'news', 'news2h', 'evening', 'follow', 'anchor', 'review', 'evaluate', 'deep6', 'zscan', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3']
   schedule:
+    - cron: '35-39 0 * * *'        # 测试档 08:35-08:39 北京（schedule 活性验证）
     - cron: '20-24 0 * * 1-5'      # 08:20-08:24 北京 板块启动预警
     - cron: '30-34 0 * * 1-5'      # 08:30-08:34 北京 盘前速递
     - cron: '20-29 1 * * 1-5'      # 09:20-09:29 北京 竞价观察
