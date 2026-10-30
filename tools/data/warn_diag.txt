@@ -99,3 +99,6 @@
 06:56:14 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 交易日期：未知（基于提供数据快照） 数据时点：盘中快照（具体分钟未标注，按输入数据状态处理） 数据类型：盘中快照 是否已收盘：否 
 07:04:58 [反模板命中:eod] 值得关注/管住手 (try1)
 07:05:54 [反模板命中:eod] 值得关注/建议留意/管住手 (try2)
+12:22:51 [build_warn] 进入；新闻条数=20
+12:22:51 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+12:24:00 [build_warn] LLM 返回长度=1766
