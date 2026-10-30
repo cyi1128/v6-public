@@ -15,7 +15,14 @@
       "entry_zone": "12.0~12.5",
       "stop_loss": 11.88,
       "entry_mid": 12.25,
-      "performance": null
+      "performance": {
+        "bars_after": 2,
+        "day1_close_pct": 16.16,
+        "max_high5": 16.92,
+        "min_low5": 12.81,
+        "max_high_pct": 38.12,
+        "hit_stop": false
+      }
     }
   ]
 }
