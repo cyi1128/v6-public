@@ -1,0 +1,89 @@
+﻿name: daily-review
+
+on:
+  workflow_dispatch:
+    inputs:
+
+      code:
+        description: 'deep6槽位指定个股代码（如603037，留空=自动挑当日强势股）'
+        required: false
+        type: string
+      slot:
+        description: '强制时段（演示/手动）：pre/auction/hourly/noon/eod/watch/warn/ext/news/news2h/evening/follow/anchor/review/evaluate/deep6/zscan，留空=按当前时刻'
+        required: false
+        type: choice
+        options: ['pre', 'auction', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'news', 'news2h', 'evening', 'follow', 'anchor', 'review', 'evaluate', 'deep6', 'zscan', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3']
+  schedule:
+    - cron: '20-24 0 * * 1-5'      # 08:20-08:24 北京 板块启动预警（多点对冲schedule丢触发；slot_done当日去重防重复）
+    - cron: '30-34 0 * * 1-5'      # 08:30-08:34 北京 盘前速递（多点；slot_done去重）
+    - cron: '20-29 1 * * 1-5'      # 09:20-09:29 北京 竞价观察（多点对冲防schedule丢触发；代码早触发等待09:25再取数；slot_done去重；代码内部重试到09:29）
+    - cron: '0-4 2,3,5,6 * * 1-5'  # 10:00-04分/11:00-04/13:00-04/14:00-04 北京 盘中解读（多点；slot_done按小时去重）
+    - cron: '30-34 3 * * 1-5'      # 11:30-11:34 北京 午间作战（多点；slot_done去重）
+    - cron: '0 7 * * 1-5'          # 15:00 北京 收盘复盘（DeepSeek 研判）
+    - cron: '38 13,14 * * 1-5'     # 21:38/22:38 北京 外盘窗口（美股开盘后约30分钟；避开盘中watch分钟点防重复run）
+    - cron: '50 14 * * 1-5'        # 22:50 北京 晚间消息汇总（今日A股全景+全球晚间行情/消息+明日关注）
+    - cron: '0,10,20,30,40,50 1-6 * * 1-5'
+    - cron: '0 4,8 * * 1-5'        # 12:00/16:00 北京 两小时市场消息汇总
+    - cron: '1 6 * * 1-5'          # 14:01 北京 两小时市场消息汇总（14:00整点让给hourly，错1分钟防撞车）
+    - cron: '6 6 * * 1-5'          # 14:06 北京 跟涨三步走·埋伏补涨（盘中；龙头→同链补涨票）
+    - cron: '6 7 * * 1-5'          # 15:06 北京 跟涨三步走·埋伏补涨（收盘档）
+    - cron: '20 7 * * 1-5'         # 15:20 北京 突破回踩·主力成本锚（收盘数据完整后扫描→评分→推送）
+    - cron: '30 7 * * 1-5'         # 15:30 北京 突破回踩·复盘（回填K线表现→生成复盘卡）
+    - cron: '0 12 * * 0'           # 周日 20:00 北京 突破回踩·策略评估（周度评估与参数优化建议）
+
+concurrency:
+  group: daily-review
+  cancel-in-progress: false
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: 判定时段并推送
+        env:
+          MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          INPUT_CODE: ${{ github.event.inputs.code }}
+        run: |
+          H=$(date -u +%H); M=$(date -u +%M)
+          case $H:$M in
+            00:2[0-4])   T=warn ;;      # 08:20-08:24 北京（板块启动预警；放 00:* 之前避免被 pre 吞掉）
+            00:3[0-4])   T=pre ;;       # 08:30-08:34 北京 盘前速递（00:00/00:10/00:40/00:50 静默不推防刷屏）
+            01:2[0-9])   T=auction ;;   # 09:20-09:29 竞价观察（放宽时段防schedule丢触发；代码早触发等待09:25；容忍runner延迟；代码内部重试到09:29，超时保留持仓诊断）
+            04:0[0-4]|06:0[1-4]|08:0[0-4]) T=news2h ;;  # 12:00-04/14:01-04/16:00-04 北京 两小时市场消息汇总（FIX22：原精确整点04:00|08:00导致外部兜底run延迟1分钟滑出→watch丢推；14:00整点让给hourly，故06:0[1-4]置于hourly之前避免被吞）
+            02:0[0-4]|03:0[0-4]|05:0[0-4]|06:0[0-4]) T=hourly ;;  # 10:00-04/11:00-04/13:00-04/14:00-04 北京（date +%H 带前导零；14:00整点归hourly，14:01-04归news2h）
+            03:4[0-4])      T=news ;;       # 11:40-11:44 北京 旧事件简报·午间档（吃watch 03:40点）
+            06:0[5-7])      T=follow ;;     # 14:05-14:07 北京 跟涨三步走·盘中档
+            07:0[5-8])      T=follow ;;     # 15:05-15:08 北京 跟涨三步走·收盘档（放 07:* eod 兜底之前）
+            07:2[0-3])      T=anchor ;;     # 15:20-15:23 北京 突破回踩·主力成本锚（收盘数据完整后；放 07:* eod 之前）
+            07:3[0-4])      T=review ;;     # 15:30-15:34 北京 突破回踩·复盘（回填K线表现→生成复盘卡；放 07:* eod 之前）
+            12:0[0-2])      T=evaluate ;;   # 周日 20:00-20:02 北京 突破回踩·策略评估（周度；放 watch 兜底之前）
+            07:1[0-4])      T=news ;;       # 15:10-15:14 北京 旧事件简报·尾盘档（吃watch 07:10点；放07:*之前）
+            07:3[5-9])      T=news ;;       # 15:35-15:39 北京 旧事件简报·尾盘档（放07:*之前）
+            13:3[6-9]|14:3[6-9]) T=ext ;;     # 21:38-21:39/22:38-22:39 北京 外盘窗口（放 watch 兜底之前）
+            14:5[0-9])      T=evening ;;   # 22:50-22:59 北京 晚间消息汇总（放 watch 兜底之前）
+            03:3[0-5])   T=noon ;;      # 11:30-11:35（容忍5分钟；11:36的watch点不被吞）
+            07:*)        T=eod ;;       # 15:00-15:59（watch不含7点，全宽容）
+            *)          T=watch ;;
+          esac
+          FORCE="${{ github.event.inputs.slot }}"
+          if [ -n "$FORCE" ]; then
+            python3 -u tools/cloud_daily_review.py --time $T --force "$FORCE"
+          else
+            python3 tools/cloud_daily_review.py --time $T
+          fi
+      - name: 持久化状态文件（竞价观察仓/去重）
+        if: always()
+        run: |
+          git config user.name "v6-bot"
+          git config user.email "v6-bot@users.noreply.github.com"
+          git add tools/data/ || true
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: 状态持久化 $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
+            git pull --rebase --autostash || true
+            git push || true
+          fi
