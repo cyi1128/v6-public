@@ -1,4 +1,98 @@
 {
+ "2026-10-30": {
+  "白酒Ⅱ": {
+   "leaders": [
+    "迎驾贡酒",
+    "古井贡酒",
+    "皇台酒业"
+   ],
+   "reason": "4只涨停·龙头迎驾贡酒",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 94413,
+   "divergence": false
+  },
+  "休闲食品": {
+   "leaders": [
+    "青岛食品",
+    "黑芝麻",
+    "好想你"
+   ],
+   "reason": "3只涨停·龙头青岛食品",
+   "strength": 10,
+   "max_lbc": 5,
+   "fbt": 93000,
+   "divergence": false
+  },
+  "元件": {
+   "leaders": [
+    "金安国纪",
+    "澳弘电子",
+    "满坤科技"
+   ],
+   "reason": "3只涨停·龙头金安国纪",
+   "strength": 9,
+   "max_lbc": 1,
+   "fbt": 100330,
+   "divergence": false
+  },
+  "医疗服务": {
+   "leaders": [
+    "澳洋健康",
+    "万邦医药",
+    "百花医药"
+   ],
+   "reason": "3只涨停·龙头澳洋健康",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 102539,
+   "divergence": false
+  },
+  "通用设备": {
+   "leaders": [
+    "上海沪工",
+    "沈阳机床"
+   ],
+   "reason": "2只涨停·龙头上海沪工",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 92502,
+   "divergence": false
+  },
+  "房地产开": {
+   "leaders": [
+    "津滨发展",
+    "黑牡丹"
+   ],
+   "reason": "2只涨停·龙头津滨发展",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93000,
+   "divergence": false
+  },
+  "中药Ⅱ": {
+   "leaders": [
+    "桂林三金",
+    "羚锐制药"
+   ],
+   "reason": "2只涨停·龙头桂林三金",
+   "strength": 9,
+   "max_lbc": 2,
+   "fbt": 93006,
+   "divergence": false
+  },
+  "医疗器械": {
+   "leaders": [
+    "九安医疗",
+    "阳普医疗"
+   ],
+   "reason": "2只涨停·龙头九安医疗",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93342,
+   "divergence": false
+  }
+ },
  "2026-10-28": {
   "汽车零部": {
    "leaders": [
