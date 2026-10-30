@@ -1,0 +1,86 @@
+﻿python.exe : D:\QuantMonitorV6\tools\_audit_ctrl_db.py:4: SyntaxWarning: "\_" is an invalid escape sequence. Such seque
+nces will not work in the future. Did you mean "\\_"? A raw string is also an option.
+所在位置 行:1 字符: 141
++ ... QuantMonitorV6"; & $py -X utf8 "tools\_audit_ctrl_db.py" 2>&1 | Tee-O ...
++                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (D:\QuantMonitor...also an option.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  跑法： & $py -X utf8 "tools\_audit_ctrl_db.py"
+================================================================================================
+控盘度审计 · 第1步：band_pattern.db 实际状态
+================================================================================================
+库文件: D:\QuantMonitorV6\data\cache\band_pattern.db | 存在: True
+大小: 0.67 MB | 修改时间: 2026-10-10 13:41:11.933254
+
+[1] 表清单: ['pattern_record']
+
+[2] pattern_record 列数 = 44
+    pattern_id       INTEGER        notnull=1 default=None
+    signal_level     TEXT           notnull=0 default=None
+    struct_pos       REAL           notnull=0 default=None
+    env_score        INTEGER        notnull=0 default=None
+    control_score    REAL           notnull=0 default=None
+    stage_guess      TEXT           notnull=0 default=None
+    note             TEXT           notnull=0 default=None
+
+[3] 全部列名（44）:
+    code | pattern_id | base_date | push_date | name | pattern_name | base_close | base_high | base_low | push_price | push_pct | ma5 | ma20 | volume_ratio | gap_pct | structure_days | signal_level | trigger_type | trigger_price | invalid_price | weekly_confirm | valid_until | invalid_reason | up_days | up_vol_ok | up_rate | down_days | down_vol_ok | down_rate | struct_pos | recent_vol3 | shake_dip | shake_shadow | shake_probe | shake_amp | shake_ok | take_profit | env_score | env_note | control_score | stage_guess | note | created_at | updated_at
+
+[4] 总行数 = 145
+    分模式:
+       pattern_id=1  116 条
+       pattern_id=3  29 条
+
+[5] 两列填充情况:
+    control_score IS NULL      : 0
+    control_score = 0          : 0
+    control_score > 0          : 145
+    stage_guess 空/NULL        : 0
+    两列都非 NULL              : 145
+
+    stage_guess 取值分布:
+       'unknown'      107
+       'distribute'   35
+       'wash'         3
+
+[6] 错位检测（若错位会出现：分数是文本 / 阶段是数字）
+    control_score 非数值类型: 0   （应为 0）
+    control_score 越界 0~100 : 0   （应为 0）
+    stage_guess 非三种取值   : 0   （应为 0）
+
+[7] 抽样 8 条（看两列是否落在合理业务值上）:
+    600845 宝信软件     pid=1 ctrl=  97.85 unknown     pos=0.0 lvl=等待确认 | note='2026-09-18启动17.97(+7.0%) → 2026-09-22跳空0.83%洗盘 → 缩量整理7日，等MA5'
+    600085 同仁堂      pid=3 ctrl=  97.61 wash        pos=96.2 lvl=观察 | note='横盘15日(振幅6%) 上涨放量3/8(38%) 下跌缩量4/7(57%) 本周1.64倍放量阳·结构位96%近上沿24'
+    603271 永杰新材     pid=3 ctrl=  96.94 unknown     pos=74.9 lvl=观察 | note='横盘15日(振幅8%) 上涨放量2/7(29%) 下跌缩量5/8(62%) 本周1.61倍放量阳·结构位75%近上沿40'
+    601089 福元医药     pid=1 ctrl=  96.85 unknown     pos=0.0 lvl=建仓触发 | note='2026-09-21启动16.36(+3.8%) → 2026-09-23跳空0.37%洗盘 → 缩量整理6日，回踩MA'
+    001218 丽臣实业     pid=1 ctrl=  96.80 unknown     pos=0.0 lvl=观察 | note='2026-09-16启动23.88(+3.5%) → 2026-09-18跳空1.46%洗盘 → 缩量整理9日，回踩MA'
+    002847 盐津铺子     pid=1 ctrl=  96.67 unknown     pos=0.0 lvl=等待确认 | note='2026-09-21启动43.98(+3.6%) → 2026-09-22跳空0.11%洗盘 → 缩量整理7日，等MA5'
+    600645 中源协和     pid=1 ctrl=  96.19 unknown     pos=0.0 lvl=建仓触发 | note='2026-09-21启动19.05(+4.7%) → 2026-09-23跳空0.52%洗盘 → 缩量整理6日，回踩MA'
+    605286 同力天启     pid=1 ctrl=  96.01 unknown     pos=0.0 lvl=观察 | note='2026-09-18启动25.00(+3.7%) → 2026-09-22跳空1.91%洗盘 → 缩量整理7日，回踩MA'
+
+[8] control_score 分布（全库非零）:
+    样本 145 只 | min=30.23  25%=49.06  50%=67.81  75%=79.96  90%=93.37  max=97.85
+      >=60  :   84 只 (57.9%)
+      >=70  :   66 只 (45.5%)
+      >=80  :   36 只 (24.8%)
+      >=85  :   24 只 (16.6%)
+      >=90  :   17 只 (11.7%)
+      >=95  :   13 只 (9.0%)
+
+[9] note 里的控盘提示:
+    高度控盘+疑似洗盘 : 3
+    出货风险警示      : 10
+    高度控盘候选      : 17
+    含 [控盘] 提示合计 : 27  / 总 145 = 18.6%
+
+    signal_level × 是否带提示:
+       等待确认           带提示  13 /  89
+       建仓触发           带提示   7 /  36
+       观察             带提示   7 /  20
+
+[10] created_at / updated_at 分布（判断是否同一批扫描）:
+    2026-10-10 : 145
+
+================================================================================================
+第1步完成

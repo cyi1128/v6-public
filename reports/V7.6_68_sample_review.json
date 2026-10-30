@@ -1,0 +1,20 @@
+{
+  "total_reviewed": 68,
+  "orig_avg_return": -0.52,
+  "new_avg_return": -0.53,
+  "improvement": -0.01,
+  "categories": {
+    "缩量横盘": {
+      "count": 61,
+      "avg_return": -1.05
+    },
+    "假弱真强": {
+      "count": 6,
+      "avg_return": 5.2
+    },
+    "真弱失败": {
+      "count": 1,
+      "avg_return": -3.33
+    }
+  }
+}

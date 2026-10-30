@@ -1,0 +1,17 @@
+{
+  "pressure_days_min": 8,
+  "pressure_days_max": 60,
+  "support_days_min": 4,
+  "support_days_max": 20,
+  "ma_fast": 5,
+  "ma_middle": 9,
+  "ma_long": 20,
+  "ma_super_long": 120,
+  "ma_error": 0.03,
+  "volume_min": 1.2,
+  "volume_max": 2.0,
+  "stop_profit": 0.03,
+  "pressure_distance_filter": 0.03,
+  "support_volatility": 0.05,
+  "ma5_flat_threshold": 0.02
+}

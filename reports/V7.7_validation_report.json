@@ -1,0 +1,136 @@
+{
+  "generated_at": "2026-08-23 12:47:07",
+  "elapsed_seconds": 28.5,
+  "modules": {
+    "data_hub": "OK",
+    "trade_memory": "OK (19947笔交易)",
+    "factor_learning": "OK (14个因子)",
+    "strategy_evolution": "OK",
+    "sell_miss_learning": "OK (21笔卖飞)",
+    "loss_prevention": "OK (9726笔亏损)",
+    "ollama_ai": "OK (qwen2.5:7b)"
+  },
+  "key_findings": {
+    "total_trades": 19947,
+    "win_rate": 50.13285205795358,
+    "avg_return": 0.6721874276480013,
+    "profit_factor": 1.3536545507052695,
+    "sell_miss_rate": 26.25,
+    "factor_suggestions": 9,
+    "loss_suggestions": 3,
+    "evolution_suggestions": 1
+  },
+  "all_suggestions": {
+    "factor": [
+      {
+        "factor": "macd_hist_positive",
+        "desc": "MACD柱状图为正",
+        "type": "positive",
+        "suggestion": "「MACD柱状图为正」时胜率59.0%（比无此条件高11.4%），建议在评分中增加正向权重",
+        "evidence": "样本78笔，平均收益1.62%"
+      },
+      {
+        "factor": "kdj_j_overbought",
+        "desc": "KDJ超买(J>80)",
+        "type": "negative",
+        "suggestion": "「KDJ超买(J>80)」时胜率28.6%（比无此条件低27.1%），建议在评分中增加负向权重或过滤",
+        "evidence": "样本21笔，平均收益-0.88%"
+      },
+      {
+        "factor": "kdj_j_oversold",
+        "desc": "KDJ超卖(J<20)",
+        "type": "negative",
+        "suggestion": "「KDJ超卖(J<20)」时胜率45.6%（比无此条件低10.0%），建议在评分中增加负向权重或过滤",
+        "evidence": "样本57笔，平均收益-0.16%"
+      },
+      {
+        "factor": "kdj_j_range",
+        "desc": "KDJ J值区间",
+        "type": "range",
+        "suggestion": "「KDJ J值区间」在(50.0, 80.0]区间胜率最高64.3%，在(80.0, 100.0]区间最低35.3%，建议分区间设置不同权重",
+        "evidence": "最佳区间56笔，最差区间17笔"
+      },
+      {
+        "factor": "volume_ratio_range",
+        "desc": "量比区间",
+        "type": "range",
+        "suggestion": "「量比区间」在(0.8, 1.5]区间胜率最高58.9%，在(1.5, 3.0]区间最低36.4%，建议分区间设置不同权重",
+        "evidence": "最佳区间112笔，最差区间11笔"
+      },
+      {
+        "factor": "amplitude_range",
+        "desc": "振幅区间(%)",
+        "type": "range",
+        "suggestion": "「振幅区间(%)」在(2.0, 5.0]区间胜率最高60.0%，在(-0.001, 2.0]区间最低29.0%，建议分区间设置不同权重",
+        "evidence": "最佳区间120笔，最差区间31笔"
+      },
+      {
+        "factor": "ret_5d_range",
+        "desc": "5日涨幅区间(%)",
+        "type": "range",
+        "suggestion": "「5日涨幅区间(%)」在(-3.0, 0.0]区间胜率最高60.0%，在(-10.001, -3.0]区间最低44.1%，建议分区间设置不同权重",
+        "evidence": "最佳区间45笔，最差区间34笔"
+      },
+      {
+        "factor": "dist_from_60d_high_range",
+        "desc": "距离60日高点区间(%)",
+        "type": "range",
+        "suggestion": "「距离60日高点区间(%)」在(5.0, 10.0]区间胜率最高61.9%，在(-0.001, 3.0]区间最低0.0%，建议分区间设置不同权重",
+        "evidence": "最佳区间21笔，最差区间6笔"
+      },
+      {
+        "factor": "ma_trend_strength",
+        "desc": "均线趋势强度(MA5/MA20-1)*100",
+        "type": "range",
+        "suggestion": "「均线趋势强度(MA5/MA20-1)*100」在(0.0, 2.0]区间胜率最高59.3%，在(2.0, 5.0]区间最低48.1%，建议分区间设置不同权重",
+        "evidence": "最佳区间27笔，最差区间54笔"
+      }
+    ],
+    "evolution": [
+      {
+        "priority": "high",
+        "type": "time_decay",
+        "suggestion": "策略胜率从52.5%下降到43.1%，可能存在市场环境变化或策略过拟合，建议重新验证核心因子有效性"
+      }
+    ],
+    "sell_miss": [
+      {
+        "type": "ma5_protection",
+        "priority": "high",
+        "suggestion": "卖飞交易中76%在卖出时价格仍在MA5上方，趋势未破坏。建议：盈利达到+8%后不立即止盈，改用MA5保护（收盘价跌破MA5才卖出），让利润奔跑",
+        "evidence": "卖飞比例26.2%，平均卖飞幅度5日10.3%/10日15.3%"
+      },
+      {
+        "type": "trend_confirmation",
+        "priority": "medium",
+        "suggestion": "卖飞交易中95%在卖出时MA5仍在MA10上方，短期趋势向上。建议：止盈前检查MA5>MA10，若趋势确认则延长持仓或改用移动止盈"
+      },
+      {
+        "type": "take_profit_optimization",
+        "priority": "high",
+        "suggestion": "「止盈+8%%」卖出后平均继续上涨25.7%，固定止盈容易卖飞强势股。建议：将固定+8%止盈改为移动止盈（+6%启动，MA5保护）",
+        "evidence": "该原因卖飞7笔"
+      }
+    ],
+    "loss_prevention": [
+      {
+        "priority": "high",
+        "type": "big_loss",
+        "suggestion": "大额亏损（<=-3.0%）占比31.2%，建议严格执行-7%止损，避免单笔亏损过大",
+        "evidence": "大额亏损6214笔，平均亏损-3.90%"
+      },
+      {
+        "priority": "high",
+        "type": "factor_risk",
+        "suggestion": "「KDJ超买」时亏损率64.7%（比正常区间高19.0%），建议降低评分或增加风险提示",
+        "evidence": "亏损率64.7%"
+      },
+      {
+        "priority": "medium",
+        "type": "factor_risk",
+        "suggestion": "「无macd_hist_positive」时亏损率52.4%（比有此条件高11.4%），建议降低评分或增加过滤",
+        "evidence": "亏损率52.4%"
+      }
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-08-23 12:46:43",
+  "version_comparison": {
+    "历史合并": {
+      "total": 19947,
+      "win_rate": 50.13285205795358,
+      "avg_return": 0.6721874276480014,
+      "avg_win": 5.132117249396973,
+      "avg_loss": -3.8115059691037554,
+      "profit_factor": 1.3536545507052695,
+      "max_win": 159.4,
+      "max_loss": -7.000000000000016,
+      "avg_hold_days": 4.942246954429238
+    }
+  },
+  "time_period_analysis": {
+    "periods": [
+      {
+        "period": 1,
+        "date_range": "20230707 ~ 20250528",
+        "count": 4987,
+        "win_rate": 52.49649087627832,
+        "avg_return": 1.0300269723703939
+      },
+      {
+        "period": 2,
+        "date_range": "20250529 ~ 20250916",
+        "count": 5026,
+        "win_rate": 53.82013529645842,
+        "avg_return": 0.886124009809015
+      },
+      {
+        "period": 3,
+        "date_range": "20250917 ~ 20260128",
+        "count": 4992,
+        "win_rate": 51.02163461538461,
+        "avg_return": 0.7718026741986823
+      },
+      {
+        "period": 4,
+        "date_range": "20260129 ~ 20260730",
+        "count": 4942,
+        "win_rate": 43.09995953055443,
+        "avg_return": -0.00710645787462596
+      }
+    ],
+    "trend": "declining",
+    "first_win_rate": 52.49649087627832,
+    "last_win_rate": 43.09995953055443
+  },
+  "factor_summary": {
+    "total_factors": 14,
+    "positive_factors": [
+      "macd_hist_positive"
+    ],
+    "negative_factors": [
+      "macd_golden_cross",
+      "kdj_j_overbought",
+      "kdj_j_oversold"
+    ]
+  }
+}

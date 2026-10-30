@@ -1,0 +1,50 @@
+<html style="margin:0;padding:0;">
+<div style="background-color:transparent;box-sizing:border-box;font-family:'PingFang SC','Segoe UI',Arial,sans-serif;padding:6px 0;">
+  <div style="font-size:14px;font-weight:600;color:#1A1B1C;margin-bottom:4px;">三模块筛选管线（2026-09-24 实测 · 第1层已加 MA20 过滤）</div>
+  <div style="font-size:11.5px;color:#6B7280;margin-bottom:6px;">三个模块共用同一份内存数据，只在最后一步用不同条件取出</div>
+  <svg font-family="'PingFang SC','Microsoft YaHei','Segoe UI',Arial,sans-serif" viewBox="0 0 880 512" style="width:100%;height:auto;display:block;" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="ah" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto">
+        <path d="M0,0 L9,4.5 L0,9 Z" fill="#B9B9B3"/>
+      </marker>
+    </defs>
+    <rect x="120" y="14" width="250" height="64" rx="12" fill="#FFFFFF" stroke="#E4E3DD" stroke-width="1"/>
+    <text x="138" y="30" font-size="11" fill="#6B7280">第1层 · 行情</text>
+    <text x="138" y="54" font-size="19" font-weight="600" fill="#1A1B1C">893<tspan font-size="11" font-weight="400" fill="#6B7280"> 只</tspan></text>
+    <text x="138" y="71" font-size="10.5" fill="#6B7280">主板·≥6元·非ST·≥MA20</text>
+    <rect x="120" y="118" width="250" height="64" rx="12" fill="#FFFFFF" stroke="#E4E3DD" stroke-width="1"/>
+    <text x="138" y="134" font-size="11" fill="#6B7280">第2层 · 异动</text>
+    <text x="138" y="158" font-size="19" font-weight="600" fill="#1A1B1C">119<tspan font-size="11" font-weight="400" fill="#6B7280"> 次</tspan></text>
+    <text x="138" y="175" font-size="10.5" fill="#6B7280">4条件任一 · 60秒冷却</text>
+    <rect x="120" y="222" width="250" height="64" rx="12" fill="#FFFFFF" stroke="#E4E3DD" stroke-width="1"/>
+    <text x="138" y="238" font-size="11" fill="#6B7280">第3层 · 异动群</text>
+    <text x="138" y="262" font-size="19" font-weight="600" fill="#1A1B1C">23<tspan font-size="11" font-weight="400" fill="#6B7280"> 个</tspan></text>
+    <text x="138" y="279" font-size="10.5" fill="#6B7280">同链/同题材≥2只 · 5分钟窗</text>
+    <rect x="120" y="326" width="250" height="64" rx="12" fill="#FFFFFF" stroke="#E4E3DD" stroke-width="1"/>
+    <text x="138" y="342" font-size="11" fill="#6B7280">第4层 · 候选池</text>
+    <text x="138" y="366" font-size="19" font-weight="600" fill="#1A1B1C">395<tspan font-size="11" font-weight="400" fill="#6B7280"> 只</tspan></text>
+    <text x="138" y="383" font-size="10.5" fill="#6B7280">群内非首发（MA20已前置）</text>
+    <rect x="560" y="222" width="250" height="64" rx="12" fill="#F0F3FC" stroke="#C3CCF2" stroke-width="1"/>
+    <text x="578" y="238" font-size="11" fill="#6B7280">联动表（集群级）</text>
+    <text x="578" y="262" font-size="19" font-weight="600" fill="#1A1B1C">20<tspan font-size="11" font-weight="400" fill="#6B7280"> 群（上限20）</tspan></text>
+    <text x="578" y="279" font-size="10.5" fill="#6B7280">全部异动群 · 群内剔6元/ST</text>
+    <rect x="560" y="306" width="250" height="64" rx="12" fill="#EEF7FC" stroke="#B7DDF2" stroke-width="1"/>
+    <text x="578" y="322" font-size="11" fill="#6B7280">盘中机会（个股级）</text>
+    <text x="578" y="346" font-size="19" font-weight="600" fill="#1A1B1C">50<tspan font-size="11" font-weight="400" fill="#6B7280"> 条（上限50）</tspan></text>
+    <text x="578" y="363" font-size="10.5" fill="#6B7280">排除失效/已启动 · 状态排序</text>
+    <rect x="560" y="386" width="250" height="64" rx="12" fill="#EFF9F6" stroke="#BDE7DA" stroke-width="1"/>
+    <text x="578" y="402" font-size="11" fill="#6B7280">金铲子（机会子集）</text>
+    <text x="578" y="426" font-size="19" font-weight="600" fill="#1A1B1C">89<tspan font-size="11" font-weight="400" fill="#6B7280"> 条（无上限）</tspan></text>
+    <text x="578" y="443" font-size="10.5" fill="#6B7280">状态白名单 · +基准阳跟踪</text>
+    <path d="M245,78 L245,118" stroke="#B9B9B3" stroke-width="1.6" marker-end="url(#ah)"/>
+    <path d="M245,182 L245,222" stroke="#B9B9B3" stroke-width="1.6" marker-end="url(#ah)"/>
+    <path d="M245,286 L245,326" stroke="#B9B9B3" stroke-width="1.6" marker-end="url(#ah)"/>
+    <path d="M370,254 L560,254" stroke="#B9B9B3" stroke-width="1.6" marker-end="url(#ah)"/>
+    <path d="M370,352 L465,352 L465,338 L560,338" stroke="#B9B9B3" stroke-width="1.6" fill="none" marker-end="url(#ah)"/>
+    <path d="M370,366 L465,366 L465,418 L560,418" stroke="#B9B9B3" stroke-width="1.6" fill="none" marker-end="url(#ah)"/>
+    <text x="120" y="478" font-size="10.5" fill="#6B7280">箭头 = 数据流向；联动表 ← 异动群，盘中机会/金铲子 ← 候选池</text>
+    <text x="120" y="494" font-size="10.5" fill="#6B7280">金铲子 = 盘中机会 的有效状态子集（排除失效/已启动），不截断</text>
+    <text x="120" y="510" font-size="10.5" fill="#C04547">第1层 MA20 过滤：全市场 3025 只均线由一条SQL算出（0.06秒），剔除 1484 只</text>
+  </svg>
+</div>
+</html>

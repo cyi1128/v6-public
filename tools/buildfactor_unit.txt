@@ -1,0 +1,70 @@
+====================================================================================================
+V20 建仓因子单元测试 + C1~C5 回归
+====================================================================================================
+
+[A] 数据不足与异常输入（必须不抛异常、给中性值）
+  [PASS] stack  None -> ok=False score=0 
+  [PASS] redfat None -> ok=False score=0 
+  [PASS] stack  空 df -> ok=False score=0 
+  [PASS] redfat 空 df -> ok=False score=0 
+  [PASS] stack  10 行（<60） -> ok=False score=0 
+  [PASS] redfat 10 行（<60） -> ok=False score=0 
+  [PASS] stack  30 行 -> ok=False score=0 
+  [PASS] redfat 30 行 -> ok=False score=0 
+  [PASS] stack  40 行 -> ok=False score=0 
+  [PASS] redfat 40 行 -> ok=False score=0 
+  [PASS] 缺 volume 列 -> ok=False 
+  [PASS] 缺 close 列 -> ok=False 
+  [PASS] redfat 缺 volume -> ok=False 
+  [PASS] volume 含 NaN -> 不抛异常 
+
+[B] 底部堆量：明显 / 不明显
+  [PASS] 明显堆量 ok=True ratio=2.00 cont=1.00 pos=0.019 score=95.6
+  [PASS] 明显堆量 ratio≈2.0 ratio=2.000
+  [PASS] 明显堆量 cont=1.0 
+  [PASS] 无明显堆量 ok=False（ratio<1.15） ratio=1.000
+  [PASS] 单日爆量 cont 不足 -> ok=False ratio=1.80 cont=0.10
+  [PASS] 堆量但位置高 -> ok=False pos120=0.981
+  [PASS] 堆量过头 ratio>3.5 -> ok=False ratio=4.00
+
+[C] 红肥绿瘦 vs 红瘦绿肥
+  [PASS] 明显红肥绿瘦 ok=True ratio=2.50 up=8 dn=8 score=60.0
+  [PASS] 明显红肥绿瘦 ratio≈2.5 ratio=2.500
+  [PASS] 红瘦绿肥 ok=False ratio=0.400
+  [PASS] 红瘦绿肥 score=0（不为负） score=0.0
+  [PASS] 临界 ratio=1.1 < 1.30 -> ok=False ratio=1.100
+
+[D] 只有上涨日 / 只有下跌日（缺失一侧不默认通过）
+  [PASS] 纯上涨 dn<3 -> ok=False up=0 dn=0
+  [PASS] 纯下跌 up<3 -> ok=False up=0 dn=0
+
+[E] 无未来数据：把 T 之后的行改掉，T 时点的结果必须不变
+  [PASS] stack 截断到 T 的结果不受 T 之后影响 True
+  [PASS] redfat 截断到 T 的结果不受 T 之后影响 
+
+[F] C1~C5 回归：_ctrl_note(ctrl, stage, pos) 三参数行为（7 张个股列表走这条路）
+  当前阈值: _CTRL_HIGH=85 _CTRL_CAND_POS=0.25 _CTRL_DIST_POS=0.65 _BUILD_NOTE_MODE=off
+  [PASS] _ctrl_note(95,wash,0.1) -> '高度控盘候选'
+  [PASS] _ctrl_note(95,wash,0.9) -> ''
+  [PASS] _ctrl_note(95,distribute,0.7) -> '出货风险警示'
+  [PASS] _ctrl_note(95,distribute,0.3) -> ''
+  [PASS] _ctrl_note(95,distribute,0.2) -> '高度控盘候选'
+  [PASS] _ctrl_note(95,unknown,0.1) -> '高度控盘候选'
+  [PASS] _ctrl_note(95,unknown,0.5) -> ''
+  [PASS] _ctrl_note(70,wash,0.1) -> ''
+  [PASS] _ctrl_note(90,distribute,0.65) -> '出货风险警示'
+  [PASS] _ctrl_note(95,distribute,None) -> ''
+  [PASS] _ctrl_note(0,unknown,None) -> ''
+  [PASS] _ctrl_note 传 None pos 不抛异常 
+
+[G] 开关默认 off：即使传入因子分也不产生建仓文案
+  [PASS] 默认 mode=off mode=off
+  [PASS] off 时四参数 == 三参数 -> '高度控盘候选'
+  [PASS] mode='buy' 能出三条建仓文案 -> '高度控盘候选 ｜ 疑似底部堆量 ｜ 红肥绿瘦建仓特征 ｜ 建仓加强'
+  [PASS] mode='buy' 位置高时不出「建仓加强」 -> '疑似底部堆量 ｜ 红肥绿瘦建仓特征'
+  [PASS] mode='warn' 出「过热」文案 -> '高度控盘候选 ｜ 堆量过热 + 红肥绿瘦，历史同形态偏弱'
+  [PASS] mode='warn' 因子不满足时不出 -> '高度控盘候选'
+
+====================================================================================================
+结果: 48 项通过 / 0 项失败
+====================================================================================================

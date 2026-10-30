@@ -1,0 +1,1130 @@
+{
+  "analysis_time": "2026-08-22 18:32:29",
+  "sample_size": 800,
+  "total_signals": 21563,
+  "duration_sec": 324.9,
+  "factor_stats": {
+    "横盘筑底": {
+      "present_count": 16673,
+      "absent_count": 4890,
+      "present": {
+        "3": {
+          "count": 16673,
+          "avg": 0.15,
+          "win_rate": 47.7,
+          "mdd": -2.95,
+          "pl_ratio": 1.2
+        },
+        "5": {
+          "count": 16673,
+          "avg": 0.21,
+          "win_rate": 48.2,
+          "mdd": -3.91,
+          "pl_ratio": 1.18
+        },
+        "10": {
+          "count": 16673,
+          "avg": 0.31,
+          "win_rate": 46.5,
+          "mdd": -5.71,
+          "pl_ratio": 1.27
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 4890,
+          "avg": 0.22,
+          "win_rate": 47.4,
+          "mdd": -5.68,
+          "pl_ratio": 1.19
+        },
+        "5": {
+          "count": 4890,
+          "avg": 0.08,
+          "win_rate": 46.6,
+          "mdd": -7.43,
+          "pl_ratio": 1.17
+        },
+        "10": {
+          "count": 4890,
+          "avg": -0.01,
+          "win_rate": 44.2,
+          "mdd": -10.43,
+          "pl_ratio": 1.26
+        }
+      },
+      "excess_5d": 0.13,
+      "win_diff_5d": 1.6,
+      "effectiveness": 0.06
+    },
+    "破位十字星": {
+      "present_count": 13934,
+      "absent_count": 7629,
+      "present": {
+        "3": {
+          "count": 13934,
+          "avg": 0.16,
+          "win_rate": 48.3,
+          "mdd": -2.87,
+          "pl_ratio": 1.19
+        },
+        "5": {
+          "count": 13934,
+          "avg": 0.25,
+          "win_rate": 48.9,
+          "mdd": -3.81,
+          "pl_ratio": 1.17
+        },
+        "10": {
+          "count": 13934,
+          "avg": 0.37,
+          "win_rate": 46.9,
+          "mdd": -5.55,
+          "pl_ratio": 1.27
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 7629,
+          "avg": 0.17,
+          "win_rate": 46.4,
+          "mdd": -4.84,
+          "pl_ratio": 1.23
+        },
+        "5": {
+          "count": 7629,
+          "avg": 0.04,
+          "win_rate": 45.8,
+          "mdd": -6.36,
+          "pl_ratio": 1.2
+        },
+        "10": {
+          "count": 7629,
+          "avg": -0.01,
+          "win_rate": 44.2,
+          "mdd": -9.03,
+          "pl_ratio": 1.26
+        }
+      },
+      "excess_5d": 0.21,
+      "win_diff_5d": 3.1,
+      "effectiveness": 0.1
+    },
+    "假破位洗盘": {
+      "present_count": 16726,
+      "absent_count": 4837,
+      "present": {
+        "3": {
+          "count": 16726,
+          "avg": 0.25,
+          "win_rate": 48.2,
+          "mdd": -3.34,
+          "pl_ratio": 1.22
+        },
+        "5": {
+          "count": 16726,
+          "avg": 0.27,
+          "win_rate": 48.3,
+          "mdd": -4.42,
+          "pl_ratio": 1.19
+        },
+        "10": {
+          "count": 16726,
+          "avg": 0.28,
+          "win_rate": 46.4,
+          "mdd": -6.42,
+          "pl_ratio": 1.25
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 4837,
+          "avg": -0.11,
+          "win_rate": 45.5,
+          "mdd": -4.35,
+          "pl_ratio": 1.14
+        },
+        "5": {
+          "count": 4837,
+          "avg": -0.14,
+          "win_rate": 46.1,
+          "mdd": -5.71,
+          "pl_ratio": 1.12
+        },
+        "10": {
+          "count": 4837,
+          "avg": 0.09,
+          "win_rate": 44.7,
+          "mdd": -8.02,
+          "pl_ratio": 1.26
+        }
+      },
+      "excess_5d": 0.41,
+      "win_diff_5d": 2.2,
+      "effectiveness": 0.2
+    },
+    "缩量回调": {
+      "present_count": 4879,
+      "absent_count": 16684,
+      "present": {
+        "3": {
+          "count": 4879,
+          "avg": -0.0,
+          "win_rate": 46.2,
+          "mdd": -3.27,
+          "pl_ratio": 1.16
+        },
+        "5": {
+          "count": 4879,
+          "avg": 0.13,
+          "win_rate": 48.2,
+          "mdd": -4.27,
+          "pl_ratio": 1.13
+        },
+        "10": {
+          "count": 4879,
+          "avg": 0.32,
+          "win_rate": 46.8,
+          "mdd": -6.19,
+          "pl_ratio": 1.25
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 16684,
+          "avg": 0.21,
+          "win_rate": 48.0,
+          "mdd": -3.66,
+          "pl_ratio": 1.2
+        },
+        "5": {
+          "count": 16684,
+          "avg": 0.19,
+          "win_rate": 47.7,
+          "mdd": -4.84,
+          "pl_ratio": 1.18
+        },
+        "10": {
+          "count": 16684,
+          "avg": 0.21,
+          "win_rate": 45.7,
+          "mdd": -6.95,
+          "pl_ratio": 1.25
+        }
+      },
+      "excess_5d": -0.06,
+      "win_diff_5d": 0.5,
+      "effectiveness": -0.03
+    },
+    "长下影承接": {
+      "present_count": 6054,
+      "absent_count": 15509,
+      "present": {
+        "3": {
+          "count": 6054,
+          "avg": 0.03,
+          "win_rate": 46.6,
+          "mdd": -3.37,
+          "pl_ratio": 1.17
+        },
+        "5": {
+          "count": 6054,
+          "avg": 0.01,
+          "win_rate": 47.4,
+          "mdd": -4.49,
+          "pl_ratio": 1.11
+        },
+        "10": {
+          "count": 6054,
+          "avg": 0.09,
+          "win_rate": 45.7,
+          "mdd": -6.46,
+          "pl_ratio": 1.21
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 15509,
+          "avg": 0.22,
+          "win_rate": 48.0,
+          "mdd": -3.65,
+          "pl_ratio": 1.2
+        },
+        "5": {
+          "count": 15509,
+          "avg": 0.24,
+          "win_rate": 47.9,
+          "mdd": -4.8,
+          "pl_ratio": 1.18
+        },
+        "10": {
+          "count": 15509,
+          "avg": 0.3,
+          "win_rate": 46.1,
+          "mdd": -6.91,
+          "pl_ratio": 1.26
+        }
+      },
+      "excess_5d": -0.23,
+      "win_diff_5d": -0.5,
+      "effectiveness": -0.11
+    },
+    "涨停二次启动": {
+      "present_count": 4270,
+      "absent_count": 17293,
+      "present": {
+        "3": {
+          "count": 4270,
+          "avg": 0.23,
+          "win_rate": 47.2,
+          "mdd": -4.9,
+          "pl_ratio": 1.21
+        },
+        "5": {
+          "count": 4270,
+          "avg": 0.35,
+          "win_rate": 47.2,
+          "mdd": -6.41,
+          "pl_ratio": 1.23
+        },
+        "10": {
+          "count": 4270,
+          "avg": 0.44,
+          "win_rate": 44.8,
+          "mdd": -9.11,
+          "pl_ratio": 1.33
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 17293,
+          "avg": 0.15,
+          "win_rate": 47.7,
+          "mdd": -3.24,
+          "pl_ratio": 1.19
+        },
+        "5": {
+          "count": 17293,
+          "avg": 0.14,
+          "win_rate": 47.9,
+          "mdd": -4.29,
+          "pl_ratio": 1.15
+        },
+        "10": {
+          "count": 17293,
+          "avg": 0.19,
+          "win_rate": 46.3,
+          "mdd": -6.21,
+          "pl_ratio": 1.23
+        }
+      },
+      "excess_5d": 0.21,
+      "win_diff_5d": -0.7,
+      "effectiveness": 0.1
+    },
+    "锐角整理": {
+      "present_count": 5801,
+      "absent_count": 15762,
+      "present": {
+        "3": {
+          "count": 5801,
+          "avg": 0.19,
+          "win_rate": 46.7,
+          "mdd": -3.4,
+          "pl_ratio": 1.26
+        },
+        "5": {
+          "count": 5801,
+          "avg": 0.23,
+          "win_rate": 47.6,
+          "mdd": -4.49,
+          "pl_ratio": 1.2
+        },
+        "10": {
+          "count": 5801,
+          "avg": 0.04,
+          "win_rate": 45.1,
+          "mdd": -6.64,
+          "pl_ratio": 1.23
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 15762,
+          "avg": 0.16,
+          "win_rate": 47.9,
+          "mdd": -3.63,
+          "pl_ratio": 1.17
+        },
+        "5": {
+          "count": 15762,
+          "avg": 0.16,
+          "win_rate": 47.8,
+          "mdd": -4.79,
+          "pl_ratio": 1.16
+        },
+        "10": {
+          "count": 15762,
+          "avg": 0.31,
+          "win_rate": 46.3,
+          "mdd": -6.83,
+          "pl_ratio": 1.26
+        }
+      },
+      "excess_5d": 0.07,
+      "win_diff_5d": -0.2,
+      "effectiveness": 0.03
+    },
+    "一阳穿均线": {
+      "present_count": 3730,
+      "absent_count": 17833,
+      "present": {
+        "3": {
+          "count": 3730,
+          "avg": 0.28,
+          "win_rate": 49.6,
+          "mdd": -3.43,
+          "pl_ratio": 1.17
+        },
+        "5": {
+          "count": 3730,
+          "avg": 0.31,
+          "win_rate": 49.4,
+          "mdd": -4.58,
+          "pl_ratio": 1.15
+        },
+        "10": {
+          "count": 3730,
+          "avg": 0.47,
+          "win_rate": 47.1,
+          "mdd": -6.61,
+          "pl_ratio": 1.27
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 17833,
+          "avg": 0.14,
+          "win_rate": 47.2,
+          "mdd": -3.6,
+          "pl_ratio": 1.2
+        },
+        "5": {
+          "count": 17833,
+          "avg": 0.15,
+          "win_rate": 47.5,
+          "mdd": -4.74,
+          "pl_ratio": 1.17
+        },
+        "10": {
+          "count": 17833,
+          "avg": 0.19,
+          "win_rate": 45.8,
+          "mdd": -6.82,
+          "pl_ratio": 1.24
+        }
+      },
+      "excess_5d": 0.16,
+      "win_diff_5d": 1.9,
+      "effectiveness": 0.08
+    },
+    "MACD趋势": {
+      "present_count": 21296,
+      "absent_count": 267,
+      "present": {
+        "3": {
+          "count": 21296,
+          "avg": 0.17,
+          "win_rate": 47.6,
+          "mdd": -3.57,
+          "pl_ratio": 1.19
+        },
+        "5": {
+          "count": 21296,
+          "avg": 0.18,
+          "win_rate": 47.8,
+          "mdd": -4.72,
+          "pl_ratio": 1.17
+        },
+        "10": {
+          "count": 21296,
+          "avg": 0.25,
+          "win_rate": 46.0,
+          "mdd": -6.79,
+          "pl_ratio": 1.25
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 267,
+          "avg": -0.3,
+          "win_rate": 43.4,
+          "mdd": -3.33,
+          "pl_ratio": 1.08
+        },
+        "5": {
+          "count": 267,
+          "avg": 0.25,
+          "win_rate": 48.7,
+          "mdd": -4.28,
+          "pl_ratio": 1.17
+        },
+        "10": {
+          "count": 267,
+          "avg": -0.45,
+          "win_rate": 43.1,
+          "mdd": -6.19,
+          "pl_ratio": 1.16
+        }
+      },
+      "excess_5d": -0.07,
+      "win_diff_5d": -0.9,
+      "effectiveness": -0.03
+    },
+    "均线结构": {
+      "present_count": 21424,
+      "absent_count": 139,
+      "present": {
+        "3": {
+          "count": 21424,
+          "avg": 0.17,
+          "win_rate": 47.6,
+          "mdd": -3.56,
+          "pl_ratio": 1.2
+        },
+        "5": {
+          "count": 21424,
+          "avg": 0.19,
+          "win_rate": 47.8,
+          "mdd": -4.7,
+          "pl_ratio": 1.17
+        },
+        "10": {
+          "count": 21424,
+          "avg": 0.24,
+          "win_rate": 46.0,
+          "mdd": -6.77,
+          "pl_ratio": 1.25
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 139,
+          "avg": -1.03,
+          "win_rate": 41.7,
+          "mdd": -5.17,
+          "pl_ratio": 0.92
+        },
+        "5": {
+          "count": 139,
+          "avg": -1.08,
+          "win_rate": 43.9,
+          "mdd": -6.69,
+          "pl_ratio": 0.94
+        },
+        "10": {
+          "count": 139,
+          "avg": -0.47,
+          "win_rate": 43.9,
+          "mdd": -9.2,
+          "pl_ratio": 1.17
+        }
+      },
+      "excess_5d": 1.27,
+      "win_diff_5d": 3.9,
+      "effectiveness": 0.61
+    },
+    "KDJ位置": {
+      "present_count": 17119,
+      "absent_count": 4444,
+      "present": {
+        "3": {
+          "count": 17119,
+          "avg": 0.21,
+          "win_rate": 48.2,
+          "mdd": -3.42,
+          "pl_ratio": 1.2
+        },
+        "5": {
+          "count": 17119,
+          "avg": 0.27,
+          "win_rate": 48.5,
+          "mdd": -4.51,
+          "pl_ratio": 1.18
+        },
+        "10": {
+          "count": 17119,
+          "avg": 0.31,
+          "win_rate": 46.1,
+          "mdd": -6.55,
+          "pl_ratio": 1.27
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 4444,
+          "avg": -0.02,
+          "win_rate": 45.1,
+          "mdd": -4.13,
+          "pl_ratio": 1.21
+        },
+        "5": {
+          "count": 4444,
+          "avg": -0.19,
+          "win_rate": 45.0,
+          "mdd": -5.47,
+          "pl_ratio": 1.15
+        },
+        "10": {
+          "count": 4444,
+          "avg": -0.02,
+          "win_rate": 45.5,
+          "mdd": -7.67,
+          "pl_ratio": 1.19
+        }
+      },
+      "excess_5d": 0.46,
+      "win_diff_5d": 3.5,
+      "effectiveness": 0.22
+    },
+    "三红两绿量能": {
+      "present_count": 8308,
+      "absent_count": 13255,
+      "present": {
+        "3": {
+          "count": 8308,
+          "avg": 0.16,
+          "win_rate": 47.0,
+          "mdd": -3.81,
+          "pl_ratio": 1.21
+        },
+        "5": {
+          "count": 8308,
+          "avg": 0.08,
+          "win_rate": 46.3,
+          "mdd": -5.02,
+          "pl_ratio": 1.19
+        },
+        "10": {
+          "count": 8308,
+          "avg": 0.19,
+          "win_rate": 45.4,
+          "mdd": -7.07,
+          "pl_ratio": 1.26
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 13255,
+          "avg": 0.17,
+          "win_rate": 48.0,
+          "mdd": -3.42,
+          "pl_ratio": 1.18
+        },
+        "5": {
+          "count": 13255,
+          "avg": 0.24,
+          "win_rate": 48.7,
+          "mdd": -4.52,
+          "pl_ratio": 1.15
+        },
+        "10": {
+          "count": 13255,
+          "avg": 0.27,
+          "win_rate": 46.3,
+          "mdd": -6.6,
+          "pl_ratio": 1.24
+        }
+      },
+      "excess_5d": -0.16,
+      "win_diff_5d": -2.4,
+      "effectiveness": -0.07
+    },
+    "换手率": {
+      "present_count": 20887,
+      "absent_count": 676,
+      "present": {
+        "3": {
+          "count": 20887,
+          "avg": 0.16,
+          "win_rate": 47.6,
+          "mdd": -3.57,
+          "pl_ratio": 1.19
+        },
+        "5": {
+          "count": 20887,
+          "avg": 0.18,
+          "win_rate": 47.8,
+          "mdd": -4.71,
+          "pl_ratio": 1.16
+        },
+        "10": {
+          "count": 20887,
+          "avg": 0.23,
+          "win_rate": 46.0,
+          "mdd": -6.79,
+          "pl_ratio": 1.25
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 676,
+          "avg": 0.32,
+          "win_rate": 46.6,
+          "mdd": -3.52,
+          "pl_ratio": 1.34
+        },
+        "5": {
+          "count": 676,
+          "avg": 0.19,
+          "win_rate": 46.9,
+          "mdd": -4.63,
+          "pl_ratio": 1.22
+        },
+        "10": {
+          "count": 676,
+          "avg": 0.6,
+          "win_rate": 46.3,
+          "mdd": -6.53,
+          "pl_ratio": 1.37
+        }
+      },
+      "excess_5d": -0.01,
+      "win_diff_5d": 0.9,
+      "effectiveness": -0.0
+    },
+    "涨停活跃度": {
+      "present_count": 15226,
+      "absent_count": 6337,
+      "present": {
+        "3": {
+          "count": 15226,
+          "avg": 0.14,
+          "win_rate": 47.2,
+          "mdd": -4.14,
+          "pl_ratio": 1.19
+        },
+        "5": {
+          "count": 15226,
+          "avg": 0.15,
+          "win_rate": 47.4,
+          "mdd": -5.45,
+          "pl_ratio": 1.16
+        },
+        "10": {
+          "count": 15226,
+          "avg": 0.2,
+          "win_rate": 45.5,
+          "mdd": -7.81,
+          "pl_ratio": 1.25
+        }
+      },
+      "absent": {
+        "3": {
+          "count": 6337,
+          "avg": 0.21,
+          "win_rate": 48.5,
+          "mdd": -2.19,
+          "pl_ratio": 1.26
+        },
+        "5": {
+          "count": 6337,
+          "avg": 0.24,
+          "win_rate": 48.7,
+          "mdd": -2.94,
+          "pl_ratio": 1.21
+        },
+        "10": {
+          "count": 6337,
+          "avg": 0.32,
+          "win_rate": 47.2,
+          "mdd": -4.31,
+          "pl_ratio": 1.28
+        }
+      },
+      "excess_5d": -0.09,
+      "win_diff_5d": -1.3,
+      "effectiveness": -0.04
+    }
+  },
+  "stage_stats": {
+    "启动前3天": {
+      "3": {
+        "count": 8007,
+        "avg": 0.13,
+        "win_rate": 47.6,
+        "mdd": -2.91,
+        "pl_ratio": 1.19
+      },
+      "5": {
+        "count": 8007,
+        "avg": 0.24,
+        "win_rate": 48.3,
+        "mdd": -3.87,
+        "pl_ratio": 1.2
+      },
+      "10": {
+        "count": 8007,
+        "avg": 0.33,
+        "win_rate": 46.7,
+        "mdd": -5.68,
+        "pl_ratio": 1.26
+      }
+    },
+    "启动前2天": {
+      "3": {
+        "count": 1735,
+        "avg": 0.22,
+        "win_rate": 48.8,
+        "mdd": -3.19,
+        "pl_ratio": 1.19
+      },
+      "5": {
+        "count": 1735,
+        "avg": 0.29,
+        "win_rate": 50.9,
+        "mdd": -4.18,
+        "pl_ratio": 1.09
+      },
+      "10": {
+        "count": 1735,
+        "avg": 0.27,
+        "win_rate": 45.4,
+        "mdd": -6.27,
+        "pl_ratio": 1.3
+      }
+    },
+    "启动前1天": {
+      "3": {
+        "count": 7941,
+        "avg": 0.16,
+        "win_rate": 47.3,
+        "mdd": -3.6,
+        "pl_ratio": 1.2
+      },
+      "5": {
+        "count": 7941,
+        "avg": 0.12,
+        "win_rate": 47.0,
+        "mdd": -4.79,
+        "pl_ratio": 1.17
+      },
+      "10": {
+        "count": 7941,
+        "avg": 0.2,
+        "win_rate": 46.2,
+        "mdd": -6.81,
+        "pl_ratio": 1.22
+      }
+    },
+    "观察期": {
+      "3": {
+        "count": 2510,
+        "avg": 0.23,
+        "win_rate": 47.9,
+        "mdd": -5.43,
+        "pl_ratio": 1.17
+      },
+      "5": {
+        "count": 2510,
+        "avg": 0.2,
+        "win_rate": 47.8,
+        "mdd": -7.02,
+        "pl_ratio": 1.15
+      },
+      "10": {
+        "count": 2510,
+        "avg": 0.03,
+        "win_rate": 44.4,
+        "mdd": -10.04,
+        "pl_ratio": 1.26
+      }
+    },
+    "已启动": {
+      "3": {
+        "count": 1370,
+        "avg": 0.21,
+        "win_rate": 47.1,
+        "mdd": -4.28,
+        "pl_ratio": 1.23
+      },
+      "5": {
+        "count": 1370,
+        "avg": -0.04,
+        "win_rate": 45.3,
+        "mdd": -5.58,
+        "pl_ratio": 1.19
+      },
+      "10": {
+        "count": 1370,
+        "avg": 0.29,
+        "win_rate": 43.7,
+        "mdd": -7.75,
+        "pl_ratio": 1.37
+      }
+    }
+  },
+  "bin_stats": {
+    ">=95分": {
+      "3": {
+        "count": 0,
+        "avg": 0,
+        "win_rate": 0,
+        "mdd": 0,
+        "pl_ratio": 0
+      },
+      "5": {
+        "count": 0,
+        "avg": 0,
+        "win_rate": 0,
+        "mdd": 0,
+        "pl_ratio": 0
+      },
+      "10": {
+        "count": 0,
+        "avg": 0,
+        "win_rate": 0,
+        "mdd": 0,
+        "pl_ratio": 0
+      }
+    },
+    "85-95分": {
+      "3": {
+        "count": 0,
+        "avg": 0,
+        "win_rate": 0,
+        "mdd": 0,
+        "pl_ratio": 0
+      },
+      "5": {
+        "count": 0,
+        "avg": 0,
+        "win_rate": 0,
+        "mdd": 0,
+        "pl_ratio": 0
+      },
+      "10": {
+        "count": 0,
+        "avg": 0,
+        "win_rate": 0,
+        "mdd": 0,
+        "pl_ratio": 0
+      }
+    },
+    "75-85分": {
+      "3": {
+        "count": 1,
+        "avg": -2.62,
+        "win_rate": 0.0,
+        "mdd": -4.95,
+        "pl_ratio": 0.0
+      },
+      "5": {
+        "count": 1,
+        "avg": 0.0,
+        "win_rate": 0.0,
+        "mdd": -4.95,
+        "pl_ratio": 0
+      },
+      "10": {
+        "count": 1,
+        "avg": -8.33,
+        "win_rate": 0.0,
+        "mdd": -10.81,
+        "pl_ratio": 0.0
+      }
+    },
+    "65-75分": {
+      "3": {
+        "count": 64,
+        "avg": 1.84,
+        "win_rate": 59.4,
+        "mdd": -4.01,
+        "pl_ratio": 1.35
+      },
+      "5": {
+        "count": 64,
+        "avg": 1.78,
+        "win_rate": 57.8,
+        "mdd": -5.35,
+        "pl_ratio": 1.18
+      },
+      "10": {
+        "count": 64,
+        "avg": 0.87,
+        "win_rate": 50.0,
+        "mdd": -8.07,
+        "pl_ratio": 1.17
+      }
+    },
+    "<65分": {
+      "3": {
+        "count": 21498,
+        "avg": 0.16,
+        "win_rate": 47.6,
+        "mdd": -3.57,
+        "pl_ratio": 1.19
+      },
+      "5": {
+        "count": 21498,
+        "avg": 0.17,
+        "win_rate": 47.8,
+        "mdd": -4.71,
+        "pl_ratio": 1.17
+      },
+      "10": {
+        "count": 21498,
+        "avg": 0.24,
+        "win_rate": 46.0,
+        "mdd": -6.78,
+        "pl_ratio": 1.25
+      }
+    }
+  },
+  "weight_comparison": [
+    {
+      "factor": "横盘筑底",
+      "current": 5,
+      "recommended": 4.9,
+      "diff": -0.1,
+      "excess_5d": 0.13,
+      "win_diff": 1.6
+    },
+    {
+      "factor": "破位十字星",
+      "current": 5,
+      "recommended": 8.8,
+      "diff": 3.8,
+      "excess_5d": 0.21,
+      "win_diff": 3.1
+    },
+    {
+      "factor": "假破位洗盘",
+      "current": 5,
+      "recommended": 10.7,
+      "diff": 5.7,
+      "excess_5d": 0.41,
+      "win_diff": 2.2
+    },
+    {
+      "factor": "缩量回调",
+      "current": 4,
+      "recommended": 1.7,
+      "diff": -2.3,
+      "excess_5d": -0.06,
+      "win_diff": 0.5
+    },
+    {
+      "factor": "长下影承接",
+      "current": 4,
+      "recommended": 1.7,
+      "diff": -2.3,
+      "excess_5d": -0.23,
+      "win_diff": -0.5
+    },
+    {
+      "factor": "涨停二次启动",
+      "current": 5,
+      "recommended": 2.3,
+      "diff": -2.7,
+      "excess_5d": 0.21,
+      "win_diff": -0.7
+    },
+    {
+      "factor": "锐角整理",
+      "current": 3,
+      "recommended": 0.9,
+      "diff": -2.1,
+      "excess_5d": 0.07,
+      "win_diff": -0.2
+    },
+    {
+      "factor": "一阳穿均线",
+      "current": 4,
+      "recommended": 6.0,
+      "diff": 2.0,
+      "excess_5d": 0.16,
+      "win_diff": 1.9
+    },
+    {
+      "factor": "MACD趋势",
+      "current": 10,
+      "recommended": 4.3,
+      "diff": -5.7,
+      "excess_5d": -0.07,
+      "win_diff": -0.9
+    },
+    {
+      "factor": "均线结构",
+      "current": 10,
+      "recommended": 28.2,
+      "diff": 18.2,
+      "excess_5d": 1.27,
+      "win_diff": 3.9
+    },
+    {
+      "factor": "KDJ位置",
+      "current": 5,
+      "recommended": 13.8,
+      "diff": 8.8,
+      "excess_5d": 0.46,
+      "win_diff": 3.5
+    },
+    {
+      "factor": "三红两绿量能",
+      "current": 20,
+      "recommended": 8.7,
+      "diff": -11.3,
+      "excess_5d": -0.16,
+      "win_diff": -2.4
+    },
+    {
+      "factor": "换手率",
+      "current": 5,
+      "recommended": 1.4,
+      "diff": -3.6,
+      "excess_5d": -0.01,
+      "win_diff": 0.9
+    },
+    {
+      "factor": "涨停活跃度",
+      "current": 15,
+      "recommended": 6.5,
+      "diff": -8.5,
+      "excess_5d": -0.09,
+      "win_diff": -1.3
+    }
+  ],
+  "current_weights": {
+    "横盘筑底": 5,
+    "破位十字星": 5,
+    "假破位洗盘": 5,
+    "缩量回调": 4,
+    "长下影承接": 4,
+    "涨停二次启动": 5,
+    "锐角整理": 3,
+    "一阳穿均线": 4,
+    "MACD趋势": 10,
+    "均线结构": 10,
+    "KDJ位置": 5,
+    "三红两绿量能": 20,
+    "换手率": 5,
+    "涨停活跃度": 15
+  },
+  "recommended_weights": {
+    "横盘筑底": 4.9,
+    "破位十字星": 8.8,
+    "假破位洗盘": 10.7,
+    "缩量回调": 1.7,
+    "长下影承接": 1.7,
+    "涨停二次启动": 2.3,
+    "锐角整理": 0.9,
+    "一阳穿均线": 6.0,
+    "MACD趋势": 4.3,
+    "均线结构": 28.2,
+    "KDJ位置": 13.8,
+    "三红两绿量能": 8.7,
+    "换手率": 1.4,
+    "涨停活跃度": 6.5
+  }
+}

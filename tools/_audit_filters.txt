@@ -1,0 +1,175 @@
+﻿
+### 1. 自选 / 自选评分
+   ui\watchlist_panel.py                          [CRLF 3914行]
+        · E 涨停阈值 —— 3 处
+             L192   is_limit_up = (close_p == high_p) and (pct >= 9.8)
+             L193   is_limit_down = (close_p == low_p) and (pct <= -9.8)
+             L1364  if pct >= 9.8:
+        · F 个股涨跌幅阈值 —— 10 处
+             L192   is_limit_up = (close_p == high_p) and (pct >= 9.8)
+             L193   is_limit_down = (close_p == low_p) and (pct <= -9.8)
+             L1364  if pct >= 9.8:
+             L1750  if trend == '强势' and has_buy and pct_chg < 5:
+             L1754  if has_buy and pct_chg >= 5:
+             L1762  if pct_chg <= -3:
+             L1936  if trend == '强势' and pct_chg > 0:
+             L2094  color = '#f85149' if pct_chg >= 0 else '#3fb950'
+             ...另外 2 处
+        · H 市值门槛 —— 3 处
+             L3201  if market_cap > 0:
+             L3339  if market_cap > 0:
+             L3407  if market_cap > 0:
+        · I 换手率门槛 —— 3 处
+             L3194  if turnover > 0:
+             L3318  if turnover > 0:
+             L3386  if turnover > 0:
+        · J 成交额门槛 —— 6 处
+             L3184  if amount > 0:
+             L3185  if amount >= 100000000:
+             L3307  if amount > 0:
+             L3308  if amount >= 100000000:
+             L3375  if amount > 0:
+             L3376  if amount >= 100000000:
+        · L 大盘指数 —— 1 处
+             L392   params = {'secid': '1.000001', 'fields': 'f43,f60,f170'}
+   ui\battle_widgets\watchlist_widget.py          [LF 804行]
+        · H 市值门槛 —— 1 处
+             L490   if mv > 0:
+
+### 2. 今日涨停
+   ui\battle_widgets\limit_up_widget.py           [CRLF 420行]
+        · C 板性前缀字面量 —— 2 处
+             L256   if code.startswith(('300', '301', '688', '689')):
+             L258   elif code.startswith(('8', '4', '920')):
+        · E 涨停阈值 —— 4 处
+             L257   limit_threshold = 19.5
+             L259   limit_threshold = 29.5
+             L261   limit_threshold = 9.8
+             L262   if pct < limit_threshold:
+        · H 市值门槛 —— 1 处
+             L367   set_table_item(self.table, row, COL_MV, f'{mv:.0f}亿' if mv > 0 else '--', '#000000', align=right)
+
+### 3. 竞价筛选
+   ui\battle_widgets\auction_filter_widget.py     [CRLF 1840行]
+        · A 板性白名单定义 —— 2 处
+             L64    MAIN_BOARD_PREFIXES = ('600', '601', '603', '605', '000', '001', '002', '003',
+             L85    CYB_PREFIXES = ('300', '301')
+        · B 板性判定调用 —— 8 处
+             L68    def _is_main_a_share(code: str) -> bool:
+             L94    def _is_cyb(code) -> bool:
+             L101   return GAP_BAND_CYB if _is_cyb(code) else GAP_BAND_MAIN
+             L106   return TURNOVER_MAX_CYB if _is_cyb(code) else TURNOVER_MAX_MAIN
+             L111   return GAP_SCORE_CYB if _is_cyb(code) else GAP_SCORE_MAIN
+             L601   if not _is_main_a_share(code):
+             L722   if not _is_main_a_share(code):
+             L1031  _cyb = _is_cyb(r.get('code'))
+        · D ST 剔除 —— 4 处
+             L75    def _is_st(name: str) -> bool:
+             L77    return ('ST' in nm) or ('退' in nm)
+             L603   if _is_st(name):
+             L724   if _is_st(name):
+        · F 个股涨跌幅阈值 —— 1 处
+             L1329  it.setForeground(QBrush(QColor(BC.RED if pct >= 0 else BC.GREEN)))
+        · I 换手率门槛 —— 2 处
+             L629   if jj_turnover < 0.5 or jj_turnover > _tmax:
+             L751   if jj_turnover < 0.5 or jj_turnover > _tmax:
+
+### 4. 竞价追踪
+   ui\battle_widgets\picks_track_widget.py        [LF 385行]
+        无命中
+   services\picks_tracking_service.py             [LF 647行]
+        · C 板性前缀字面量 —— 1 处
+             L427   if not code.startswith(('60', '00', '30')):
+
+### 5. 分时做T
+   ui\battle_widgets\atr_t_widget.py              [CRLF 2216行]
+        · A 板性白名单定义 —— 1 处
+             L89    CYB_PREFIXES = ('300', '301')
+        · B 板性判定调用 —— 2 处
+             L98    def _is_cyb(code) -> bool:
+             L105   if _is_cyb(code):
+        · D ST 剔除 —— 3 处
+             L1702  is_st = ('ST' in name.upper()) or ('退' in name)
+             L1703  if is_st:
+             L1706  action = 'ST/退市股，禁止建仓'
+        · F 个股涨跌幅阈值 —— 2 处
+             L1122  self._global_warn = (pct < -1.0)
+             L1842  warn = pct < -2.0
+        · L 大盘指数 —— 2 处
+             L1118  'secid': '1.000001', 'fields': 'f2,f3'
+             L1838  'secid': '1.000001', 'fields': 'f2,f3'
+
+### 6. 日K建仓引擎
+   services\band_pattern_engine.py                [LF 1619行]
+        · B 板性判定调用 —— 2 处
+             L112   def _is_main_a_share(code):
+             L1364  if not _is_main_a_share(code) or _is_st(name):
+        · C 板性前缀字面量 —— 1 处
+             L115   return code.startswith(('600','601','603','605','000','001','002','003',
+        · D ST 剔除 —— 3 处
+             L124   def _is_st(name):
+             L126   return 'ST' in n or '退' in n
+             L1364  if not _is_main_a_share(code) or _is_st(name):
+        · E 涨停阈值 —— 1 处
+             L141   """涨停：相对前收盘涨幅 >= 9.8%（主板 10%，留 0.2% 容差）"""
+        · F 个股涨跌幅阈值 —— 1 处
+             L959   if body < 3.0 or pct < 3.0:
+
+### 7. 基准阳跟踪
+   services\anchor_tracker.py                     [LF 479行]
+        无命中
+
+### 8. 市场节奏
+   ui\battle_widgets\market_rhythm_widget.py      [LF 662行]
+        无命中
+   services\market_rhythm_engine.py               [LF 526行]
+        · B 板性判定调用 —— 2 处
+             L104   def is_main_board(code):
+             L243   day_rows = {d: [r for r in _load_day(d) if is_main_board(r['code'])]
+        · D ST 剔除 —— 2 处
+             L62    '股权转让', '重大重组', '资产重组', '并购重组', '退市风险', '摘帽', 'ST摘帽',
+             L74    '重组', '并购', '股权转让', '股权激励', '摘帽', '退市风险',
+
+### 9. 可介入引擎
+   services\board_anomaly_engine.py               [LF 661行]
+        · C 板性前缀字面量 —— 2 处
+             L182   codes = [c for c in codes if c.startswith(('60', '00', '30'))]
+             L220   if not code.startswith(('60', '00', '30')):
+        · D ST 剔除 —— 3 处
+             L314   if 'ST' in _nm:                     # ST / *ST 剔除
+             L520   def _is_st(name):
+             L522   return 'ST' in n or '*ST' in n
+        · E 涨停阈值 —— 1 处
+             L40    'max_pct': 19.98,
+
+### 10. 异动池引擎
+   services\intraday_opportunity_engine.py        [LF 2029行]
+        · A 板性白名单定义 —— 1 处
+             L45    MAIN_PREFIX = ('600', '601', '603', '605', '000', '001', '002', '003',
+        · D ST 剔除 —— 15 处
+             L155   self._st_codes = set()               # [NEW] ST/退市股代码（跨轮累积）
+             L553   """拉全市场行情（只主板；剔除 6 元以下 + ST/退市）。
+             L606   if self._is_st_name(name):
+             L668   if self._is_st_name(name):
+             L1735  def _is_st_name(name):
+             L1736  """名称含 ST / 退 视为风险警示股（*ST、ST、退市整理都覆盖）。"""
+             L1738  return ('ST' in n) or ('退' in n)
+             L1740  def _is_st(self, code):
+             ...另外 7 处
+        · F 个股涨跌幅阈值 —— 2 处
+             L1471  if pct is not None and pct >= 5:
+             L1473  elif pct is not None and pct >= 3:
+
+### 11. 涨停原因采集/查询
+   services\limit_up_collector.py                 [LF 369行]
+        无命中
+   data\limit_up_reason_db.py                     [LF 151行]
+        无命中
+
+### 12. 控盘度
+   services\control_profile.py                    [CRLF 157行]
+        无命中
+
+### 13. K线缓存
+   services\kline_cache_service.py                [LF 350行]
+        无命中

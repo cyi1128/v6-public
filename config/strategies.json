@@ -1,0 +1,184 @@
+[
+  {
+    "id": "trend_breakout",
+    "name": "趋势突破池",
+    "description": "价格在8个月高点85%-130%区间 | 主板非ST | 市值>30亿且≤230亿 | 年涨停≥3次 | 前一天未涨停 | 排除地产/农业/酒/保险",
+    "conditions": {
+      "main_board_only": true,
+      "exclude_st": true,
+      "price_range": [
+        5,
+        60
+      ],
+      "market_cap_range": [
+        30,
+        230
+      ],
+      "limit_up_count_min": 3,
+      "no_limit_up_yesterday": true,
+      "high_ratio_range": [
+        0.85,
+        1.3
+      ],
+      "high_period_days": 160,
+      "exclude_industries": [
+        "地产",
+        "农业",
+        "酒",
+        "保险"
+      ],
+      "turnover_range": [
+        0,
+        100
+      ],
+      "volume_ratio_min": 0
+    }
+  },
+  {
+    "id": "strong_breakout",
+    "name": "强势突破池",
+    "description": "15日内连续4天站稳20日线 | 放量突破(>120日均量,换手>7%) | 7日内涨停或大涨 | 主板非ST",
+    "conditions": {
+      "main_board_only": true,
+      "exclude_st": true,
+      "price_range": [
+        5,
+        60
+      ],
+      "market_cap_range": [
+        20,
+        500
+      ],
+      "limit_up_count_min": 1,
+      "ma20_above_days": 4,
+      "lookback_days": 15,
+      "volume_ratio_min": 1.5,
+      "turnover_range": [
+        7,
+        100
+      ],
+      "exclude_industries": []
+    }
+  },
+  {
+    "id": "steady_pullback",
+    "name": "稳健低吸池",
+    "description": "主板非ST | 近2日涨幅<7%且当日<3% | 振幅<5% | 换手1%-7% | RSI 30-70 | 按量比降序",
+    "conditions": {
+      "main_board_only": true,
+      "exclude_st": true,
+      "price_range": [
+        5,
+        60
+      ],
+      "market_cap_range": [
+        30,
+        500
+      ],
+      "turnover_range": [
+        1,
+        7
+      ],
+      "amplitude_max": 5,
+      "rsi_range": [
+        30,
+        70
+      ],
+      "pct_chg_2d_max": 7,
+      "pct_chg_today_max": 3,
+      "exclude_industries": []
+    }
+  },
+  {
+    "id": "custom_3_1786977337",
+    "name": "趋势突破池",
+    "description": "年涨停≥1次",
+    "conditions": {
+      "main_board_only": false,
+      "exclude_st": false,
+      "price_range": [
+        0,
+        999
+      ],
+      "market_cap_range": [
+        0,
+        9999
+      ],
+      "limit_up_count_min": 1,
+      "turnover_range": [
+        0,
+        100
+      ],
+      "volume_ratio_min": 0,
+      "amplitude_max": 100,
+      "pct_chg_range": [
+        -99,
+        99
+      ],
+      "exclude_industries": [],
+      "high_ratio_range": [
+        0,
+        99
+      ],
+      "high_period_days": 160,
+      "no_limit_up_yesterday": false,
+      "ma_bullish": false,
+      "ma5_cross_ma9": false,
+      "macd_golden_cross": false,
+      "macd_dead_cross": false,
+      "kdj_j_range": [
+        -100,
+        200
+      ],
+      "volume_breakout": 0,
+      "consecutive_up_days": 0
+    }
+  },
+  {
+    "id": "custom_5_1786985358",
+    "name": "自测2",
+    "description": "主板 | 非ST | 排除S",
+    "conditions": {
+      "main_board_only": true,
+      "exclude_st": true,
+      "price_range": [
+        0,
+        999
+      ],
+      "market_cap_range": [
+        0,
+        9999
+      ],
+      "limit_up_count_min": 0,
+      "turnover_range": [
+        0,
+        100
+      ],
+      "volume_ratio_min": 0,
+      "amplitude_max": 100,
+      "pct_chg_range": [
+        -99,
+        99
+      ],
+      "exclude_industries": [
+        "S"
+      ],
+      "high_ratio_range": [
+        0,
+        99
+      ],
+      "high_period_days": 160,
+      "no_limit_up_yesterday": false,
+      "ma_bullish": false,
+      "ma5_cross_ma9": false,
+      "macd_golden_cross": false,
+      "macd_dead_cross": false,
+      "kdj_j_range": [
+        -100,
+        200
+      ],
+      "volume_breakout": 0,
+      "consecutive_up_days": 0
+    }
+  }
+]

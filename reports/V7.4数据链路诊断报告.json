@@ -1,0 +1,273 @@
+{
+  "diagnosis_time": "2026-08-23 17:27:36",
+  "funnel": {
+    "total_codes": 2232,
+    "sample_size": 200,
+    "kline_success": 200,
+    "kline_ge_250": 199,
+    "kline_ge_100": 200,
+    "indicator_success": 198,
+    "ma_valid": 198,
+    "macd_valid": 198,
+    "kdj_valid": 198,
+    "volume_valid": 198,
+    "close_valid": 198,
+    "high_valid": 198,
+    "low_valid": 198,
+    "conditions_generated": 198,
+    "final_candidates_ge40": 26,
+    "final_candidates_ge50": 5
+  },
+  "kline_check": [
+    {
+      "code": "603182",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 13.2,
+      "latest_volume": 4104600.0
+    },
+    {
+      "code": "601611",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 10.72,
+      "latest_volume": 21799048.0
+    },
+    {
+      "code": "001313",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 7.91,
+      "latest_volume": 14971100.0
+    },
+    {
+      "code": "600116",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 6.31,
+      "latest_volume": 13937200.0
+    },
+    {
+      "code": "600726",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 5.65,
+      "latest_volume": 98378192.0
+    },
+    {
+      "code": "600756",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 14.42,
+      "latest_volume": 14160199.0
+    },
+    {
+      "code": "000700",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 10.75,
+      "latest_volume": 39553324.0
+    },
+    {
+      "code": "000995",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 10.58,
+      "latest_volume": 6239100.0
+    },
+    {
+      "code": "603337",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 37.5,
+      "latest_volume": 4455326.0
+    },
+    {
+      "code": "000559",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 10.88,
+      "latest_volume": 29715584.0
+    },
+    {
+      "code": "605399",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 10.67,
+      "latest_volume": 2479330.0
+    },
+    {
+      "code": "603341",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 36.6,
+      "latest_volume": 7890872.0
+    },
+    {
+      "code": "603128",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 5.36,
+      "latest_volume": 7176620.0
+    },
+    {
+      "code": "600661",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 8.79,
+      "latest_volume": 7084500.0
+    },
+    {
+      "code": "600729",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 19.45,
+      "latest_volume": 3479500.0
+    },
+    {
+      "code": "601811",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 12.04,
+      "latest_volume": 1586100.0
+    },
+    {
+      "code": "603139",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 35.38,
+      "latest_volume": 1208600.0
+    },
+    {
+      "code": "000998",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 8.84,
+      "latest_volume": 96099200.0
+    },
+    {
+      "code": "603317",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 14.66,
+      "latest_volume": 9277793.0
+    },
+    {
+      "code": "603988",
+      "latest_date": "20260820",
+      "kline_count": 5,
+      "latest_close": 21.2,
+      "latest_volume": 6445800.0
+    }
+  ],
+  "field_check": {
+    "required_fields": [
+      "close",
+      "volume",
+      "high",
+      "low",
+      "open"
+    ],
+    "optional_fields": [
+      "turnover",
+      "amount",
+      "ma5",
+      "ma10",
+      "ma20",
+      "macd",
+      "kdj"
+    ],
+    "missing_fields": [],
+    "null_fields": [],
+    "zero_volume_count": 0,
+    "zero_close_count": 0
+  },
+  "data_source": {
+    "engine_type": "TdxDataEngine",
+    "tdx_data_dir": "未知",
+    "data_source": "通达信本地.day文件",
+    "cache_used": false,
+    "cache_files": [
+      "ai_case_library.duckdb",
+      "industry_cache.json",
+      "kline_cache.duckdb",
+      "kline_cache.duckdb.wal",
+      "kline_cache_20260820_210408.duckdb",
+      "kline_cache_20260820_210408.duckdb.wal",
+      "kline_cache_20260822_133611.duckdb",
+      "kline_cache_20260822_133611.duckdb.wal",
+      "nine_filter_scan_cache.json",
+      "quote_cache",
+      "score_cache",
+      "stock_names.json",
+      "v74_optimization.db",
+      "v74_signals.db",
+      "v7516_scan_results.pkl"
+    ]
+  },
+  "cache_check": {},
+  "conclusion": "数据链路正常",
+  "issues": [],
+  "reload_check": [
+    {
+      "code": "603182",
+      "success": true,
+      "kline_count": 350,
+      "latest_date": "20260820"
+    },
+    {
+      "code": "601611",
+      "success": true,
+      "kline_count": 350,
+      "latest_date": "20260820"
+    },
+    {
+      "code": "001313",
+      "success": true,
+      "kline_count": 350,
+      "latest_date": "20260820"
+    },
+    {
+      "code": "600116",
+      "success": true,
+      "kline_count": 350,
+      "latest_date": "20260820"
+    },
+    {
+      "code": "600726",
+      "success": true,
+      "kline_count": 350,
+      "latest_date": "20260820"
+    },
+    {
+      "code": "600756",
+      "success": true,
+      "kline_count": 350,
+      "latest_date": "20260820"
+    },
+    {
+      "code": "000700",
+      "success": true,
+      "kline_count": 350,
+      "latest_date": "20260820"
+    },
+    {
+      "code": "000995",
+      "success": true,
+      "kline_count": 350,
+      "latest_date": "20260820"
+    },
+    {
+      "code": "603337",
+      "success": true,
+      "kline_count": 350,
+      "latest_date": "20260820"
+    },
+    {
+      "code": "000559",
+      "success": true,
+      "kline_count": 350,
+      "latest_date": "20260820"
+    }
+  ]
+}

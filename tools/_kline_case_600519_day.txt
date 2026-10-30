@@ -1,0 +1,4 @@
+case=600519/day provider_ok=True bars=269
+set_kline_data 返回（无异常）
+JS → {"candles":269,"xaxis":269,"last":"2026-10-09","luPct":9.8}
+END

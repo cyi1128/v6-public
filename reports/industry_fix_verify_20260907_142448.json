@@ -1,0 +1,199 @@
+{
+  "timestamp": "2026-09-07 14:24:48",
+  "total": 38,
+  "passed": 37,
+  "failed": 1,
+  "pass_rate": "97.4%",
+  "details": [
+    {
+      "name": "全量映射表-行业名称",
+      "passed": true,
+      "detail": "5211只全部标准"
+    },
+    {
+      "name": "全量映射表-覆盖数量",
+      "passed": true,
+      "detail": "5211只"
+    },
+    {
+      "name": "关键股票-洪通燃气",
+      "passed": true,
+      "detail": "公用事业 (期望公用事业)"
+    },
+    {
+      "name": "关键股票-冰轮环境",
+      "passed": true,
+      "detail": "机械设备 (期望机械设备)"
+    },
+    {
+      "name": "关键股票-平安银行",
+      "passed": true,
+      "detail": "银行 (期望银行)"
+    },
+    {
+      "name": "抽样-中国建筑",
+      "passed": true,
+      "detail": "建筑装饰 (期望建筑装饰)"
+    },
+    {
+      "name": "抽样-平安银行",
+      "passed": true,
+      "detail": "银行 (期望银行)"
+    },
+    {
+      "name": "抽样-招商银行",
+      "passed": true,
+      "detail": "银行 (期望银行)"
+    },
+    {
+      "name": "抽样-海螺水泥",
+      "passed": true,
+      "detail": "建筑材料 (期望建筑材料)"
+    },
+    {
+      "name": "抽样-中国平安",
+      "passed": true,
+      "detail": "非银金融 (期望非银金融)"
+    },
+    {
+      "name": "抽样-格力电器",
+      "passed": true,
+      "detail": "家用电器 (期望家用电器)"
+    },
+    {
+      "name": "抽样-立讯精密",
+      "passed": true,
+      "detail": "电子 (期望电子)"
+    },
+    {
+      "name": "抽样-海天味业",
+      "passed": true,
+      "detail": "食品饮料 (期望食品饮料)"
+    },
+    {
+      "name": "抽样-万科A",
+      "passed": true,
+      "detail": "房地产 (期望房地产)"
+    },
+    {
+      "name": "抽样-长江电力",
+      "passed": true,
+      "detail": "公用事业 (期望公用事业)"
+    },
+    {
+      "name": "抽样-中国石油",
+      "passed": true,
+      "detail": "石油石化 (期望石油石化)"
+    },
+    {
+      "name": "抽样-恒瑞医药",
+      "passed": true,
+      "detail": "医药生物 (期望医药生物)"
+    },
+    {
+      "name": "抽样-美的集团",
+      "passed": true,
+      "detail": "家用电器 (期望家用电器)"
+    },
+    {
+      "name": "抽样-洪通燃气",
+      "passed": true,
+      "detail": "公用事业 (期望公用事业)"
+    },
+    {
+      "name": "抽样-中国国航",
+      "passed": true,
+      "detail": "交通运输 (期望交通运输)"
+    },
+    {
+      "name": "抽样-东方财富",
+      "passed": true,
+      "detail": "非银金融 (期望非银金融)"
+    },
+    {
+      "name": "抽样-宁德时代",
+      "passed": true,
+      "detail": "电气设备 (期望电气设备)"
+    },
+    {
+      "name": "抽样-贵州茅台",
+      "passed": true,
+      "detail": "食品饮料 (期望食品饮料)"
+    },
+    {
+      "name": "抽样-隆基绿能",
+      "passed": true,
+      "detail": "电气设备 (期望电气设备)"
+    },
+    {
+      "name": "抽样-海康威视",
+      "passed": false,
+      "detail": "计算机 (期望电子)"
+    },
+    {
+      "name": "校验L1-燃气误标电子",
+      "passed": true,
+      "detail": "第一层: 公用事业类股票(洪通燃气)不得为电子，修正为公用事业"
+    },
+    {
+      "name": "校验L1-银行误标地产",
+      "passed": true,
+      "detail": "第一层: 银行类股票(招商银行)必须为银行，当前为房地产"
+    },
+    {
+      "name": "校验L1-保险误标电子",
+      "passed": true,
+      "detail": "第一层: 保险类股票(中国平安)必须为非银金融，当前为电子"
+    },
+    {
+      "name": "校验L1-正确数据通过",
+      "passed": true,
+      "detail": "校验通过"
+    },
+    {
+      "name": "校验L3-冰轮环境错配",
+      "passed": true,
+      "detail": "第三层: 历史错配清单 000811(冰轮环境) 应为机械设备，当前为食品饮料"
+    },
+    {
+      "name": "拦截-燃气误标电子",
+      "passed": true,
+      "detail": "第一层: 公用事业类股票(洪通燃气)不得为电子，修正为公用事业"
+    },
+    {
+      "name": "拦截-信号自动修正",
+      "passed": true,
+      "detail": "industry=公用事业"
+    },
+    {
+      "name": "拦截-正确信号放行",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "拦截-错误日志",
+      "passed": true,
+      "detail": "D:\\QuantMonitorV6\\logs\\industry_error_20260907.log"
+    },
+    {
+      "name": "缓存-industry_cache.json",
+      "passed": true,
+      "detail": "0条"
+    },
+    {
+      "name": "缓存-industry_cache_v2.json",
+      "passed": true,
+      "detail": "0条"
+    },
+    {
+      "name": "get_industry-洪通燃气",
+      "passed": true,
+      "detail": "公用事业(OK)"
+    },
+    {
+      "name": "get_industry-冰轮环境",
+      "passed": true,
+      "detail": "机械设备(OK)"
+    }
+  ]
+}

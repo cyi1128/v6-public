@@ -1,0 +1,59 @@
+{
+  "analysis": {
+    "total_analyzed": 80,
+    "sell_miss_count": 21,
+    "sell_miss_rate": 26.25,
+    "avg_miss_pct_5d": 10.349967984372233,
+    "avg_miss_pct_10d": 15.301541318330758,
+    "by_sell_reason": [
+      {
+        "reason": "止损-5%%",
+        "count": 1,
+        "avg_miss_5d": 7.954545454545436,
+        "avg_miss_10d": 7.954545454545436
+      },
+      {
+        "reason": "止盈+8%%",
+        "count": 7,
+        "avg_miss_5d": 16.92650191700881,
+        "avg_miss_10d": 25.667526317576968
+      },
+      {
+        "reason": "第5天收盘",
+        "count": 13,
+        "avg_miss_5d": 6.9930206767853695,
+        "avg_miss_10d": 10.2850106159509
+      }
+    ],
+    "miss_technical_features": {
+      "price_above_ma5_rate": 76.19047619047619,
+      "ma5_above_ma10_rate": 95.23809523809523,
+      "avg_return_before_sell": 3.9890476190476187,
+      "avg_hold_days": 4.0476190476190474
+    },
+    "normal_technical_features": {
+      "price_above_ma5_rate": 27.11864406779661,
+      "ma5_above_ma10_rate": 98.30508474576271,
+      "avg_return_before_sell": 1.031186440677966
+    }
+  },
+  "suggestions": [
+    {
+      "type": "ma5_protection",
+      "priority": "high",
+      "suggestion": "卖飞交易中76%在卖出时价格仍在MA5上方，趋势未破坏。建议：盈利达到+8%后不立即止盈，改用MA5保护（收盘价跌破MA5才卖出），让利润奔跑",
+      "evidence": "卖飞比例26.2%，平均卖飞幅度5日10.3%/10日15.3%"
+    },
+    {
+      "type": "trend_confirmation",
+      "priority": "medium",
+      "suggestion": "卖飞交易中95%在卖出时MA5仍在MA10上方，短期趋势向上。建议：止盈前检查MA5>MA10，若趋势确认则延长持仓或改用移动止盈"
+    },
+    {
+      "type": "take_profit_optimization",
+      "priority": "high",
+      "suggestion": "「止盈+8%%」卖出后平均继续上涨25.7%，固定止盈容易卖飞强势股。建议：将固定+8%止盈改为移动止盈（+6%启动，MA5保护）",
+      "evidence": "该原因卖飞7笔"
+    }
+  ]
+}

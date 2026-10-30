@@ -1,0 +1,36 @@
+﻿python.exe : libpng warning: iCCP: known incorrect sRGB profile
+所在位置 行:1 字符: 310
++ ... _pass.txt"; & $py -X utf8 tools\_verify_kline_code.py > "D:\QuantMoni ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (libpng warning:...ct sRGB profile:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+libpng warning: iCCP: known incorrect sRGB profile
+[ECharts] 页面加载完成: True
+[K线缓存] 300750 从本地缓存读取300条数据
+case=300750 mode=pass provider_ok=True bars=300 期望luPct=19.8
+实到方法签名: (kline_data, code='') ｜ 源文件变更时间=1791732014.7159991
+[ECharts] ========== set_kline_data被调用 ==========
+[ECharts] 数据长度: 300根
+[涨停检测] 日期: 2025-08-29, 涨幅: 10.37%, 涨停: 是
+[ECharts] 数据格式化完成，K线:300根, 成交量:300个, 涨停:1根
+[ECharts] 最后一天: 日期=2026-10-09, 开=292.0, 收=297.75
+[ECharts] 第一天: 日期=2025-07-14, 开=271.0, 收=268.5
+[ECharts] 价格范围: 257.72 ~ 468.75
+[KLINE] 开始渲染，数据量: 300根
+[KLINE] JS调用已发送
+set_kline_data 返回（无异常）
+调用后立即读: widget.current_code=''
+[KLINE] 渲染完成，结果: OK: 基础版K线更新成功: 300根
+JS → {"candles":300,"xaxis":300,"last":"2026-10-09","luPct":9.8}
+widget.current_code=''
+current_code 回填: False（mode=pass 期望 '300750'）
+END

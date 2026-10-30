@@ -1,0 +1,1373 @@
+# -*- coding: utf-8 -*-
+"""
+ATR做T助手 V4.0
+升级：信号持久化(DuckDB) + 摩擦成本过滤 + 收盘止盈止损跟踪 + 级别统计/持有时间/日期复盘
+列结构（界面8列）：股票名称|现价|做T买点|做T卖点|动能信号|风控状态|信号灯|操作建议
+计算口径：
+  空间：买点=VWAP-0.3*ATR(14)，卖点=VWAP+0.3*ATR(14)
+  动能：MACD(8,21,5)，零轴下金叉买 / 零轴上死叉卖
+  结构：支撑未破 + 日线背离 + TD九转，满足≥2项为强信号
+  风控：防飞刀(VWAP-1.5%) / 防T飞(+8%锁卖、+5%橙色) / 9:30-9:45时间过滤 / 防疲劳反向0.5%
+数据：
+  ATR/MACD/TD/支撑压力 → data/cache/kline_cache.duckdb（日线，read_only）
+  实时行情 → utils.http_market_data.get_realtime_quotes_http
+  自选股 → core.watchlist
+  信号持久化 → data/cache/signal_history.duckdb（表 signal_records）
+"""
+import os
+import time
+import threading
+import numpy as np
+from datetime import datetime, timedelta, date
+
+import duckdb
+from PyQt6.QtCore import Qt, QTimer, QDate
+from PyQt6.QtGui import QColor, QBrush
+from PyQt6.QtWidgets import (
+    QFrame, QLabel, QHBoxLayout, QVBoxLayout, QWidget,
+    QPushButton, QButtonGroup, QTableWidgetItem,
+    QDateEdit, QDoubleSpinBox,
+)
+
+from .base import (
+    BattleModuleBase, make_table, set_table_item,
+    pct_color, BC, L,
+)
+
+# ============================================================
+# 全局常量
+# ============================================================
+# 摩擦成本最低价差门槛：(卖点-买点)/买点 < 此值则不记录信号（默认0.3%）
+MIN_T_SPREAD = 0.003
+# 止盈止损触发阈值（毛涨跌幅，单位%）
+TAKE_PROFIT_PCT = 1.0
+STOP_LOSS_PCT = 1.0
+# 摩擦成本（百分比单位，用于从毛盈亏中扣除）
+FRICTION_COST_PCT = 0.3
+
+# 信号记录表格列（9列：新增"持有时间"）
+SIGNAL_COLS = ['时间', '股票', '方向', '级别', '触发价', '后续价', '盈亏%', '状态', '持有时间']
+
+# 列索引（界面仅8列；距买点%/距卖点% 仍在 _fetch_and_calc 内部计算并存入行数据，仅不渲染）
+COL_NAME, COL_PRICE, COL_BUY, COL_SELL, \
+    COL_MOMENTUM, COL_RISK, COL_SIGNAL, COL_ACTION = range(8)
+HEADER_LABELS = ['股票名称', '现价', '做T买点', '做T卖点',
+                 '动能信号', '风控状态',
+                 '信号灯', '操作建议']
+
+# 信号灯背景色
+SIGNAL_BG = {
+    'green':  '#E8F5E9',   # 浅绿
+    'yellow': '#FFF8E1',   # 浅黄
+    'red':    '#FFEBEE',   # 浅红
+    'gray':   '#F5F5F5',   # 灰
+    'orange': '#FFF3E0',   # 橙
+}
+SIGNAL_FG = {
+    'green':  '#2E7D32',
+    'yellow': '#F57F17',
+    'red':    '#C62828',
+    'gray':   '#757575',
+    'orange': '#E65100',
+}
+
+# 级别 <-> 中文标签 双向映射
+LEVEL_TO_LABEL = {'red': '🔴执行', 'yellow': '🟡准备', 'green': '🟢观察'}
+LABEL_TO_LEVEL = {v: k for k, v in LEVEL_TO_LABEL.items()}
+DIR_TO_LABEL = {'buy': '买入', 'sell': '卖出'}
+LABEL_TO_DIR = {v: k for k, v in DIR_TO_LABEL.items()}
+
+
+# ============================================================
+# DuckDB 信号持久化层
+# ============================================================
+class SignalStore:
+    """信号记录 DuckDB 持久化（每次操作短连接，避免多线程锁冲突）"""
+
+    def __init__(self, db_path):
+        self.db_path = db_path
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        self._lock = threading.Lock()
+        self._init_db()
+
+    def _connect(self):
+        # DuckDB 单文件短连接；read_only=False，自动创建
+        return duckdb.connect(self.db_path)
+
+    def _init_db(self):
+        con = self._connect()
+        try:
+            con.execute('''
+                CREATE TABLE IF NOT EXISTS signal_records (
+                    id INTEGER PRIMARY KEY,
+                    trade_date VARCHAR,
+                    time_str VARCHAR,
+                    code VARCHAR,
+                    name VARCHAR,
+                    direction VARCHAR,
+                    level VARCHAR,
+                    trigger_price FLOAT,
+                    follow_price FLOAT,
+                    pnl_pct FLOAT,
+                    status VARCHAR,
+                    hold_minutes INTEGER,
+                    buy_point FLOAT,
+                    sell_point FLOAT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            # 自增 id 序列
+            con.execute('CREATE SEQUENCE IF NOT EXISTS signal_records_id_seq START 1')
+            con.commit()
+        finally:
+            con.close()
+
+    def insert(self, rec):
+        """插入一条信号记录，返回新 id"""
+        with self._lock:
+            con = self._connect()
+            try:
+                cur = con.execute('''
+                    INSERT INTO signal_records
+                        (id, trade_date, time_str, code, name, direction, level,
+                         trigger_price, follow_price, pnl_pct, status, hold_minutes,
+                         buy_point, sell_point)
+                    VALUES (nextval('signal_records_id_seq'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    RETURNING id
+                ''', (
+                    rec['trade_date'], rec['time_str'], rec['code'], rec['name'],
+                    rec['direction'], rec['level'], rec['trigger_price'],
+                    rec['follow_price'], rec['pnl_pct'], rec['status'],
+                    rec['hold_minutes'], rec['buy_point'], rec['sell_point'],
+                ))
+                new_id = cur.fetchone()[0]
+                con.commit()
+                return int(new_id)
+            finally:
+                con.close()
+
+    def select_by_date(self, date_str):
+        """查询指定日期的全部记录，按 id 升序"""
+        with self._lock:
+            con = self._connect()
+            try:
+                rows = con.execute('''
+                    SELECT id, trade_date, time_str, code, name, direction, level,
+                           trigger_price, follow_price, pnl_pct, status, hold_minutes,
+                           buy_point, sell_point, created_at
+                    FROM signal_records
+                    WHERE trade_date = ?
+                    ORDER BY id ASC
+                ''', (date_str,)).fetchall()
+                cols = ['id', 'trade_date', 'time_str', 'code', 'name', 'direction',
+                        'level', 'trigger_price', 'follow_price', 'pnl_pct', 'status',
+                        'hold_minutes', 'buy_point', 'sell_point', 'created_at']
+                return [dict(zip(cols, r)) for r in rows]
+            finally:
+                con.close()
+
+    def update_status(self, rec_id, follow_price, pnl_pct, status, hold_minutes):
+        """更新信号状态/后续价/盈亏/持有分钟数"""
+        with self._lock:
+            con = self._connect()
+            try:
+                con.execute('''
+                    UPDATE signal_records
+                    SET follow_price = ?, pnl_pct = ?, status = ?, hold_minutes = ?
+                    WHERE id = ?
+                ''', (follow_price, pnl_pct, status, hold_minutes, rec_id))
+                con.commit()
+            finally:
+                con.close()
+
+    def last_record_by_code_on_date(self, date_str):
+        """取指定日期每只股票最后一条记录，用于重建去重状态
+        返回 dict: {code: (level_key, dir_key)}
+        """
+        with self._lock:
+            con = self._connect()
+            try:
+                rows = con.execute('''
+                    SELECT code, level, direction
+                    FROM signal_records
+                    WHERE trade_date = ?
+                    QUALIFY ROW_NUMBER() OVER (PARTITION BY code ORDER BY id DESC) = 1
+                ''', (date_str,)).fetchall()
+                result = {}
+                for code, level_label, dir_label in rows:
+                    lvl = LABEL_TO_LEVEL.get(level_label)
+                    d = LABEL_TO_DIR.get(dir_label)
+                    if lvl and d:
+                        result[code] = (lvl, d)
+                return result
+            except Exception as e:
+                # DuckDB 老版本可能不支持 QUALIFY，兜底用 Python 取最后一条
+                try:
+                    rows = con.execute('''
+                        SELECT code, level, direction, id
+                        FROM signal_records
+                        WHERE trade_date = ?
+                        ORDER BY id ASC
+                    ''', (date_str,)).fetchall()
+                    result = {}
+                    for code, level_label, dir_label, _id in rows:
+                        lvl = LABEL_TO_LEVEL.get(level_label)
+                        d = LABEL_TO_DIR.get(dir_label)
+                        if lvl and d:
+                            result[code] = (lvl, d)
+                    return result
+                except Exception as e2:
+                    print(f'[ATR做T] 重建去重状态失败: {e2}', flush=True)
+                    return {}
+            finally:
+                con.close()
+
+
+# ============================================================
+# 纯函数：技术指标计算（不依赖UI，便于单测）
+# ============================================================
+def _ema(arr, period):
+    """指数移动平均，arr为1D array，返回等长序列"""
+    if len(arr) == 0:
+        return np.array([])
+    alpha = 2.0 / (period + 1.0)
+    out = np.empty_like(arr, dtype=float)
+    out[0] = arr[0]
+    for i in range(1, len(arr)):
+        out[i] = alpha * arr[i] + (1 - alpha) * out[i - 1]
+    return out
+
+
+def calc_macd(closes, fast=8, slow=21, signal=5):
+    """返回 (dif, dea, hist) 三个等长numpy数组"""
+    closes = np.asarray(closes, dtype=float)
+    if len(closes) < slow + signal:
+        return np.array([]), np.array([]), np.array([])
+    ema_fast = _ema(closes, fast)
+    ema_slow = _ema(closes, slow)
+    dif = ema_fast - ema_slow
+    dea = _ema(dif, signal)
+    hist = (dif - dea) * 2.0
+    return dif, dea, hist
+
+
+def detect_cross(dif, dea):
+    """判断最近一根K线是否出现金叉/死叉
+    返回: 'golden_below_zero' / 'dead_above_zero' / 'golden' / 'dead' / None
+    """
+    if len(dif) < 3:
+        return None
+    d_prev, d_curr = dif[-2], dif[-1]
+    e_prev, e_curr = dea[-2], dea[-1]
+    golden = (d_prev <= e_prev) and (d_curr > e_curr)
+    dead = (d_prev >= e_prev) and (d_curr < e_curr)
+    if golden:
+        return 'golden_below_zero' if d_curr < 0 else 'golden'
+    if dead:
+        return 'dead_above_zero' if d_curr > 0 else 'dead'
+    return None
+
+
+def calc_td(bars_close):
+    """TD九转序列（DeMark 简化版）"""
+    n = len(bars_close)
+    if n < 5:
+        return dict(count=0, direction=None, level=0,
+                    is_low9=False, is_high9=False, is_low78=False, is_high78=False)
+    count = 0
+    direction = None
+    for i in range(n - 1, 3, -1):
+        if bars_close[i] < bars_close[i - 4]:
+            if direction is None:
+                direction = 'down'
+            if direction == 'down':
+                count += 1
+            else:
+                break
+        elif bars_close[i] > bars_close[i - 4]:
+            if direction is None:
+                direction = 'up'
+            if direction == 'up':
+                count += 1
+            else:
+                break
+        else:
+            break
+    is_low9 = direction == 'down' and count >= 9
+    is_high9 = direction == 'up' and count >= 9
+    is_low78 = direction == 'down' and count in (7, 8)
+    is_high78 = direction == 'up' and count in (7, 8)
+    return dict(count=count, direction=direction, level=count,
+                is_low9=is_low9, is_high9=is_high9,
+                is_low78=is_low78, is_high78=is_high78)
+
+
+def check_divergence(closes, difs, lookback=20):
+    """日线背离检测：简化版"""
+    n = min(len(closes), lookback)
+    if n < 10:
+        return None
+    c = closes[-n:]
+    d = difs[-n:]
+
+    def _is_low(idx):
+        return 0 < idx < n - 1 and c[idx] < c[idx - 1] and c[idx] < c[idx + 1]
+
+    def _is_high(idx):
+        return 0 < idx < n - 1 and c[idx] > c[idx - 1] and c[idx] > c[idx + 1]
+
+    lows = [i for i in range(1, n - 1) if _is_low(i)]
+    highs = [i for i in range(1, n - 1) if _is_high(i)]
+
+    if len(lows) >= 2:
+        i1, i2 = lows[-2], lows[-1]
+        if c[i2] < c[i1] and d[i2] > d[i1]:
+            if n - 1 - i2 <= 3:
+                return 'bottom'
+            return 'bottom_emerging'
+    if len(highs) >= 2:
+        i1, i2 = highs[-2], highs[-1]
+        if c[i2] > c[i1] and d[i2] < d[i1]:
+            if n - 1 - i2 <= 3:
+                return 'top'
+            return 'top_emerging'
+    return None
+
+
+def support_resistance(bars_low, bars_high, n=20):
+    """近n日支撑/压力"""
+    if len(bars_low) < n:
+        n = len(bars_low)
+    if n == 0:
+        return 0.0, 0.0
+    return float(np.min(bars_low[-n:])), float(np.max(bars_high[-n:]))
+
+
+def format_hold_minutes(mins):
+    """把持有分钟数格式化为 'X分钟' / 'X小时Y分'"""
+    if mins is None:
+        return '--'
+    try:
+        m = int(mins)
+    except Exception:
+        return '--'
+    if m < 60:
+        return f'{m}分钟'
+    h, rem = divmod(m, 60)
+    if rem == 0:
+        return f'{h}小时'
+    return f'{h}小时{rem}分'
+
+
+# ============================================================
+# 主Widget
+# ============================================================
+class AtrTWidget(BattleModuleBase):
+    """ATR做T助手 V4.0：持久化 + 摩擦成本过滤 + 收盘止盈止损"""
+
+    def __init__(self, parent=None):
+        super().__init__('🎯 ATR做T助手', parent)
+        self._watch_list = []
+        self._lock_state = {}   # {code: {'dir':'buy'/'sell', 'price':float}} 防疲劳
+        self._global_warn = False
+        self._db_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__)))),
+            'data', 'cache', 'kline_cache.duckdb',
+        )
+        self._kline_cache = {}   # code -> (bars list, ts) 简单缓存
+
+        # ---- 信号持久化 ----
+        self._sig_db_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__)))),
+            'data', 'cache', 'signal_history.duckdb',
+        )
+        self._store = SignalStore(self._sig_db_path)
+
+        # ---- 信号记录与成功率统计 ----
+        self._signal_logs = []       # 当前视图日期的信号记录列表（内存）
+        self._prev_signal_state = {} # {code: (level, direction)} 用于去重
+        self._view_date = date.today()  # 当前UI查看的日期
+        self._min_t_spread = MIN_T_SPREAD  # 摩擦成本门槛（可UI修改）
+
+        self._build_content()
+
+        # 启动时从数据库加载今天记录 + 重建去重状态
+        self._load_today_signals()
+
+        QTimer.singleShot(300, self.refresh)
+        self.start_refresh(5000)
+        self._first_loaded = False
+
+        # 30秒定时跟踪待验证信号（含15:00收盘判定）
+        self._track_timer = QTimer(self)
+        self._track_timer.timeout.connect(self._check_signal_tracking)
+        self._track_timer.start(30000)
+
+    # ---------- 持久化辅助 ----------
+    def _today_str(self):
+        return date.today().strftime('%Y-%m-%d')
+
+    def _load_today_signals(self):
+        """程序启动：从数据库加载今天的记录到内存，并重建去重状态"""
+        today = self._today_str()
+        try:
+            rows = self._store.select_by_date(today)
+            # 把数据库行转成内存 dict（trigger_dt 从 created_at 恢复）
+            self._signal_logs = []
+            for r in rows:
+                created = r.get('created_at')
+                if isinstance(created, datetime):
+                    trigger_dt = created
+                elif isinstance(created, str):
+                    try:
+                        trigger_dt = datetime.fromisoformat(created)
+                    except Exception:
+                        trigger_dt = datetime.now()
+                else:
+                    trigger_dt = datetime.now()
+                self._signal_logs.append({
+                    'id': r['id'],
+                    'trade_date': r['trade_date'],
+                    'time_str': r['time_str'],
+                    'code': r['code'],
+                    'name': r['name'],
+                    'direction': r['direction'],
+                    'level': r['level'],
+                    'trigger_price': r['trigger_price'],
+                    'buy_point': r.get('buy_point') or 0.0,
+                    'sell_point': r.get('sell_point') or 0.0,
+                    'follow_price': r['follow_price'],
+                    'pnl_pct': r['pnl_pct'],
+                    'status': r['status'],
+                    'hold_minutes': r['hold_minutes'],
+                    'trigger_dt': trigger_dt,
+                })
+            # 重建去重状态：今天每只股票最后一条
+            self._prev_signal_state = self._store.last_record_by_code_on_date(today)
+            print(f'[ATR做T] 启动加载今日信号 {len(self._signal_logs)} 条，'
+                  f'重建去重状态 {len(self._prev_signal_state)} 只', flush=True)
+        except Exception as e:
+            print(f'[ATR做T] 启动加载信号失败: {e}', flush=True)
+            self._signal_logs = []
+            self._prev_signal_state = {}
+
+    def _insert_signal(self, sig):
+        """新信号触发：立刻 INSERT 到 DuckDB，并把 id 写回 sig"""
+        try:
+            new_id = self._store.insert(sig)
+            sig['id'] = new_id
+        except Exception as e:
+            print(f'[ATR做T] 信号入库失败: {e}', flush=True)
+
+    def _update_signal_db(self, sig):
+        """状态更新：UPDATE 到 DuckDB"""
+        try:
+            self._store.update_status(
+                sig['id'],
+                sig.get('follow_price'),
+                sig.get('pnl_pct'),
+                sig.get('status'),
+                sig.get('hold_minutes'),
+            )
+        except Exception as e:
+            print(f'[ATR做T] 信号状态更新失败 id={sig.get("id")}: {e}', flush=True)
+
+    # ---------- UI ----------
+    def _build_content(self):
+        # 顶部全局警告横幅
+        self.warn_banner = QFrame()
+        self.warn_banner.setStyleSheet(
+            'background:#FFF3CD;color:#856404;border:1px solid #FFC107;border-radius:4px;')
+        self.warn_banner.setFixedHeight(28)
+        warn_label = QLabel('⚠️ 大盘情绪退潮，做T成功率降低，建议降低仓位或停止做T',
+                            self.warn_banner)
+        warn_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        warn_label.setStyleSheet('color:#856404;font-size:11px;font-weight:bold;')
+        self.warn_banner.setVisible(False)
+        self.content_layout.addWidget(self.warn_banner)
+
+        # ---- 在标题栏右侧添加 Tab 切换按钮 ----
+        self._setup_tab_buttons()
+
+        # ===== 个股列表容器（Tab1） =====
+        self._stock_list_widget = QWidget()
+        stock_layout = QVBoxLayout(self._stock_list_widget)
+        stock_layout.setContentsMargins(0, 0, 0, 0)
+        stock_layout.setSpacing(0)
+
+        self.table = make_table(8, HEADER_LABELS, table_key="atr_stocks")
+        widths = [80, 60, 70, 70, 150, 150, 80, 170]
+        for i, w in enumerate(widths):
+            self.table.setColumnWidth(i, w)
+        stock_layout.addWidget(self.table, 1)
+        self.content_layout.addWidget(self._stock_list_widget, 1)
+
+        # ===== 信号记录容器（Tab2） =====
+        self._signal_log_widget = QWidget()
+        sig_layout = QVBoxLayout(self._signal_log_widget)
+        sig_layout.setContentsMargins(0, 0, 0, 0)
+        sig_layout.setSpacing(4)
+
+        # 分隔标题
+        sig_title = L('📊 今日信号记录与做T成功率', BC.TEXT_PRIMARY, 12, True)
+        sig_layout.addWidget(sig_title)
+
+        # ---- 控制行：日期选择器 + 摩擦成本门槛 ----
+        ctrl_row = QHBoxLayout()
+        ctrl_row.setSpacing(8)
+        ctrl_row.addWidget(L('📅 日期:', BC.TEXT, 11, True))
+        self._date_edit = QDateEdit()
+        self._date_edit.setCalendarPopup(True)
+        self._date_edit.setDisplayFormat('yyyy-MM-dd')
+        self._date_edit.setDate(QDate.currentDate())
+        self._date_edit.setStyleSheet(
+            'QDateEdit{padding:2px 6px;font-size:11px;border:1px solid #d0d7e0;'
+            'border-radius:4px;background:#fff;}')
+        self._date_edit.dateChanged.connect(self._on_view_date_changed)
+        ctrl_row.addWidget(self._date_edit)
+
+        ctrl_row.addSpacing(12)
+        ctrl_row.addWidget(L('⚙️ 最小价差:', BC.TEXT, 11, True))
+        self._spread_spin = QDoubleSpinBox()
+        self._spread_spin.setRange(0.002, 0.005)   # 0.2% ~ 0.5%
+        self._spread_spin.setSingleStep(0.001)
+        self._spread_spin.setDecimals(3)
+        self._spread_spin.setValue(MIN_T_SPREAD)
+        self._spread_spin.setSuffix('')
+        self._spread_spin.setFixedWidth(80)
+        self._spread_spin.setToolTip('做T最低价差门槛（扣除摩擦成本0.3%后才有意义）')
+        self._spread_spin.valueChanged.connect(self._on_spread_changed)
+        ctrl_row.addWidget(self._spread_spin)
+        self._spread_label = L('0.3%', BC.BLUE, 11, True)
+        ctrl_row.addWidget(self._spread_label)
+        ctrl_row.addStretch()
+        sig_layout.addLayout(ctrl_row)
+
+        # 统计摘要行（按级别分类）
+        stats_row = QHBoxLayout()
+        stats_row.setSpacing(10)
+        self._stat_total   = L('信号总数: 0', BC.TEXT, 11, True)
+        self._stat_green   = L('🟢观察: 0', SIGNAL_FG['green'], 11, True)
+        self._stat_yellow  = L('🟡准备: 0', SIGNAL_FG['yellow'], 11, True)
+        self._stat_red     = L('🔴执行: 0', SIGNAL_FG['red'], 11, True)
+        self._stat_win     = L('成功止盈: 0', BC.RED, 11, True)
+        self._stat_lose    = L('失败止损: 0', BC.GREEN, 11, True)
+        self._stat_flat    = L('日内震荡: 0', BC.TEXT2, 11, True)
+        self._stat_rate    = L('成功率: --', BC.BLUE, 11, True)
+        self._stat_avgpnl  = L('平均盈亏: --', BC.TEXT, 11, True)
+        for lbl in (self._stat_total, self._stat_green, self._stat_yellow,
+                    self._stat_red, self._stat_win, self._stat_lose,
+                    self._stat_flat, self._stat_rate, self._stat_avgpnl):
+            stats_row.addWidget(lbl)
+        stats_row.addStretch()
+        sig_layout.addLayout(stats_row)
+
+        # 信号记录表格（9列）
+        self.sig_table = make_table(9, SIGNAL_COLS, min_row_height=22, table_key="atr_signals")
+        sig_widths = [55, 80, 45, 60, 60, 60, 60, 70, 70]
+        for i, w in enumerate(sig_widths):
+            self.sig_table.setColumnWidth(i, w)
+        self.sig_table.setFixedHeight(180)
+        sig_layout.addWidget(self.sig_table, 0)
+
+        self.content_layout.addWidget(self._signal_log_widget, 0)
+
+        # 默认显示个股列表
+        self._signal_log_widget.setVisible(False)
+
+    def _on_view_date_changed(self, qdate):
+        """日期选择器切换：从数据库加载该日期记录"""
+        try:
+            self._view_date = date(qdate.year(), qdate.month(), qdate.day())
+            date_str = self._view_date.strftime('%Y-%m-%d')
+            rows = self._store.select_by_date(date_str)
+            self._signal_logs = []
+            for r in rows:
+                created = r.get('created_at')
+                if isinstance(created, datetime):
+                    trigger_dt = created
+                elif isinstance(created, str):
+                    try:
+                        trigger_dt = datetime.fromisoformat(created)
+                    except Exception:
+                        trigger_dt = datetime.now()
+                else:
+                    trigger_dt = datetime.now()
+                self._signal_logs.append({
+                    'id': r['id'],
+                    'trade_date': r['trade_date'],
+                    'time_str': r['time_str'],
+                    'code': r['code'],
+                    'name': r['name'],
+                    'direction': r['direction'],
+                    'level': r['level'],
+                    'trigger_price': r['trigger_price'],
+                    'buy_point': r.get('buy_point') or 0.0,
+                    'sell_point': r.get('sell_point') or 0.0,
+                    'follow_price': r['follow_price'],
+                    'pnl_pct': r['pnl_pct'],
+                    'status': r['status'],
+                    'hold_minutes': r['hold_minutes'],
+                    'trigger_dt': trigger_dt,
+                })
+            print(f'[ATR做T] 切换日期 {date_str}，加载 {len(self._signal_logs)} 条信号', flush=True)
+            self._render_signal_log()
+            self._update_signal_stats()
+        except Exception as e:
+            print(f'[ATR做T] 切换日期失败: {e}', flush=True)
+
+    def _on_spread_changed(self, val):
+        """UI 修改最小价差门槛"""
+        self._min_t_spread = float(val)
+        self._spread_label.setText(f'{val * 100:.1f}%')
+        print(f'[ATR做T] 最小做T价差调整为 {val * 100:.1f}%', flush=True)
+
+    def _setup_tab_buttons(self):
+        """在标题栏（title_label 右侧）添加 个股列表/信号记录 两个 Tab 按钮"""
+        card_layout = self._card_frame.layout()
+        title_bar_layout = card_layout.itemAt(0).layout()
+        if title_bar_layout is None:
+            return
+
+        _style_normal = (
+            'QPushButton{'
+            'background:#f0f4f9;color:#666666;'
+            'border:1px solid #d0d7e0;border-radius:4px;'
+            'padding:3px 12px;font-size:11px;}'
+            'QPushButton:hover{background:#e6f0ff;color:#2f6bff;}'
+        )
+        _style_checked = (
+            'QPushButton{'
+            'background:#2f6bff;color:#ffffff;'
+            'border:1px solid #2f6bff;border-radius:4px;'
+            'padding:3px 12px;font-size:11px;font-weight:bold;}'
+        )
+
+        self._tab_group = QButtonGroup(self)
+        self._tab_group.setExclusive(True)
+
+        self._btn_stock = QPushButton('个股列表')
+        self._btn_stock.setCheckable(True)
+        self._btn_stock.setStyleSheet(_style_checked)
+        self._btn_stock.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._tab_group.addButton(self._btn_stock, 0)
+
+        self._btn_signal = QPushButton('信号记录')
+        self._btn_signal.setCheckable(True)
+        self._btn_signal.setStyleSheet(_style_normal)
+        self._btn_signal.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._tab_group.addButton(self._btn_signal, 1)
+
+        self._btn_stock.setChecked(True)
+
+        title_bar_layout.insertWidget(1, self._btn_stock)
+        title_bar_layout.insertWidget(2, self._btn_signal)
+
+        self._tab_group.idClicked.connect(self._switch_tab)
+
+    def _switch_tab(self, idx):
+        """切换 Tab：0=个股列表，1=信号记录"""
+        _style_normal = (
+            'QPushButton{'
+            'background:#f0f4f9;color:#666666;'
+            'border:1px solid #d0d7e0;border-radius:4px;'
+            'padding:3px 12px;font-size:11px;}'
+            'QPushButton:hover{background:#e6f0ff;color:#2f6bff;}'
+        )
+        _style_checked = (
+            'QPushButton{'
+            'background:#2f6bff;color:#ffffff;'
+            'border:1px solid #2f6bff;border-radius:4px;'
+            'padding:3px 12px;font-size:12px;font-weight:bold;}'
+        )
+        if idx == 0:
+            self._stock_list_widget.setVisible(True)
+            self._signal_log_widget.setVisible(False)
+            self._btn_stock.setStyleSheet(_style_checked)
+            self._btn_signal.setStyleSheet(_style_normal)
+        else:
+            self._stock_list_widget.setVisible(False)
+            self._signal_log_widget.setVisible(True)
+            self._btn_stock.setStyleSheet(_style_normal)
+            self._btn_signal.setStyleSheet(_style_checked)
+
+    # ---------- 刷新调度 ----------
+    def refresh(self):
+        now = datetime.now()
+        h, m = now.hour, now.minute
+        weekday = now.weekday()
+        is_trade_time = True
+        if weekday >= 5:
+            is_trade_time = False
+        elif not (((h == 9 and m >= 30) or h == 10 or (h == 11 and m <= 30)
+                   or h == 13 or h == 14) and h < 15):
+            is_trade_time = False
+        if not is_trade_time:
+            # 休市也刷新（自选增删实时同步），只是状态显示"盘后复盘"
+            self.set_status('盘后复盘')
+        else:
+            self.set_status('计算中...')
+        self.run_async(self._fetch_and_calc, self._on_loaded, self._on_failed)
+
+    # ---------- 数据获取与计算（后台线程） ----------
+    def _load_bars(self, code, n=80):
+        """加载日线（升序），返回 list[dict]"""
+        cached = self._kline_cache.get(code)
+        if cached and time.time() - cached[1] < 60:
+            return cached[0]
+
+        bars = []
+        try:
+            from utils.kline_provider import _get_kline_from_duckdb
+            bars = _get_kline_from_duckdb(code, count=n) or []
+        except Exception as e:
+            print(f'[ATR做T] duckdb读取失败 {code}: {e}', flush=True)
+            bars = []
+
+        if len(bars) < 30:
+            try:
+                from utils.kline_provider import get_daily_kline
+                kd = get_daily_kline(code, count=n) or {}
+                dates = kd.get('dates') or []
+                opens = kd.get('open') or []
+                highs = kd.get('high') or []
+                lows = kd.get('low') or []
+                closes = kd.get('close') or []
+                vols = kd.get('volume') or []
+                if len(closes) >= 30:
+                    bars = [dict(
+                        date=str(dates[i]) if i < len(dates) else '',
+                        open=float(opens[i]) if i < len(opens) else float(closes[i]),
+                        high=float(highs[i]) if i < len(highs) else float(closes[i]),
+                        low=float(lows[i]) if i < len(lows) else float(closes[i]),
+                        close=float(closes[i]),
+                        volume=float(vols[i]) if i < len(vols) else 0.0,
+                    ) for i in range(len(closes))]
+            except Exception as e:
+                print(f'[ATR做T] HTTP兜底失败 {code}: {e}', flush=True)
+
+        if len(bars) >= 30:
+            self._kline_cache[code] = (bars, time.time())
+        return bars
+
+    def _fetch_and_calc(self):
+        # 自选股
+        try:
+            from core.watchlist import get_watchlist_manager
+            mgr = get_watchlist_manager()
+            self._watch_list = mgr.stocks[:20]
+        except Exception:
+            self._watch_list = []
+
+        self._check_market_sentiment()
+
+        now = time.localtime()
+        h, m = now.tm_hour, now.tm_min
+        in_open_window = (h == 9 and 30 <= m <= 45)
+        is_trading = ((h == 9 and m >= 30) or (10 <= h <= 11 and m <= 30)
+                      or h == 13 or h == 14) and (h < 15)
+
+        if not self._watch_list:
+            return [], is_trading, in_open_window, []
+
+        codes = [s['code'] for s in self._watch_list]
+        try:
+            from utils.http_market_data import get_realtime_quotes_http
+            quotes = get_realtime_quotes_http(codes) or {}
+        except Exception as e:
+            print(f'[ATR做T] 实时行情失败: {e}', flush=True)
+            quotes = {}
+
+        rows_out = []
+        new_signals = []   # 本轮新触发的交易信号记录
+        # 把当前最小价差门槛快照到后台线程（避免跨线程读UI控件）
+        min_spread = float(self._min_t_spread)
+        today_str = self._today_str()
+
+        for s in self._watch_list:
+            code = s['code']
+            name = s['name']
+            bars = self._load_bars(code, n=80)
+            if len(bars) < 30:
+                continue
+
+            closes = np.array([b['close'] for b in bars], dtype=float)
+            highs = np.array([b['high'] for b in bars], dtype=float)
+            lows = np.array([b['low'] for b in bars], dtype=float)
+
+            # ---- 实时行情 ----
+            q = quotes.get(code, {}) or {}
+            price = float(q.get('price', 0) or 0)
+            prev_close = float(q.get('last_close', 0) or 0)
+            day_high = float(q.get('high', 0) or 0)
+            day_low = float(q.get('low', 0) or 0)
+            last_bar = bars[-1]
+            if price <= 0:
+                price = float(last_bar['close'])
+            if prev_close <= 0 and len(bars) >= 2:
+                prev_close = float(bars[-2]['close'])
+            if day_high <= 0:
+                day_high = float(last_bar['high'])
+            if day_low <= 0:
+                day_low = float(last_bar['low'])
+
+            if price <= 0 or prev_close <= 0:
+                continue
+
+            pct = (price - prev_close) / prev_close * 100.0
+
+            # ---- ATR(14) ----
+            atr = self._calc_atr(bars, period=14)
+            if atr <= 0:
+                atr = prev_close * 0.02
+
+            # ---- VWAP ----
+            vwap = (day_high + day_low + price) / 3.0
+            if vwap <= 0:
+                vwap = price
+
+            # ---- 买卖点 ----
+            buy_point = round(vwap - 0.3 * atr, 2)
+            sell_point = round(vwap + 0.3 * atr, 2)
+
+            # ---- 距买卖点 ----
+            dist_buy = (price - buy_point) / buy_point * 100.0 if buy_point > 0 else 0.0
+            dist_sell = (sell_point - price) / sell_point * 100.0 if sell_point > 0 else 0.0
+
+            # ---- MACD(8,21,5) ----
+            dif, dea, hist = calc_macd(closes, 8, 21, 5)
+            cross = detect_cross(dif, dea) if len(dif) else None
+
+            # ---- TD九转 ----
+            td = calc_td(closes.tolist())
+
+            # ---- 背离 ----
+            div = check_divergence(closes, dif) if len(dif) else None
+
+            # ---- 支撑/压力 ----
+            sup, res = support_resistance(lows, highs, n=20)
+            near_support = (sup > 0) and (price <= sup * 1.01) and (price >= sup * 0.99)
+            near_resist = (res > 0) and (price >= res * 0.99) and (price <= res * 1.01)
+
+            # ---- 空间触发 ----
+            in_buy_radar = price <= buy_point * 1.005
+            in_sell_radar = price >= sell_point * 0.995
+
+            # ---- 动能信号文本 ----
+            momentum_parts = []
+            if cross == 'golden_below_zero':
+                momentum_parts.append('MACD零轴下金叉')
+            elif cross == 'dead_above_zero':
+                momentum_parts.append('MACD零轴上死叉')
+            elif cross == 'golden':
+                momentum_parts.append('MACD金叉(零轴上)')
+            elif cross == 'dead':
+                momentum_parts.append('MACD死叉(零轴下)')
+
+            if div == 'bottom':
+                momentum_parts.append('日线底背离')
+            elif div == 'top':
+                momentum_parts.append('日线顶背离')
+            elif div == 'bottom_emerging':
+                momentum_parts.append('底背离雏形')
+            elif div == 'top_emerging':
+                momentum_parts.append('顶背离雏形')
+
+            if td['is_low9']:
+                momentum_parts.append('TD低9')
+            elif td['is_high9']:
+                momentum_parts.append('TD高9')
+            elif td['is_low78']:
+                momentum_parts.append(f"TD低{td['level']}预警")
+            elif td['is_high78']:
+                momentum_parts.append(f"TD高{td['level']}预警")
+
+            if near_support:
+                momentum_parts.append('触及日线支撑')
+            elif near_resist:
+                momentum_parts.append('触及日线压力')
+
+            momentum_text = ' + '.join(momentum_parts) if momentum_parts else '暂无'
+
+            # ---- 结构确认计数 ----
+            struct_score = 0
+            if near_support or near_resist:
+                struct_score += 1
+            if div in ('bottom', 'top'):
+                struct_score += 1
+            if td['is_low9'] or td['is_high9']:
+                struct_score += 1
+
+            # ---- 风控拦截 ----
+            risk_status = '正常(VWAP上方)' if price >= vwap else '正常(VWAP下方)'
+            risk_color = SIGNAL_FG['green'] if price >= vwap else SIGNAL_FG['yellow']
+            signal_level = 'gray'
+            signal_text = '⚪ 待机'
+            signal_dir = None
+            action = '观望'
+            blocked = None
+
+            vwap_drop = (price - vwap) / vwap * 100.0 if vwap > 0 else 0.0
+
+            if price < vwap * 0.985:
+                risk_status = '⛔ 趋弱单边下跌，暂停买入'
+                risk_color = SIGNAL_FG['red']
+                signal_level = 'red'
+                signal_text = '🔴 防飞刀'
+                action = '严禁买入，等VWAP收复'
+                blocked = 'buy'
+            elif pct >= 8.0:
+                risk_status = '🚀 强势涨停锁仓，不做T'
+                risk_color = SIGNAL_FG['red']
+                signal_level = 'red'
+                signal_text = '🔴 锁仓'
+                action = '主升浪锁仓，放弃做T'
+                blocked = 'sell'
+            elif pct >= 5.0 and in_sell_radar:
+                risk_status = '🔥 主升浪中，谨慎卖出'
+                risk_color = SIGNAL_FG['orange']
+                signal_level = 'orange'
+                signal_text = '🟠 主升浪'
+                action = '谨慎卖出防T飞'
+                blocked = 'sell'
+            else:
+                if price >= vwap:
+                    risk_status = '正常(VWAP上方)'
+                    risk_color = SIGNAL_FG['green']
+                else:
+                    risk_status = '正常(VWAP下方)'
+                    risk_color = SIGNAL_FG['yellow']
+
+                red_buy = in_buy_radar and (cross == 'golden_below_zero') and struct_score >= 2
+                red_sell = in_sell_radar and (cross == 'dead_above_zero') and struct_score >= 2
+                yellow_buy = in_buy_radar and (
+                    div == 'bottom_emerging' or td['is_low78'] or td['is_low9']
+                )
+                yellow_sell = in_sell_radar and (
+                    div == 'top_emerging' or td['is_high78'] or td['is_high9']
+                )
+                green_buy = in_buy_radar
+                green_sell = in_sell_radar
+
+                lock = self._lock_state.get(code)
+                locked_buy = (lock and lock['dir'] == 'buy')
+                locked_sell = (lock and lock['dir'] == 'sell')
+
+                if red_buy and not locked_buy:
+                    signal_level = 'red'
+                    signal_text = '🔴 买入执行'
+                    signal_dir = 'buy'
+                    action = f"强共振低吸 {buy_point}附近"
+                    self._lock_state[code] = {'dir': 'buy', 'price': price}
+                    self._play_sound('buy', code)
+                elif red_sell and not locked_sell:
+                    signal_level = 'red'
+                    signal_text = '🔴 卖出执行'
+                    signal_dir = 'sell'
+                    action = f"强共振高抛 {sell_point}附近"
+                    self._lock_state[code] = {'dir': 'sell', 'price': price}
+                    self._play_sound('sell', code)
+                elif yellow_buy or yellow_sell:
+                    signal_level = 'yellow'
+                    signal_text = '🟡 准备'
+                    if yellow_buy:
+                        signal_dir = 'buy'
+                        action = '准备低吸(等金叉/低9确认)'
+                    else:
+                        signal_dir = 'sell'
+                        action = '准备高抛(等死叉/高9确认)'
+                elif green_buy or green_sell:
+                    signal_level = 'green'
+                    signal_text = '🟢 观察'
+                    if green_buy:
+                        signal_dir = 'buy'
+                        action = '观察买点，等动能确认'
+                    else:
+                        signal_dir = 'sell'
+                        action = '观察卖点，等动能确认'
+                else:
+                    signal_level = 'gray'
+                    signal_text = '⚪ 待机'
+                    signal_dir = None
+                    action = '观望'
+
+                if locked_buy and price >= lock['price'] * 1.005:
+                    self._lock_state.pop(code, None)
+                elif locked_sell and price <= lock['price'] * 0.995:
+                    self._lock_state.pop(code, None)
+
+                # ---- 信号记录（去重 + 摩擦成本过滤）----
+                if signal_level in ('red', 'yellow', 'green') and signal_dir:
+                    cur_state = (signal_level, signal_dir)
+                    if self._prev_signal_state.get(code) != cur_state:
+                        # ★ 摩擦成本过滤器：核算买卖点价差
+                        spread_ratio = (sell_point - buy_point) / buy_point if buy_point > 0 else 0.0
+                        if spread_ratio < min_spread:
+                            # 价差不足，不记录信号，打印过滤日志
+                            pct_spread = spread_ratio * 100.0
+                            pct_min = min_spread * 100.0
+                            print(f'[过滤] {code} {name} 预期价差{pct_spread:.2f}% '
+                                  f'< 最小摩擦成本{pct_min:.1f}%，取消信号', flush=True)
+                        else:
+                            # 通过过滤，写入内存待落库
+                            self._prev_signal_state[code] = cur_state
+                            level_label = LEVEL_TO_LABEL[signal_level]
+                            dir_label = DIR_TO_LABEL[signal_dir]
+                            now_dt = datetime.now()
+                            new_signals.append({
+                                'id': None,
+                                'trade_date': today_str,
+                                'time_str': now_dt.strftime('%H:%M:%S'),
+                                'code': code,
+                                'name': name,
+                                'direction': dir_label,
+                                'level': level_label,
+                                'trigger_price': round(price, 2),
+                                'buy_point': buy_point,
+                                'sell_point': sell_point,
+                                'follow_price': None,
+                                'pnl_pct': None,
+                                'status': '待验证',
+                                'hold_minutes': None,
+                                'trigger_dt': now_dt,
+                            })
+                elif signal_level == 'gray':
+                    self._prev_signal_state.pop(code, None)
+
+            if in_open_window and blocked is None:
+                risk_status = '⏰ 开盘波动期(9:30-9:45)'
+                risk_color = SIGNAL_FG['yellow']
+                signal_level = 'yellow'
+                signal_text = '🟡 暂停'
+                action = '等9:45后再操作'
+
+            if self._global_warn and ('低吸' in action or '买入' in action):
+                action = '谨慎观望(大盘退潮)'
+
+            rows_out.append({
+                'code': code,
+                'name': name,
+                'price': round(price, 2),
+                'pct': round(pct, 2),
+                'buy_point': buy_point,
+                'sell_point': sell_point,
+                'dist_buy': round(dist_buy, 2),
+                'dist_sell': round(dist_sell, 2),
+                'momentum': momentum_text,
+                'risk_status': risk_status,
+                'risk_color': risk_color,
+                'signal_level': signal_level,
+                'signal_text': signal_text,
+                'action': action,
+                'vwap': round(vwap, 2),
+                'atr': round(atr, 2),
+            })
+
+        return rows_out, is_trading, in_open_window, new_signals
+
+    # ---------- 工具函数 ----------
+    def _calc_atr(self, bars, period=14):
+        """True Range 均值"""
+        if len(bars) < period + 1:
+            return 0.0
+        trs = []
+        for i in range(1, len(bars)):
+            h = bars[i]['high']
+            l = bars[i]['low']
+            pc = bars[i - 1]['close']
+            tr = max(h - l, abs(h - pc), abs(l - pc))
+            trs.append(tr)
+        if not trs:
+            return 0.0
+        return float(np.mean(trs[-period:]))
+
+    def _check_market_sentiment(self):
+        """大盘情绪：上证跌>1% 触发全局警告"""
+        try:
+            from utils.http_market_data import eastmoney_request
+            data = eastmoney_request('/api/qt/stock/get', {
+                'secid': '1.000001', 'fields': 'f2,f3'
+            }, timeout=5)
+            if data and 'data' in data:
+                pct = float(data['data'].get('f3', 0)) / 100.0
+                self._global_warn = (pct < -1.0)
+                return
+        except Exception:
+            pass
+        self._global_warn = False
+
+    def _play_sound(self, kind, code):
+        now_key = f'{code}_sound'
+        last = self._lock_state.get(now_key)
+        now = time.time()
+        if last and now - last < 60:
+            return
+        self._lock_state[now_key] = now
+        print(f'[ATR做T] 提醒 {code}: {kind}', flush=True)
+        try:
+            import winsound
+            if kind == 'buy':
+                winsound.Beep(800, 200)
+            else:
+                winsound.Beep(1200, 300)
+        except Exception:
+            pass
+
+    # ---------- UI 渲染（主线程） ----------
+    def _on_loaded(self, result):
+        rows, is_trading, in_open_window, new_signals = result
+        self._first_loaded = True
+        self.warn_banner.setVisible(self._global_warn)
+
+        # 新信号：先落库，再追加到内存（仅当查看的是今天才追加，避免污染历史视图）
+        today_str = self._today_str()
+        viewing_today = (self._view_date.strftime('%Y-%m-%d') == today_str)
+        for sig in new_signals:
+            self._insert_signal(sig)   # 落库并回填 sig['id']
+            if viewing_today:
+                self._signal_logs.append(sig)
+
+        if is_trading:
+            tag = '盘中监控'
+            if in_open_window:
+                tag = '开盘波动期'
+        else:
+            tag = '盘后复盘'
+        self.title_label.setText(f'🎯 ATR做T助手 ({tag}) {len(rows)}只')
+
+        self.table.setRowCount(len(rows))
+        for i, r in enumerate(rows):
+            set_table_item(self.table, i, COL_NAME, r['name'],
+                           BC.TEXT, bold=True,
+                           align=Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+            set_table_item(self.table, i, COL_PRICE, f"{r['price']:.2f}",
+                           pct_color(r['pct']),
+                           align=Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
+            set_table_item(self.table, i, COL_BUY, f"{r['buy_point']:.2f}",
+                           SIGNAL_FG['green'], bold=True,
+                           align=Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
+            set_table_item(self.table, i, COL_SELL, f"{r['sell_point']:.2f}",
+                           SIGNAL_FG['red'], bold=True,
+                           align=Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
+            set_table_item(self.table, i, COL_MOMENTUM, r['momentum'],
+                           BC.TEXT,
+                           align=Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+            set_table_item(self.table, i, COL_RISK, r['risk_status'],
+                           r['risk_color'], bold=True,
+                           align=Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+            sig_item = QTableWidgetItem(r['signal_text'])
+            lvl = r['signal_level']
+            bg = SIGNAL_BG.get(lvl, SIGNAL_BG['gray'])
+            fg = SIGNAL_FG.get(lvl, SIGNAL_BG['gray'])
+            sig_item.setBackground(QBrush(QColor(bg)))
+            sig_item.setForeground(QColor(fg))
+            f = sig_item.font()
+            f.setBold(True)
+            sig_item.setFont(f)
+            sig_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignCenter)
+            self.table.setItem(i, COL_SIGNAL, sig_item)
+            set_table_item(self.table, i, COL_ACTION, r['action'],
+                           BC.BLUE,
+                           align=Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        self.set_update_time()
+        self._render_signal_log()
+        self._update_signal_stats()
+
+    def _on_failed(self, err):
+        self.set_status('数据获取失败')
+        self.table.setRowCount(1)
+        set_table_item(self.table, 0, 0, f'计算失败: {err}', BC.TEXT3,
+                       align=Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignCenter)
+        self.table.setSpan(0, 0, 1, 8)
+
+    # ================================================================
+    # 信号记录与成功率统计
+    # ================================================================
+    def _render_signal_log(self):
+        """渲染当前视图日期的信号记录表格（最新在最上面）"""
+        logs = list(reversed(self._signal_logs))
+        self.sig_table.setRowCount(len(logs))
+        center = Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignCenter
+        right = Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight
+        for row, log in enumerate(logs):
+            # 0 时间
+            set_table_item(self.sig_table, row, 0, log['time_str'], BC.TEXT2, align=center)
+            # 1 股票
+            set_table_item(self.sig_table, row, 1, f"{log['name']}({log['code']})",
+                           BC.TEXT_PRIMARY, bold=True, align=center)
+            # 2 方向
+            dir_color = SIGNAL_FG['green'] if log['direction'] == '买入' else SIGNAL_FG['red']
+            set_table_item(self.sig_table, row, 2, log['direction'], dir_color, bold=True, align=center)
+            # 3 级别
+            lv = log['level']
+            if '🟢' in lv:
+                lv_color = SIGNAL_FG['green']
+            elif '🟡' in lv:
+                lv_color = SIGNAL_FG['yellow']
+            else:
+                lv_color = SIGNAL_FG['red']
+            set_table_item(self.sig_table, row, 3, lv, lv_color, bold=True, align=center)
+            # 4 触发价
+            set_table_item(self.sig_table, row, 4, f"{log['trigger_price']:.2f}",
+                           BC.TEXT, align=right)
+            # 5 后续价
+            fp = log.get('follow_price')
+            set_table_item(self.sig_table, row, 5, f"{fp:.2f}" if fp else '--',
+                           BC.TEXT2, align=right)
+            # 6 盈亏%
+            pp = log.get('pnl_pct')
+            if pp is not None:
+                pnl_color = BC.RED if pp > 0 else (BC.GREEN if pp < 0 else BC.FLAT)
+                set_table_item(self.sig_table, row, 6, f"{pp:+.2f}%", pnl_color, bold=True, align=right)
+            else:
+                set_table_item(self.sig_table, row, 6, '--', BC.TEXT3, align=right)
+            # 7 状态
+            st = log['status']
+            if st == '成功止盈':
+                st_color = BC.RED
+            elif st == '失败止损':
+                st_color = BC.GREEN
+            elif st == '日内震荡':
+                st_color = BC.TEXT2
+            else:
+                st_color = BC.ORANGE
+            set_table_item(self.sig_table, row, 7, st, st_color, bold=True, align=center)
+            # 8 持有时间
+            hm = log.get('hold_minutes')
+            set_table_item(self.sig_table, row, 8,
+                           format_hold_minutes(hm), BC.TEXT2, align=center)
+
+    def _update_signal_stats(self):
+        """更新顶部统计摘要（按级别分类）"""
+        logs = self._signal_logs
+        total = len(logs)
+        green_cnt = sum(1 for l in logs if '🟢' in l['level'])
+        yellow_cnt = sum(1 for l in logs if '🟡' in l['level'])
+        red_cnt = sum(1 for l in logs if '🔴' in l['level'])
+        win_cnt = sum(1 for l in logs if l['status'] == '成功止盈')
+        lose_cnt = sum(1 for l in logs if l['status'] == '失败止损')
+        flat_cnt = sum(1 for l in logs if l['status'] == '日内震荡')
+        decided = win_cnt + lose_cnt
+        rate = f"{win_cnt / decided * 100:.0f}%" if decided > 0 else '--'
+        decided_pnls = [l['pnl_pct'] for l in logs if l['pnl_pct'] is not None]
+        avg_pnl = f"{sum(decided_pnls) / len(decided_pnls):+.2f}%" if decided_pnls else '--'
+
+        self._stat_total.setText(f'信号总数: {total}')
+        self._stat_green.setText(f'🟢观察: {green_cnt}')
+        self._stat_yellow.setText(f'🟡准备: {yellow_cnt}')
+        self._stat_red.setText(f'🔴执行: {red_cnt}')
+        self._stat_win.setText(f'成功止盈: {win_cnt}')
+        self._stat_lose.setText(f'失败止损: {lose_cnt}')
+        self._stat_flat.setText(f'日内震荡: {flat_cnt}')
+        self._stat_rate.setText(f'成功率: {rate}')
+        self._stat_avgpnl.setText(f'平均盈亏: {avg_pnl}')
+
+    # ================================================================
+    # 盈亏跟踪：止盈止损 + 15:00收盘判定
+    # ================================================================
+    def _check_signal_tracking(self):
+        """每30秒检查待验证信号的后续价格
+        - 买入：毛盈利>1% → 成功止盈；毛亏损>1% → 失败止损
+        - 卖出：反向
+        - 15:00仍未触发 → 日内震荡
+        - 盈亏扣除摩擦成本0.3%
+        """
+        # 只跟踪"今天"且"待验证"的信号（历史日期不跟踪）
+        today_str = self._today_str()
+        pending = [l for l in self._signal_logs
+                   if l['status'] == '待验证' and l.get('trade_date') == today_str]
+        if not pending:
+            return
+
+        codes = list(set(l['code'] for l in pending))
+        self.run_async(
+            self._fetch_pending_quotes,
+            self._on_tracking_updated,
+            None,
+            codes,
+        )
+
+    @staticmethod
+    def _fetch_pending_quotes(codes):
+        """后台线程：获取待验证信号的实时行情"""
+        from utils.http_market_data import get_realtime_quotes_http
+        return get_realtime_quotes_http(codes) or {}
+
+    def _on_tracking_updated(self, quotes):
+        """主线程：根据实时行情更新待验证信号状态，并写库"""
+        now = datetime.now()
+        # 今天15:00（收盘时间）
+        today_close = now.replace(hour=15, minute=0, second=0, microsecond=0)
+        after_close = now >= today_close
+        updated = False
+
+        for log in self._signal_logs:
+            if log['status'] != '待验证':
+                continue
+            # 只跟踪今天的信号
+            if log.get('trade_date') != self._today_str():
+                continue
+
+            trigger = log['trigger_price']
+            if trigger <= 0:
+                continue
+
+            q = quotes.get(log['code'], {}) or {}
+            cur_price = float(q.get('price', 0) or 0)
+
+            # 计算持有分钟数
+            trigger_dt = log.get('trigger_dt') or now
+            hold_min = int((now - trigger_dt).total_seconds() / 60.0)
+            if hold_min < 0:
+                hold_min = 0
+
+            # ---- 15:00收盘判定：未触发 → 日内震荡 ----
+            if after_close:
+                log['status'] = '日内震荡'
+                log['hold_minutes'] = hold_min
+                if cur_price > 0:
+                    log['follow_price'] = round(cur_price, 2)
+                    # 收盘时也算一个毛盈亏，扣摩擦成本
+                    if log['direction'] == '买入':
+                        gross = (cur_price - trigger) / trigger * 100.0
+                    else:
+                        gross = (trigger - cur_price) / trigger * 100.0
+                    log['pnl_pct'] = round(gross - FRICTION_COST_PCT, 2)
+                else:
+                    log['pnl_pct'] = log.get('pnl_pct')
+                self._update_signal_db(log)
+                updated = True
+                continue
+
+            # ---- 盘中：实时行情判止盈止损 ----
+            if cur_price <= 0:
+                continue
+            log['follow_price'] = round(cur_price, 2)
+
+            if log['direction'] == '买入':
+                gross = (cur_price - trigger) / trigger * 100.0
+                if gross >= TAKE_PROFIT_PCT:
+                    log['status'] = '成功止盈'
+                elif gross <= -STOP_LOSS_PCT:
+                    log['status'] = '失败止损'
+            else:  # 卖出
+                gross = (trigger - cur_price) / trigger * 100.0
+                if gross >= TAKE_PROFIT_PCT:
+                    log['status'] = '成功止盈'
+                elif gross <= -STOP_LOSS_PCT:
+                    log['status'] = '失败止损'
+
+            # 记录净盈亏（扣摩擦成本）
+            log['pnl_pct'] = round(gross - FRICTION_COST_PCT, 2)
+
+            if log['status'] != '待验证':
+                # 状态确立，记录持有分钟数
+                log['hold_minutes'] = hold_min
+                self._update_signal_db(log)
+                updated = True
+
+        if updated:
+            self._render_signal_log()
+            self._update_signal_stats()

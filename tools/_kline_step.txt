@@ -1,0 +1,16 @@
+widget shown
+heartbeat 1  alive
+step: 取数据（provider）
+step: provider 返回 True，根数=269
+step: 调 set_kline_data
+step: set_kline_data 返回（没崩）
+heartbeat 2  alive
+heartbeat 3  alive
+heartbeat 4  alive
+heartbeat 5  alive
+heartbeat 6  alive
+step: 查 JS 结果
+JS → err:Cannot read properties of undefined (reading 'series')
+heartbeat 7  alive
+heartbeat 8  alive
+结束

@@ -1,0 +1,198 @@
+{
+  "date": "2026-08-16",
+  "generated_at": "2026-08-16 08:09:54",
+  "account": {
+    "total_asset": 1037300.0,
+    "cash": 1000000,
+    "position_value": 37300,
+    "total_return_pct": 3.73,
+    "today_return_pct": 3.73,
+    "today_pnl": 0.0,
+    "realized_pnl": 0.0,
+    "unrealized_pnl": 37300.0,
+    "position_count": 0,
+    "win_rate": 0
+  },
+  "trade_stats": {
+    "total_trades": 4,
+    "buy_count": 4,
+    "sell_count": 4,
+    "win_count": 2,
+    "loss_count": 2,
+    "win_rate": 50.0,
+    "total_pnl": 3500,
+    "avg_win": 3750.0,
+    "avg_loss": -2000.0,
+    "max_win": 4500,
+    "max_loss": -2000,
+    "profit_loss_ratio": 1.88,
+    "max_win_streak": 1,
+    "max_loss_streak": 1,
+    "current_streak": 1,
+    "current_streak_type": "loss",
+    "avg_hold_days": 0,
+    "max_hold_days": 0,
+    "min_hold_days": 0,
+    "pnl_color": "green"
+  },
+  "signal_stats": {
+    "total_signals": 0,
+    "buy_signals": 0,
+    "sell_signals": 0,
+    "buy_analysis": {
+      "count": 0,
+      "success": 0,
+      "success_rate": 0
+    },
+    "sell_analysis": {
+      "count": 0,
+      "success": 0,
+      "success_rate": 0
+    },
+    "quality_stats": {},
+    "score_stats": {},
+    "overall_accuracy": 0
+  },
+  "strategy_stats": {
+    "strategies": {
+      "三倍量突破": {
+        "total_trades": 4,
+        "sell_count": 2,
+        "win_count": 1,
+        "loss_count": 1,
+        "win_rate": 50.0,
+        "total_pnl": 1000,
+        "avg_pnl": 500.0,
+        "max_win": 3000,
+        "max_loss": -2000,
+        "pnl_color": "green",
+        "contribution_pct": 28.6
+      },
+      "回踩MA5": {
+        "total_trades": 2,
+        "sell_count": 1,
+        "win_count": 0,
+        "loss_count": 1,
+        "win_rate": 0.0,
+        "total_pnl": -2000,
+        "avg_pnl": -2000.0,
+        "max_win": -2000,
+        "max_loss": -2000,
+        "pnl_color": "red",
+        "contribution_pct": -57.1
+      },
+      "MACD金叉": {
+        "total_trades": 2,
+        "sell_count": 1,
+        "win_count": 1,
+        "loss_count": 0,
+        "win_rate": 100.0,
+        "total_pnl": 4500,
+        "avg_pnl": 4500.0,
+        "max_win": 4500,
+        "max_loss": 4500,
+        "pnl_color": "green",
+        "contribution_pct": 128.6
+      }
+    },
+    "total_pnl": 3500,
+    "strategy_count": 3,
+    "best_strategy": "MACD金叉",
+    "worst_strategy": "回踩MA5",
+    "best_pnl": 4500,
+    "worst_pnl": -2000,
+    "sorted": [
+      [
+        "MACD金叉",
+        {
+          "total_trades": 2,
+          "sell_count": 1,
+          "win_count": 1,
+          "loss_count": 0,
+          "win_rate": 100.0,
+          "total_pnl": 4500,
+          "avg_pnl": 4500.0,
+          "max_win": 4500,
+          "max_loss": 4500,
+          "pnl_color": "green",
+          "contribution_pct": 128.6
+        }
+      ],
+      [
+        "三倍量突破",
+        {
+          "total_trades": 4,
+          "sell_count": 2,
+          "win_count": 1,
+          "loss_count": 1,
+          "win_rate": 50.0,
+          "total_pnl": 1000,
+          "avg_pnl": 500.0,
+          "max_win": 3000,
+          "max_loss": -2000,
+          "pnl_color": "green",
+          "contribution_pct": 28.6
+        }
+      ],
+      [
+        "回踩MA5",
+        {
+          "total_trades": 2,
+          "sell_count": 1,
+          "win_count": 0,
+          "loss_count": 1,
+          "win_rate": 0.0,
+          "total_pnl": -2000,
+          "avg_pnl": -2000.0,
+          "max_win": -2000,
+          "max_loss": -2000,
+          "pnl_color": "red",
+          "contribution_pct": -57.1
+        }
+      ]
+    ]
+  },
+  "risk_stats": {
+    "loss_analysis": {
+      "loss_count": 2,
+      "total_loss": -4000,
+      "avg_loss": -2000.0,
+      "max_loss": -2000,
+      "max_loss_trade": {
+        "code": "000001",
+        "name": "平安银行",
+        "pnl": -2000,
+        "price": 14,
+        "reason": "止损触发跌破MA20"
+      },
+      "by_reason": {
+        "止损触发": {
+          "count": 2,
+          "total_loss": -4000,
+          "pct": 100.0
+        }
+      }
+    },
+    "event_analysis": {
+      "total": 0,
+      "by_level": {},
+      "by_type": {},
+      "high_risk_codes": []
+    },
+    "execution_analysis": {
+      "stop_loss_executed": 2,
+      "total_sells": 4,
+      "stop_loss_rate": 50.0,
+      "avg_stop_loss_pnl": -2000.0
+    },
+    "main_risk": "止损触发"
+  },
+  "suggestions": [
+    "今日盈利较好，注意止盈保护利润",
+    "AI信号准确率偏低，建议人工复核后再执行",
+    "关注MACD金叉策略机会",
+    "暂停或减少回踩MA5策略交易",
+    "重点防范止损触发风险"
+  ],
+  "report_type": "daily"
+}

@@ -1,0 +1,28 @@
+# ============================================================
+# QuantMonitorV6 魔搭服务器 crontab 配置（服务器时区=北京时间）
+# 安装：crontab -e 粘贴以下内容（按需调整 /opt/v6 路径）
+# ============================================================
+
+# 1) 主调度：工作日 08:00-23:59 每 10 分钟兜底（scheduler.sh 内部按时刻判定槽位）
+*/10 8-23 * * 1-5 cd /opt/v6 && ./scheduler.sh >> logs/sched_cron.log 2>&1
+
+# 2) 精确档位（*/10 网格漏掉的时间点，逐个补触发；内部有 slot_done 当日去重）
+#    news2h 14:01（14:00 整点归 hourly，01-04 分钟归 news2h）
+1  14 * * 1-5 cd /opt/v6 && ./scheduler.sh >> logs/sched_cron.log 2>&1
+#    跟涨三步走·盘中 14:06 / 收盘 15:06
+6  14 * * 1-5 cd /opt/v6 && ./scheduler.sh >> logs/sched_cron.log 2>&1
+6  15 * * 1-5 cd /opt/v6 && ./scheduler.sh >> logs/sched_cron.log 2>&1
+#    尾盘事件简报 15:36
+36 15 * * 1-5 cd /opt/v6 && ./scheduler.sh >> logs/sched_cron.log 2>&1
+#    外盘窗口 21:38 / 22:38
+38 21,22 * * 1-5 cd /opt/v6 && ./scheduler.sh >> logs/sched_cron.log 2>&1
+#    周日策略评估 20:00
+0  20 * * 0 cd /opt/v6 && ./scheduler.sh >> logs/sched_cron.log 2>&1
+
+# 3) （可选）手动强制某槽位（临时用，不建议写入 crontab）
+# 15 20 * * 1-5 cd /opt/v6 && python3 tools/cloud_daily_review.py --time anchor --force anchor >> logs/push_$(date +%Y%m%d).log 2>&1
+
+# 说明：
+# - 以上全部精确档位也可由第 1 条兜底覆盖大部分；补点仅用于 */10 网格未命中的时刻。
+# - slot_done.json 当日去重，重复触发不会重复推送。
+# - 如服务器时区非北京时间，请先执行: timedatectl set-timezone Asia/Shanghai

@@ -1,0 +1,18 @@
+{
+  "version": "2026-10-18",
+  "model": "deepseek-flash",
+  "base_url": "https://api.deepseek.com",
+  "currency": "CNY",
+  "source_url": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/",
+  "fetched_at": "2026-10-18T16:50:00+08:00",
+  "note": "峰值=工作日9:00-12:00/14:00-18:00(北京时间,近似不含节假日);其余为空闲半价。单位:元/百万tokens。",
+  "per_m_tokens": {
+    "peak":    {"in_hit": 0.04, "in_miss": 2.0, "out": 8.0},
+    "offpeak": {"in_hit": 0.02, "in_miss": 1.0, "out": 4.0}
+  },
+  "reservation_per_attempt": 0.03,
+  "warn_yuan": 7.0,
+  "block_yuan": 9.0,
+  "max_input_tokens_estimate": 8000,
+  "max_output_tokens": 900
+}

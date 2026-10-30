@@ -1,0 +1,442 @@
+{
+  "strategy": "TestStrategy",
+  "total_count": 20,
+  "best": {
+    "params": {
+      "param_a": 13,
+      "param_b": 26
+    },
+    "metrics": {
+      "total_return": 75.6597,
+      "max_drawdown": 6.7817,
+      "win_rate": 49.1261,
+      "profit_loss_ratio": 1.7634,
+      "trade_count": 42
+    },
+    "score": 81.61
+  },
+  "top10": [
+    {
+      "params": {
+        "param_a": 13,
+        "param_b": 26
+      },
+      "metrics": {
+        "total_return": 75.6597,
+        "max_drawdown": 6.7817,
+        "win_rate": 49.1261,
+        "profit_loss_ratio": 1.7634,
+        "trade_count": 42
+      },
+      "score": 81.61
+    },
+    {
+      "params": {
+        "param_a": 14,
+        "param_b": 28
+      },
+      "metrics": {
+        "total_return": 74.0482,
+        "max_drawdown": 16.3794,
+        "win_rate": 48.0323,
+        "profit_loss_ratio": 2.7232,
+        "trade_count": 37
+      },
+      "score": 73.58
+    },
+    {
+      "params": {
+        "param_a": 8,
+        "param_b": 16
+      },
+      "metrics": {
+        "total_return": 30.6548,
+        "max_drawdown": 4.1786,
+        "win_rate": 52.9305,
+        "profit_loss_ratio": 1.4944,
+        "trade_count": 24
+      },
+      "score": 72.6
+    },
+    {
+      "params": {
+        "param_a": 7,
+        "param_b": 14
+      },
+      "metrics": {
+        "total_return": 67.7262,
+        "max_drawdown": 18.4286,
+        "win_rate": 48.4191,
+        "profit_loss_ratio": 2.7698,
+        "trade_count": 43
+      },
+      "score": 68.27
+    },
+    {
+      "params": {
+        "param_a": 19,
+        "param_b": 38
+      },
+      "metrics": {
+        "total_return": 64.2072,
+        "max_drawdown": 16.5384,
+        "win_rate": 46.1455,
+        "profit_loss_ratio": 1.4009,
+        "trade_count": 13
+      },
+      "score": 68.23
+    },
+    {
+      "params": {
+        "param_a": 5,
+        "param_b": 10
+      },
+      "metrics": {
+        "total_return": 66.2158,
+        "max_drawdown": 23.103,
+        "win_rate": 56.9412,
+        "profit_loss_ratio": 2.0569,
+        "trade_count": 10
+      },
+      "score": 65.83
+    },
+    {
+      "params": {
+        "param_a": 0,
+        "param_b": 0
+      },
+      "metrics": {
+        "total_return": 71.0101,
+        "max_drawdown": 19.791,
+        "win_rate": 42.3701,
+        "profit_loss_ratio": 0.8893,
+        "trade_count": 50
+      },
+      "score": 65.8
+    },
+    {
+      "params": {
+        "param_a": 3,
+        "param_b": 6
+      },
+      "metrics": {
+        "total_return": 70.4357,
+        "max_drawdown": 27.705,
+        "win_rate": 46.7109,
+        "profit_loss_ratio": 1.5824,
+        "trade_count": 11
+      },
+      "score": 59.39
+    },
+    {
+      "params": {
+        "param_a": 11,
+        "param_b": 22
+      },
+      "metrics": {
+        "total_return": 13.9487,
+        "max_drawdown": 10.4544,
+        "win_rate": 67.852,
+        "profit_loss_ratio": 2.9136,
+        "trade_count": 33
+      },
+      "score": 58.98
+    },
+    {
+      "params": {
+        "param_a": 4,
+        "param_b": 8
+      },
+      "metrics": {
+        "total_return": 58.931,
+        "max_drawdown": 21.8224,
+        "win_rate": 42.048,
+        "profit_loss_ratio": 2.9798,
+        "trade_count": 47
+      },
+      "score": 58.57
+    }
+  ],
+  "all_results": [
+    {
+      "params": {
+        "param_a": 13,
+        "param_b": 26
+      },
+      "metrics": {
+        "total_return": 75.6597,
+        "max_drawdown": 6.7817,
+        "win_rate": 49.1261,
+        "profit_loss_ratio": 1.7634,
+        "trade_count": 42
+      },
+      "score": 81.61
+    },
+    {
+      "params": {
+        "param_a": 14,
+        "param_b": 28
+      },
+      "metrics": {
+        "total_return": 74.0482,
+        "max_drawdown": 16.3794,
+        "win_rate": 48.0323,
+        "profit_loss_ratio": 2.7232,
+        "trade_count": 37
+      },
+      "score": 73.58
+    },
+    {
+      "params": {
+        "param_a": 8,
+        "param_b": 16
+      },
+      "metrics": {
+        "total_return": 30.6548,
+        "max_drawdown": 4.1786,
+        "win_rate": 52.9305,
+        "profit_loss_ratio": 1.4944,
+        "trade_count": 24
+      },
+      "score": 72.6
+    },
+    {
+      "params": {
+        "param_a": 7,
+        "param_b": 14
+      },
+      "metrics": {
+        "total_return": 67.7262,
+        "max_drawdown": 18.4286,
+        "win_rate": 48.4191,
+        "profit_loss_ratio": 2.7698,
+        "trade_count": 43
+      },
+      "score": 68.27
+    },
+    {
+      "params": {
+        "param_a": 19,
+        "param_b": 38
+      },
+      "metrics": {
+        "total_return": 64.2072,
+        "max_drawdown": 16.5384,
+        "win_rate": 46.1455,
+        "profit_loss_ratio": 1.4009,
+        "trade_count": 13
+      },
+      "score": 68.23
+    },
+    {
+      "params": {
+        "param_a": 5,
+        "param_b": 10
+      },
+      "metrics": {
+        "total_return": 66.2158,
+        "max_drawdown": 23.103,
+        "win_rate": 56.9412,
+        "profit_loss_ratio": 2.0569,
+        "trade_count": 10
+      },
+      "score": 65.83
+    },
+    {
+      "params": {
+        "param_a": 0,
+        "param_b": 0
+      },
+      "metrics": {
+        "total_return": 71.0101,
+        "max_drawdown": 19.791,
+        "win_rate": 42.3701,
+        "profit_loss_ratio": 0.8893,
+        "trade_count": 50
+      },
+      "score": 65.8
+    },
+    {
+      "params": {
+        "param_a": 3,
+        "param_b": 6
+      },
+      "metrics": {
+        "total_return": 70.4357,
+        "max_drawdown": 27.705,
+        "win_rate": 46.7109,
+        "profit_loss_ratio": 1.5824,
+        "trade_count": 11
+      },
+      "score": 59.39
+    },
+    {
+      "params": {
+        "param_a": 11,
+        "param_b": 22
+      },
+      "metrics": {
+        "total_return": 13.9487,
+        "max_drawdown": 10.4544,
+        "win_rate": 67.852,
+        "profit_loss_ratio": 2.9136,
+        "trade_count": 33
+      },
+      "score": 58.98
+    },
+    {
+      "params": {
+        "param_a": 4,
+        "param_b": 8
+      },
+      "metrics": {
+        "total_return": 58.931,
+        "max_drawdown": 21.8224,
+        "win_rate": 42.048,
+        "profit_loss_ratio": 2.9798,
+        "trade_count": 47
+      },
+      "score": 58.57
+    },
+    {
+      "params": {
+        "param_a": 2,
+        "param_b": 4
+      },
+      "metrics": {
+        "total_return": 42.9242,
+        "max_drawdown": 19.3735,
+        "win_rate": 48.3137,
+        "profit_loss_ratio": 2.772,
+        "trade_count": 34
+      },
+      "score": 56.67
+    },
+    {
+      "params": {
+        "param_a": 15,
+        "param_b": 30
+      },
+      "metrics": {
+        "total_return": 49.5757,
+        "max_drawdown": 29.1604,
+        "win_rate": 61.0052,
+        "profit_loss_ratio": 0.8346,
+        "trade_count": 46
+      },
+      "score": 55.78
+    },
+    {
+      "params": {
+        "param_a": 9,
+        "param_b": 18
+      },
+      "metrics": {
+        "total_return": 45.5613,
+        "max_drawdown": 27.7502,
+        "win_rate": 56.001,
+        "profit_loss_ratio": 0.8221,
+        "trade_count": 11
+      },
+      "score": 53.51
+    },
+    {
+      "params": {
+        "param_a": 18,
+        "param_b": 36
+      },
+      "metrics": {
+        "total_return": 27.6036,
+        "max_drawdown": 18.6808,
+        "win_rate": 54.9354,
+        "profit_loss_ratio": 1.0725,
+        "trade_count": 10
+      },
+      "score": 53.27
+    },
+    {
+      "params": {
+        "param_a": 12,
+        "param_b": 24
+      },
+      "metrics": {
+        "total_return": 24.6079,
+        "max_drawdown": 15.7153,
+        "win_rate": 41.6362,
+        "profit_loss_ratio": 1.1754,
+        "trade_count": 44
+      },
+      "score": 49.53
+    },
+    {
+      "params": {
+        "param_a": 16,
+        "param_b": 32
+      },
+      "metrics": {
+        "total_return": 50.1346,
+        "max_drawdown": 29.2529,
+        "win_rate": 37.6794,
+        "profit_loss_ratio": 1.3067,
+        "trade_count": 37
+      },
+      "score": 47.17
+    },
+    {
+      "params": {
+        "param_a": 17,
+        "param_b": 34
+      },
+      "metrics": {
+        "total_return": -9.5658,
+        "max_drawdown": 9.3133,
+        "win_rate": 53.3943,
+        "profit_loss_ratio": 2.0245,
+        "trade_count": 26
+      },
+      "score": 43.97
+    },
+    {
+      "params": {
+        "param_a": 6,
+        "param_b": 12
+      },
+      "metrics": {
+        "total_return": 21.5822,
+        "max_drawdown": 25.3626,
+        "win_rate": 69.3752,
+        "profit_loss_ratio": 1.8721,
+        "trade_count": 7
+      },
+      "score": 40.95
+    },
+    {
+      "params": {
+        "param_a": 1,
+        "param_b": 2
+      },
+      "metrics": {
+        "total_return": 0.2106,
+        "max_drawdown": 10.0007,
+        "win_rate": 61.8792,
+        "profit_loss_ratio": 1.3636,
+        "trade_count": 6
+      },
+      "score": 39.53
+    },
+    {
+      "params": {
+        "param_a": 10,
+        "param_b": 20
+      },
+      "metrics": {
+        "total_return": -18.616,
+        "max_drawdown": 28.5524,
+        "win_rate": 64.1689,
+        "profit_loss_ratio": 1.6497,
+        "trade_count": 10
+      },
+      "score": 34.05
+    }
+  ]
+}

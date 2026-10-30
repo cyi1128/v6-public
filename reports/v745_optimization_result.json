@@ -1,0 +1,26 @@
+{
+  "best_tp": 0.08,
+  "best_sl": -0.07,
+  "best_mh": 10,
+  "best_buy_mode": "C",
+  "current": {
+    "count": 13810,
+    "win_rate": 48.72556118754526,
+    "avg_ret": 0.4084401974544646,
+    "pl_ratio": 1.3117511013603298,
+    "max_dd": -4.545137837417612,
+    "max_consec_loss": 15,
+    "final_capital": 664055.9126846148,
+    "total_return": 564.0559126846148
+  },
+  "optimized": {
+    "count": 5648,
+    "win_rate": 59.34844192634561,
+    "avg_ret": 1.6767464845909243,
+    "pl_ratio": 1.3196495545000921,
+    "max_dd": -3.491476852254531,
+    "max_consec_loss": 9,
+    "final_capital": 1047026.4144969541,
+    "total_return": 947.0264144969541
+  }
+}

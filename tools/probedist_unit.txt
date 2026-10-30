@@ -1,0 +1,71 @@
+====================================================================================================
+试盘识别 / 出货形态确认 验证
+====================================================================================================
+
+[A] 造数单测
+  典型试盘: ok=True stage=confirmed score=90.6 n_ok=6 shadow=0.687 spike=0.075 vr=3.00 after=0.17
+  PASS  典型试盘形态 -> ok=True / stage=confirmed 
+  PASS  ok=True 时分数 >= 70（两段不重叠） 90.6
+  PASS  P1~P6 六条全 True [True, True, True, True, True, True]
+  PASS  收长阳（无上影）-> 不成立 score=0.0
+  PASS  未通过时分数 <= 60 0.0
+  PASS  冲高只有 2%（不足 5%）-> 不成立 
+  PASS  试盘日没有放量（1.05倍）-> 不成立 
+  PASS  试盘后跌破试盘日低点（超 3%）-> 不成立 score=47.8 hits=[True, True, True, True, True, False]
+  PASS  试盘日就是最后一根 -> pending、不出结论 
+  PASS  pending 分数也 <= 60 41.5
+  PASS  高位长上影（pos>0.75）-> 直接排除（归出货形态） pos>0.35
+  PASS  一路下跌后横盘、无冲高 -> 不成立且分数低 0.0 reason=no_probe
+  PASS  bars<60 -> reason 
+  PASS  df=None 不抛异常 
+  PASS  含 NaN 不抛异常 
+  PASS  缺 volume 列 -> reason=missing:volume 
+  ①高位放量滞涨: ok=True type=高位放量滞涨 score=86.5 n_ok=5
+  PASS  ①高位放量滞涨 造数 -> 命中且类型正确 type=高位放量滞涨
+  PASS  ①高位放量滞涨 ok 时分数 >= 70 86.5
+  ②高位破位: ok=True type=高位破位 score=88.9 n_ok=4
+  PASS  ②高位破位 造数 -> 命中且类型正确 type=高位破位
+  PASS  ②高位破位 ok 时分数 >= 70 88.9
+  ③双顶雏形: ok=True type=双顶雏形 score=86.8 n_ok=6
+  PASS  ③双顶雏形 造数 -> 命中且类型正确 type=双顶雏形
+  PASS  ③双顶雏形 ok 时分数 >= 70 86.8
+  PASS  横盘无形态 -> 不命中且分数 <= 30 12.0
+  PASS  未命中时分数 <= 60 
+  PASS  bars<60 -> reason 
+  PASS  detect_distribution_pattern(None) 不抛异常 
+  PASS  缺 volume 列 -> reason 
+
+[B] 真实数据（kline_cache 抽 300 只）
+  可算 299 只 ｜ 试盘命中 2 只 ｜ 出货形态命中 14 只 {'双顶雏形': 14}
+  PASS  真数据：新因子能在本地缓存上跑通 299 只
+  PASS  ok=True 的记录分数全部 >= 70（试盘） min=79.7
+  PASS  未通过的记录分数全部 <= 60（试盘） max=48.6
+  PASS  ok=True 的记录分数全部 >= 70（出货形态） min=73.2
+  PASS  未通过的记录分数全部 <= 60（出货形态） max=38.0
+  PASS  pos120 / vol_ratio 与手工计算逐只一致（无错位、无未来数据） []
+
+[C] 文案追加与开关
+  PASS  probe=True -> 追加「试盘观察：长上影测试抛压」 '试盘观察：长上影测试抛压'
+  PASS  distpat='高位放量滞涨' -> 追加对应文案 '出货形态观察：高位放量滞涨'
+  PASS  控盘提示与观察文案并存且顺序为「控盘在前」 '出货风险警示 ｜ 试盘观察：长上影测试抛压 ｜ 出货形态观察：高位破位'
+  PASS  C4/C6/试盘/出货形态 四条共存 '高度控盘候选 ｜ C4观察：低位量价结构 ｜ C6观察：低位适中振幅 ｜ 试盘观察：长上影测试抛压 ｜ 出货形态观察：双顶雏形'
+  PASS  probe=False / distpat=None 时不追加 
+  PASS  _PROBE_NOTE_MODE='off' -> 不追加试盘文案 
+  PASS  _DISTP_NOTE_MODE='off' -> 不追加出货形态文案 
+  旧参数组合数 1920
+  PASS  旧参数组合下 _ctrl_note 输出与改动前逐字一致（已剔除 2026-10-11 关闭的洗盘文案） 不一致 0 例 []
+
+[D] 落盘链路（字段定义）
+  PASS  _ALL_COLS 含 probe_ok (INTEGER) INTEGER
+  PASS  _ALL_COLS 含 probe_score (REAL) REAL
+  PASS  _ALL_COLS 含 dist_pattern_ok (INTEGER) INTEGER
+  PASS  _ALL_COLS 含 dist_pattern_type (TEXT) TEXT
+  PASS  _ALL_COLS 含 dist_pattern_score (REAL) REAL
+  PASS  列数 = 59 59
+  PASS  INSERT 占位符数量 == 列数 
+  PASS  引擎行尾仍为纯 LF 
+  PASS  base.py 行尾仍为纯 CRLF 
+
+====================================================================================================
+总计：PASS 50 ｜ FAIL 0
+====================================================================================================

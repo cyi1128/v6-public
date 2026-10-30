@@ -1,0 +1,318 @@
+{
+  "analysis_time": "2026-08-22 19:29:20",
+  "stock_count": 1948,
+  "total_market": 2232,
+  "walk_forward": {
+    "train_days": 150,
+    "test_days": 100,
+    "roll_step": 30
+  },
+  "models": {
+    "TOP1": {
+      "model_key": "TOP1",
+      "model_name": "多头排列+一阳穿均线+缩量",
+      "conditions": [
+        "ma_bullish",
+        "yang_cross_ma",
+        "vol_shrink"
+      ],
+      "windows": 3,
+      "avg_train_win": 57.26,
+      "avg_test_win": 52.76,
+      "avg_test_ret": 0.99,
+      "avg_test_pl": 1.3,
+      "total_test_signals": 366,
+      "stability_score": 100.0,
+      "sample_win": 63.7,
+      "sample_ret": 1.95,
+      "sample_pl": 1.18,
+      "window_details": [
+        {
+          "window": 1,
+          "train_range": "0-150",
+          "test_range": "150-250",
+          "train": {
+            "count": 251,
+            "win_rate": 57.77,
+            "avg_ret": 0.88,
+            "avg_win": 4.12,
+            "avg_loss": -3.55,
+            "pl_ratio": 1.16,
+            "max_mdd": NaN,
+            "max_consec_loss": 6
+          },
+          "test": {
+            "count": 120,
+            "win_rate": 55.83,
+            "avg_ret": 1.1,
+            "avg_win": 5.47,
+            "avg_loss": -4.41,
+            "pl_ratio": 1.24,
+            "max_mdd": NaN,
+            "max_consec_loss": 6
+          },
+          "win_decay_pct": 3.4,
+          "is_stable": 1
+        },
+        {
+          "window": 2,
+          "train_range": "30-180",
+          "test_range": "180-280",
+          "train": {
+            "count": 209,
+            "win_rate": 56.46,
+            "avg_ret": 0.91,
+            "avg_win": 4.6,
+            "avg_loss": -3.87,
+            "pl_ratio": 1.19,
+            "max_mdd": NaN,
+            "max_consec_loss": 7
+          },
+          "test": {
+            "count": 126,
+            "win_rate": 50.79,
+            "avg_ret": 0.6,
+            "avg_win": 6.21,
+            "avg_loss": -5.18,
+            "pl_ratio": 1.2,
+            "max_mdd": NaN,
+            "max_consec_loss": 12
+          },
+          "win_decay_pct": 10.0,
+          "is_stable": 1
+        },
+        {
+          "window": 3,
+          "train_range": "60-210",
+          "test_range": "210-310",
+          "train": {
+            "count": 205,
+            "win_rate": 57.56,
+            "avg_ret": 0.9,
+            "avg_win": 4.44,
+            "avg_loss": -3.9,
+            "pl_ratio": 1.14,
+            "max_mdd": NaN,
+            "max_consec_loss": 6
+          },
+          "test": {
+            "count": 120,
+            "win_rate": 51.67,
+            "avg_ret": 1.27,
+            "avg_win": 6.86,
+            "avg_loss": -4.7,
+            "pl_ratio": 1.46,
+            "max_mdd": NaN,
+            "max_consec_loss": 5
+          },
+          "win_decay_pct": 10.2,
+          "is_stable": 1
+        }
+      ]
+    },
+    "TOP2": {
+      "model_key": "TOP2",
+      "model_name": "KDJ(9)J低位+回踩MA10",
+      "conditions": [
+        "kdj9_j_low",
+        "pullback_ma10"
+      ],
+      "windows": 3,
+      "avg_train_win": 55.73,
+      "avg_test_win": 51.08,
+      "avg_test_ret": 0.26,
+      "avg_test_pl": 1.13,
+      "total_test_signals": 438,
+      "stability_score": 33.3,
+      "sample_win": 55.5,
+      "sample_ret": 1.5,
+      "sample_pl": 1.88,
+      "window_details": [
+        {
+          "window": 1,
+          "train_range": "0-150",
+          "test_range": "150-250",
+          "train": {
+            "count": 446,
+            "win_rate": 56.05,
+            "avg_ret": 1.33,
+            "avg_win": 4.02,
+            "avg_loss": -2.1,
+            "pl_ratio": 1.91,
+            "max_mdd": NaN,
+            "max_consec_loss": 7
+          },
+          "test": {
+            "count": 174,
+            "win_rate": 51.72,
+            "avg_ret": 0.11,
+            "avg_win": 2.98,
+            "avg_loss": -2.97,
+            "pl_ratio": 1.0,
+            "max_mdd": NaN,
+            "max_consec_loss": 5
+          },
+          "win_decay_pct": 7.7,
+          "is_stable": 0
+        },
+        {
+          "window": 2,
+          "train_range": "30-180",
+          "test_range": "180-280",
+          "train": {
+            "count": 432,
+            "win_rate": 56.71,
+            "avg_ret": 1.33,
+            "avg_win": 3.97,
+            "avg_loss": -2.13,
+            "pl_ratio": 1.86,
+            "max_mdd": NaN,
+            "max_consec_loss": 8
+          },
+          "test": {
+            "count": 136,
+            "win_rate": 50.74,
+            "avg_ret": 0.21,
+            "avg_win": 3.27,
+            "avg_loss": -2.94,
+            "pl_ratio": 1.11,
+            "max_mdd": NaN,
+            "max_consec_loss": 4
+          },
+          "win_decay_pct": 10.5,
+          "is_stable": 0
+        },
+        {
+          "window": 3,
+          "train_range": "60-210",
+          "test_range": "210-310",
+          "train": {
+            "count": 406,
+            "win_rate": 54.43,
+            "avg_ret": 1.24,
+            "avg_win": 4.14,
+            "avg_loss": -2.23,
+            "pl_ratio": 1.85,
+            "max_mdd": NaN,
+            "max_consec_loss": 9
+          },
+          "test": {
+            "count": 128,
+            "win_rate": 50.78,
+            "avg_ret": 0.46,
+            "avg_win": 3.78,
+            "avg_loss": -2.97,
+            "pl_ratio": 1.27,
+            "max_mdd": NaN,
+            "max_consec_loss": 8
+          },
+          "win_decay_pct": 6.7,
+          "is_stable": 1
+        }
+      ]
+    },
+    "TOP3": {
+      "model_key": "TOP3",
+      "model_name": "KDJ(13)J低位+MACD红柱扩大+MACD绿柱缩小",
+      "conditions": [
+        "kdj13_j_low",
+        "macd12_26_red_expand",
+        "macd8_21_green_shrink"
+      ],
+      "windows": 3,
+      "avg_train_win": 59.31,
+      "avg_test_win": 52.42,
+      "avg_test_ret": 0.81,
+      "avg_test_pl": 1.51,
+      "total_test_signals": 398,
+      "stability_score": 66.7,
+      "sample_win": 55.5,
+      "sample_ret": 1.4,
+      "sample_pl": 1.8,
+      "window_details": [
+        {
+          "window": 1,
+          "train_range": "0-150",
+          "test_range": "150-250",
+          "train": {
+            "count": 298,
+            "win_rate": 53.36,
+            "avg_ret": 1.19,
+            "avg_win": 3.77,
+            "avg_loss": -1.77,
+            "pl_ratio": 2.13,
+            "max_mdd": NaN,
+            "max_consec_loss": 8
+          },
+          "test": {
+            "count": 134,
+            "win_rate": 56.72,
+            "avg_ret": 1.11,
+            "avg_win": 3.66,
+            "avg_loss": -2.23,
+            "pl_ratio": 1.64,
+            "max_mdd": NaN,
+            "max_consec_loss": 4
+          },
+          "win_decay_pct": -6.3,
+          "is_stable": 1
+        },
+        {
+          "window": 2,
+          "train_range": "30-180",
+          "test_range": "180-280",
+          "train": {
+            "count": 209,
+            "win_rate": 64.11,
+            "avg_ret": 1.82,
+            "avg_win": 3.71,
+            "avg_loss": -1.55,
+            "pl_ratio": 2.4,
+            "max_mdd": NaN,
+            "max_consec_loss": 4
+          },
+          "test": {
+            "count": 111,
+            "win_rate": 49.55,
+            "avg_ret": 0.66,
+            "avg_win": 4.16,
+            "avg_loss": -2.78,
+            "pl_ratio": 1.49,
+            "max_mdd": NaN,
+            "max_consec_loss": 4
+          },
+          "win_decay_pct": 22.7,
+          "is_stable": 0
+        },
+        {
+          "window": 3,
+          "train_range": "60-210",
+          "test_range": "210-310",
+          "train": {
+            "count": 215,
+            "win_rate": 60.47,
+            "avg_ret": 1.3,
+            "avg_win": 3.35,
+            "avg_loss": -1.82,
+            "pl_ratio": 1.83,
+            "max_mdd": NaN,
+            "max_consec_loss": 4
+          },
+          "test": {
+            "count": 153,
+            "win_rate": 50.98,
+            "avg_ret": 0.67,
+            "avg_win": 4.23,
+            "avg_loss": -3.04,
+            "pl_ratio": 1.39,
+            "max_mdd": NaN,
+            "max_consec_loss": 4
+          },
+          "win_decay_pct": 15.7,
+          "is_stable": 1
+        }
+      ]
+    }
+  },
+  "total_duration": 280.7
+}

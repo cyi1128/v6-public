@@ -1,0 +1,49 @@
+{
+  "total_signals": 500,
+  "grade_distribution": {
+    "S": 0,
+    "A": 1,
+    "B": 0,
+    "观察": 499
+  },
+  "avg_scores": {
+    "S": {
+      "enhanced": 0,
+      "top1": 0,
+      "top3": 0
+    },
+    "A": {
+      "enhanced": 70.0,
+      "top1": 70.0,
+      "top3": 35.0
+    },
+    "B": {
+      "enhanced": 0,
+      "top1": 0,
+      "top3": 0
+    },
+    "观察": {
+      "enhanced": 38.4,
+      "top1": 37.3,
+      "top3": 20.6
+    }
+  },
+  "top1_trigger_count": 1,
+  "top3_trigger_count": 0,
+  "both_trigger_count": 0,
+  "market_distribution": {
+    "沪市主板": 393,
+    "其他": 105,
+    "创业板": 1,
+    "科创板": 1
+  },
+  "price_distribution": {
+    "<3元": 25,
+    "3-5元": 57,
+    "5-10元": 149,
+    "10-20元": 150,
+    "20-50元": 98,
+    "50-100元": 18,
+    ">100元": 3
+  }
+}

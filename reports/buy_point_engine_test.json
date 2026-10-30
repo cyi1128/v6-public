@@ -1,0 +1,1161 @@
+[
+  {
+    "code": "600519",
+    "name": "贵州茅台",
+    "date": "20260820",
+    "grade": "B",
+    "buy_type": "涨停回调(形成中)",
+    "score": 48.4,
+    "score_breakdown": {
+      "trend": 15.0,
+      "trend_detail": {
+        "bullish_alignment": 0.0,
+        "above_ma20": 5.0,
+        "ma60_uptrend": 10.0
+      },
+      "capital": 13.0,
+      "capital_detail": {
+        "sustained_inflow": 5.0,
+        "healthy_volume_ratio": 3.0,
+        "amount_growth": 5.0,
+        "volume_growth_pct": 15.23
+      },
+      "pattern": 10.4,
+      "pattern_detail": {
+        "model_library_score": 6.4,
+        "buy_point_match": 4.0,
+        "best_model": "volume_breakout"
+      },
+      "sentiment": 10.0,
+      "sentiment_detail": {
+        "limit_up_history": 0.0,
+        "stock_heat": 0.0,
+        "market_environment": 5.0,
+        "sector_strength": 5.0,
+        "limit_up_count_60d": 0,
+        "rise_20d_pct": -0.04,
+        "env_score": 80.0,
+        "env_type": "牛市"
+      },
+      "total": 48.4
+    },
+    "stars": 1,
+    "risk_level": "高",
+    "price_levels": {
+      "current_price": 129.15,
+      "best_buy_range": [
+        127.88,
+        129.78
+      ],
+      "breakout_price": 137.02,
+      "stop_loss": 124.16,
+      "target_range": [
+        162.74,
+        175.6
+      ],
+      "atr": 2.53,
+      "support": 127.96,
+      "resistance": 136.34,
+      "risk_reward_ratio": 8.02
+    },
+    "reasons": [
+      "检测到【涨停回调(形成中)】买点（等级B），综合评分48.4分",
+      "盈亏比8.0:1，止损124.16，目标162.74-175.60"
+    ],
+    "risks": [
+      "综合风险等级较高，建议观望",
+      "资金面不足，量能未有效放大",
+      "缠论提示：一卖",
+      "存在顶背驰风险，上涨动能可能衰竭"
+    ],
+    "conditions_met": [
+      "近期涨停/大阳启动",
+      "回撤5%-15%"
+    ],
+    "conditions_not_met": [
+      "缩量调整",
+      "不破20日线",
+      "再次放量"
+    ],
+    "calculation_basis": {
+      "indicators": {
+        "ma5": 130.65,
+        "ma10": 132.35,
+        "ma20": 132.39,
+        "ma60": 127.16,
+        "macd_dif": 0.1986,
+        "macd_dea": 0.9254,
+        "kdj_k": 3.54,
+        "kdj_d": 3.54,
+        "kdj_j": 3.54,
+        "volume_ratio_5d": 1.15,
+        "atr_14": 2.53
+      },
+      "price_calc": {
+        "support_candidates": [
+          132.39,
+          127.96,
+          127.96,
+          130.0,
+          130.92,
+          127.96
+        ],
+        "resistance_candidates": [
+          136.34,
+          136.34,
+          136.34,
+          136.34,
+          136.34
+        ],
+        "atr_used": 2.53,
+        "stop_loss_atr_mult": 1.5,
+        "target_rr_range": [
+          2.0,
+          3.0
+        ]
+      }
+    },
+    "buy_point_checks": {
+      "A_main_launch": {
+        "matched": false,
+        "conditions": {
+          "ma5_cross_ma10": false,
+          "volume_expand": false,
+          "macd_golden": false,
+          "kdj_golden_below_50": false,
+          "breakout_pressure": false
+        },
+        "score": 0.0,
+        "details": {
+          "volume_ratio": 1.15,
+          "kdj_k": 3.54,
+          "recent_20d_high": 136.34,
+          "conditions_met": 0
+        }
+      },
+      "B_limit_pullback": {
+        "matched": false,
+        "conditions": {
+          "has_recent_launch": true,
+          "drawdown_5_15pct": true,
+          "volume_shrinking": false,
+          "above_ma20": false,
+          "volume_recovering": false
+        },
+        "score": 40.0,
+        "details": {
+          "launch_date": "20260720",
+          "launch_pct": 5.95,
+          "peak_after_launch": 136.34,
+          "drawdown_pct": 5.27,
+          "ma20": 132.39,
+          "recent_3d_vol_ratio": 0.84,
+          "conditions_met": 2
+        }
+      },
+      "C_five_buy": {
+        "matched": false,
+        "conditions": {
+          "bottom_or_decline_end": false,
+          "macd_improving": false,
+          "kdj_low_golden": false,
+          "volume_recover": true,
+          "five_buy_ma5_support": false
+        },
+        "score": 20.0,
+        "details": {
+          "kdj_k": 3.54,
+          "volume_recover_ratio": 0.84,
+          "conditions_met": 1
+        }
+      },
+      "D_box_breakout": {
+        "matched": false,
+        "conditions": {
+          "consolidation_20_60d": true,
+          "volume_breakout": false,
+          "price_breakout_box": false,
+          "ma_divergence": false
+        },
+        "score": 20.0,
+        "details": {
+          "box_days": 20,
+          "box_amplitude": 6.55,
+          "box_top": 136.335,
+          "box_bottom": 127.958,
+          "breakout_volume_ratio": 0.59,
+          "conditions_met": 1
+        }
+      }
+    },
+    "chanlun_result": {
+      "score": 31,
+      "level": "风险较高",
+      "trend": "中枢震荡",
+      "signals": [
+        "一卖"
+      ],
+      "beichi": "top_beichi",
+      "zhongshu_type": "up",
+      "suggestion": "【趋势判断】在中枢区间内震荡整理\n【缠论结构】up中枢，幅度5.1%\n【背驰】顶背驰，上涨动能衰竭\n【买卖点】一卖\n【价格点位】买入128.03 | 卖出128.27 | 支撑127.96 | 压力134.47 | 止损125.40\n【综合评分】31分 - 风险较高"
+    },
+    "model_results": {
+      "limit_up_pullback": {
+        "matched": true,
+        "stage": "回调整理",
+        "score": 63.9,
+        "signals": [],
+        "support": 127.96,
+        "pressure": 136.34
+      },
+      "box_breakout": {
+        "matched": true,
+        "stage": "平台蓄势",
+        "score": 55.0,
+        "signals": [],
+        "support": 130.0,
+        "pressure": 136.34
+      },
+      "volume_breakout": {
+        "matched": true,
+        "stage": "量价齐升",
+        "score": 64.0,
+        "signals": [
+          "量价齐升初期介入"
+        ],
+        "support": 130.92,
+        "pressure": 136.34
+      }
+    },
+    "market_env": {
+      "score": 80.0,
+      "env_type": "牛市",
+      "factor": 1.2,
+      "chase_allowed": true,
+      "limit_up_count": 45,
+      "up_count": 1633,
+      "down_count": 551
+    }
+  },
+  {
+    "code": "000001",
+    "name": "平安银行",
+    "date": "20260820",
+    "grade": "B",
+    "buy_type": "涨停回调(形成中)",
+    "score": 68.0,
+    "score_breakdown": {
+      "trend": 20.0,
+      "trend_detail": {
+        "bullish_alignment": 0.0,
+        "above_ma20": 10.0,
+        "ma60_uptrend": 10.0
+      },
+      "capital": 25.0,
+      "capital_detail": {
+        "sustained_inflow": 5.0,
+        "healthy_volume_ratio": 10.0,
+        "amount_growth": 10.0,
+        "volume_growth_pct": 35.46
+      },
+      "pattern": 10.0,
+      "pattern_detail": {
+        "model_library_score": 5.5,
+        "buy_point_match": 4.0,
+        "best_model": "box_breakout",
+        "chanlun_buy_signals": [
+          "三买"
+        ]
+      },
+      "sentiment": 13.0,
+      "sentiment_detail": {
+        "limit_up_history": 0.0,
+        "stock_heat": 3.0,
+        "market_environment": 5.0,
+        "sector_strength": 5.0,
+        "limit_up_count_60d": 0,
+        "rise_20d_pct": 2.89,
+        "env_score": 80.0,
+        "env_type": "牛市"
+      },
+      "total": 68.0
+    },
+    "stars": 2,
+    "risk_level": "中",
+    "price_levels": {
+      "current_price": 11.4,
+      "best_buy_range": [
+        11.31,
+        11.44
+      ],
+      "breakout_price": 11.69,
+      "stop_loss": 10.64,
+      "target_range": [
+        13.79,
+        14.84
+      ],
+      "atr": 0.17,
+      "support": 10.9,
+      "resistance": 11.63,
+      "risk_reward_ratio": 3.84
+    },
+    "reasons": [
+      "检测到【涨停回调(形成中)】买点（等级B），综合评分68.0分",
+      "趋势面较强（20/30分）：股价站上20日线，60日趋势向上",
+      "资金面活跃（25/30分）：量比健康(1.2-3)，成交额显著增长",
+      "盈亏比3.8:1，止损10.64，目标13.79-14.84",
+      "缠论确认：三买"
+    ],
+    "risks": [
+      "暂无明显风险信号"
+    ],
+    "conditions_met": [
+      "不破20日线",
+      "再次放量"
+    ],
+    "conditions_not_met": [
+      "近期涨停/大阳启动",
+      "回撤5%-15%",
+      "缩量调整"
+    ],
+    "calculation_basis": {
+      "indicators": {
+        "ma5": 11.19,
+        "ma10": 11.22,
+        "ma20": 11.28,
+        "ma60": 10.92,
+        "macd_dif": 0.058,
+        "macd_dea": 0.0584,
+        "kdj_k": 48.13,
+        "kdj_d": 48.13,
+        "kdj_j": 48.13,
+        "volume_ratio_5d": 1.35,
+        "atr_14": 0.17
+      },
+      "price_calc": {
+        "support_candidates": [
+          11.28,
+          11.03,
+          11.1,
+          11.03,
+          10.9
+        ],
+        "resistance_candidates": [
+          11.66,
+          11.66,
+          11.63,
+          11.66
+        ],
+        "atr_used": 0.17,
+        "stop_loss_atr_mult": 1.5,
+        "target_rr_range": [
+          2.0,
+          3.0
+        ]
+      }
+    },
+    "buy_point_checks": {
+      "A_main_launch": {
+        "matched": false,
+        "conditions": {
+          "ma5_cross_ma10": false,
+          "volume_expand": false,
+          "macd_golden": false,
+          "kdj_golden_below_50": false,
+          "breakout_pressure": false
+        },
+        "score": 0.0,
+        "details": {
+          "volume_ratio": 1.35,
+          "kdj_k": 48.13,
+          "recent_20d_high": 11.66,
+          "conditions_met": 0
+        }
+      },
+      "B_limit_pullback": {
+        "matched": false,
+        "conditions": {
+          "has_recent_launch": false,
+          "drawdown_5_15pct": false,
+          "volume_shrinking": false,
+          "above_ma20": true,
+          "volume_recovering": true
+        },
+        "score": 40.0,
+        "details": {
+          "drawdown_pct": 0.0,
+          "ma20": 11.28,
+          "recent_3d_vol_ratio": 1.49,
+          "conditions_met": 2
+        }
+      },
+      "C_five_buy": {
+        "matched": false,
+        "conditions": {
+          "bottom_or_decline_end": false,
+          "macd_improving": true,
+          "kdj_low_golden": false,
+          "volume_recover": true,
+          "five_buy_ma5_support": false
+        },
+        "score": 40.0,
+        "details": {
+          "kdj_k": 48.13,
+          "volume_recover_ratio": 1.49,
+          "conditions_met": 2
+        }
+      },
+      "D_box_breakout": {
+        "matched": false,
+        "conditions": {
+          "consolidation_20_60d": true,
+          "volume_breakout": false,
+          "price_breakout_box": false,
+          "ma_divergence": false
+        },
+        "score": 20.0,
+        "details": {
+          "box_days": 20,
+          "box_amplitude": 6.97,
+          "box_top": 11.66,
+          "box_bottom": 10.9,
+          "breakout_volume_ratio": 1.02,
+          "conditions_met": 1
+        }
+      }
+    },
+    "chanlun_result": {
+      "score": 73,
+      "level": "谨慎参与",
+      "trend": "上涨调整",
+      "signals": [
+        "三买"
+      ],
+      "beichi": "",
+      "zhongshu_type": "up",
+      "suggestion": "【趋势判断】上涨趋势中的回调\n【缠论结构】up中枢，幅度3.7%\n【买卖点】三买\n【价格点位】买入11.18 | 卖出11.47 | 支撑10.67 | 压力11.07 | 止损10.46\n【综合评分】73分 - 谨慎参与"
+    },
+    "model_results": {
+      "limit_up_pullback": {
+        "matched": false,
+        "stage": "无强势启动",
+        "score": 10,
+        "signals": [],
+        "support": 0.0,
+        "pressure": 0.0
+      },
+      "box_breakout": {
+        "matched": true,
+        "stage": "平台蓄势",
+        "score": 55.0,
+        "signals": [],
+        "support": 11.1,
+        "pressure": 11.66
+      },
+      "volume_breakout": {
+        "matched": true,
+        "stage": "量价齐升",
+        "score": 30,
+        "signals": [],
+        "support": 11.03,
+        "pressure": 11.63
+      }
+    },
+    "market_env": {
+      "score": 80.0,
+      "env_type": "牛市",
+      "factor": 1.2,
+      "chase_allowed": true,
+      "limit_up_count": 45,
+      "up_count": 1633,
+      "down_count": 551
+    }
+  },
+  {
+    "code": "601318",
+    "name": "中国平安",
+    "date": "20260820",
+    "grade": "C",
+    "buy_type": "五买确认(形成中)",
+    "score": 37.5,
+    "score_breakdown": {
+      "trend": 5.0,
+      "trend_detail": {
+        "bullish_alignment": 0.0,
+        "above_ma20": 5.0,
+        "ma60_uptrend": 0.0
+      },
+      "capital": 13.0,
+      "capital_detail": {
+        "sustained_inflow": 5.0,
+        "healthy_volume_ratio": 3.0,
+        "amount_growth": 5.0,
+        "volume_growth_pct": 7.58
+      },
+      "pattern": 9.5,
+      "pattern_detail": {
+        "model_library_score": 5.5,
+        "buy_point_match": 4.0,
+        "best_model": "box_breakout"
+      },
+      "sentiment": 10.0,
+      "sentiment_detail": {
+        "limit_up_history": 0.0,
+        "stock_heat": 0.0,
+        "market_environment": 5.0,
+        "sector_strength": 5.0,
+        "limit_up_count_60d": 0,
+        "rise_20d_pct": -3.98,
+        "env_score": 80.0,
+        "env_type": "牛市"
+      },
+      "total": 37.5
+    },
+    "stars": 1,
+    "risk_level": "高",
+    "price_levels": {
+      "current_price": 52.14,
+      "best_buy_range": [
+        51.73,
+        52.35
+      ],
+      "breakout_price": 55.86,
+      "stop_loss": 49.93,
+      "target_range": [
+        67.72,
+        73.65
+      ],
+      "atr": 0.82,
+      "support": 51.17,
+      "resistance": 55.58,
+      "risk_reward_ratio": 8.39
+    },
+    "reasons": [
+      "检测到【五买确认(形成中)】买点（等级C），综合评分37.5分",
+      "盈亏比8.4:1，止损49.93，目标67.72-73.65"
+    ],
+    "risks": [
+      "综合风险等级较高，建议观望",
+      "趋势面较弱，均线未形成多头排列",
+      "资金面不足，量能未有效放大",
+      "缠论提示：三卖候选"
+    ],
+    "conditions_met": [
+      "MACD改善",
+      "量能恢复"
+    ],
+    "conditions_not_met": [
+      "底背离/下跌结束",
+      "KDJ低位金叉(K<30)",
+      "五买MA5承接"
+    ],
+    "calculation_basis": {
+      "indicators": {
+        "ma5": 51.82,
+        "ma10": 52.37,
+        "ma20": 53.37,
+        "ma60": 52.06,
+        "macd_dif": -0.36,
+        "macd_dea": -0.2345,
+        "kdj_k": 16.58,
+        "kdj_d": 16.58,
+        "kdj_j": 16.58,
+        "volume_ratio_5d": 1.08,
+        "atr_14": 0.82
+      },
+      "price_calc": {
+        "support_candidates": [
+          53.37,
+          51.17,
+          53.15,
+          51.17
+        ],
+        "resistance_candidates": [
+          55.8,
+          55.58,
+          55.8
+        ],
+        "atr_used": 0.82,
+        "stop_loss_atr_mult": 1.5,
+        "target_rr_range": [
+          2.0,
+          3.0
+        ]
+      }
+    },
+    "buy_point_checks": {
+      "A_main_launch": {
+        "matched": false,
+        "conditions": {
+          "ma5_cross_ma10": false,
+          "volume_expand": false,
+          "macd_golden": false,
+          "kdj_golden_below_50": false,
+          "breakout_pressure": false
+        },
+        "score": 0.0,
+        "details": {
+          "volume_ratio": 1.08,
+          "kdj_k": 16.58,
+          "recent_20d_high": 55.8,
+          "conditions_met": 0
+        }
+      },
+      "B_limit_pullback": {
+        "matched": false,
+        "conditions": {
+          "has_recent_launch": false,
+          "drawdown_5_15pct": false,
+          "volume_shrinking": false,
+          "above_ma20": false,
+          "volume_recovering": true
+        },
+        "score": 20.0,
+        "details": {
+          "drawdown_pct": 0.0,
+          "ma20": 53.37,
+          "recent_3d_vol_ratio": 1.09,
+          "conditions_met": 1
+        }
+      },
+      "C_five_buy": {
+        "matched": false,
+        "conditions": {
+          "bottom_or_decline_end": false,
+          "macd_improving": true,
+          "kdj_low_golden": false,
+          "volume_recover": true,
+          "five_buy_ma5_support": false
+        },
+        "score": 40.0,
+        "details": {
+          "kdj_k": 16.58,
+          "volume_recover_ratio": 1.09,
+          "conditions_met": 2
+        }
+      },
+      "D_box_breakout": {
+        "matched": false,
+        "conditions": {
+          "consolidation_20_60d": true,
+          "volume_breakout": false,
+          "price_breakout_box": false,
+          "ma_divergence": false
+        },
+        "score": 20.0,
+        "details": {
+          "box_days": 20,
+          "box_amplitude": 9.05,
+          "box_top": 55.8,
+          "box_bottom": 51.17,
+          "breakout_volume_ratio": 0.69,
+          "conditions_met": 1
+        }
+      }
+    },
+    "chanlun_result": {
+      "score": 40,
+      "level": "观望为主",
+      "trend": "下跌趋势",
+      "signals": [
+        "三卖候选",
+        "中枢下沿"
+      ],
+      "beichi": "",
+      "zhongshu_type": "down",
+      "suggestion": "【趋势判断】跌破中枢下沿，处于下跌趋势中\n【缠论结构】down中枢，幅度3.1%\n【价格点位】卖出52.50 | 支撑53.03 | 压力54.65 | 止损51.97\n【综合评分】40分 - 观望为主"
+    },
+    "model_results": {
+      "limit_up_pullback": {
+        "matched": false,
+        "stage": "无强势启动",
+        "score": 10,
+        "signals": [],
+        "support": 0.0,
+        "pressure": 0.0
+      },
+      "box_breakout": {
+        "matched": true,
+        "stage": "平台蓄势",
+        "score": 55.0,
+        "signals": [],
+        "support": 53.15,
+        "pressure": 55.58
+      },
+      "volume_breakout": {
+        "matched": false,
+        "stage": "无量价特征",
+        "score": 5,
+        "signals": [],
+        "support": 0.0,
+        "pressure": 0.0
+      }
+    },
+    "market_env": {
+      "score": 80.0,
+      "env_type": "牛市",
+      "factor": 1.2,
+      "chase_allowed": true,
+      "limit_up_count": 45,
+      "up_count": 1633,
+      "down_count": 551
+    }
+  },
+  {
+    "code": "000858",
+    "name": "五粮液",
+    "date": "20260820",
+    "grade": "N",
+    "buy_type": "无明显买点",
+    "score": 22.5,
+    "score_breakdown": {
+      "trend": 0.0,
+      "trend_detail": {
+        "bullish_alignment": 0.0,
+        "above_ma20": 0.0,
+        "ma60_uptrend": 0.0
+      },
+      "capital": 5.0,
+      "capital_detail": {
+        "sustained_inflow": 5.0,
+        "healthy_volume_ratio": 0.0,
+        "amount_growth": 0.0,
+        "volume_growth_pct": -28.17
+      },
+      "pattern": 7.5,
+      "pattern_detail": {
+        "model_library_score": 5.5,
+        "buy_point_match": 2.0,
+        "best_model": "box_breakout"
+      },
+      "sentiment": 10.0,
+      "sentiment_detail": {
+        "limit_up_history": 0.0,
+        "stock_heat": 0.0,
+        "market_environment": 5.0,
+        "sector_strength": 5.0,
+        "limit_up_count_60d": 0,
+        "rise_20d_pct": -3.67,
+        "env_score": 80.0,
+        "env_type": "牛市"
+      },
+      "total": 22.5
+    },
+    "stars": 1,
+    "risk_level": "高",
+    "price_levels": {
+      "current_price": 72.09,
+      "best_buy_range": [
+        71.45,
+        72.41
+      ],
+      "breakout_price": 79.23,
+      "stop_loss": 69.89,
+      "target_range": [
+        97.91,
+        107.25
+      ],
+      "atr": 1.28,
+      "support": 71.81,
+      "resistance": 78.84,
+      "risk_reward_ratio": 13.86
+    },
+    "reasons": [
+      "当前未检测到明确买点，综合评分22.5分",
+      "盈亏比13.9:1，止损69.89，目标97.91-107.25"
+    ],
+    "risks": [
+      "综合风险等级较高，建议观望",
+      "趋势面较弱，均线未形成多头排列",
+      "资金面不足，量能未有效放大",
+      "缠论提示：三卖候选"
+    ],
+    "conditions_met": [],
+    "conditions_not_met": [
+      "主升启动：满足0/5个条件",
+      "涨停回调：满足1/5个条件",
+      "五买确认：满足1/5个条件",
+      "横盘突破：满足1/5个条件"
+    ],
+    "calculation_basis": {
+      "indicators": {
+        "ma5": 72.57,
+        "ma10": 73.95,
+        "ma20": 74.92,
+        "ma60": 75.96,
+        "macd_dif": -1.0764,
+        "macd_dea": -0.7337,
+        "kdj_k": -7.43,
+        "kdj_d": -7.43,
+        "kdj_j": -7.43,
+        "volume_ratio_5d": 0.72,
+        "atr_14": 1.28
+      },
+      "price_calc": {
+        "support_candidates": [
+          74.92,
+          71.81,
+          73.42,
+          72.09,
+          71.81
+        ],
+        "resistance_candidates": [
+          78.84,
+          78.84,
+          78.84,
+          78.84
+        ],
+        "atr_used": 1.28,
+        "stop_loss_atr_mult": 1.5,
+        "target_rr_range": [
+          2.0,
+          3.0
+        ]
+      }
+    },
+    "buy_point_checks": {
+      "A_main_launch": {
+        "matched": false,
+        "conditions": {
+          "ma5_cross_ma10": false,
+          "volume_expand": false,
+          "macd_golden": false,
+          "kdj_golden_below_50": false,
+          "breakout_pressure": false
+        },
+        "score": 0.0,
+        "details": {
+          "volume_ratio": 0.72,
+          "kdj_k": -7.43,
+          "recent_20d_high": 78.84,
+          "conditions_met": 0
+        }
+      },
+      "B_limit_pullback": {
+        "matched": false,
+        "conditions": {
+          "has_recent_launch": false,
+          "drawdown_5_15pct": false,
+          "volume_shrinking": true,
+          "above_ma20": false,
+          "volume_recovering": false
+        },
+        "score": 20.0,
+        "details": {
+          "drawdown_pct": 0.0,
+          "ma20": 74.92,
+          "recent_3d_vol_ratio": 0.59,
+          "conditions_met": 1
+        }
+      },
+      "C_five_buy": {
+        "matched": false,
+        "conditions": {
+          "bottom_or_decline_end": false,
+          "macd_improving": true,
+          "kdj_low_golden": false,
+          "volume_recover": false,
+          "five_buy_ma5_support": false
+        },
+        "score": 20.0,
+        "details": {
+          "kdj_k": -7.43,
+          "volume_recover_ratio": 0.59,
+          "conditions_met": 1
+        }
+      },
+      "D_box_breakout": {
+        "matched": false,
+        "conditions": {
+          "consolidation_20_60d": true,
+          "volume_breakout": false,
+          "price_breakout_box": false,
+          "ma_divergence": false
+        },
+        "score": 20.0,
+        "details": {
+          "box_days": 20,
+          "box_amplitude": 9.79,
+          "box_top": 78.84,
+          "box_bottom": 71.81,
+          "breakout_volume_ratio": 0.44,
+          "conditions_met": 1
+        }
+      }
+    },
+    "chanlun_result": {
+      "score": 43,
+      "level": "观望为主",
+      "trend": "下跌趋势",
+      "signals": [
+        "三卖候选",
+        "中枢下沿"
+      ],
+      "beichi": "",
+      "zhongshu_type": "down",
+      "suggestion": "【趋势判断】跌破中枢下沿，处于下跌趋势中\n【缠论结构】down中枢，幅度4.5%\n【价格点位】卖出72.69 | 支撑73.42 | 压力76.70 | 止损71.95\n【综合评分】43分 - 观望为主"
+    },
+    "model_results": {
+      "limit_up_pullback": {
+        "matched": false,
+        "stage": "无强势启动",
+        "score": 10,
+        "signals": [],
+        "support": 0.0,
+        "pressure": 0.0
+      },
+      "box_breakout": {
+        "matched": true,
+        "stage": "平台蓄势",
+        "score": 55.0,
+        "signals": [],
+        "support": 73.42,
+        "pressure": 78.84
+      },
+      "volume_breakout": {
+        "matched": true,
+        "stage": "极限缩量筑底",
+        "score": 45.0,
+        "signals": [],
+        "support": 72.09,
+        "pressure": 78.84
+      }
+    },
+    "market_env": {
+      "score": 80.0,
+      "env_type": "牛市",
+      "factor": 1.2,
+      "chase_allowed": true,
+      "limit_up_count": 45,
+      "up_count": 1633,
+      "down_count": 551
+    }
+  },
+  {
+    "code": "600036",
+    "name": "招商银行",
+    "date": "20260820",
+    "grade": "B",
+    "buy_type": "涨停回调(形成中)",
+    "score": 57.5,
+    "score_breakdown": {
+      "trend": 15.0,
+      "trend_detail": {
+        "bullish_alignment": 0.0,
+        "above_ma20": 5.0,
+        "ma60_uptrend": 10.0
+      },
+      "capital": 25.0,
+      "capital_detail": {
+        "sustained_inflow": 5.0,
+        "healthy_volume_ratio": 10.0,
+        "amount_growth": 10.0,
+        "volume_growth_pct": 25.07
+      },
+      "pattern": 7.5,
+      "pattern_detail": {
+        "model_library_score": 3.5,
+        "buy_point_match": 4.0,
+        "best_model": "box_breakout"
+      },
+      "sentiment": 10.0,
+      "sentiment_detail": {
+        "limit_up_history": 0.0,
+        "stock_heat": 0.0,
+        "market_environment": 5.0,
+        "sector_strength": 5.0,
+        "limit_up_count_60d": 0,
+        "rise_20d_pct": -0.13,
+        "env_score": 80.0,
+        "env_type": "牛市"
+      },
+      "total": 57.5
+    },
+    "stars": 1,
+    "risk_level": "中",
+    "price_levels": {
+      "current_price": 38.86,
+      "best_buy_range": [
+        38.56,
+        39.01
+      ],
+      "breakout_price": 40.62,
+      "stop_loss": 37.14,
+      "target_range": [
+        47.58,
+        51.06
+      ],
+      "atr": 0.59,
+      "support": 38.03,
+      "resistance": 40.42,
+      "risk_reward_ratio": 6.08
+    },
+    "reasons": [
+      "检测到【涨停回调(形成中)】买点（等级B），综合评分57.5分",
+      "资金面活跃（25/30分）：量比健康(1.2-3)，成交额显著增长",
+      "盈亏比6.1:1，止损37.14，目标47.58-51.06"
+    ],
+    "risks": [
+      "暂无明显风险信号"
+    ],
+    "conditions_met": [
+      "不破20日线",
+      "再次放量"
+    ],
+    "conditions_not_met": [
+      "近期涨停/大阳启动",
+      "回撤5%-15%",
+      "缩量调整"
+    ],
+    "calculation_basis": {
+      "indicators": {
+        "ma5": 38.59,
+        "ma10": 38.71,
+        "ma20": 39.11,
+        "ma60": 38.2,
+        "macd_dif": 0.0046,
+        "macd_dea": 0.0159,
+        "kdj_k": 38.76,
+        "kdj_d": 38.76,
+        "kdj_j": 38.76,
+        "volume_ratio_5d": 1.25,
+        "atr_14": 0.59
+      },
+      "price_calc": {
+        "support_candidates": [
+          39.11,
+          38.03,
+          38.47,
+          38.03
+        ],
+        "resistance_candidates": [
+          40.55,
+          40.42,
+          40.55
+        ],
+        "atr_used": 0.59,
+        "stop_loss_atr_mult": 1.5,
+        "target_rr_range": [
+          2.0,
+          3.0
+        ]
+      }
+    },
+    "buy_point_checks": {
+      "A_main_launch": {
+        "matched": false,
+        "conditions": {
+          "ma5_cross_ma10": false,
+          "volume_expand": false,
+          "macd_golden": false,
+          "kdj_golden_below_50": false,
+          "breakout_pressure": false
+        },
+        "score": 0.0,
+        "details": {
+          "volume_ratio": 1.25,
+          "kdj_k": 38.76,
+          "recent_20d_high": 40.55,
+          "conditions_met": 0
+        }
+      },
+      "B_limit_pullback": {
+        "matched": false,
+        "conditions": {
+          "has_recent_launch": false,
+          "drawdown_5_15pct": false,
+          "volume_shrinking": false,
+          "above_ma20": true,
+          "volume_recovering": true
+        },
+        "score": 40.0,
+        "details": {
+          "drawdown_pct": 0.0,
+          "ma20": 39.11,
+          "recent_3d_vol_ratio": 1.6,
+          "conditions_met": 2
+        }
+      },
+      "C_five_buy": {
+        "matched": false,
+        "conditions": {
+          "bottom_or_decline_end": false,
+          "macd_improving": true,
+          "kdj_low_golden": false,
+          "volume_recover": true,
+          "five_buy_ma5_support": false
+        },
+        "score": 40.0,
+        "details": {
+          "kdj_k": 38.76,
+          "volume_recover_ratio": 1.6,
+          "conditions_met": 2
+        }
+      },
+      "D_box_breakout": {
+        "matched": false,
+        "conditions": {
+          "consolidation_20_60d": true,
+          "volume_breakout": false,
+          "price_breakout_box": false,
+          "ma_divergence": false
+        },
+        "score": 20.0,
+        "details": {
+          "box_days": 20,
+          "box_amplitude": 6.63,
+          "box_top": 40.55,
+          "box_bottom": 38.03,
+          "breakout_volume_ratio": 0.85,
+          "conditions_met": 1
+        }
+      }
+    },
+    "chanlun_result": {
+      "score": 49,
+      "level": "观望为主",
+      "trend": "中枢震荡",
+      "signals": [
+        "中枢上沿"
+      ],
+      "beichi": "",
+      "zhongshu_type": "down",
+      "suggestion": "【趋势判断】在中枢区间内震荡整理\n【缠论结构】down中枢，幅度6.5%\n【价格点位】买入37.32 | 卖出38.98 | 支撑36.95 | 压力39.37 | 止损36.21\n【综合评分】49分 - 观望为主"
+    },
+    "model_results": {
+      "limit_up_pullback": {
+        "matched": false,
+        "stage": "无强势启动",
+        "score": 10,
+        "signals": [],
+        "support": 0.0,
+        "pressure": 0.0
+      },
+      "box_breakout": {
+        "matched": true,
+        "stage": "回调整理",
+        "score": 35.0,
+        "signals": [],
+        "support": 38.47,
+        "pressure": 40.42
+      },
+      "volume_breakout": {
+        "matched": false,
+        "stage": "无量价特征",
+        "score": 5,
+        "signals": [],
+        "support": 0.0,
+        "pressure": 0.0
+      }
+    },
+    "market_env": {
+      "score": 80.0,
+      "env_type": "牛市",
+      "factor": 1.2,
+      "chase_allowed": true,
+      "limit_up_count": 45,
+      "up_count": 1633,
+      "down_count": 551
+    }
+  }
+]

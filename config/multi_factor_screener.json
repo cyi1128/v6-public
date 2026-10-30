@@ -1,0 +1,73 @@
+{
+  "weights": {
+    "technical": 40,
+    "volume_price": 20,
+    "strategy": 20,
+    "basic": 10,
+    "market": 10
+  },
+  "technical": {
+    "ma_bullish": 10,
+    "ma5_cross_ma9": 8,
+    "above_ma20": 6,
+    "ma120_trend": 6,
+    "macd_golden": 5,
+    "kdj_golden": 5
+  },
+  "volume_price": {
+    "volume_ratio": 6,
+    "moderate_volume": 4,
+    "limit_up_history": 5,
+    "turnover_rate": 5
+  },
+  "strategy": {
+    "pressure_five_buy": 8,
+    "volume_breakout": 6,
+    "pullback_buy": 3,
+    "chanlun_buy": 3
+  },
+  "basic": {
+    "market_cap": 3,
+    "main_board": 2,
+    "not_st": 2,
+    "industry_exclude": 3
+  },
+  "market": {
+    "index_trend": 4,
+    "advance_decline": 3,
+    "sentiment": 3
+  },
+  "filters": {
+    "price_min": 5.0,
+    "price_max": 60.0,
+    "market_cap_min": 30.0,
+    "market_cap_max": 230.0,
+    "turnover_min": 0.0,
+    "turnover_max": 100.0,
+    "volume_ratio_min": 0.0,
+    "limit_up_min_count": 0,
+    "high_position_min_ratio": 0,
+    "high_position_max_ratio": 999
+  },
+  "exclude_industries": [
+    "地产",
+    "房地产",
+    "农业",
+    "农牧",
+    "酒",
+    "白酒",
+    "保险",
+    "银行",
+    "券商",
+    "医药",
+    "科技"
+  ],
+  "enabled_factors": {
+    "technical": true,
+    "volume_price": true,
+    "strategy": true,
+    "basic": true,
+    "market": true
+  },
+  "grade_filter": "全部"
+}

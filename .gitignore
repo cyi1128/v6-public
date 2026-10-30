@@ -1,0 +1,103 @@
+# ===== 数据库（绝不纳入Git） =====
+*.duckdb
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== Python 编译文件 =====
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ===== 缓存目录 =====
+cache/
+data/cache/
+
+# ===== 日志 =====
+logs/
+*.log
+crash.log
+
+# ===== 前端 node_modules 和构建产物 =====
+theme_app/node_modules/
+theme_app/dist/
+node_modules/
+
+# ===== 编辑器/系统 =====
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+desktop.ini
+
+# ===== backup system (added by Doubao) =====
+backups/
+data/browser_profile/
+*.duckdb.wal
+.venv/
+venv/
+env/
+data/logs/
+*.pyc
+*.pyo
+
+# ===== 本地改文件时生成的临时备份（不进仓库）=====
+*.bak
+*.bak_*
+*.bak.*
+*.backup_*
+
+# local secrets (do not commit)
+.env
+
+# sensitive local files (do not commit)
+wencai_cookie.txt
+config/wencai_cookie.txt
+data/wechat_config.json
+
+# ===== 云端镜像里的历史调试残留/一次性补丁（不进仓库） =====
+_cloud_work/jobs.json
+_cloud_work/rebuild_from_patch.py
+_cloud_work/run25_logs/
+_cloud_work/run26_logs/
+_cloud_work/run_logs.zip
+_cloud_work/run_logs_extract/
+_cloud_work/tools/_*.py
+_cloud_work/tools/_*
+_cloud_work/tools/cloud_daily_review.py.*
+_cloud_work/tools/cloud_llm_gateway.py
+_cloud_work/tools/cloud_llm_prices.json
+_cloud_work/tools/appeal_attach.png
+_cloud_work/tools/_verify_*.py
+_cloud_work/tools/_apply_*.py
+_cloud_work/tools/_fix_*.py
+_cloud_work/tools/_diag_*.py
+_cloud_work/tools/_rescan_*.py
+_cloud_work/tools/_shot_*.py
+_cloud_work/tools/_calib_*.py
+_cloud_work/tools/_markup_*.py
+_cloud_work/tools/_probe_*.py
+_cloud_work/tools/_test_*.py
+_cloud_work/tools/_audit_*.py
+_cloud_work/tools/_chk_*.py
+_cloud_work/tools/_c*_*.py
+_cloud_work/tools/_diff_*.py
+_cloud_work/tools/_seed_*.py
+_cloud_work/tools/_anchor_*.py
+_cloud_work/tools/_auto_*.py
+_cloud_work/tools/_run_*.py
+_cloud_work/tools/_push_*.py
+_cloud_work/tools/_patch_*.py
+_cloud_work/tools/_README*.py
+_cloud_work/tools/quality_scorer.py.bak*
+_cloud_work/tools/anchor_break_retest_scanner.py.bak*
+_cloud_work/tools/anchor_tracker.py.bak*
+_cloud_work/tools/strategy_evaluator.py.bak*
+_cloud_work/tools/*
+!_cloud_work/tools/cloud_daily_review.py
+!_cloud_work/tools/anchor_break_retest_scanner.py
+!_cloud_work/tools/quality_scorer.py
+!_cloud_work/tools/anchor_tracker.py
+!_cloud_work/tools/strategy_evaluator.py
+!_cloud_work/tools/resonance_engine.py

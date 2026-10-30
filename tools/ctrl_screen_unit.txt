@@ -1,0 +1,45 @@
+PASS A1 常量：MIN_BARS=60 / BARS_LIMIT=120
+PASS A2 股票池：主板+创业板，剔科创板/北交所
+PASS A3 is_universe_code 12 组边界 ｜ []
+PASS A4 无未来函数写法（无正向切片/负向shift） ｜ []
+PASS A5 只读库：duckdb.connect 带 read_only=True
+PASS A6 涨停题材走同源 get_last_limit_up_reason（不另写一套 SQL）
+PASS B1 批量读库拿到代码 ｜ 只数=4416
+PASS B2 bar 结构与传统接口一致（date/open/high/low/close/volume） ｜ ['close', 'date', 'high', 'low', 'open', 'volume']
+PASS B3 K线按日期升序（最后一根=最新）
+PASS B4 全市场扫描有结果且无失败 ｜ universe=4416 ok=4404 skip=12 fail=0 26.3s
+PASS B5 结果按控盘分降序
+PASS B6 控盘分区间合法 0~100
+PASS B7 位置区间合法 0~1
+PASS B8 数据日=本地缓存最新日 ｜ 2026-10-09
+PASS B9 观察标签与字段自洽
+PASS B10 与 control_profile.compute_one 逐只一致 ｜ 抽样 250 比对 250 不一致 0 ｜ []
+PASS B11 名称填充率 > 95%% ｜ 4404/4404
+PASS B12 每行都有 theme/theme_date/theme_lbc/theme_ind 字段（类型正确）
+PASS B13 有题材的行数 > 0 且题材串含「+」（与库口径一致） ｜ 有题材 3107 / 4404
+PASS B14 stats.theme_ok 与有题材行数一致 ｜ theme_ok=3107 实际=3107
+PASS B15 抽样 30 只题材与 get_last_limit_up_reason 直连结果逐字段一致 ｜ []
+PASS B16 无「不含 + 的题材」漏网 ｜ []
+PASS F1 扫描前后 band_pattern.db 未变 ｜ (704512, 1791688605) -> (704512, 1791688605)
+PASS F2 扫描前后 kline_cache.duckdb 未变 ｜ (89403392, 1791610841) -> (89403392, 1791610841)
+PASS C1 边界：85.0/0.4499/6.0 通过；84.99/0.4501/5.99/ST/出货 剔除 ｜ ['600006', '600007', '600008', '600000']
+PASS C1b 位置超限样本单独验证（放宽位置后 600005 才进来）
+PASS C2 排出货可关：关掉后 distribute 进得来
+PASS C3 价格门槛可关
+PASS C4 位置不限（pos_max=None）时 0.4501 也通过
+PASS C5 观察=排除拉升 只剔拉升
+PASS C6 观察=仅试盘
+PASS C7 观察=仅C4/C6
+PASS C8 观察=有任一观察（无标签的 600000 被剔）
+PASS C9 真实数据：控盘≥85 排出货 结果 ⊆ 全量且降序 ｜ 控盘≥85 -> 993 只
+PASS D1 导出条数=入参条数（无重复） ｜ n=472 行=472 入参=472
+PASS D2 导出内容全是 6 位数字且无表头、无逗号
+PASS D3 导出代码与筛选结果逐行同序
+PASS D4 去重：同一代码重复传入只出一行
+PASS D5 空结果返回 0 且不报错
+PASS E1 快照写→读 行数一致
+PASS E2 快照保留 data_date / universe / saved_at ｜ 2026-10-11 15:51:05
+PASS E3 快照行字段无损（浮点+列表+题材）
+PASS E4 快照路径缺省指向 data/cache/control_screen.json
+
+=== 43 PASS / 0 FAIL ｜ 用时 37.6s ===

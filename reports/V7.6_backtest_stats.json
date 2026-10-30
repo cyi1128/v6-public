@@ -1,0 +1,114 @@
+{
+  "A": {
+    "total": 136,
+    "completed": 126,
+    "holding": 10,
+    "win_rate": 53.17460317460318,
+    "avg_return": 1.420714285714286,
+    "total_profit": 17901.0,
+    "max_win": 20.57,
+    "max_loss": -7.0,
+    "stop_loss_count": 7,
+    "expectancy": 1.4207142857142854,
+    "profit_factor": 2.080456301303718,
+    "max_drawdown": 4.000838289888628,
+    "calmar": 35.79449845846844,
+    "pl_ratio": 1.8320436086107366,
+    "july": {
+      "count": 104,
+      "win_rate": 56.730769230769226,
+      "avg_return": 1.7198076923076924,
+      "profit": 17886.0
+    },
+    "august": {
+      "count": 22,
+      "win_rate": 36.36363636363637,
+      "avg_return": 0.006818181818181875,
+      "profit": 15.000000000000057
+    }
+  },
+  "B": {
+    "total": 136,
+    "completed": 132,
+    "holding": 4,
+    "win_rate": 36.36363636363637,
+    "avg_return": 0.7601515151515151,
+    "total_profit": 10034.0,
+    "max_win": 20.57,
+    "max_loss": -7.0,
+    "stop_loss_count": 78,
+    "expectancy": 0.760151515151515,
+    "profit_factor": 1.617933243010223,
+    "max_drawdown": 5.008372204281784,
+    "calmar": 16.027562794029855,
+    "pl_ratio": 2.8313831752678897,
+    "july": {
+      "count": 104,
+      "win_rate": 41.34615384615385,
+      "avg_return": 1.142596153846154,
+      "profit": 11883.0
+    },
+    "august": {
+      "count": 28,
+      "win_rate": 17.857142857142858,
+      "avg_return": -0.660357142857143,
+      "profit": -1849.0
+    }
+  },
+  "C": {
+    "total": 136,
+    "completed": 129,
+    "holding": 7,
+    "win_rate": 51.93798449612403,
+    "avg_return": 1.066046511627907,
+    "total_profit": 13752.0,
+    "max_win": 20.57,
+    "max_loss": -7.0,
+    "stop_loss_count": 54,
+    "expectancy": 1.066046511627907,
+    "profit_factor": 1.7614196334643708,
+    "max_drawdown": 4.671470200790387,
+    "calmar": 23.550615817133096,
+    "pl_ratio": 1.6299704070864325,
+    "july": {
+      "count": 104,
+      "win_rate": 56.730769230769226,
+      "avg_return": 1.4421153846153847,
+      "profit": 14998.0
+    },
+    "august": {
+      "count": 25,
+      "win_rate": 32.0,
+      "avg_return": -0.49839999999999995,
+      "profit": -1246.0
+    }
+  },
+  "D": {
+    "total": 136,
+    "completed": 134,
+    "holding": 2,
+    "win_rate": 35.07462686567165,
+    "avg_return": 0.7098507462686567,
+    "total_profit": 9512.0,
+    "max_win": 19.03,
+    "max_loss": -7.0,
+    "stop_loss_count": 81,
+    "expectancy": 0.7098507462686565,
+    "profit_factor": 1.5770444066974036,
+    "max_drawdown": 5.008372204281784,
+    "calmar": 15.193758949253734,
+    "pl_ratio": 2.919209859205831,
+    "july": {
+      "count": 104,
+      "win_rate": 40.38461538461539,
+      "avg_return": 1.1177884615384617,
+      "profit": 11625.0
+    },
+    "august": {
+      "count": 30,
+      "win_rate": 16.666666666666664,
+      "avg_return": -0.7043333333333331,
+      "profit": -2113.0
+    }
+  }
+}

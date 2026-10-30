@@ -1,0 +1,590 @@
+# -*- coding: utf-8 -*-
+"""
+作战中控台模块共享基类与工具
+- 浅色金融主题卡片
+- 异步数据加载Worker
+- 通用表格样式
+"""
+import os
+import sys
+import threading
+from datetime import datetime, date
+
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
+    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
+    QSizePolicy,
+)
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtGui import QColor, QFont
+
+# 项目根目录
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+# ============================================================
+# 浅色金融主题颜色常量（统一配色，类东方财富/同花顺网页版浅色终端）
+# ============================================================
+class BC:
+    """Battle Console 浅色金融主题颜色"""
+    # 背景层
+    BG = '#f0f4f9'              # 主页面背景（浅灰蓝）
+    BG_CARD = '#ffffff'         # 模块卡片背景（白色）
+    BG_CARD_HOVER = '#f5f7fa'   # 卡片悬停/交替行
+    BG_HEADER = '#f5f7fa'       # 表头背景（浅灰）
+    BG_INPUT = '#ffffff'        # 输入框背景
+    # 边框
+    BORDER = '#e0e0e0'          # 常规边框
+    BORDER_L = '#cccccc'        # 稍亮边框（悬停/虚线）
+    # 文字
+    TEXT = '#333333'            # 正文（深灰）
+    TEXT_PRIMARY = '#1a1a1a'    # 标题（深黑灰）
+    TEXT2 = '#888888'           # 次要信息（中灰）
+    TEXT3 = '#999999'           # 占位/更次要
+    # 涨跌
+    RED = '#e53935'             # 上涨红
+    GREEN = '#43a047'           # 下跌绿
+    FLAT = '#999999'            # 平盘灰
+    # 强调色
+    YELLOW = '#f9a825'          # 异动标记黄（深色，白底可见）
+    ORANGE = '#ff6d00'          # 模块标题图标橙
+    GOLD = '#ff8f00'            # 金色
+    BLUE = '#2f6bff'            # 按钮蓝
+    CYAN = '#00838f'            # 领涨股青色（深色，白底可见）
+    PURPLE = '#7b1fa2'
+    # 选中
+    SELECTED_BG = '#e6f0ff'     # 选中行浅蓝色
+
+
+def L(text, color=BC.TEXT, size=12, bold=False, align=None):
+    """创建标签"""
+    label = QLabel(text)
+    label.setStyleSheet(
+        f'color:{color};font-size:{size}px;'
+        f'font-weight:{"bold" if bold else "normal"};background:transparent;'
+    )
+    if align:
+        label.setAlignment(align)
+    return label
+
+
+def make_card():
+    """创建浅色金融主题卡片（白色背景，圆角8px，浅灰边框）"""
+    card = QFrame()
+    card.setStyleSheet(
+        f'QFrame{{background:{BC.BG_CARD};border:1px solid {BC.BORDER};'
+        f'border-radius:8px;}}'
+    )
+    return card
+
+
+def make_table(col_count, headers, min_row_height=26):
+    """创建统一样式的浅色金融主题表格
+    - 表头：#f5f7fa 背景，深灰文字
+    - 行交替：#ffffff / #fafbfc 微妙差异
+    - 选中行：浅蓝色 #e6f0ff
+    - 滚动条：浅色主题
+    """
+    table = QTableWidget()
+    table.setColumnCount(col_count)
+    table.setHorizontalHeaderLabels(headers)
+    table.verticalHeader().setVisible(False)
+    table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+    table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+    table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+    table.setAlternatingRowColors(True)
+    table.verticalHeader().setDefaultSectionSize(min_row_height)
+    table.setShowGrid(False)
+    table.setStyleSheet(f"""
+        QTableWidget{{
+            background:{BC.BG_CARD};color:{BC.TEXT};
+            gridline-color:#e8e8e8;border:none;
+            font-size:12px;alternate-background-color:#fafbfc;
+        }}
+        QTableWidget::item{{padding:4px 8px;border-bottom:1px solid #e8e8e8;}}
+        QTableWidget::item:selected{{background:{BC.SELECTED_BG};color:{BC.TEXT_PRIMARY};}}
+        QHeaderView::section{{
+            background:{BC.BG_HEADER};color:{BC.TEXT};
+            border:none;border-bottom:1px solid {BC.BORDER};
+            padding:6px 8px;font-size:11px;font-weight:bold;
+        }}
+        QScrollBar:vertical{{background:#f0f0f0;width:8px;}}
+        QScrollBar::handle:vertical{{background:#c0c0c0;border-radius:4px;}}
+        QScrollBar::handle:vertical:hover{{background:#a0a0a0;}}
+        QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{{height:0;}}
+        QScrollBar:horizontal{{background:#f0f0f0;height:8px;}}
+        QScrollBar::handle:horizontal{{background:#c0c0c0;border-radius:4px;}}
+        QScrollBar::handle:horizontal:hover{{background:#a0a0a0;}}
+        QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal{{width:0;}}
+    """)
+    header = table.horizontalHeader()
+    header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+    header.setStretchLastSection(True)
+    return table
+
+
+def set_table_item(table, row, col, text, color=None, bold=False, align=None):
+    """设置表格单元格"""
+    item = QTableWidgetItem(text)
+    if color:
+        item.setForeground(QColor(color))
+    if bold:
+        f = item.font()
+        f.setBold(True)
+        item.setFont(f)
+    if align:
+        item.setTextAlignment(align)
+    else:
+        item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+    table.setItem(row, col, item)
+    return item
+
+
+CTRL_COL_TITLE = '控盘'
+
+
+def fetch_ctrl_for(rows, code_key='code', info_key='ctrl'):
+    """给行数据挂上控盘度（控盘分 + 洗盘/出货 + 文案）。
+
+    必须在 run_async 的后台函数里调（内部读本地 kline_cache，
+    首次约 28ms/只，同一交易日第二次命中缓存几乎不花时间），
+    不要在 UI 线程直接调。任何异常都不会把列表刷新打断。
+    """
+    try:
+        from services.control_profile import get_ctrl_map
+        codes = [str(r.get(code_key)) for r in rows if r.get(code_key)]
+        m = get_ctrl_map(codes)
+        for r in rows:
+            r[info_key] = m.get(str(r.get(code_key)))
+    except Exception:
+        for r in rows:
+            r.setdefault(info_key, None)
+    return rows
+
+
+def fetch_ctrl_cached(rows, code_key='code', info_key='ctrl'):
+    """只用**已有缓存**给行数据挂控盘度，绝不计算、绝不阻塞。
+
+    用于渲染前的“立即填一下”：行对象常在渲染前被重新装配
+    （快照恢复 / 持久化合并 / 初始恢复），上一次算好的 ctrl 丢了就变‘--’。
+    这里只读内存缓存，所以可以在 UI 线程直接调，不卡。
+    """
+    try:
+        rs = list(rows or [])
+        codes = []
+        for r in rs:
+            if isinstance(r, dict) and r.get(info_key) is None:
+                c = r.get(code_key)
+                if c:
+                    codes.append(str(c))
+        if not codes:
+            return rows
+        from services.control_profile import get_ctrl_map
+        m = get_ctrl_map(codes, cached_only=True)
+        for r in rs:
+            if isinstance(r, dict) and r.get(info_key) is None and r.get(code_key):
+                v = m.get(str(r[code_key]))
+                if v is not None:
+                    r[info_key] = v
+    except Exception:
+        pass
+    return rows
+
+
+def attach_ctrl(table, rows, info_key='ctrl', col=None):
+    """把控盘度填到表格最后一列。
+
+    有提示: '98·候选'(绿) / '80·出货'(红) / '97·洗盘'(橙)
+    无提示: '71'(灰)    没数据: '--'(灰)
+    新列加在末尾，不会动原有列号。
+    """
+    try:
+        from services.control_profile import ctrl_cell, ctrl_tooltip
+    except Exception:
+        return
+    n = table.columnCount()
+    if col is None:
+        col = n - 1
+    if col < 0:
+        return
+    for i, r in enumerate(rows):
+        if i >= table.rowCount():
+            break
+        info = r.get(info_key)
+        txt, color = ctrl_cell(info)
+        it = QTableWidgetItem(txt)
+        it.setForeground(QColor(color))
+        it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignCenter)
+        it.setToolTip(ctrl_tooltip(info))
+        table.setItem(i, col, it)
+
+
+def pct_color(pct):
+    """根据涨跌幅返回颜色：上涨红、下跌绿、平盘灰"""
+    if pct is None:
+        return BC.TEXT2
+    try:
+        v = float(pct)
+        if v > 0:
+            return BC.RED
+        elif v < 0:
+            return BC.GREEN
+        else:
+            return BC.FLAT
+    except (ValueError, TypeError):
+        pass
+    return BC.FLAT
+
+
+def format_pct(pct):
+    """格式化涨跌幅"""
+    if pct is None:
+        return '--'
+    try:
+        v = float(pct)
+        sign = '+' if v > 0 else ''
+        return f'{sign}{v:.2f}%'
+    except (ValueError, TypeError):
+        return '--'
+
+
+# ============================================================
+# 列头三态排序工具：首次点击降序，再次升序，第三次取消
+# ============================================================
+class HeaderSorter:
+    """表格列头三态排序辅助器
+
+    用法：
+        self.sorter = HeaderSorter(
+            self.table,
+            keys={0: lambda r: r['rank'], 1: lambda r: r['name']},
+            getter=lambda: self._rows,        # 返回待排序的list（会被原地排序）
+            render=self._render_rows,         # 排序完成后重新填表
+        )
+    keys 中未覆盖的列不可排序。数字列请返回 float/int，文本列返回 str。
+    """
+
+    def __init__(self, table, keys, getter, render):
+        self.table = table
+        self.keys = keys            # col -> callable(item) -> key
+        self.getter = getter        # callable -> list[item]
+        self.render = render        # callable()
+        self._state_col = None
+        self._state_order = None    # 'desc' / 'asc' / None
+        header = table.horizontalHeader()
+        header.setSectionsClickable(True)
+        header.setSortIndicatorShown(False)
+        header.sectionClicked.connect(self._on_clicked)
+
+    def _on_clicked(self, col):
+        if col not in self.keys:
+            return
+        # 三态切换
+        if self._state_col != col:
+            self._state_col = col
+            self._state_order = 'desc'
+        elif self._state_order == 'desc':
+            self._state_order = 'asc'
+        elif self._state_order == 'asc':
+            self._state_order = None
+            self._state_col = None
+        else:
+            self._state_order = 'desc'
+
+        # 更新表头箭头（使用Qt原生排序指示箭头）
+        header = self.table.horizontalHeader()
+        if self._state_col is None or self._state_order is None:
+            header.setSortIndicatorShown(False)
+        else:
+            order = Qt.SortOrder.DescendingOrder if self._state_order == 'desc' \
+                else Qt.SortOrder.AscendingOrder
+            header.blockSignals(True)
+            header.setSortIndicator(self._state_col, order)
+            header.setSortIndicatorShown(True)
+            header.blockSignals(False)
+
+        self._apply()
+
+    def _apply(self):
+        store = self.getter()
+        if self._state_col is not None and self._state_order in ('desc', 'asc') and store is not None:
+            keyfn = self.keys[self._state_col]
+            reverse = (self._state_order == 'desc')
+            def safe_key(item):
+                try:
+                    k = keyfn(item)
+                    return (0, k) if isinstance(k, (int, float)) else (1, str(k))
+                except Exception:
+                    return (1, '')
+            store.sort(key=safe_key, reverse=reverse)
+        # 重新渲染
+        try:
+            self.render()
+        except Exception as e:
+            print(f'[列排序] 渲染异常: {e}', flush=True)
+
+
+# ============================================================
+# 异步数据加载Worker
+# ============================================================
+# 异步数据加载：Python threading + pyqtSignal回主线程
+# （QTimer.singleShot从非GUI线程调用在PyQt6中不生效；
+#   pyqtSignal从任意线程emit都会自动排队到接收者所在线程）
+# ============================================================
+
+# ============================================================
+# 模块基类
+# ============================================================
+class BattleModuleBase(QWidget):
+    """作战中控台模块基类"""
+
+    # 异步数据信号（从worker线程emit，自动排队到主线程）
+    _async_data_ready = pyqtSignal(int, object)   # token, result
+    _async_error = pyqtSignal(int, str)             # token, error_msg
+
+    def __init__(self, title, parent=None):
+        super().__init__(parent)
+        self._title = title
+        self._worker_thread = None
+        self._refresh_timer = None
+        self._async_token = 0
+        self._async_callbacks = {}  # token -> (on_success, on_failed)
+        # 连接异步信号到主线程槽
+        self._async_data_ready.connect(self._on_async_data)
+        self._async_error.connect(self._on_async_error)
+        self._build_ui()
+
+    def _build_ui(self):
+        # 外层透明，内层卡片Frame实现浅色金融主题卡片（白色背景，圆角8px，浅灰边框）
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet('QWidget{background:transparent;}')
+
+        self._card_frame = QFrame()
+        self._card_frame.setStyleSheet(
+            f'QFrame{{background:{BC.BG_CARD};border:1px solid {BC.BORDER};border-radius:8px;}}'
+        )
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        outer.addWidget(self._card_frame)
+
+        layout = QVBoxLayout(self._card_frame)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(6)
+
+        # 标题栏
+        title_bar = QHBoxLayout()
+        self.title_label = L(self._title, BC.TEXT_PRIMARY, 13, True)
+        title_bar.addWidget(self.title_label)
+        title_bar.addStretch()
+        self.update_time_label = L('', BC.TEXT2, 10)
+        title_bar.addWidget(self.update_time_label)
+        layout.addLayout(title_bar)
+
+        # 内容区由子类填充
+        self.content_layout = QVBoxLayout()
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
+        self.content_layout.setSpacing(4)
+        layout.addLayout(self.content_layout, 1)
+
+    def set_update_time(self, text=None):
+        """设置更新时间"""
+        if text is None:
+            text = datetime.now().strftime('%H:%M:%S')
+        self.update_time_label.setText(f'更新 {text}')
+
+    def set_status(self, text):
+        """设置状态文本（替换标题右侧）"""
+        self.update_time_label.setText(text)
+
+    def start_refresh(self, interval_ms):
+        """启动定时刷新"""
+        if self._refresh_timer is None:
+            self._refresh_timer = QTimer(self)
+            self._refresh_timer.timeout.connect(self.refresh)
+        self._refresh_timer.start(interval_ms)
+
+    def stop_refresh(self):
+        if self._refresh_timer:
+            self._refresh_timer.stop()
+
+    def refresh(self):
+        """子类重写：刷新数据"""
+        pass
+
+    # ---------------------------------------------------------------
+    # 当日发现持久化辅助（发现时间列 + 当日保留不清空）
+    # 子类需在 __init__ 中自行初始化：
+    #   self._found_time = {}      # {key: 'HH:MM'} 首次发现时间
+    #   self._persist_rows = {}    # {key: row_dict} 当日持久化行
+    #   self._persist_date = None  # 记录所属交易日 'YYYY-MM-DD'
+    #   self._db_module = 'xxx'    # discovery_time_db 中的模块名
+    # 并在 __init__ 末尾调用 self._load_found_time_from_db()
+    # ---------------------------------------------------------------
+    def _check_date_reset(self):
+        """跨交易日自动清空持久化数据；清空后尝试从 DuckDB 加载今天的记录，
+        解决"程序重启后发现时间变成打开程序时间"的问题。"""
+        today = date.today().isoformat()
+        if getattr(self, '_persist_date', None) != today:
+            self._persist_rows = {}
+            self._found_time = {}
+            self._persist_date = today
+            # 跨天后从库里把今天已有的发现时间捞回来（重启不丢时间）
+            self._load_found_time_from_db()
+
+    def _load_found_time_from_db(self):
+        """程序启动 / 跨天时从 DuckDB 加载今天该模块的发现时间到内存。
+        子类必须先设置 self._db_module。"""
+        mod = getattr(self, '_db_module', None)
+        if not mod:
+            return
+        try:
+            from services import discovery_time_db as db
+            self._found_time = db.load_today(mod)
+            self._persist_date = date.today().isoformat()
+        except Exception as e:
+            print(f'[作战中台] 加载发现时间持久化失败({mod}): {e}', flush=True)
+
+    def _persist_new_found_time(self, key, found_time):
+        """把新发现的 (key -> found_time) 写入 DuckDB。
+        使用 INSERT OR IGNORE：已存在的记录不被刷新时的当前时间覆盖。"""
+        mod = getattr(self, '_db_module', None)
+        if not mod or not key or not found_time:
+            return
+        try:
+            from services import discovery_time_db as db
+            db.save_today(mod, key, found_time)
+        except Exception as e:
+            print(f'[作战中台] 写发现时间失败({mod},{key}): {e}', flush=True)
+
+    def _persist_update_found_time(self, key, found_time):
+        """修正已存在的记录（用真实fbt覆盖之前bug写入的盘后启动时间）。
+        用 UPDATE 而不是 INSERT OR IGNORE。"""
+        mod = getattr(self, '_db_module', None)
+        if not mod or not key or not found_time:
+            return
+        try:
+            from services import discovery_time_db as db
+            db.update_today(mod, key, found_time)
+        except Exception as e:
+            print(f'[作战中台] 修正发现时间失败({mod},{key}): {e}', flush=True)
+
+    def _merge_persist(self, fresh_rows, key='code'):
+        """把本轮新筛到的行合并进当日持久化表。
+        - 新 key 且 DB 里没有记录：记录当前时间 HH:MM，并写入 DuckDB
+        - 新 key 但 DB 里已有记录（_found_time 已在启动时从DB加载）：
+          保留 DB 里的历史发现时间，绝不覆盖！
+        - 老 key（本轮之前已进过 _persist_rows）：更新行情字段，但保留首次发现时间
+        返回 list(self._persist_rows.values())，可直接赋给 self._rows 渲染。
+        """
+        self._check_date_reset()
+        now_hm = datetime.now().strftime('%H:%M')
+        for r in fresh_rows:
+            k = r.get(key) if isinstance(r, dict) else None
+            if k is None:
+                continue
+            if k in self._persist_rows:
+                # 本轮之前已合并过：更新行情字段，但不覆盖 _found_time
+                self._persist_rows[k].update(r)
+            else:
+                self._persist_rows[k] = r
+                if k in self._found_time:
+                    # DB 里已有历史发现时间（启动时 _load_found_time_from_db 加载的），
+                    # 必须保留，绝不被当前时间覆盖！
+                    pass
+                else:
+                    # 真正的全新发现：记录当前时间并写库（INSERT OR IGNORE）
+                    self._found_time[k] = now_hm
+                    self._persist_new_found_time(k, now_hm)
+        return list(self._persist_rows.values())
+
+    def ctrl_fill_and_async(self, rows, on_done=None):
+        """控盘度标准入口：先用缓存立即填（不卡），再后台补算缺的。
+
+        用在渲染前的行装配点（快照恢复、持久化合并、初始恢复等），
+        避免行对象被重建后控盘列变成一片 "--"。
+        """
+        try:
+            fetch_ctrl_cached(rows)
+        except Exception:
+            pass
+        self.ctrl_async_fill(rows, on_done)
+
+
+    def ctrl_async_fill(self, rows, on_done=None):
+        """后台异步给 rows 补控盘度，完成后回 UI 线程回调 on_done。
+
+        适用于数据路径多样（快照 / 接口 / 数据库）、不好在取数函数里统一插入的模块：
+        先用旧数据渲染一遍（立即可见），控盘分算完后再刷一次。
+        """
+        try:
+            if not rows:
+                if on_done:
+                    on_done()
+                return
+
+            def _bg():
+                return fetch_ctrl_for(rows)
+
+            def _ok(_res):
+                if on_done:
+                    try:
+                        on_done()
+                    except Exception:
+                        pass
+
+            self.run_async(_bg, _ok, None)
+        except Exception:
+            if on_done:
+                try:
+                    on_done()
+                except Exception:
+                    pass
+
+
+    def run_async(self, func, on_success, on_failed=None, *args, **kwargs):
+        """在后台线程运行func，完成后通过pyqtSignal回主线程回调UI
+        使用Python threading + pyqtSignal（信号从任意线程emit自动排队到主线程）
+        """
+        self._async_token += 1
+        my_token = self._async_token
+        self._async_callbacks[my_token] = (on_success, on_failed)
+
+        def worker():
+            try:
+                result = func(*args, **kwargs)
+                # 从worker线程emit信号，Qt自动排队到主线程
+                self._async_data_ready.emit(my_token, result)
+            except Exception as e:
+                err_msg = str(e)
+                self._async_error.emit(my_token, err_msg)
+
+        t = threading.Thread(target=worker, daemon=True)
+        self._worker_thread = t
+        t.start()
+
+    def _on_async_data(self, token, result):
+        """主线程槽：处理异步数据返回"""
+        cb = self._async_callbacks.pop(token, None)
+        if not cb:
+            return  # 过期token
+        on_success, _ = cb
+        try:
+            on_success(result)
+        except Exception as e:
+            print(f'[作战中台] UI回调异常: {e}', flush=True)
+
+    def _on_async_error(self, token, err_msg):
+        """主线程槽：处理异步错误"""
+        cb = self._async_callbacks.pop(token, None)
+        if not cb:
+            return
+        _, on_failed = cb
+        try:
+            if on_failed:
+                on_failed(err_msg)
+            else:
+                self.set_status('加载失败')
+        except Exception as e:
+            print(f'[作战中台] 错误回调异常: {e}', flush=True)

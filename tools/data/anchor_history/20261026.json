@@ -1,0 +1,50 @@
+{
+  "trade_date": "2026-10-26",
+  "updated_at": "2026-10-26 07:21:59",
+  "candidates": [
+    {
+      "code": "603901",
+      "name": "永创智能",
+      "score_total": 79,
+      "position_suggest": "中仓（建议15-30%）",
+      "anchor_price": 9.89,
+      "anchor_type": "前高",
+      "retest_date": "2026-09-04",
+      "sector_count": 6,
+      "push_date": "2026-10-26",
+      "entry_zone": "9.69~10.09",
+      "stop_loss": 9.59,
+      "entry_mid": 9.89,
+      "performance": {
+        "bars_after": 1,
+        "day1_close_pct": 5.66,
+        "max_high5": 11.1,
+        "min_low5": 10.24,
+        "max_high_pct": 12.23,
+        "hit_stop": false
+      }
+    },
+    {
+      "code": "002093",
+      "name": "国脉科技",
+      "score_total": 56,
+      "position_suggest": "轻仓（建议5-15%）",
+      "anchor_price": 7.25,
+      "anchor_type": "前高",
+      "retest_date": "2026-09-11",
+      "sector_count": 1,
+      "push_date": "2026-10-26",
+      "entry_zone": "7.1~7.4",
+      "stop_loss": 7.03,
+      "entry_mid": 7.25,
+      "performance": {
+        "bars_after": 1,
+        "day1_close_pct": 9.38,
+        "max_high5": 7.93,
+        "min_low5": 7.57,
+        "max_high_pct": 9.38,
+        "hit_stop": false
+      }
+    }
+  ]
+}

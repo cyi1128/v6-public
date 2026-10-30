@@ -1,0 +1,59 @@
+[
+  {
+    "code": "301313",
+    "name": "凡拓数创",
+    "anchor_price": 32.23,
+    "anchor_type": "前高",
+    "ignition_date": "2026-10-13",
+    "ignition_open": 28.46,
+    "ignition_close": 33.01,
+    "ignition_vol_ratio": 2.55,
+    "break_date": "2026-10-14",
+    "break_close": 34.19,
+    "break_vol_ratio": 2.35,
+    "wash_dates": [
+      "2026-10-15"
+    ],
+    "wash_vol_ratio": 0.69,
+    "second_break_date": "2026-10-16",
+    "second_break_vol_ratio": 0.8,
+    "retest_date": null,
+    "retest_vol_ratio": null,
+    "retest_count": 0,
+    "sector_count": 2,
+    "news_summary": "物理AI概念震荡反弹，凡拓数创涨停；物理AI概念持续走高 凡拓数创触及涨停；物理AI概念走高 凡拓数创触及20CM涨停",
+    "kline_desc": "锚类型前高；点火日放量13.9%；突破日量比2.4；二次突破量比0.8",
+    "hard_filter_passed": true,
+    "days_since_break": 7
+  },
+  {
+    "code": "603901",
+    "name": "永创智能",
+    "anchor_price": 9.89,
+    "anchor_type": "前高",
+    "ignition_date": "2026-09-01",
+    "ignition_open": 9.46,
+    "ignition_close": 10.0,
+    "ignition_vol_ratio": 2.17,
+    "break_date": "2026-09-02",
+    "break_close": 10.22,
+    "break_vol_ratio": 2.04,
+    "wash_dates": [
+      "2026-09-04",
+      "2026-09-07",
+      "2026-09-08",
+      "2026-09-09"
+    ],
+    "wash_vol_ratio": 0.59,
+    "second_break_date": "2026-09-03",
+    "second_break_vol_ratio": 0.59,
+    "retest_date": "2026-09-04",
+    "retest_vol_ratio": 0.34,
+    "retest_count": 1,
+    "sector_count": 8,
+    "news_summary": "永创智能：康创投资增持115.05万股股份；永创智能：关于变更签字会计师的公告；永创智能：康创投资增持115.05万股（0.20%）股份",
+    "kline_desc": "锚类型前高；点火日放量5.3%；突破日量比2.0；二次突破量比0.6",
+    "hard_filter_passed": true,
+    "days_since_break": 31
+  }
+]

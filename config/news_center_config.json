@@ -1,0 +1,70 @@
+{
+  "_说明": "实时新闻中心外部配置文件。修改后重启程序生效。删除此文件则使用代码内默认值。",
+  "sources": {
+    "_说明": "数据源开关。enabled=false可临时禁用该源。priority数字越小优先级越高。",
+    "juchao": {
+      "enabled": true,
+      "priority": 0,
+      "authority": 100
+    },
+    "akshare": {
+      "enabled": true,
+      "priority": 1,
+      "authority": 80
+    },
+    "ths": {
+      "enabled": true,
+      "priority": 1,
+      "authority": 75
+    },
+    "eastmoney": {
+      "enabled": true,
+      "priority": 2,
+      "authority": 70
+    },
+    "sina": {
+      "enabled": true,
+      "priority": 2,
+      "authority": 65
+    },
+    "sina_7x24": {
+      "enabled": true,
+      "priority": 2,
+      "authority": 60
+    }
+  },
+  "refresh": {
+    "_说明": "自动刷新配置。active_interval=新闻页可见时间隔(秒)，background_interval=切到其他Tab时间隔(秒)",
+    "active_interval": 60,
+    "background_interval": 600,
+    "initial_delay": 2,
+    "incremental_limit": 80,
+    "full_load_limit": 200,
+    "max_cached_news": 500,
+    "cache_ttl_hours": 24,
+    "new_highlight_duration": 8
+  },
+  "dedup": {
+    "_说明": "去重配置。similarity_threshold=标题相似度阈值(0-1)，≥该值判定重复",
+    "similarity_threshold": 0.85,
+    "keyword_match_min": 2,
+    "event_window_minutes": 30,
+    "enable_exact_dedup": true,
+    "enable_similarity_dedup": true,
+    "enable_event_dedup": true
+  },
+  "calendar": {
+    "_说明": "投资日历配置。display_days=默认展示未来天数",
+    "display_days": 7,
+    "auto_update_hour": 8,
+    "cache_ttl_hours": 12
+  },
+  "performance": {
+    "_说明": "性能约束。source_fail_threshold=单源连续失败次数后临时降级",
+    "max_refresh_duration_sec": 2,
+    "max_daily_cache_mb": 50,
+    "parallel_fetch_workers": 5,
+    "source_fail_threshold": 3,
+    "source_cooldown_rounds": 1
+  }
+}

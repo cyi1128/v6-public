@@ -1,0 +1,349 @@
+﻿
+==============================================================================
+services\band_pattern_engine.py   [LF]  1638 行
+==============================================================================
+  L61    _SHAKE_MIN_OK = 4
+  L112   def _is_main_a_share(code):
+  L115       return code.startswith(('600','601','603','605','000','001','002','003',
+  L121   MIN_PRICE = 6.0
+  L124   def _lu_threshold(code):
+  L125       """涨停判定阈值（%）：主板 9.5，创业板 19.5（均留 0.5% 容差）。
+  L127       创业板是 20cm 板，若统一用 9.5% 判，+10%~19.4% 的非涨停创业板股
+  L132       if c.startswith(('300', '301', '688', '689')):
+  L133           return 19.5      # 创业板 / 科创板 20cm
+  L134       if c.startswith(('8', '4', '920')):
+  L135           return 29.5      # 北交所 30cm
+  L136       return 9.5           # 主板 10cm
+  L139   def _is_st(name):
+  L156       """涨停：相对前收盘涨幅 >= threshold（默认 9.8% = 主板 10% 留 0.2% 容差）。
+  L159       「实体 >=3% 且涨幅 >=3%」判定）。创业板要按 19.5% 判，传 threshold=0.195。
+  L323   #   出货警示另有 _CTRL_DIST 门槛（见下），与这两条独立。
+  L324   _CTRL_HIGH = 85.0        # 高度控盘线
+  L325   _CTRL_CAND = 90.0        # 高度控盘候选线
+  L326   _CTRL_POS_LOW = 0.4      # 「位置较低」= 近120日位置 < 0.4（与评分里的加权阈值一致）
+  L327   _CTRL_DIST = 60.0        # 出货风险警示的控盘分门槛：低于此分不出货警示
+  L329   _CTRL_FUNNEL = {'ok': 0, 'ctrl': 0, 'wash': 0, 'dist': 0, 'tip': 0}
+  L361           if ctrl >= _CTRL_HIGH and stage == 'wash':
+  L363           if stage == 'distribute' and ctrl >= _CTRL_DIST:
+  L365           if ctrl >= _CTRL_CAND and pos is not None and pos < _CTRL_POS_LOW:
+  L464                   'limitup': sum(1 for c, x in ps if x >= _lu_threshold(c)),
+  L471                              'limitup': sum(1 for c, x in allp if x >= _lu_threshold(c)),
+  L1187        阈值按 8 只正样本标定。V16 提纯：4 项全过才给「建仓触发」（_SHAKE_MIN_OK=4），
+  L1334      _lvl = (LVL_TRIGGER if _sk['shake_ok'] >= _SHAKE_MIN_OK else LVL_WATCH)
+  L1363                      ('·提纯通过' if _sk['shake_ok'] >= _SHAKE_MIN_OK
+  L1364                       else '·震仓不足/%d项，降为观察' % _SHAKE_MIN_OK),
+  L1383          if not _is_main_a_share(code) or _is_st(name):
+  L1394          # 低价股过滤：最新收盘价低于 MIN_PRICE 元直接剔除
+  L1395          if today['close'] < MIN_PRICE:
+  L1418                  _CTRL_FUNNEL['ok'] += 1
+  L1419                  if _ctrl >= _CTRL_HIGH:
+  L1420                      _CTRL_FUNNEL['ctrl'] += 1
+  L1422                      _CTRL_FUNNEL['wash'] += 1
+  L1424                      _CTRL_FUNNEL['dist'] += 1
+  L1429              _CTRL_FUNNEL['tip'] += 1
+  L1554          for _k in _CTRL_FUNNEL:
+  L1555              _CTRL_FUNNEL[_k] = 0
+  L1588              _cf = _CTRL_FUNNEL
+  L1591                    % (_cf['ok'], _CTRL_HIGH, _cf['ctrl'], _cf['wash'],
+  L1634      print(f'\\n=== 结果 ===')
+
+==============================================================================
+services\intraday_opportunity_engine.py   [LF]  2030 行
+==============================================================================
+  L45    MAIN_PREFIX = ('600', '601', '603', '605', '000', '001', '002', '003',
+  L49    # 口径 = 实时行情里的现价（f2），与日K建仓模块的 MIN_PRICE 保持一致。
+  L50    MIN_PRICE = 6.0
+  L260                   if not code or not code.startswith(MAIN_PREFIX):
+  L554           注：科创板 688/689、北交所 8xx/4xx/920 仍剔除；低价门槛见模块常量 MIN_PRICE。
+  L593               if not c or not c.startswith(MAIN_PREFIX):
+  L607                   if self._is_st_name(name):
+  L610                   if px < MIN_PRICE:
+  L666                           if not code or not code.startswith(MAIN_PREFIX):
+  L669                           if self._is_st_name(name):
+  L672                           if float(it.get('f2', 0) or 0) < MIN_PRICE:
+  L1570              secid = f'1.{code}' if str(code).startswith('6') else f'0.{code}'
+  L1732              if px < MIN_PRICE:
+  L1736      def _is_st_name(name):
+  L1741      def _is_st(self, code):
+  L1748          return bool(q) and self._is_st_name(q.get('name'))
+  L1761          return bool(q) and (q.get('price') or 0) < MIN_PRICE
+  L1780                       and not self._is_st_name(_pn[i] if i < len(_pn) else '')
+  L1786              if self._is_low_price(_fc) or self._is_st_name(_fs):
+  L1844              if (o.get('price') or 0) < MIN_PRICE:
+  L1847              if self._is_st_name(o.get('name')) or self._is_st(code):
+  L1881              if (o.get('price') or 0) < MIN_PRICE:
+  L1884              if self._is_st_name(o.get('name')) or self._is_st(code):
+  L1935                  if not _c.startswith(MAIN_PREFIX):
+  L1938                          or (s.get('push_price') or s.get('anchor_close') or 0) < MIN_PRICE:
+  L1940                  if self._is_st_name(s.get('name')) or self._is_st(_c):
+
+==============================================================================
+services\market_rhythm_engine.py   [LF]  526 行
+==============================================================================
+  L52    MIN_STOCK = 2          # 一个题材当日 >=2 家涨停才算「成板块」
+  L104   def is_main_board(code):
+  L243       day_rows = {d: [r for r in _load_day(d) if is_main_board(r['code'])]
+  L288           if n_today < MIN_STOCK:
+  L297           while i >= 0 and cnt[used[i]].get(theme, 0) >= MIN_STOCK:
+  L308           if n_prev >= MIN_STOCK:
+  L319               state = ST_REVIVE if pre3_max >= MIN_STOCK else ST_NEW
+  L373                        if v >= MIN_STOCK and p_all.get(k, 0) < MIN_STOCK
+  L379                      if v >= MIN_STOCK and t_all.get(k, 0) < MIN_STOCK
+
+==============================================================================
+services\board_anomaly_engine.py   [LF]  661 行
+==============================================================================
+  L65    _MIN_STOCK = 2          # 同题材/同行业至少 2 家才算异动
+  L74    _PICK_MIN_PRICE = 6.0   # 候选股价下限：6 元以下剔除（用户既定要求）
+  L182           codes = [c for c in codes if c.startswith(('60', '00', '30'))]
+  L220               if not code.startswith(('60', '00', '30')):
+  L311           if px < _PICK_MIN_PRICE:            # 6 元以下剔除（用户既定要求）
+  L520   def _is_st(name):
+  L552           if len(mem) < _MIN_STOCK:
+  L586           if len(mem) < _MIN_STOCK:
+
+==============================================================================
+services\picks_tracking_service.py   [LF]  647 行
+==============================================================================
+  L51    PICK_MIN_PRICE = 6.0
+  L52    LIMIT_UP_PCT = 9.5          # 涨幅 >= 9.5% 视为已涨停
+  L56    BOARD_MIN_STOCK = 2         # 板块内至少 N 家涨停才算异动板块（回填用）
+  L427               if not code.startswith(('60', '00', '30')):
+  L454           a_i = {k for k, v in day_ind[d].items() if len(v) >= BOARD_MIN_STOCK}
+  L455           a_t = {k for k, v in day_th[d].items() if len(v) >= BOARD_MIN_STOCK}
+  L469           非涨停(涨幅<9.5%) + 涨幅 1~9% + 收盘≥6元 + 量比≥1.2 + 收盘≥MA20
+  L530           if close < PICK_MIN_PRICE:
+
+==============================================================================
+services\anchor_tracker.py   [LF]  479 行
+==============================================================================
+
+==============================================================================
+services\control_profile.py   [CRLF]  157 行
+==============================================================================
+  L17    阈值（_CTRL_HIGH / _CTRL_CAND / _CTRL_DIST / _CTRL_POS_LOW）只在
+  L22        from services.control_profile import get_ctrl_map, ctrl_cell
+  L23        m = get_ctrl_map([r['code'] for r in rows])     # {code: {...}} 或 {code: None}
+  L95    def get_ctrl_map(codes, force=False, cached_only=False):
+  L100       cached_only=True 时**绝不计算**，只返回已有缓存的条目（可在 UI 线程直接调）。
+  L111       if cached_only:
+
+==============================================================================
+services\kline_cache_service.py   [LF]  350 行
+==============================================================================
+  L22    INCREMENTAL_FETCH_DAYS = 15  # 增量更新时获取最近15根K线(足够覆盖节假日)
+  L23    MAX_WORKERS = 2  # V2.8：从5降低到2，避免pytdx多线程竞争
+  L60                kline_data = fetch_kline(code, days=INCREMENTAL_FETCH_DAYS)
+  L164   def incremental_update_kline(codes=None, max_workers=MAX_WORKERS, verbose=True):
+  L274           if clean_code.startswith(prefix):
+
+==============================================================================
+services\limit_up_collector.py   [LF]  369 行
+==============================================================================
+
+==============================================================================
+data\limit_up_reason_db.py   [LF]  151 行
+==============================================================================
+
+==============================================================================
+ui\watchlist_panel.py   [CRLF]  3916 行
+==============================================================================
+  L192                   is_limit_up = (close_p == high_p) and (pct >= 9.8)
+  L193                   is_limit_down = (close_p == low_p) and (pct <= -9.8)
+  L366                   # ========== 上证指数（新浪财经主接口） ==========
+  L406                   # ========== 深证成指（新浪财经主接口） ==========
+  L446                   # ========== 涨跌家数（估算） ==========
+  L475                   # ========== 更新UI ==========
+  L599           # ========== V2.8 模块7：组合分析面板（用户要求删除） ==========
+  L601           # ========== 模块7 END ==========
+  L817           # ========== 盘口实时信息 ==========
+  L1082          # ========== AI操作建议 + 关键价格区域 ==========
+  L1233                      print(f"[WatchlistPanel] ========== 腾讯行情数据获取开始 ==========")
+  L1239                          if code.startswith('6'):
+  L1301                  print(f"[WatchlistPanel] ========== 腾讯行情数据获取结束 ==========")
+  L1364                                  # [CYB] 涨停阈值按板性：主板 9.8% / 创业板 19.8%
+  L1365                                  _lu_th = 19.8 if str(code).startswith(('300', '301')) else 9.8
+  L1513                      # ========== 核心题材计算（暂时禁用，待稳定后再开启） ==========
+  L2014                      from services.control_profile import get_ctrl_map
+  L2015                      m = get_ctrl_map([x['code'] for x in need])
+  L2046          # ========== V2.8 模块7：组合分析面板 ==========
+  L2049          # ========== 模块7 END ==========
+  L2556                  if code.startswith('6'):
+  L2876      # ========== 股票搜索功能 ==========
+  L2923          print(f"[搜索] ========== 补全项被选中 ==========")
+  L3141              # ========== 先同步selected_stock到最新，再使用 ==========
+  L3149              print(f"[UI显示] ========== 盘口数据最终验证 ==========")
+  L3183              print(f"[UI显示] ========== 盘口数据最终验证结束 ==========")
+  L3300          print(f"[UI更新] ========== 收到详细数据信号 ==========")
+  L3354              print(f"[UI更新] ========== 详细数据更新完成 ==========")
+  L3706                  if yoy.startswith('+'):
+  L3708                  elif yoy.startswith('-'):
+
+==============================================================================
+ui\trading_dashboard_panel.py   [CRLF]  911 行
+==============================================================================
+  L518                       # [CYB] 涨停/跌停家数按板性：主板 9.8% / 创业板 19.8%
+  L521                                           19.8 if str(s.get('code', '')).startswith(('300', '301'))
+  L522                                           else 9.8)),
+  L525                                             19.8 if str(s.get('code', '')).startswith(('300', '301'))
+  L526                                             else 9.8)),
+
+==============================================================================
+ui\echarts_kline.py   [CRLF]  2028 行
+==============================================================================
+  L55            // ========== 自定义鼠标拖动平移（兼容QWebEngineView） ==========
+  L110               if (!option || !option.dataZoom || option.dataZoom.length === 0) return;
+  L152               if (pyBridge && dataIndex !== undefined && dataIndex >= 0 && typeof pyBridge.onCursorChanged === 'function') {
+  L159               if (dataIndex === undefined || dataIndex < 0) {
+  L177               if (ma5Val === null || ma5Val === undefined) ma5Val = 0;
+  L178               if (ma10Val === null || ma10Val === undefined) ma10Val = 0;
+  L179               if (ma20Val === null || ma20Val === undefined) ma20Val = 0;
+  L180               if (ma120Val === null || ma120Val === undefined) ma120Val = 0;
+  L249                   if (!klineArr || klineArr.length === 0) return klineArr;
+  L263                       var isLimitUp = (close === high) && (pct >= 9.8);
+  L264                       var isLimitDown = (close === low) && (pct <= -9.8);
+  L392                               if (!params || params.length === 0) return '';
+  L428                               var isLatest = (idx === currentData.kline.length - 1);
+  L697                               if (!params || params.length === 0) return '';
+  L860                                   if (idx === 0) return '#007AFF';
+  L1024          print(f"[ECharts] ========== set_kline_data被调用 ==========")
+  L1027              # ========== 第一步：数据校验 ==========
+  L1070              # ========== 第二步：数据格式化 ==========
+  L1108                          # 主板：>=9.8%，创业板/科创板：>=19.8%
+  L1110                          if code.startswith(('300', '301', '688')):
+  L1111                              if pct >= 19.8:
+  L1114                              if pct >= 9.8:
+  L1149              # ========== 第三步：更新图表（数据校验通过后才清除旧图） ==========
+  L1153                      if (typeof chart === 'undefined' || !chart) {{
+  L1192                      if (typeof chart === 'undefined' || !chart || !currentData || !currentData.kline || currentData.kline.length === 0) {{
+  L1239          print(f"[ECharts] ========== set_chanlun_data被调用 ==========")
+  L1322                      if (typeof chart === 'undefined' || !chart) {{
+  L1406                      if (typeof chart === 'undefined' || !chart) {
+  L1443                      if (typeof chart === 'undefined' || !chart) {
+  L1485          print(f"[ECharts] ========== set_vision_signals被调用 ==========")
+  L1533                      if (typeof chart === 'undefined' || !chart) {{
+  L1599          print(f"[ECharts] ========== set_vision_structure被调用 ==========")
+  L1678                      if (typeof chart === 'undefined' || !chart) {{
+  L1691                                  if (option.series[i].type === 'candlestick') {{
+  L1744          print(f"[ECharts] ========== set_annotations被调用 (show_regions={show_regions}, show_signals={show_signals}) ==========", flush=True)
+  L1761              # ========== 1. markArea: 6色区域（V1.3.13：默认不显示，show_regions=True时才显示） ==========
+  L1811              # ========== 2. markPoint: 买卖点标记（V1.3.13：默认不显示，show_signals=True时才显示） ==========
+  L1847              # ========== 3. markLine: 支撑/压力位 ==========
+  L1870              # ========== 4. 生成JS代码，直接setOption更新candlestick series ==========
+  L1876                      if (typeof chart === 'undefined' || !chart) {{
+  L1975          print(f"[ECharts] ========== set_time_share_data被调用 ==========")
+  L2000                      if (typeof chart === 'undefined' || !chart) {{
+
+==============================================================================
+ui\market_sentiment_panel.py   [CRLF]  641 行
+==============================================================================
+  L82            # ========== 顶部：市场温度 ==========
+  L85            # ========== 中间：核心指标卡片 ==========
+  L88            # ========== 底部：市场状态分析 ==========
+  L303           print("[市场情绪] ========== 开始加载数据 ==========")
+  L402                   # 涨停判断（主板9.8%以上，创业板/科创板19.8%以上）
+  L404                   if code.startswith('6') or code.startswith('0'):
+  L406                       if pct_chg >= 9.8:
+  L409                   elif code.startswith('3') or code.startswith('68'):
+  L411                       if pct_chg >= 19.8:
+  L416                   if code.startswith('6') or code.startswith('0'):
+  L417                       if pct_chg <= -9.8:
+  L419                   elif code.startswith('3') or code.startswith('68'):
+  L420                       if pct_chg <= -19.8:
+  L423                   # 炸板判断（简化：涨幅在7%-9.8%之间，且有放量）
+  L424                   if 7 <= pct_chg < 9.8 and volume > 0:
+  L551               print("[市场情绪] ========== 加载完成 ==========")
+
+==============================================================================
+ui\battle_widgets\auction_filter_widget.py   [CRLF]  1840 行
+==============================================================================
+  L30        BattleModuleBase, make_table, set_table_item, CTRL_COL_TITLE,
+  L45        CTRL_COL_TITLE,
+  L54        '当前实时价', '5日盈亏%', '30日盈亏%', '累计盈亏%', CTRL_COL_TITLE,
+  L64    MAIN_BOARD_PREFIXES = ('600', '601', '603', '605', '000', '001', '002', '003',
+  L68    def _is_main_a_share(code: str) -> bool:
+  L72        return code.startswith(MAIN_BOARD_PREFIXES)
+  L75    def _is_st(name: str) -> bool:
+  L85    CYB_PREFIXES = ('300', '301')
+  L86    GAP_BAND_MAIN = (2.0, 7.0)
+  L87    GAP_BAND_CYB = (4.0, 14.0)
+  L88    TURNOVER_MAX_MAIN = 15.0
+  L89    TURNOVER_MAX_CYB = 30.0
+  L90    GAP_SCORE_MAIN = (3.0, 4.0, 2.0, 5.0)    # 满分下限/上限、次优下限/上限
+  L91    GAP_SCORE_CYB = (6.0, 8.0, 4.0, 10.0)
+  L96        return str(code or '').startswith(CYB_PREFIXES)
+  L101       return GAP_BAND_CYB if _is_cyb(code) else GAP_BAND_MAIN
+  L104   def _turnover_max(code) -> float:
+  L106       return TURNOVER_MAX_CYB if _is_cyb(code) else TURNOVER_MAX_MAIN
+  L111       return GAP_SCORE_CYB if _is_cyb(code) else GAP_SCORE_MAIN
+  L185           # ===== Tab1 容器：今日竞价 TOP12 表格 =====
+  L206           # ===== Tab2 容器：竞价追踪历史表格 =====
+  L601               if not _is_main_a_share(code):
+  L603               if _is_st(name):
+  L628               _tmax = _turnover_max(code)            # [CYB-GATE] 创业板 30%
+  L722               if not _is_main_a_share(code):
+  L724               if _is_st(name):
+  L750               _tmax = _turnover_max(code)            # [CYB-GATE] 创业板 30%
+
+==============================================================================
+ui\battle_widgets\atr_t_widget.py   [CRLF]  2216 行
+==============================================================================
+  L29        pct_color, BC, L, CTRL_COL_TITLE, fetch_ctrl_for,
+  L40                   '信号灯', '操作建议', CTRL_COL_TITLE]
+  L89    CYB_PREFIXES = ('300', '301')
+  L90    PCT_LOCK_MAIN = 8.0        # 涨停锁仓（涨停的 80%：主板 10% → 8%）
+  L91    PCT_LOCK_CYB = 16.0        # 涨停锁仓（涨停的 80%：创业板 20% → 16%）
+  L92    PCT_MAINUP_MAIN = 5.0      # 主升浪（涨停的 50%：主板 10% → 5%）
+  L93    PCT_MAINUP_CYB = 10.0      # 主升浪（涨停的 50%：创业板 20% → 10%）
+  L94    PCT_WEAK_MAIN = -5.0       # 弱势降分
+  L95    PCT_WEAK_CYB = -10.0       # 弱势降分（创业板）
+  L100       return str(code or '').startswith(CYB_PREFIXES)
+  L103   def _pct_thresholds(code):
+  L106           return PCT_LOCK_CYB, PCT_MAINUP_CYB, PCT_WEAK_CYB
+  L107       return PCT_LOCK_MAIN, PCT_MAINUP_MAIN, PCT_WEAK_MAIN
+  L263           # ===== V4.0 DuckDB 持久化 =====
+  L352           # ===== Tab1 容器：分时做T（持仓表）=====
+  L384           # ===== Tab2 容器：日K建仓表 =====
+  L692           _lock_pct, _mainup_pct, _ = _pct_thresholds(r.get('code'))
+  L1175          if pct <= _pct_thresholds(code)[2]:
+
+==============================================================================
+ui\battle_widgets\limit_up_widget.py   [CRLF]  420 行
+==============================================================================
+  L24        fetch_ctrl_for, attach_ctrl, CTRL_COL_TITLE,
+  L32    HEADER_LABELS = ['股票名称', '股票代码', '现价', '涨幅', '市值', '题材', CTRL_COL_TITLE]
+  L251               # 涨停判定按板块真实涨停规则（不再统一9.8）：
+  L252               #   主板(60/00) 10%  → 9.8
+  L253               #   创业板(300/301)/科创板(688/689) 20% → 19.5
+  L254               #   北交所(8/4/920) 30% → 29.5
+  L255               # 避免创业板/科创板涨9.8%~19.4%的非涨停股被误选
+  L256               if code.startswith(('300', '301', '688', '689')):
+  L257                   limit_threshold = 19.5
+  L258               elif code.startswith(('8', '4', '920')):
+  L259                   limit_threshold = 29.5
+  L261                   limit_threshold = 9.8
+  L262               if pct < limit_threshold:
+
+==============================================================================
+ui\battle_widgets\market_rhythm_widget.py   [LF]  662 行
+==============================================================================
+  L113           # ================= Tab1：市场节奏 =================
+  L153           # ================= Tab2：可介入 =================
+  L185           # ================= Tab3：可介入追踪 =================
+  L585       _PUSH_MIN_STOCK = 3      # 至少 3 家才推，避免 2 家噪音刷屏
+  L613               if r['count'] < self._PUSH_MIN_STOCK:
+
+==============================================================================
+ui\battle_widgets\picks_track_widget.py   [LF]  385 行
+==============================================================================
+  L30    from .base import (make_table, set_table_item, BC, HeaderSorter, CTRL_COL_TITLE,
+  L38                     CTRL_COL_TITLE]
+
+==============================================================================
+ui\battle_widgets\base.py   [LF]  590 行
+==============================================================================
+  L144   CTRL_COL_TITLE = '控盘'
+  L155           from services.control_profile import get_ctrl_map
+  L157           m = get_ctrl_map(codes)
+  L183           from services.control_profile import get_ctrl_map
+  L184           m = get_ctrl_map(codes, cached_only=True)

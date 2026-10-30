@@ -1,0 +1,21 @@
+文件：服务 886 行/38458 字节/纯LF ｜ 页面 599 行/29424 字节/纯LF
+PASS 1 两个文件都是纯 LF（与新建时一致）
+PASS 2 服务层补丁齐备（三源/限速/退避/熔断/巨潮单例/前缀剥离/按字段补）
+PASS 3 页面补丁齐备（13 列/两列渲染/补数开关/进度/空态常量）
+PASS 4 快照 + 筛选 + 缓存都在（池 978 只 / 缓存 978 条）
+PASS 5 当前筛选池两列数据齐全（extras_missing=0） ｜ []
+PASS 6 前 40 行里两列都有可显示文本（不出现空 + 不谎报） ｜ []
+PASS 7 单元格长度受控（公告 ≤30 字 / 主营 ≤22 字，200 行抽样） ｜ 公告max=30 主营max=22
+PASS 8 缺数行显示 -- （不谎报数据）
+PASS 9 缺数的那只确实显示 -- ｜ code=000779 主营='--' 公告='--'
+PASS 10 页面后台补数真的把缺的那只补回来了（联网闭环，1.2s） ｜ biz='勘察设计' ann=5 条 src=sina
+PASS 11 缓存恢复完整（extras_missing 再次为 0）
+PASS 12 交付物存在：tools\_shot_ctrl_screen.png ｜ 324022 字节
+PASS 12 交付物存在：tools\ctrl_screen_extra_unit.txt ｜ 4505 字节
+PASS 12 交付物存在：tools\ctrl_screen_dbui.txt ｜ 4869 字节
+PASS 12 交付物存在：tools\ctrl_screen_unit.txt ｜ 2821 字节
+PASS 12 交付物存在：data\cache\ctrl_screen_extras.json ｜ 1437478 字节
+PASS 12 交付物存在：backups ｜ 目录
+PASS 13 本批定向备份已生成 ｜ ['ctrlscreen_extras_20261011_1358']
+
+=== 18 PASS / 0 FAIL ===

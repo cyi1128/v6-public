@@ -1,0 +1,21 @@
+{
+  "trade_date": "2026-10-28",
+  "updated_at": "2026-10-28 07:22:24",
+  "candidates": [
+    {
+      "code": "002889",
+      "name": "东方嘉盛",
+      "score_total": 61,
+      "position_suggest": "轻仓（建议5-15%）",
+      "anchor_price": 12.25,
+      "anchor_type": "前高",
+      "retest_date": null,
+      "sector_count": 1,
+      "push_date": "2026-10-28",
+      "entry_zone": "12.0~12.5",
+      "stop_loss": 11.88,
+      "entry_mid": 12.25,
+      "performance": null
+    }
+  ]
+}

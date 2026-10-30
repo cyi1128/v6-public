@@ -1,0 +1,83 @@
+<html style="margin:0;padding:0;">
+<div style="background-color:transparent;box-sizing:border-box;font-family:'Roboto','PingFang SC','Microsoft YaHei',Arial,sans-serif;color:#1A1B1C;">
+
+  <div style="font-size:15px;font-weight:600;margin:0 0 4px 0;">龙一 / 龙二 / 龙三 判定链</div>
+  <div style="font-size:12px;color:#6B7280;margin:0 0 14px 0;">排序键按顺序比较，先比第 1 级，相同才看下一级；排完取前 3 名。来源：<span style="background:#f4f3ee;padding:1px 5px;border-radius:3px;">board_anomaly_engine.py L340 _dragon_key()</span></div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px 0;">
+
+    <div style="flex:1 1 300px;min-width:0;background:#ffffff;border:0.5px solid rgba(0,0,0,0.08);border-radius:12px;padding:12px 14px;box-sizing:border-box;">
+      <div style="font-size:12px;font-weight:600;color:#2f6bff;margin:0 0 10px 0;">① 有首封时间（排最后兜底）</div>
+      <div style="font-size:11.5px;color:#6B7280;line-height:1.7;">0 = 有首封时间<br>1 = 无历史数据，统一沉到最后<br><span style="color:#52C41A;">✅ 实测 69 / 69 都有</span></div>
+    </div>
+
+    <div style="flex:1 1 300px;min-width:0;background:#ffffff;border:0.5px solid rgba(0,0,0,0.08);border-radius:12px;padding:12px 14px;box-sizing:border-box;">
+      <div style="font-size:12px;font-weight:600;color:#2f6bff;margin:0 0 10px 0;">② 连板身位 <span style="font-weight:400;color:#6B7280;">lbc</span>（权重最高）</div>
+      <div style="font-size:11.5px;color:#6B7280;line-height:1.7;">5连板 &gt; 4连板 &gt; 2连板 &gt; 首板<br>同身位才往下比<br><span style="color:#52C41A;">✅ 实测 69 / 69 都有</span></div>
+    </div>
+
+    <div style="flex:1 1 300px;min-width:0;background:#ffffff;border:0.5px solid rgba(0,0,0,0.08);border-radius:12px;padding:12px 14px;box-sizing:border-box;">
+      <div style="font-size:12px;font-weight:600;color:#2f6bff;margin:0 0 10px 0;">③ 首封时间 <span style="font-weight:400;color:#6B7280;">time</span></div>
+      <div style="font-size:11.5px;color:#6B7280;line-height:1.7;">09:25 封板 &gt; 13:39 封板<br>越早封板越靠前<br><span style="color:#52C41A;">✅ 实测 69 / 69 都有</span></div>
+    </div>
+
+    <div style="flex:1 1 300px;min-width:0;background:#fff5f5;border:0.5px solid rgba(234,102,104,0.35);border-radius:12px;padding:12px 14px;box-sizing:border-box;">
+      <div style="font-size:12px;font-weight:600;color:#EA6668;margin:0 0 10px 0;">④ 封单额 <span style="font-weight:400;color:#6B7280;">fund</span></div>
+      <div style="font-size:11.5px;color:#6B7280;line-height:1.7;">封单越大越靠前<br><span style="color:#EA6668;font-weight:600;">❌ 实测 0 / 69，全空 → 这一级目前失效</span></div>
+    </div>
+
+    <div style="flex:1 1 300px;min-width:0;background:#ffffff;border:0.5px solid rgba(0,0,0,0.08);border-radius:12px;padding:12px 14px;box-sizing:border-box;">
+      <div style="font-size:12px;font-weight:600;color:#2f6bff;margin:0 0 10px 0;">⑤ 今日涨幅（最后兜底）</div>
+      <div style="font-size:11.5px;color:#6B7280;line-height:1.7;">前面全打平时用涨幅排<br><span style="color:#52C41A;">✅ 有值</span></div>
+    </div>
+
+  </div>
+
+  <div style="font-size:13.5px;font-weight:600;margin:0 0 8px 0;">实测两条真实结果</div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px 0;">
+
+    <div style="flex:1 1 300px;min-width:0;background:rgba(139,200,234,0.10);border-radius:12px;padding:12px 14px;box-sizing:border-box;">
+      <div style="font-size:12px;font-weight:600;margin:0 0 8px 0;">题材「AI漫剧」（4 家涨停）</div>
+      <div style="font-size:11.5px;line-height:1.85;color:#3c4043;">
+        <span style="color:#EA6668;font-weight:600;">龙一</span> 德才股份 &nbsp;2连板 ｜ 13:39:25<br>
+        <span style="color:#EA6668;font-weight:600;">龙二</span> 龙版传媒 &nbsp;2连板 ｜ 13:44:40<br>
+        <span style="color:#EA6668;font-weight:600;">龙三</span> 欢瑞世纪 &nbsp;1连板 ｜ 14:03:18
+      </div>
+      <div style="font-size:11px;color:#6B7280;margin:8px 0 0 0;line-height:1.6;">
+        龙一 vs 龙二：同为 2 连板 → 比首封时间，13:39 早于 13:44<br>
+        龙二 vs 龙三：2连板 &gt; 1连板，身位直接压过
+      </div>
+    </div>
+
+    <div style="flex:1 1 300px;min-width:0;background:rgba(139,200,234,0.10);border-radius:12px;padding:12px 14px;box-sizing:border-box;">
+      <div style="font-size:12px;font-weight:600;margin:0 0 8px 0;">行业「电池」（6 家涨停）</div>
+      <div style="font-size:11.5px;line-height:1.85;color:#3c4043;">
+        <span style="color:#EA6668;font-weight:600;">龙一</span> 时代万恒 &nbsp;5连板 ｜ 09:25:00<br>
+        <span style="color:#EA6668;font-weight:600;">龙二</span> 紫竹高科 &nbsp;4连板 ｜ 09:25:00<br>
+        <span style="color:#EA6668;font-weight:600;">龙三</span> 雄韬股份 &nbsp;2连板 ｜ 09:31:03
+      </div>
+      <div style="font-size:11px;color:#6B7280;margin:8px 0 0 0;line-height:1.6;">
+        龙一 vs 龙二：首封同为 09:25 → 比连板身位，5板 &gt; 4板<br>
+        <span style="color:#EA6668;">若封单额有数据，这里本该再比一次封单</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="font-size:13.5px;font-weight:600;margin:0 0 8px 0;">两个 Tab 用的不是同一套规则</div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;">
+
+    <div style="flex:1 1 300px;min-width:0;background:#ffffff;border:0.5px solid rgba(0,0,0,0.08);border-radius:12px;padding:12px 14px;box-sizing:border-box;">
+      <div style="font-size:12px;font-weight:600;margin:0 0 8px 0;">Tab2「可介入」— 有龙一/龙二/龙三</div>
+      <div style="font-size:11.5px;color:#3c4043;line-height:1.7;">标记位置：<span style="background:#f4f3ee;padding:1px 5px;border-radius:3px;">成分股</span> 列前 3 名<br>排序键 5 级（含封单额、涨幅兜底）<br><span style="color:#6B7280;">market_rhythm_widget.py L454-457</span></div>
+    </div>
+
+    <div style="flex:1 1 300px;min-width:0;background:#ffffff;border:0.5px solid rgba(0,0,0,0.08);border-radius:12px;padding:12px 14px;box-sizing:border-box;">
+      <div style="font-size:12px;font-weight:600;margin:0 0 8px 0;">Tab1「市场节奏」— 只有「龙头」一个</div>
+      <div style="font-size:11.5px;color:#3c4043;line-height:1.7;">显示为 <span style="background:#f4f3ee;padding:1px 5px;border-radius:3px;">名称+连板数</span><br>排序键只有 2 级：连板 → 首封时间<br><span style="color:#6B7280;">market_rhythm_engine.py L299</span></div>
+    </div>
+
+  </div>
+
+</div>
+</html>

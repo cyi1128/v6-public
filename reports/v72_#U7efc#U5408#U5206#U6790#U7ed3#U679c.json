@@ -1,0 +1,635 @@
+{
+  "analysis_time": "2026-08-22 19:01:19",
+  "duration_sec": 5105.8,
+  "1y": {
+    "total_signals": 75407,
+    "factor_effectiveness": {
+      "破位十字星": {
+        "count": 66301,
+        "avg_3d": 0.06,
+        "win_3d": 47.1,
+        "avg_5d": 0.11,
+        "win_5d": 47.5,
+        "avg_10d": 0.25,
+        "win_10d": 47.2,
+        "excess_5d": 0.34
+      },
+      "长下影线": {
+        "count": 24462,
+        "avg_3d": 0.0,
+        "win_3d": 46.5,
+        "avg_5d": 0.06,
+        "win_5d": 47.3,
+        "avg_10d": 0.19,
+        "win_10d": 47.2,
+        "excess_5d": -0.01
+      },
+      "缩量回调": {
+        "count": 25738,
+        "avg_3d": -0.02,
+        "win_3d": 46.3,
+        "avg_5d": 0.05,
+        "win_5d": 47.5,
+        "avg_10d": 0.22,
+        "win_10d": 47.3,
+        "excess_5d": -0.03
+      },
+      "涨停二次启动": {
+        "count": 4414,
+        "avg_3d": -0.03,
+        "win_3d": 45.7,
+        "avg_5d": -0.2,
+        "win_5d": 44.8,
+        "avg_10d": -0.61,
+        "win_10d": 42.0,
+        "excess_5d": -0.28
+      },
+      "横盘筑底": {
+        "count": 73933,
+        "avg_3d": 0.04,
+        "win_3d": 46.8,
+        "avg_5d": 0.07,
+        "win_5d": 47.2,
+        "avg_10d": 0.21,
+        "win_10d": 47.0,
+        "excess_5d": 0.3
+      },
+      "锐角突破整理": {
+        "count": 17327,
+        "avg_3d": 0.02,
+        "win_3d": 45.8,
+        "avg_5d": 0.04,
+        "win_5d": 46.1,
+        "avg_10d": -0.06,
+        "win_10d": 45.1,
+        "excess_5d": -0.03
+      },
+      "一阳穿均线": {
+        "count": 12172,
+        "avg_3d": 0.11,
+        "win_3d": 48.5,
+        "avg_5d": 0.11,
+        "win_5d": 47.5,
+        "avg_10d": 0.24,
+        "win_10d": 46.8,
+        "excess_5d": 0.05
+      },
+      "量能_温和放量": {
+        "count": 3008,
+        "avg_5d": -0.08,
+        "win_5d": 45.3
+      },
+      "量能_缩缩红红红": {
+        "count": 1182,
+        "avg_5d": -0.29,
+        "win_5d": 41.3
+      },
+      "量能_缩红红缩红": {
+        "count": 81,
+        "avg_5d": 0.42,
+        "win_5d": 42.0
+      },
+      "macd_dif>0": {
+        "count": 46380,
+        "avg_5d": 0.08,
+        "win_5d": 47.1
+      },
+      "macd_hist>0": {
+        "count": 56562,
+        "avg_5d": 0.08,
+        "win_5d": 47.2
+      },
+      "kdj_j<0": {
+        "count": 1248,
+        "avg_5d": 0.12,
+        "win_5d": 47.6
+      },
+      "kdj_j<30": {
+        "count": 13898,
+        "avg_5d": 0.01,
+        "win_5d": 46.7
+      },
+      "kdj_j>60": {
+        "count": 34959,
+        "avg_5d": 0.04,
+        "win_5d": 46.8
+      },
+      "ma_score>=10": {
+        "count": 72727,
+        "avg_5d": 0.08,
+        "win_5d": 47.3
+      },
+      "macd_score>=10": {
+        "count": 34888,
+        "avg_5d": 0.02,
+        "win_5d": 46.5
+      }
+    },
+    "threshold_analysis": {
+      "70": {
+        "count": 21,
+        "avg_3d": -1.04,
+        "win_3d": 33.3,
+        "avg_5d": -1.82,
+        "win_5d": 38.1,
+        "avg_10d": -1.17,
+        "win_10d": 33.3,
+        "avg_mdd_5d": -4.17,
+        "pl_ratio_5d": 0.57
+      },
+      "75": {
+        "count": 0,
+        "note": "样本不足"
+      },
+      "78": {
+        "count": 0,
+        "note": "样本不足"
+      },
+      "80": {
+        "count": 0,
+        "note": "样本不足"
+      }
+    },
+    "tp_sl_analysis": {
+      "TP5_SL3": {
+        "count": 152,
+        "avg_return": 0.54,
+        "win_rate": 46.7,
+        "pl_ratio": 1.57,
+        "avg_win": 4.21,
+        "avg_loss": 2.68,
+        "max_consec_loss": 8
+      },
+      "TP5_SL5": {
+        "count": 152,
+        "avg_return": 0.54,
+        "win_rate": 54.6,
+        "pl_ratio": 1.09,
+        "avg_win": 4.11,
+        "avg_loss": 3.76,
+        "max_consec_loss": 8
+      },
+      "TP10_SL3": {
+        "count": 152,
+        "avg_return": 0.51,
+        "win_rate": 38.2,
+        "pl_ratio": 2.13,
+        "avg_win": 5.63,
+        "avg_loss": 2.65,
+        "max_consec_loss": 9
+      },
+      "TP10_SL5": {
+        "count": 152,
+        "avg_return": 0.49,
+        "win_rate": 46.1,
+        "pl_ratio": 1.46,
+        "avg_win": 5.48,
+        "avg_loss": 3.76,
+        "max_consec_loss": 9
+      },
+      "TP8_SL4": {
+        "count": 152,
+        "avg_return": 0.42,
+        "win_rate": 44.1,
+        "pl_ratio": 1.57,
+        "avg_win": 5.08,
+        "avg_loss": 3.24,
+        "max_consec_loss": 9
+      }
+    },
+    "failure_analysis": {
+      "total_high_score": 152,
+      "failure_count": 77,
+      "success_count": 74,
+      "failure_rate": 50.7,
+      "features": {
+        "p_doji": {
+          "fail_count": 77,
+          "fail_rate": 100.0,
+          "success_count": 71,
+          "success_rate": 95.9,
+          "diff": 4.1
+        },
+        "p_lower_shadow": {
+          "fail_count": 45,
+          "fail_rate": 58.4,
+          "success_count": 35,
+          "success_rate": 47.3,
+          "diff": 11.1
+        },
+        "p_shrink_pullback": {
+          "fail_count": 5,
+          "fail_rate": 6.5,
+          "success_count": 3,
+          "success_rate": 4.1,
+          "diff": 2.4
+        },
+        "p_limitup_reentry": {
+          "fail_count": 12,
+          "fail_rate": 15.6,
+          "success_count": 17,
+          "success_rate": 23.0,
+          "diff": -7.4
+        },
+        "p_platform_end": {
+          "fail_count": 77,
+          "fail_rate": 100.0,
+          "success_count": 73,
+          "success_rate": 98.6,
+          "diff": 1.4
+        },
+        "p_sharp_break": {
+          "fail_count": 26,
+          "fail_rate": 33.8,
+          "success_count": 20,
+          "success_rate": 27.0,
+          "diff": 6.7
+        },
+        "p_yang_cross_ma": {
+          "fail_count": 13,
+          "fail_rate": 16.9,
+          "success_count": 10,
+          "success_rate": 13.5,
+          "diff": 3.4
+        }
+      },
+      "top_failures": [
+        {
+          "code": "000799",
+          "date": "20260316",
+          "score": 70.0,
+          "ret_5d": -13.79,
+          "ret_10d": -11.66,
+          "patterns": [
+            "p_doji",
+            "p_platform_end",
+            "p_yang_cross_ma"
+          ],
+          "vol_pattern": "缩缩红红红",
+          "kdj_j": 44.0,
+          "macd_dif": -1.879
+        },
+        {
+          "code": "000913",
+          "date": "20260420",
+          "score": 72.0,
+          "ret_5d": -12.38,
+          "ret_10d": -12.9,
+          "patterns": [
+            "p_doji",
+            "p_lower_shadow",
+            "p_limitup_reentry",
+            "p_platform_end"
+          ],
+          "vol_pattern": "缩缩红红红",
+          "kdj_j": 53.8,
+          "macd_dif": 0.04
+        },
+        {
+          "code": "603011",
+          "date": "20260310",
+          "score": 65.0,
+          "ret_5d": -11.77,
+          "ret_10d": -22.53,
+          "patterns": [
+            "p_doji",
+            "p_shrink_pullback",
+            "p_limitup_reentry",
+            "p_platform_end",
+            "p_yang_cross_ma"
+          ],
+          "vol_pattern": "",
+          "kdj_j": 48.7,
+          "macd_dif": 0.278
+        },
+        {
+          "code": "600363",
+          "date": "20251029",
+          "score": 66.0,
+          "ret_5d": -9.76,
+          "ret_10d": -10.26,
+          "patterns": [
+            "p_doji",
+            "p_limitup_reentry",
+            "p_platform_end"
+          ],
+          "vol_pattern": "温和放量",
+          "kdj_j": 43.2,
+          "macd_dif": 0.503
+        },
+        {
+          "code": "601059",
+          "date": "20251029",
+          "score": 65.0,
+          "ret_5d": -8.41,
+          "ret_10d": -12.0,
+          "patterns": [
+            "p_doji",
+            "p_platform_end",
+            "p_yang_cross_ma"
+          ],
+          "vol_pattern": "缩缩红红红",
+          "kdj_j": 77.1,
+          "macd_dif": 0.31
+        },
+        {
+          "code": "603283",
+          "date": "20251110",
+          "score": 65.0,
+          "ret_5d": -8.08,
+          "ret_10d": -19.13,
+          "patterns": [
+            "p_doji",
+            "p_lower_shadow",
+            "p_platform_end"
+          ],
+          "vol_pattern": "缩缩红红红",
+          "kdj_j": 89.4,
+          "macd_dif": 1.169
+        },
+        {
+          "code": "600439",
+          "date": "20260317",
+          "score": 65.0,
+          "ret_5d": -7.64,
+          "ret_10d": -6.18,
+          "patterns": [
+            "p_doji",
+            "p_platform_end"
+          ],
+          "vol_pattern": "缩缩红红红",
+          "kdj_j": 58.8,
+          "macd_dif": -0.021
+        },
+        {
+          "code": "603156",
+          "date": "20251208",
+          "score": 71.0,
+          "ret_5d": -6.54,
+          "ret_10d": -5.9,
+          "patterns": [
+            "p_doji",
+            "p_lower_shadow",
+            "p_platform_end"
+          ],
+          "vol_pattern": "缩缩红红红",
+          "kdj_j": 83.8,
+          "macd_dif": 0.035
+        },
+        {
+          "code": "601828",
+          "date": "20260114",
+          "score": 66.0,
+          "ret_5d": -6.23,
+          "ret_10d": -9.34,
+          "patterns": [
+            "p_doji",
+            "p_lower_shadow",
+            "p_platform_end"
+          ],
+          "vol_pattern": "温和放量",
+          "kdj_j": 67.4,
+          "macd_dif": 0.023
+        },
+        {
+          "code": "000090",
+          "date": "20260313",
+          "score": 70.0,
+          "ret_5d": -6.02,
+          "ret_10d": -9.77,
+          "patterns": [
+            "p_doji",
+            "p_platform_end",
+            "p_sharp_break"
+          ],
+          "vol_pattern": "缩缩红红红",
+          "kdj_j": 68.8,
+          "macd_dif": 0.017
+        }
+      ],
+      "filter_rules": [
+        "p_lower_shadow: 失败率58.4% vs 成功率47.3%, 建议扣分"
+      ]
+    }
+  },
+  "3y": {
+    "total_signals": 274851,
+    "factor_effectiveness": {
+      "破位十字星": {
+        "count": 242837,
+        "avg_3d": 0.13,
+        "win_3d": 46.9,
+        "avg_5d": 0.19,
+        "win_5d": 46.8,
+        "avg_10d": 0.33,
+        "win_10d": 47.3,
+        "excess_5d": -0.02
+      },
+      "长下影线": {
+        "count": 88234,
+        "avg_3d": 0.02,
+        "win_3d": 46.0,
+        "avg_5d": 0.1,
+        "win_5d": 46.5,
+        "avg_10d": 0.35,
+        "win_10d": 47.7,
+        "excess_5d": -0.14
+      },
+      "缩量回调": {
+        "count": 93463,
+        "avg_3d": -0.01,
+        "win_3d": 46.3,
+        "avg_5d": 0.08,
+        "win_5d": 46.8,
+        "avg_10d": 0.31,
+        "win_10d": 47.9,
+        "excess_5d": -0.17
+      },
+      "涨停二次启动": {
+        "count": 14581,
+        "avg_3d": 0.24,
+        "win_3d": 46.1,
+        "avg_5d": 0.17,
+        "win_5d": 44.6,
+        "avg_10d": 0.07,
+        "win_10d": 44.4,
+        "excess_5d": -0.03
+      },
+      "横盘筑底": {
+        "count": 268957,
+        "avg_3d": 0.13,
+        "win_3d": 46.8,
+        "avg_5d": 0.19,
+        "win_5d": 46.7,
+        "avg_10d": 0.34,
+        "win_10d": 47.3,
+        "excess_5d": -0.38
+      },
+      "锐角突破整理": {
+        "count": 61428,
+        "avg_3d": 0.09,
+        "win_3d": 46.0,
+        "avg_5d": 0.13,
+        "win_5d": 46.0,
+        "avg_10d": 0.3,
+        "win_10d": 47.4,
+        "excess_5d": -0.08
+      },
+      "一阳穿均线": {
+        "count": 44167,
+        "avg_3d": 0.19,
+        "win_3d": 47.9,
+        "avg_5d": 0.32,
+        "win_5d": 47.1,
+        "avg_10d": 0.41,
+        "win_10d": 46.7,
+        "excess_5d": 0.15
+      },
+      "量能_温和放量": {
+        "count": 10369,
+        "avg_5d": 0.42,
+        "win_5d": 46.9
+      },
+      "量能_缩缩红红红": {
+        "count": 4439,
+        "avg_5d": 0.78,
+        "win_5d": 47.7
+      },
+      "量能_缩红红缩红": {
+        "count": 301,
+        "avg_5d": 1.44,
+        "win_5d": 49.8
+      },
+      "macd_dif>0": {
+        "count": 184001,
+        "avg_5d": 0.23,
+        "win_5d": 47.2
+      },
+      "macd_hist>0": {
+        "count": 192678,
+        "avg_5d": 0.21,
+        "win_5d": 46.6
+      },
+      "kdj_j<0": {
+        "count": 5265,
+        "avg_5d": -0.01,
+        "win_5d": 46.6
+      },
+      "kdj_j<30": {
+        "count": 55254,
+        "avg_5d": 0.04,
+        "win_5d": 46.0
+      },
+      "kdj_j>60": {
+        "count": 124071,
+        "avg_5d": 0.25,
+        "win_5d": 47.0
+      },
+      "ma_score>=10": {
+        "count": 265663,
+        "avg_5d": 0.19,
+        "win_5d": 46.8
+      },
+      "macd_score>=10": {
+        "count": 130724,
+        "avg_5d": 0.25,
+        "win_5d": 46.7
+      }
+    },
+    "threshold_analysis": {
+      "70": {
+        "count": 65,
+        "avg_3d": -0.56,
+        "win_3d": 33.8,
+        "avg_5d": -0.67,
+        "win_5d": 33.8,
+        "avg_10d": -2.08,
+        "win_10d": 35.4,
+        "avg_mdd_5d": -3.7,
+        "pl_ratio_5d": 1.34
+      },
+      "75": {
+        "count": 3,
+        "note": "样本不足"
+      },
+      "78": {
+        "count": 0,
+        "note": "样本不足"
+      },
+      "80": {
+        "count": 0,
+        "note": "样本不足"
+      }
+    },
+    "tp_sl_analysis": {
+      "TP5_SL3": {
+        "count": 517,
+        "avg_return": 0.0,
+        "win_rate": 40.0,
+        "pl_ratio": 1.5,
+        "avg_win": 4.16,
+        "avg_loss": 2.77,
+        "max_consec_loss": 14
+      },
+      "TP5_SL5": {
+        "count": 517,
+        "avg_return": -0.05,
+        "win_rate": 47.6,
+        "pl_ratio": 1.08,
+        "avg_win": 4.09,
+        "avg_loss": 3.8,
+        "max_consec_loss": 9
+      },
+      "TP10_SL3": {
+        "count": 517,
+        "avg_return": 0.09,
+        "win_rate": 33.7,
+        "pl_ratio": 2.07,
+        "avg_win": 5.67,
+        "avg_loss": 2.74,
+        "max_consec_loss": 14
+      },
+      "TP10_SL5": {
+        "count": 517,
+        "avg_return": 0.11,
+        "win_rate": 41.0,
+        "pl_ratio": 1.51,
+        "avg_win": 5.67,
+        "avg_loss": 3.75,
+        "max_consec_loss": 10
+      },
+      "TP8_SL4": {
+        "count": 517,
+        "avg_return": -0.01,
+        "win_rate": 39.3,
+        "pl_ratio": 1.54,
+        "avg_win": 5.1,
+        "avg_loss": 3.32,
+        "max_consec_loss": 9
+      }
+    }
+  },
+  "dynamic_weights": {
+    "v71": {
+      "K线形态": 30,
+      "成交量": 25,
+      "MACD": 15,
+      "KDJ": 15,
+      "均线": 15
+    },
+    "v72": {
+      "K线形态": 15.8,
+      "成交量": 13.2,
+      "MACD": 23.7,
+      "KDJ": 23.7,
+      "均线": 23.7
+    },
+    "category_scores": {
+      "K线形态": 0.03,
+      "成交量": 0,
+      "MACD": 0.06,
+      "KDJ": 0.06,
+      "均线": 0.08
+    }
+  }
+}

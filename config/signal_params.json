@@ -1,0 +1,122 @@
+{
+  "horizontal_base": {
+    "name": "横盘筑底",
+    "enabled": true,
+    "params": {
+      "days": 5.0,
+      "amplitude_max": 10.0,
+      "vol_shrink": 0.7
+    }
+  },
+  "sharp_angle": {
+    "name": "锐角",
+    "enabled": true,
+    "params": {
+      "angle_min": 30
+    }
+  },
+  "ma5_touch": {
+    "name": "五日线",
+    "enabled": true,
+    "params": {
+      "distance_pct": 2
+    }
+  },
+  "cross_5_10": {
+    "name": "一阳穿5/10",
+    "enabled": true,
+    "params": {
+      "yang_min_pct": 1
+    }
+  },
+  "cross_three": {
+    "name": "一阳穿三线",
+    "enabled": true,
+    "params": {
+      "yang_min_pct": 2
+    }
+  },
+  "double_volume": {
+    "name": "倍量",
+    "enabled": true,
+    "params": {
+      "ratio_min": 2.0
+    }
+  },
+  "pullback": {
+    "name": "回踩",
+    "enabled": true,
+    "params": {
+      "lookback_days": 20.0,
+      "big_yang_min": 4.0,
+      "big_yang_max": 7.0,
+      "vol_increase": 1.3,
+      "pullback_dist": 2.0
+    }
+  },
+  "buy_point": {
+    "name": "注意买点",
+    "enabled": true,
+    "params": {
+      "golden_lookback": 3,
+      "near_ma_pct": 2
+    }
+  },
+  "low_5k": {
+    "name": "低价5k",
+    "enabled": true,
+    "params": {
+      "diff_min": 0.03,
+      "diff_max": 0.3
+    }
+  },
+  "low_9k": {
+    "name": "低价9k",
+    "enabled": true,
+    "params": {
+      "diff_min": 0.1,
+      "diff_max": 0.4
+    }
+  },
+  "close_5k": {
+    "name": "收盘5k",
+    "enabled": true,
+    "params": {
+      "diff_min": -0.5,
+      "diff_max": -0.1
+    }
+  },
+  "close_9k": {
+    "name": "收盘9k",
+    "enabled": true,
+    "params": {
+      "diff_min": -0.3,
+      "diff_max": 0.01
+    }
+  },
+  "line_59": {
+    "name": "59线",
+    "enabled": true,
+    "params": {
+      "adjust_days": 2,
+      "mild_drop_max": 0.5,
+      "turnover_min": 0.4,
+      "turnover_max": 2.7
+    }
+  },
+  "parallel_5": {
+    "name": "平行5",
+    "enabled": true,
+    "params": {
+      "dist_min": -0.1,
+      "dist_max": 0.1
+    }
+  },
+  "buy_confirm": {
+    "name": "买入",
+    "enabled": true,
+    "params": {
+      "lower_shadow_min": 0.88
+    }
+  }
+}

@@ -1,0 +1,843 @@
+[
+ {
+  "ts": "2026-10-23 09:52:41",
+  "theme_name": "大港股份相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "002077",
+    "name": "大港股份",
+    "pct": 10.0
+   },
+   {
+    "code": "301313",
+    "name": "凡拓数创",
+    "pct": 3.5
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 10:12:51",
+  "theme_name": "密尔克卫相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "603713",
+    "name": "密尔克卫",
+    "pct": 4.8
+   },
+   {
+    "code": "600094",
+    "name": "大名城",
+    "pct": 4.3
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 10:20:46",
+  "theme_name": "迎驾贡酒相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "603198",
+    "name": "迎驾贡酒",
+    "pct": 4.1
+   },
+   {
+    "code": "603919",
+    "name": "金徽酒",
+    "pct": 3.7
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 10:22:24",
+  "theme_name": "力源信息相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "300184",
+    "name": "力源信息",
+    "pct": 7.7
+   },
+   {
+    "code": "001283",
+    "name": "豪鹏科技",
+    "pct": 4.3
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 10:41:35",
+  "theme_name": "税友股份相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "603171",
+    "name": "税友股份",
+    "pct": 6.0
+   },
+   {
+    "code": "301199",
+    "name": "迈赫股份",
+    "pct": 5.3
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 11:02:19",
+  "theme_name": "仲景食品相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "300908",
+    "name": "仲景食品",
+    "pct": 6.8
+   },
+   {
+    "code": "603919",
+    "name": "金徽酒",
+    "pct": 4.3
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 11:25:05",
+  "theme_name": "精研科技相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "300709",
+    "name": "精研科技",
+    "pct": 8.3
+   },
+   {
+    "code": "000639",
+    "name": "ST西王",
+    "pct": 6.6
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 11:27:43",
+  "theme_name": "*ST国中相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "600187",
+    "name": "*ST国中",
+    "pct": 6.7
+   },
+   {
+    "code": "002026",
+    "name": "山东威达",
+    "pct": 3.8
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 13:02:30",
+  "theme_name": "奇精机械相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "603677",
+    "name": "奇精机械",
+    "pct": 10.0
+   },
+   {
+    "code": "600785",
+    "name": "新华百货",
+    "pct": 9.2
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 13:11:56",
+  "theme_name": "洛轴股份相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "301699",
+    "name": "洛轴股份",
+    "pct": 10.9
+   },
+   {
+    "code": "300466",
+    "name": "赛摩智能",
+    "pct": 6.4
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 13:26:51",
+  "theme_name": "中基健康相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "000972",
+    "name": "中基健康",
+    "pct": 10.0
+   },
+   {
+    "code": "002343",
+    "name": "慈文传媒",
+    "pct": 7.8
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 14:12:37",
+  "theme_name": "格灵深瞳相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "688207",
+    "name": "格灵深瞳",
+    "pct": 11.8
+   },
+   {
+    "code": "603859",
+    "name": "能科科技",
+    "pct": 10.0
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 14:22:27",
+  "theme_name": "威马农机相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "301533",
+    "name": "威马农机",
+    "pct": 17.2
+   },
+   {
+    "code": "300503",
+    "name": "昊志机电",
+    "pct": 11.3
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 14:27:11",
+  "theme_name": "绿盟科技相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "300369",
+    "name": "绿盟科技",
+    "pct": 20.0
+   },
+   {
+    "code": "002077",
+    "name": "大港股份",
+    "pct": 10.0
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 14:33:19",
+  "theme_name": "粤芯半导-U相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "301660",
+    "name": "粤芯半导-U",
+    "pct": 20.0
+   },
+   {
+    "code": "300709",
+    "name": "精研科技",
+    "pct": 12.6
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 14:41:54",
+  "theme_name": "展芯股份相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "301707",
+    "name": "展芯股份",
+    "pct": 11.8
+   },
+   {
+    "code": "300368",
+    "name": "汇金股份",
+    "pct": 10.2
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-23 14:52:28",
+  "theme_name": "海辰药业相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "300584",
+    "name": "海辰药业",
+    "pct": 20.0
+   },
+   {
+    "code": "301533",
+    "name": "威马农机",
+    "pct": 17.8
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-25 11:59:21",
+  "theme_name": "机器人",
+  "card_type": "观察卡",
+  "confidence": "中",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "002031",
+    "name": "巨轮智能",
+    "pct": 3.2
+   },
+   {
+    "code": "002077",
+    "name": "大港股份",
+    "pct": 2.8
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-25 12:19:22",
+  "theme_name": "机器人",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "002031",
+    "name": "巨轮智能",
+    "pct": 20.0
+   },
+   {
+    "code": "002077",
+    "name": "大港股份",
+    "pct": 10.0
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-25 12:19:31",
+  "theme_name": "机器人",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "002031",
+    "name": "巨轮智能",
+    "pct": 20.0
+   },
+   {
+    "code": "002077",
+    "name": "大港股份",
+    "pct": 10.0
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-25 14:43:31",
+  "theme_name": "网络安全",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "发酵",
+  "board_snapshot": [
+   {
+    "code": "300369",
+    "name": "绿盟科技",
+    "pct": 20.0
+   },
+   {
+    "code": "300659",
+    "name": "中孚信息",
+    "pct": 3.2
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-25 14:44:18",
+  "theme_name": "网络安全",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "发酵",
+  "board_snapshot": [
+   {
+    "code": "300369",
+    "name": "绿盟科技",
+    "pct": 20.0
+   },
+   {
+    "code": "300659",
+    "name": "中孚信息",
+    "pct": 3.2
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 09:34:22",
+  "theme_name": "青岛食品相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "001219",
+    "name": "青岛食品",
+    "pct": 9.5
+   },
+   {
+    "code": "688617",
+    "name": "惠泰医疗",
+    "pct": 4.4
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 09:54:07",
+  "theme_name": "南方传媒相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "601900",
+    "name": "南方传媒",
+    "pct": 10.0
+   },
+   {
+    "code": "301538",
+    "name": "骏鼎达",
+    "pct": 5.8
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 10:04:42",
+  "theme_name": "延华智能相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "002178",
+    "name": "延华智能",
+    "pct": 10.1
+   },
+   {
+    "code": "688575",
+    "name": "亚辉龙",
+    "pct": 6.8
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 10:14:39",
+  "theme_name": "信宇人相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "688573",
+    "name": "信宇人",
+    "pct": 6.7
+   },
+   {
+    "code": "301275",
+    "name": "汉朔科技",
+    "pct": 5.9
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 10:29:43",
+  "theme_name": "*ST湘邮相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "600476",
+    "name": "*ST湘邮",
+    "pct": 10.0
+   },
+   {
+    "code": "300224",
+    "name": "正海磁材",
+    "pct": 5.8
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 10:41:44",
+  "theme_name": "*ST湘邮相关板块",
+  "card_type": "启动卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "600476",
+    "name": "*ST湘邮",
+    "pct": 10.0
+   },
+   {
+    "code": "300860",
+    "name": "锋尚文化",
+    "pct": 9.9
+   },
+   {
+    "code": "300224",
+    "name": "正海磁材",
+    "pct": 5.8
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 10:55:16",
+  "theme_name": "百洋股份相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "002696",
+    "name": "百洋股份",
+    "pct": 10.1
+   },
+   {
+    "code": "300494",
+    "name": "盛天网络",
+    "pct": 8.6
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 11:01:28",
+  "theme_name": "开普云相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "688228",
+    "name": "开普云",
+    "pct": 20.0
+   },
+   {
+    "code": "301225",
+    "name": "恒勃股份",
+    "pct": 8.3
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 11:15:07",
+  "theme_name": "英 力 特相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "000635",
+    "name": "英 力 特",
+    "pct": 10.0
+   },
+   {
+    "code": "300440",
+    "name": "运达科技",
+    "pct": 6.1
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 11:24:52",
+  "theme_name": "德尔股份相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "300473",
+    "name": "德尔股份",
+    "pct": 11.2
+   },
+   {
+    "code": "605080",
+    "name": "浙江自然",
+    "pct": 8.3
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 11:40:35",
+  "theme_name": "达瑞电子相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "300976",
+    "name": "达瑞电子",
+    "pct": 20.0
+   },
+   {
+    "code": "603700",
+    "name": "宁水集团",
+    "pct": 7.4
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 11:51:27",
+  "theme_name": "德尔股份相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "发酵",
+  "board_snapshot": [
+   {
+    "code": "300473",
+    "name": "德尔股份",
+    "pct": 11.2
+   },
+   {
+    "code": "605080",
+    "name": "浙江自然",
+    "pct": 8.3
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 11:53:10",
+  "theme_name": "德尔股份相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "发酵",
+  "board_snapshot": [
+   {
+    "code": "300473",
+    "name": "德尔股份",
+    "pct": 11.2
+   },
+   {
+    "code": "605080",
+    "name": "浙江自然",
+    "pct": 8.3
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 13:34:21",
+  "theme_name": "永和智控相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "002795",
+    "name": "永和智控",
+    "pct": 10.1
+   },
+   {
+    "code": "002901",
+    "name": "大博医疗",
+    "pct": 8.6
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 14:24:09",
+  "theme_name": "海量数据相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "603138",
+    "name": "海量数据",
+    "pct": 10.0
+   },
+   {
+    "code": "300486",
+    "name": "东杰智能",
+    "pct": 9.3
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-26 14:32:31",
+  "theme_name": "东杰智能相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "300486",
+    "name": "东杰智能",
+    "pct": 9.0
+   },
+   {
+    "code": "688389",
+    "name": "普门科技",
+    "pct": 8.3
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-27 09:58:20",
+  "theme_name": "茂业商业相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "600828",
+    "name": "茂业商业",
+    "pct": 10.1
+   },
+   {
+    "code": "603376",
+    "name": "大明电子",
+    "pct": 10.0
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-27 10:10:39",
+  "theme_name": "博汇股份相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "300839",
+    "name": "博汇股份",
+    "pct": 10.9
+   },
+   {
+    "code": "300620",
+    "name": "光库科技",
+    "pct": 7.0
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-27 10:26:40",
+  "theme_name": "久吾高科相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "300631",
+    "name": "久吾高科",
+    "pct": 11.5
+   },
+   {
+    "code": "688232",
+    "name": "新点软件",
+    "pct": 9.0
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-27 11:27:15",
+  "theme_name": "金春股份相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "300877",
+    "name": "金春股份",
+    "pct": 14.1
+   },
+   {
+    "code": "688357",
+    "name": "建龙微纳",
+    "pct": 7.3
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-27 13:06:57",
+  "theme_name": "天邑股份相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "300504",
+    "name": "天邑股份",
+    "pct": 20.0
+   },
+   {
+    "code": "600826",
+    "name": "兰生股份",
+    "pct": 6.0
+   }
+  ]
+ },
+ {
+  "ts": "2026-10-27 13:36:27",
+  "theme_name": "森鹰窗业相关板块",
+  "card_type": "观察卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "301227",
+    "name": "森鹰窗业",
+    "pct": 13.8
+   },
+   {
+    "code": "603489",
+    "name": "八方股份",
+    "pct": 10.0
+   }
+  ]
+ }
+]

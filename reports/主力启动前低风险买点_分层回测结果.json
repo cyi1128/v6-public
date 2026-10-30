@@ -1,0 +1,1212 @@
+{
+  "config": {
+    "kline_days": 250,
+    "num_workers": 8,
+    "sample_size_full": 200,
+    "case_size_deep": 15,
+    "total_stocks": 2232,
+    "random_seed": 42,
+    "total_elapsed_seconds": 68.3
+  },
+  "layer1": {
+    "layer": "第一层_简化版全市场",
+    "total_stocks": 2228,
+    "stocks_with_signal": 2228,
+    "signal_coverage_pct": 100.0,
+    "total_buy_signals": 21942,
+    "avg_buy_per_stock": 9.85,
+    "fwd3_count": 21319,
+    "fwd3_avg_return": -0.173,
+    "fwd3_median_return": -0.264,
+    "fwd3_win_rate": 45.9,
+    "fwd5_count": 21067,
+    "fwd5_avg_return": 0.014,
+    "fwd5_median_return": -0.22,
+    "fwd5_win_rate": 47.3,
+    "stocks_with_trades": 2228,
+    "total_trades": 21636,
+    "avg_total_return": -6.43,
+    "avg_max_drawdown": 26.55,
+    "worst_max_drawdown": 78.03,
+    "avg_win_rate": 48.7,
+    "avg_profit_loss_ratio": 0.86,
+    "avg_holding_days": 12.7,
+    "elapsed_seconds": 12.1,
+    "by_market": {
+      "沪市": {
+        "stock_count": 1698,
+        "stocks_with_signal": 1698,
+        "total_buy_signals": 16718,
+        "fwd3_avg_return": -0.204,
+        "fwd3_win_rate": 45.7,
+        "fwd5_avg_return": -0.049,
+        "fwd5_win_rate": 47.0
+      },
+      "深市": {
+        "stock_count": 530,
+        "stocks_with_signal": 530,
+        "total_buy_signals": 5224,
+        "fwd3_avg_return": -0.074,
+        "fwd3_win_rate": 46.3,
+        "fwd5_avg_return": 0.214,
+        "fwd5_win_rate": 48.5
+      }
+    }
+  },
+  "layer2": {
+    "layer": "第二层_完整版抽样",
+    "sample_size": 200,
+    "level_counts": {
+      "S": 0,
+      "A": 0,
+      "B": 1,
+      "": 199
+    },
+    "s_a_count": 0,
+    "score_distribution": {
+      "max": 70.0,
+      "min": 42.0,
+      "mean": 55.0,
+      "median": 54.0,
+      "p25": 52.0,
+      "p75": 58.2,
+      "p90": 62.0,
+      "top10": [
+        70.0,
+        67.0,
+        66.0,
+        65.0,
+        65.0,
+        65.0,
+        65.0,
+        65.0,
+        65.0,
+        64.0
+      ],
+      "above_60": 41,
+      "above_50": 177
+    },
+    "module_avg_scores": {
+      "platform": 8.6,
+      "fake_break": 0.0,
+      "doji": 13.6,
+      "ma": 12.9,
+      "kdj": 0.1,
+      "macd": 9.1,
+      "volume": 10.7
+    },
+    "fwd3_all": {
+      "count": 1,
+      "avg_return": 2.941,
+      "win_rate": 100.0
+    },
+    "fwd5_all": {
+      "count": 1,
+      "avg_return": 1.647,
+      "win_rate": 100.0
+    },
+    "fwd3_sa": {
+      "count": 0,
+      "avg_return": 0.0,
+      "win_rate": 0.0
+    },
+    "fwd5_sa": {
+      "count": 0,
+      "avg_return": 0.0,
+      "win_rate": 0.0
+    },
+    "stocks_with_trades": 1,
+    "avg_total_return": -2.1,
+    "avg_max_drawdown": 0.22,
+    "avg_win_rate": 0.0,
+    "elapsed_seconds": 42.2
+  },
+  "layer3": {
+    "layer": "第三层_典型案例",
+    "case_count": 15,
+    "cases": [
+      {
+        "code": "600528",
+        "score": 70.0,
+        "level": "B",
+        "date": "20251016",
+        "best_score_date": "20251016",
+        "selection_reason": "B级",
+        "platform": {
+          "found": true,
+          "avg_close": 8.53,
+          "high": 9.08,
+          "low": 8.13,
+          "score": 10.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 8.55,
+          "ma9": 8.44,
+          "ma20": 8.42,
+          "near": true,
+          "cross": true,
+          "score": 15.0
+        },
+        "kdj": {
+          "k": 86.2,
+          "d": 86.2,
+          "j": 86.2,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.0129,
+          "dea": -0.0163,
+          "hist": 0.0585,
+          "golden": false,
+          "red_expand": false,
+          "score": 10.0
+        },
+        "volume": {
+          "pattern": "三红两绿",
+          "score": 20.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 8.32元",
+          "point2": "重新突破平台压力平均价 8.53元",
+          "point3": "MA5(8.55)站稳MA20(8.42)"
+        },
+        "suggested_position": "1~2成",
+        "ai_judgment": "出现部分主力启动特征，等待进一步确认。",
+        "tags": [
+          "横盘筑底(40日,振幅11.7%)",
+          "🟣假破位十字星吸筹",
+          "均线MA5上穿MA20",
+          "MACD(DIF>0/红柱>0/趋势向上)",
+          "成交量三红两绿"
+        ],
+        "fwd3_returns": [
+          2.941176470588235
+        ],
+        "fwd5_returns": [
+          1.6470588235294186
+        ],
+        "fwd3_avg": 2.94,
+        "fwd5_avg": 1.65
+      },
+      {
+        "code": "000952",
+        "score": 67.0,
+        "level": "",
+        "date": "20260506",
+        "best_score_date": "20260506",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 7.23,
+          "high": 8.06,
+          "low": 6.51,
+          "score": 7.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 7.37,
+          "ma9": 7.05,
+          "ma20": 7.03,
+          "near": true,
+          "cross": true,
+          "score": 15.0
+        },
+        "kdj": {
+          "k": 75.7,
+          "d": 75.7,
+          "j": 75.7,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.0887,
+          "dea": 0.0045,
+          "hist": 0.1683,
+          "golden": false,
+          "red_expand": false,
+          "score": 10.0
+        },
+        "volume": {
+          "pattern": "三红两绿",
+          "score": 20.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 7.38元",
+          "point2": "重新突破平台压力平均价 7.23元",
+          "point3": "MA5(7.37)站稳MA20(7.03)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(45日,振幅23.8%)",
+          "🟣假破位十字星吸筹",
+          "均线MA5上穿MA20",
+          "MACD(DIF>0/红柱>0/趋势向上)",
+          "成交量三红两绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "600559",
+        "score": 66.0,
+        "level": "",
+        "date": "20260109",
+        "best_score_date": "20260109",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 16.51,
+          "high": 17.21,
+          "low": 15.91,
+          "score": 10.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 16.17,
+          "ma9": 16.15,
+          "ma20": 16.16,
+          "near": true,
+          "cross": true,
+          "score": 15.0
+        },
+        "kdj": {
+          "k": 52.5,
+          "d": 52.5,
+          "j": 52.5,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": -0.0357,
+          "dea": -0.055,
+          "hist": 0.0386,
+          "golden": false,
+          "red_expand": true,
+          "score": 6.0
+        },
+        "volume": {
+          "pattern": "三红两绿",
+          "score": 20.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 16.16元",
+          "point2": "重新突破平台压力平均价 16.51元",
+          "point3": "MA5(16.17)站稳MA20(16.16)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(60日,振幅8.2%)",
+          "🟣假破位十字星吸筹",
+          "均线MA5上穿MA20",
+          "MACD(红柱>0/趋势向上/红柱扩大)",
+          "成交量三红两绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "600148",
+        "score": 65.0,
+        "level": "",
+        "date": "20260114",
+        "best_score_date": "20260114",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 20.03,
+          "high": 21.28,
+          "low": 18.71,
+          "score": 10.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 20.33,
+          "ma9": 20.07,
+          "ma20": 19.78,
+          "near": true,
+          "cross": false,
+          "score": 10.0
+        },
+        "kdj": {
+          "k": 72.1,
+          "d": 72.1,
+          "j": 72.1,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.2395,
+          "dea": 0.1703,
+          "hist": 0.1384,
+          "golden": false,
+          "red_expand": false,
+          "score": 10.0
+        },
+        "volume": {
+          "pattern": "三红两绿",
+          "score": 20.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 19.70元",
+          "point2": "重新突破平台压力平均价 20.03元",
+          "point3": "MA5(20.33)站稳MA20(19.78)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(60日,振幅13.7%)",
+          "🟣假破位十字星吸筹",
+          "均线靠近MA20(MA5距2.8%)",
+          "MACD(DIF>0/红柱>0/趋势向上)",
+          "成交量三红两绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "000800",
+        "score": 65.0,
+        "level": "",
+        "date": "20251104",
+        "best_score_date": "20251104",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 7.1,
+          "high": 7.78,
+          "low": 6.9,
+          "score": 10.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 7.15,
+          "ma9": 7.09,
+          "ma20": 7.06,
+          "near": true,
+          "cross": false,
+          "score": 10.0
+        },
+        "kdj": {
+          "k": 89.5,
+          "d": 89.5,
+          "j": 89.5,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.0437,
+          "dea": 0.0193,
+          "hist": 0.0488,
+          "golden": false,
+          "red_expand": true,
+          "score": 10.0
+        },
+        "volume": {
+          "pattern": "三红两绿",
+          "score": 20.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 7.05元",
+          "point2": "重新突破平台压力平均价 7.10元",
+          "point3": "MA5(7.15)站稳MA20(7.06)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(55日,振幅12.8%)",
+          "🟣假破位十字星吸筹",
+          "均线靠近MA20(MA5距1.2%)",
+          "MACD(DIF>0/红柱>0/趋势向上/红柱扩大)",
+          "成交量三红两绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "600467",
+        "score": 65.0,
+        "level": "",
+        "date": "20260317",
+        "best_score_date": "20260317",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 2.66,
+          "high": 2.93,
+          "low": 2.51,
+          "score": 10.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 2.69,
+          "ma9": 2.66,
+          "ma20": 2.65,
+          "near": true,
+          "cross": true,
+          "score": 15.0
+        },
+        "kdj": {
+          "k": 78.3,
+          "d": 78.3,
+          "j": 78.3,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.0185,
+          "dea": 0.0048,
+          "hist": 0.0274,
+          "golden": false,
+          "red_expand": false,
+          "score": 10.0
+        },
+        "volume": {
+          "pattern": "三红一绿",
+          "score": 15.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 2.66元",
+          "point2": "重新突破平台压力平均价 2.66元",
+          "point3": "MA5(2.69)站稳MA20(2.65)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(60日,振幅16.7%)",
+          "🟣假破位十字星吸筹",
+          "均线MA5上穿MA20",
+          "MACD(DIF>0/红柱>0/趋势向上)",
+          "成交量三红一绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "000088",
+        "score": 65.0,
+        "level": "",
+        "date": "20251016",
+        "best_score_date": "20251016",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 4.5,
+          "high": 4.64,
+          "low": 4.38,
+          "score": 9.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 4.48,
+          "ma9": 4.46,
+          "ma20": 4.47,
+          "near": true,
+          "cross": true,
+          "score": 15.0
+        },
+        "kdj": {
+          "k": 70.1,
+          "d": 70.1,
+          "j": 70.1,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": -0.0066,
+          "dea": -0.0133,
+          "hist": 0.0134,
+          "golden": false,
+          "red_expand": true,
+          "score": 6.0
+        },
+        "volume": {
+          "pattern": "三红两绿",
+          "score": 20.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 4.45元",
+          "point2": "重新突破平台压力平均价 4.50元",
+          "point3": "MA5(4.48)站稳MA20(4.47)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(40日,振幅5.9%)",
+          "🟣假破位十字星吸筹",
+          "均线MA5上穿MA20",
+          "MACD(红柱>0/趋势向上/红柱扩大)",
+          "成交量三红两绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "000791",
+        "score": 65.0,
+        "level": "",
+        "date": "20260115",
+        "best_score_date": "20260115",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 6.76,
+          "high": 7.3,
+          "low": 6.44,
+          "score": 10.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 6.62,
+          "ma9": 6.58,
+          "ma20": 6.59,
+          "near": true,
+          "cross": false,
+          "score": 10.0
+        },
+        "kdj": {
+          "k": 97.8,
+          "d": 97.8,
+          "j": 97.8,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.0125,
+          "dea": -0.0117,
+          "hist": 0.0483,
+          "golden": false,
+          "red_expand": true,
+          "score": 10.0
+        },
+        "volume": {
+          "pattern": "三红两绿",
+          "score": 20.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 6.74元",
+          "point2": "重新突破平台压力平均价 6.76元",
+          "point3": "MA5(6.62)站稳MA20(6.59)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(60日,振幅13.4%)",
+          "🟣假破位十字星吸筹",
+          "均线靠近MA20(MA5距0.5%)",
+          "MACD(DIF>0/红柱>0/趋势向上/红柱扩大)",
+          "成交量三红两绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "603987",
+        "score": 65.0,
+        "level": "",
+        "date": "20260116",
+        "best_score_date": "20260116",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 8.91,
+          "high": 9.6,
+          "low": 8.31,
+          "score": 10.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 9.1,
+          "ma9": 9.01,
+          "ma20": 8.85,
+          "near": true,
+          "cross": false,
+          "score": 10.0
+        },
+        "kdj": {
+          "k": 90.2,
+          "d": 90.2,
+          "j": 90.2,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.1373,
+          "dea": 0.1129,
+          "hist": 0.0488,
+          "golden": false,
+          "red_expand": false,
+          "score": 10.0
+        },
+        "volume": {
+          "pattern": "三红两绿",
+          "score": 20.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 8.94元",
+          "point2": "重新突破平台压力平均价 8.91元",
+          "point3": "MA5(9.10)站稳MA20(8.85)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(60日,振幅15.5%)",
+          "🟣假破位十字星吸筹",
+          "均线靠近MA20(MA5距2.8%)",
+          "MACD(DIF>0/红柱>0/趋势向上)",
+          "成交量三红两绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "603517",
+        "score": 64.0,
+        "level": "",
+        "date": "20260803",
+        "best_score_date": "20260803",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 10.21,
+          "high": 10.98,
+          "low": 9.26,
+          "score": 9.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 10.5,
+          "ma9": 10.32,
+          "ma20": 10.27,
+          "near": true,
+          "cross": true,
+          "score": 15.0
+        },
+        "kdj": {
+          "k": 95.9,
+          "d": 95.9,
+          "j": 95.9,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.0453,
+          "dea": -0.0514,
+          "hist": 0.1933,
+          "golden": false,
+          "red_expand": true,
+          "score": 10.0
+        },
+        "volume": {
+          "pattern": "三红一绿",
+          "score": 15.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 10.25元",
+          "point2": "重新突破平台压力平均价 10.21元",
+          "point3": "MA5(10.50)站稳MA20(10.27)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(30日,振幅18.6%)",
+          "🟣假破位十字星吸筹",
+          "均线MA5上穿MA20",
+          "MACD(DIF>0/红柱>0/趋势向上/红柱扩大)",
+          "成交量三红一绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "600053",
+        "score": 64.0,
+        "level": "",
+        "date": "20251215",
+        "best_score_date": "20251215",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 19.33,
+          "high": 21.35,
+          "low": 17.87,
+          "score": 9.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 19.15,
+          "ma9": 18.98,
+          "ma20": 18.94,
+          "near": true,
+          "cross": true,
+          "score": 15.0
+        },
+        "kdj": {
+          "k": 79.9,
+          "d": 79.9,
+          "j": 79.9,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.0831,
+          "dea": -0.0034,
+          "hist": 0.1731,
+          "golden": false,
+          "red_expand": false,
+          "score": 10.0
+        },
+        "volume": {
+          "pattern": "三红一绿",
+          "score": 15.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 19.20元",
+          "point2": "重新突破平台压力平均价 19.33元",
+          "point3": "MA5(19.15)站稳MA20(18.94)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(35日,振幅19.5%)",
+          "🟣假破位十字星吸筹",
+          "均线MA5上穿MA20",
+          "MACD(DIF>0/红柱>0/趋势向上)",
+          "成交量三红一绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "000657",
+        "score": 64.0,
+        "level": "",
+        "date": "20251211",
+        "best_score_date": "20251211",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 22.93,
+          "high": 26.15,
+          "low": 20.94,
+          "score": 9.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 24.23,
+          "ma9": 23.31,
+          "ma20": 22.67,
+          "near": true,
+          "cross": false,
+          "score": 10.0
+        },
+        "kdj": {
+          "k": 94.9,
+          "d": 94.9,
+          "j": 94.9,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.7955,
+          "dea": 0.5821,
+          "hist": 0.4268,
+          "golden": false,
+          "red_expand": false,
+          "score": 10.0
+        },
+        "volume": {
+          "pattern": "三红两绿",
+          "score": 20.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 22.68元",
+          "point2": "重新突破平台压力平均价 22.93元",
+          "point3": "MA5(24.23)站稳MA20(22.67)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(30日,振幅24.9%)",
+          "🟣假破位十字星吸筹",
+          "均线靠近MA20(MA5距6.9%)",
+          "MACD(DIF>0/红柱>0/趋势向上)",
+          "成交量三红两绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "603777",
+        "score": 64.0,
+        "level": "",
+        "date": "20251114",
+        "best_score_date": "20251114",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 13.51,
+          "high": 15.3,
+          "low": 12.41,
+          "score": 9.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 13.74,
+          "ma9": 13.45,
+          "ma20": 13.13,
+          "near": true,
+          "cross": false,
+          "score": 10.0
+        },
+        "kdj": {
+          "k": 83.6,
+          "d": 83.6,
+          "j": 83.6,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.259,
+          "dea": 0.1707,
+          "hist": 0.1766,
+          "golden": false,
+          "red_expand": false,
+          "score": 10.0
+        },
+        "volume": {
+          "pattern": "三红两绿",
+          "score": 20.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 13.22元",
+          "point2": "重新突破平台压力平均价 13.51元",
+          "point3": "MA5(13.74)站稳MA20(13.13)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(60日,振幅23.3%)",
+          "🟣假破位十字星吸筹",
+          "均线靠近MA20(MA5距4.6%)",
+          "MACD(DIF>0/红柱>0/趋势向上)",
+          "成交量三红两绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "000528",
+        "score": 63.0,
+        "level": "",
+        "date": "20251017",
+        "best_score_date": "20251017",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 11.1,
+          "high": 12.07,
+          "low": 10.48,
+          "score": 8.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 15.0
+        },
+        "ma": {
+          "ma5": 11.55,
+          "ma9": 11.31,
+          "ma20": 11.12,
+          "near": true,
+          "cross": false,
+          "score": 10.0
+        },
+        "kdj": {
+          "k": 88.9,
+          "d": 88.9,
+          "j": 88.9,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.2169,
+          "dea": 0.1318,
+          "hist": 0.1701,
+          "golden": false,
+          "red_expand": false,
+          "score": 10.0
+        },
+        "volume": {
+          "pattern": "三红两绿",
+          "score": 20.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 11.11元",
+          "point2": "重新突破平台压力平均价 11.10元",
+          "point3": "MA5(11.55)站稳MA20(11.12)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(40日,振幅15.2%)",
+          "🟣假破位十字星吸筹",
+          "均线靠近MA20(MA5距3.8%)",
+          "MACD(DIF>0/红柱>0/趋势向上)",
+          "成交量三红两绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      },
+      {
+        "code": "603518",
+        "score": 63.0,
+        "level": "",
+        "date": "20260211",
+        "best_score_date": "20260211",
+        "selection_reason": "高分未评级(按评分排名入选)",
+        "platform": {
+          "found": true,
+          "avg_close": 10.0,
+          "high": 10.98,
+          "low": 9.2,
+          "score": 9.0
+        },
+        "fake_break": {
+          "found": false,
+          "score": 0.0
+        },
+        "doji": {
+          "found": true,
+          "score": 12.0
+        },
+        "ma": {
+          "ma5": 10.2,
+          "ma9": 10.01,
+          "ma20": 9.99,
+          "near": true,
+          "cross": true,
+          "score": 15.0
+        },
+        "kdj": {
+          "k": 93.0,
+          "d": 93.0,
+          "j": 93.0,
+          "low": false,
+          "golden": false,
+          "score": 0.0
+        },
+        "macd": {
+          "dif": 0.0824,
+          "dea": 0.0459,
+          "hist": 0.0729,
+          "golden": false,
+          "red_expand": false,
+          "score": 7.0
+        },
+        "volume": {
+          "pattern": "三红两绿",
+          "score": 20.0
+        },
+        "buy_points": {
+          "point1": "突破十字星最高价 9.79元",
+          "point2": "重新突破平台压力平均价 10.00元",
+          "point3": "MA5(10.20)站稳MA20(9.99)"
+        },
+        "suggested_position": "3~5成",
+        "ai_judgment": "",
+        "tags": [
+          "横盘筑底(60日,振幅19.3%)",
+          "🟣假破位十字星吸筹",
+          "均线MA5上穿MA20",
+          "MACD(DIF>0/红柱>0)",
+          "成交量三红两绿"
+        ],
+        "fwd3_returns": [],
+        "fwd5_returns": [],
+        "fwd3_avg": null,
+        "fwd5_avg": null
+      }
+    ],
+    "failure_cases": [
+      {
+        "code": "601609",
+        "score": 54.0,
+        "level": "",
+        "fwd3_avg": null,
+        "fwd5_avg": null,
+        "reason": "评分中等，部分模块缺失（常见：假破位/KDJ低位/成交量结构不完整）"
+      },
+      {
+        "code": "605318",
+        "score": 54.0,
+        "level": "",
+        "fwd3_avg": null,
+        "fwd5_avg": null,
+        "reason": "评分中等，部分模块缺失（常见：假破位/KDJ低位/成交量结构不完整）"
+      },
+      {
+        "code": "600879",
+        "score": 54.0,
+        "level": "",
+        "fwd3_avg": null,
+        "fwd5_avg": null,
+        "reason": "评分中等，部分模块缺失（常见：假破位/KDJ低位/成交量结构不完整）"
+      },
+      {
+        "code": "000878",
+        "score": 54.0,
+        "level": "",
+        "fwd3_avg": null,
+        "fwd5_avg": null,
+        "reason": "评分中等，部分模块缺失（常见：假破位/KDJ低位/成交量结构不完整）"
+      },
+      {
+        "code": "601860",
+        "score": 54.0,
+        "level": "",
+        "fwd3_avg": null,
+        "fwd5_avg": null,
+        "reason": "评分中等，部分模块缺失（常见：假破位/KDJ低位/成交量结构不完整）"
+      }
+    ],
+    "elapsed_seconds": 0.0
+  }
+}

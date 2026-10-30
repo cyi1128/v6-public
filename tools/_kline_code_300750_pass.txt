@@ -1,0 +1,8 @@
+case=300750 mode=pass provider_ok=True bars=300 期望luPct=19.8
+实到方法签名: (kline_data, code='') ｜ 源文件变更时间=1791732314.3769872
+set_kline_data 返回（无异常）
+调用后立即读: widget.current_code='300750'
+JS → {"candles":300,"xaxis":300,"last":"2026-10-09","luPct":19.8}
+widget.current_code='300750'
+current_code 回填: True（mode=pass 期望 '300750'）
+END

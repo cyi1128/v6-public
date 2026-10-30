@@ -1,0 +1,30 @@
+{
+  "five_buy": {
+    "volume_ratio_weight": 30,
+    "ma5_distance_weight": 25,
+    "pullback_volume_weight": 25,
+    "support_weight": 20
+  },
+  "bottom_accumulation": {
+    "volume_shrink_weight": 30,
+    "amplitude_weight": 25,
+    "price_position_weight": 25,
+    "ma_alignment_weight": 20
+  },
+  "volume_breakout": {
+    "volume_ratio_weight": 40,
+    "breakout_strength_weight": 30,
+    "previous_high_weight": 30
+  },
+  "_meta": {
+    "version": "V0.8.6",
+    "updated_at": "2026-08-17",
+    "description": "AI视觉识别动态权重配置，由vision_learning.py根据历史案例自动优化"
+  },
+  "五买": {
+    "volume_ratio_weight": 20.0,
+    "ma5_distance_weight": 20.0,
+    "pullback_volume_weight": 40.0,
+    "support_weight": 20.0
+  }
+}

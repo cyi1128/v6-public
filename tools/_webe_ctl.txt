@@ -1,0 +1,4 @@
+stage=2
+loadFinished=True
+JS2=object|object|hasDom
+结束

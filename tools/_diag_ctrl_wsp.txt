@@ -1,0 +1,6 @@
+busy='ATTR不存在'
+调用前 hasattr(_ctrl_async)=True
+调用返回 None | busy=False
+20s 后: [None, None]
+活线程: ['MainThread']
+直接调 provider: {'600845': 97.8, '600587': 44.1}

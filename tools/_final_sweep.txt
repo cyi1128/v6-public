@@ -1,0 +1,222 @@
+﻿==============================================================================
+一、AGENTS.md 与 5 个被改文件的行尾
+==============================================================================
+  AGENTS.md                                      CRLF=0     LF=162   → LF
+  services\picks_tracking_service.py             CRLF=0     LF=658   → LF
+  ui\market_sentiment_panel.py                   CRLF=644   LF=0     → CRLF
+  ui\echarts_kline.py                            CRLF=2035  LF=0     → CRLF
+  ui\watchlist_panel.py                          CRLF=3921  LF=0     → CRLF
+  services\intraday_opportunity_engine.py        CRLF=0     LF=2034  → LF
+
+==============================================================================
+二、全项目「判涨停」阈值残留扫描（只看 .py，排除 AI520 与备份）
+==============================================================================
+  _zt.py                                       L4     # 1) 拉全市场涨幅榜，挑涨停（>=9.8%）
+  _zt.py                                       L21    zt = [x for x in allrows if float(x.get("changepercent") or 0) >= 9.8]
+  _zt.py                                       L22    print("  其中涨停(>=9.8%%) = %d 只" % len(zt))
+  market\mock_api.py                           L180   if pct_chg >= 9.5:
+  market_analysis\market_sentiment.py          L135   # 涨停/跌停/炸板判断（涨幅>=9.8%为涨停阈值）
+  services\band_pattern_engine.py              L125   """涨停判定阈值（%）：主板 9.5，创业板 19.5（均留 0.5% 容差）。
+  services\band_pattern_engine.py              L127   创业板是 20cm 板，若统一用 9.5% 判，+10%~19.4% 的非涨停创业板股
+  services\band_pattern_engine.py              L156   """涨停：相对前收盘涨幅 >= threshold（默认 9.8% = 主板 10% 留 0.2% 容差）。
+  services\band_pattern_engine.py              L159   「实体 >=3% 且涨幅 >=3%」判定）。创业板要按 19.5% 判，传 threshold=0.195。
+  services\board_anomaly_engine.py             L40    'max_pct': 19.98,
+  services\daily_close_summary_service.py      L13    """[CYB-GATE] 按板性返回判涨停阈值（%）：主板 9.5，创业板/科创板 19.5，北交所 29.5。
+  services\daily_close_summary_service.py      L16    统一按 9.5% 判会把这两类板的「涨了一半」误当成涨停。
+  services\picks_tracking_service.py           L52    LIMIT_UP_PCT = 9.5          # 主板口径：涨幅 >= 9.5% 视为已涨停（创业板见 _lu_pct）
+  services\picks_tracking_service.py           L61    # 原先把「已涨停 -> 不是介入标的」统一按 9.5% 判，会把创业板 +10%~19.4%
+  services\picks_tracking_service.py           L64    """按板性返回「视为已涨停」的涨幅阈值（%）：主板 9.5，创业板/科创板 19.5。"""
+  services\picks_tracking_service.py           L480   非涨停(涨幅 主板<9.5% / 创业板·科创板<19.5%) + 涨幅 1~9% + 收盘≥6元 + 量比≥1.2 + 收盘≥MA20
+  services\v22_combat_service.py               L20    """[CYB-GATE] 按板性返回判涨停阈值（%）：主板 9.5，创业板/科创板 19.5，北交所 29.5。
+  services\v22_combat_service.py               L23    统一按 9.5% 判会把这两类板的「涨了一半」误当成涨停。
+  strategy\ai_trade_analyzer.py                L299   if pct_chg >= 9.9:  # 涨停
+  strategy\first_board_pullback.py             L6     1. 10日内出现涨停（涨幅>=9.5%）
+  strategy\first_board_pullback.py             L73    limit_up_threshold: 涨停阈值（默认9.5%）
+  strategy\layered_scanner.py                  L381   - 涨停历史：近60日内有涨停（涨幅>=9.5%）
+  strategy\layered_scanner.py                  L491   # 5. 涨停历史（近60日内涨幅>=9.5%）
+  strategy\layered_scanner.py                  L497   if pct >= 9.5:
+  strategy\limit_up_cache.py                   L92    count = sum(1 for pct in pct_changes[-days:] if pct >= 9.8)
+  strategy\limit_up_radar.py                   L36    return pct >= 9.5
+  strategy\limit_up_radar.py                   L39    return pct >= 19.5
+  strategy\limit_up_radar.py                   L42    return pct >= 9.5
+  strategy\limit_up_radar.py                   L515   if s_pct >= 9.5:
+  strategy\main_force_behavior.py              L1300  if change_pct < -9.5:
+  strategy\main_force_behavior.py              L1352  if change_pct < -9.5:
+  strategy\market_environment.py               L579   limit_up = sum(1 for s in results if s.get("pct_chg", 0) >= 9.5)
+  strategy\market_environment.py               L580   limit_down = sum(1 for s in results if s.get("pct_chg", 0) <= -9.5)
+  strategy\market_environment.py               L634   if pct >= 9.5:
+  strategy\market_environment.py               L636   if pct <= -9.5:
+  strategy\multi_strategy_filter.py            L143   stock['prev_limit_up'] = prev_pct >= 9.8
+  strategy\multi_strategy_filter.py            L152   if pct >= 9.8:
+  strategy\multi_strategy_filter.py            L381   if close_pct >= 9.8:
+  strategy\nine_filter_strategy.py             L286   if change_pct <= -9.5:
+  strategy\pro_stock_pool_filter.py            L109   # 前一天涨停（涨幅>=9.8%）
+  strategy\pro_stock_pool_filter.py            L110   if yesterday_change >= 9.8:
+  strategy\pro_stock_pool_filter.py            L137   if change >= 9.8:
+  strategy\reinforcement_strategy.py           L70    """查找近lookback个交易日内的涨停日（涨幅>=9.8%）"""
+  strategy\reinforcement_strategy.py           L482   # 涨停（涨幅11.4%>9.8%）
+  strategy\stock_pool_filter.py                L202   stock['prev_limit_up'] = prev_pct >= 9.8
+  strategy\stock_pool_filter.py                L213   if pct >= 9.8:
+  strategy\stock_pool_v1.py                    L93    if len(pct_changes) >= 2 and pct_changes[-2] >= 9.8:
+  strategy\stock_pool_v1.py                    L166   if len(pct_changes) >= 2 and pct_changes[-2] >= 9.8:
+  strategy\stock_pool_v1.py                    L355   if pct >= 9.8:
+  strategy\strategy_main_force_behavior.py     L78    LIMIT_UP_THRESHOLD = 9.8      # 涨停阈值（%）
+  test\mock_limit_up_data.py                   L81    # 涨跌幅（涨停，9.9%-10.1%之间）
+  test\mock_limit_up_data.py                   L82    pct_chg = round(random.uniform(9.9, 10.1), 2)
+  test\mock_limit_up_data.py                   L84    pct_chg = round(random.uniform(19.9, 20.1), 2)
+  test\test_catalyst_format_fix.py             L85    'pct_chg': 9.94,
+  test\test_v60pro_acceptance.py               L232   if pct >= 9.8:  # 涨停阈值
+  test\test_v60pro_acceptance.py               L239   prev_limit_up = prev_pct >= 9.8
+  tools\_agents_audit_note.py                  L15    add = """- **涨停阈值口径：唯一来源 `band_pattern_engine._lu_threshold(code)`（2026-10-10 全项目反推排查后新增）**：主板 9.5% / 创业
+  tools\_agents_audit_note.py                  L16    > 反推排查时发现：**全项目「判涨停」的容差不统一**（日K建仓 9.5 / 今日涨停 9.8 / 自选与图表 9.8~19.8）。差 0.3%，影响极小；要统一就全部改成引用 `_lu_threshold
+  tools\_agents_audit_note.py                  L18    - **同期按板性改掉的展示类阈值（2026-10-10）**：`ui\\watchlist_panel.py` 近20日涨停次数（约 L1365，主板9.8/创业板19.8）、`ui\\trading_da
+  tools\_agents_audit_note.py                  L19    - **仍写死 10cm 口径、未改（用户未拍板）**：`ui\\watchlist_panel.py` L192-193（自选K线小图涨停配色）、`ui\\echarts_kline.py` L263-26
+  tools\_check_rhythm_doc.py                   L65    chk('LIMIT_UP_PCT 涨停判定', T.LIMIT_UP_PCT, 9.5)
+  tools\_fix_cyb_text_and_agents.py            L53    - **今日涨停模块的板性判定本来就是对的**（2026-10-10 核查）：`ui\\battle_widgets\\limit_up_widget.py` 的 `_fetch_limit_up` 按 `c
+  tools\_fix_lu_scope.py                       L7     4.3 ui\echarts_kline.py                      K线涨停标记色写死 9.8
+  tools\_fix_lu_scope.py                       L8     4.4 ui\watchlist_panel.py                    自选小K线涨停配色写死 9.8
+  tools\_fix_lu_scope.py                       L96    "# 原先把涨停/跌停/炸板统一按 9.8% 判：前缀 '0' 会把创业板、'6' 会把\n"
+  tools\_fix_lu_scope.py                       L102   "    \"\"\"按板性返回涨停幅度阈值（%）：主板 9.8，创业板/科创板 19.8。\"\"\"\n"
+  tools\_fix_lu_scope.py                       L110   i0 = next(i for i, t in enumerate(lines) if "涨停判断（主板9.8%以上" in t)
+  tools\_fix_lu_scope.py                       L121   P + "# 涨停判断（按板性：主板 9.8%，创业板/科创板 19.8%）",
+  tools\_fix_lu_scope.py                       L157   "var isLimitUp = (close === high) && (pct >= 9.8);",
+  tools\_fix_lu_scope.py                       L158   "// 涨停阈值按板性：主板 10cm -> 9.8；创业板/科创板 20cm -> 19.8。\n"
+  tools\_fix_lu_scope.py                       L164   "var isLimitDown = (close === low) && (pct <= -9.8);",
+  tools\_fix_lu_scope.py                       L175   P + "# [CYB-GATE] 涨停阈值按板性：创业板/科创板 20cm -> 19.8，其余 9.8\n"
+  tools\_fix_lu_scope.py                       L176   + P + "_lu_pct = 19.8 if str(kline_data.get('code', '') or '').startswith(\n"
+  tools\_fix_lu_scope.py                       L213   + m.group(1) + "# [CYB-GATE] 涨停阈值按板性：创业板/科创板 20cm -> 19.8\n"
+  tools\_fix_lu_scope.py                       L214   + m.group(1) + "_lu_pct = 19.8 if self.code.startswith(('300', '301', '688', '689')) else 9.8\n"
+  tools\_fix_lu_scope.py                       L219   "is_limit_up = (close_p == high_p) and (pct >= 9.8)",
+  tools\_fix_lu_scope.py                       L223   "is_limit_down = (close_p == low_p) and (pct <= -9.8)",
+  tools\_fix_lu_scope2.py                      L9     · 9.8 家族（utils/indicators）用 _lu_pct(code, base=9.8)，code 为空时返回 base，
+  tools\_fix_lu_scope2.py                      L11    2) 把所有写死的 9.5 / -9.5 使用点换成 _lu_pct(...)
+  tools\_fix_lu_scope2.py                      L85    """[CYB-GATE] 按板性返回判涨停阈值（%）：主板 9.5，创业板/科创板 19.5，北交所 29.5。
+  tools\_fix_lu_scope2.py                      L88    统一按 9.5% 判会把这两类板的「涨了一半」误当成涨停。
+  tools\_fix_lu_scope2.py                      L99    HELPER_98 = '''def _lu_pct(code, base=9.8) -> float:
+  tools\_fix_lu_scope2.py                      L133   n = sub_line(f, "if pct >= 9.5:",
+  tools\_fix_lu_scope2.py                      L134   "if pct >= _lu_pct(code):      # [CYB-GATE] 按板性：创业板 19.5 / 北交所 29.5")
+  tools\_fix_lu_scope2.py                      L150   n += sub_line(f, "lu = sum(x['pct'] >= 9.5 for x in quotes)",
+  tools\_fix_lu_scope2.py                      L152   n += sub_line(f, "ld = sum(x['pct'] <= -9.5 for x in quotes)",
+  tools\_fix_lu_scope2.py                      L154   n += sub_line(f, "limit_up = sum(x['pct'] >= 9.5 for x in quotes)",
+  tools\_fix_lu_scope2.py                      L156   n += sub_line(f, "limit_down = sum(x['pct'] <= -9.5 for x in quotes)",
+  tools\_fix_lu_scope2.py                      L159   "limit_up_count = sum(1 for s in sector_stocks if float(s.get('pct_chg', s.get('change_pct', 0)) or 0) >
+  tools\_fix_lu_scope2.py                      L176   n += sub_line(f, "yesterday_limit = [x for x in prev if float(x.get('pct_chg') or 0) >= 9.5]",
+  tools\_fix_lu_scope2.py                      L178   n += sub_line(f, "limit_up = sum(x['pct'] >= 9.5 for x in quotes)",
+  tools\_fix_lu_scope2.py                      L180   n += sub_line(f, "limit_down = sum(x['pct'] <= -9.5 for x in quotes)",
+  tools\_fix_lu_scope2.py                      L199   n += sub_line(f, "统计N日内涨停次数(涨幅>=9.8%视为涨停)",
+  tools\_fix_lu_scope2.py                      L200   "统计N日内涨停次数（按板性；code 为空时沿用旧口径 9.8%）")
+  tools\_fix_lu_scope2.py                      L201   n += sub_line(f, "if pct_changes[i] >= 9.8:", "if pct_changes[i] >= _lu_pct(code):")
+  tools\_fix_lu_scope2.py                      L204   n += sub_line(f, "return pct_changes[-2] >= 9.8", "return pct_changes[-2] >= _lu_pct(code)")
+  tools\_fix_verify_all.py                     L6     old = ("rows = [dict(code=c, name=n, price=10.0, pct=1.0, buy_point=9.8, sell_point=10.2,\n"
+  tools\_fix_verify_all.py                     L8     new = ("rows = [dict(code=c, name=n, price=10.0, pct=1.0, buy_point=9.8, sell_point=10.2,\n"
+  tools\_gen_audit_detail.py                   L303   W("### 4.1 ★ 可介入回填：`LIMIT_UP_PCT = 9.5` 把创业板 +10%~19.4% 当成「已涨停」剔除了")
+  tools\_gen_audit_detail.py                   L309   W("**后果**：可介入候选要求「非涨停」，用的是统一 9.5%。创业板股票涨 +12%（离 20% 涨停还差 8%）"
+  tools\_gen_audit_detail.py                   L316   W("    \"\"\"涨停幅度阈值（%）：主板 9.5，创业板/科创板 19.5。\"\"\"")
+  tools\_gen_audit_detail.py                   L334   W("- L424 炸板判定 `7 <= pct_chg < 9.8` 对全市场统一，创业板应为 `14 <= pct < 19.8`。")
+  tools\_gen_audit_detail.py                   L355   W("### 4.4 自选 K 线小图涨停配色仍是 9.8")
+  tools\_gen_audit_detail.py                   L375   W("| 日K建仓环境截面（本次已改） | `band_pattern_engine._lu_threshold` | 9.5 | 19.5 | 19.5 | 29.5 |")
+  tools\_gen_audit_detail.py                   L376   W("| 今日涨停 | `limit_up_widget` | 9.8 | 19.5 | 19.5 | 29.5 |")
+  tools\_gen_audit_detail.py                   L377   W("| 自选近20日涨停次数（本次已改） | `watchlist_panel` L1365 | 9.8 | 19.8 | — | — |")
+  tools\_gen_audit_detail.py                   L378   W("| 仪表盘涨停家数（本次已改） | `trading_dashboard_panel` | 9.8 | 19.8 | — | — |")
+  tools\_gen_audit_detail.py                   L380   W("| 可介入回填（**本轮已修 → 8.1**） | `picks_tracking_service._lu_pct` | 9.5 | 19.5 | 19.5 | 候选只取 60/00/30 开头，进不来
+  tools\_gen_audit_detail.py                   L381   W("| 市场情绪面板（**本轮已修 → 8.2**） | `market_sentiment_panel.limit_pct` | 9.8 | 19.8 | 19.8 | 未处理（与改前一致） |")
+  tools\_gen_audit_detail.py                   L383   W("| 自选小K线配色（**本轮已修 → 8.4**） | `watchlist_panel` `_lu_pct` | 9.8 | 19.8 | 19.8 | — |")
+  tools\_gen_audit_detail.py                   L418   W("| 旧口径（全市场统一 9.5%） | 涨停 **87** 家 |")
+  tools\_gen_audit_detail.py                   L424   W("| 源码断言 | 已无 `x >= 9.5` / `<= -9.5`；`_lu_threshold(` 出现 3 次 |")
+  tools\_gen_audit_detail.py                   L564   "（原实现 `7 <= pct < 9.8` 对全市场统一，主板行为未变。）")
+  tools\_gen_audit_detail.py                   L601   W("| 300111 涨 +12% | 判「已涨停」→ **剔除** | `_lu_pct=19.5` → **保留为候选** |")
+  tools\_gen_audit_detail.py                   L625   W("| 300111 | +19.9% | 1 | 0 | 0 | 创业板涨停 |")
+  tools\_gen_audit_detail.py                   L627   W("| 688001 | +19.9% | 1 | 0 | 0 | 科创板涨停 |")
+  tools\_gen_audit_detail.py                   L632   W("主板三列行为与改前**逐档一致**（9.8 / -9.8 / `7 <= pct < 9.8`），无回归。")
+  tools\_gen_audit_detail.py                   L648   "写死的 `&& (pct >= 9.8);` 已消失；阈值取值 300001→19.8、688001→19.8、600000→9.8、空→9.8 全部正确。")
+  tools\_gen_audit_detail.py                   L658   block(r"ui\watchlist_panel.py", r"is_limit_up = \(close_p == high_p\)", "写死 9.8", bak="bak_before_cyb_lu
+  tools\_gen_audit_detail.py                   L711   W("| `ui\\battle_console_v2.py` | **L3779** | `if pct >= 9.5:` →「接近涨停，注意连板炸板风险」 | 主界面风险提示文案。创业板 +9.5%（离 
+  tools\_gen_audit_detail.py                   L712   W("| `services\\v22_combat_service.py` | **L681 L682 L856 L857 L1054** | `sum(x['pct'] >= 9.5)` 涨停 / 跌停家
+  tools\_gen_audit_detail.py                   L713   W("| `services\\daily_close_summary_service.py` | **L159 L224 L225** | `>= 9.5` / `<= -9.5` | 收盘总结的「昨日涨停
+  tools\_gen_audit_detail.py                   L714   W("| `utils\\indicators.py` | **L332-L348** | `calc_limit_up_count()` / `is_yesterday_limit_up()` 内写死 `>
+  tools\_gen_audit_detail.py                   L727   W("| `strategy\\limit_up_radar.py` L36-L42 | 3 行 | **已经写对了**（`>= 9.5` / `>= 19.5` / `>= 9.5` 三档按板判），是正面例
+  tools\_gen_audit_detail.py                   L756   W('    """[CYB-GATE] 按板性返回判涨停阈值（%）：主板 9.5，创业板/科创板 19.5，北交所 29.5。')
+  tools\_gen_audit_detail.py                   L759   W('    统一按 9.5% 判会把这两类板的「涨了一半」误当成涨停。')
+  tools\_gen_audit_detail.py                   L769   W("`utils\\indicators.py` 用的是带 base 的版本：`_lu_pct(code, base=9.8)`，")
+  tools\_gen_audit_detail.py                   L831   W("| `calc_limit_up_count(closes, PCTS)` | 3 | 旧口径 9.8 → 行为**未变** |")
+  tools\_gen_audit_detail.py                   L834   W("| `..., code='830799')` | 0 | 29.8 口径 → 都不算北交所涨停 |")
+  tools\_gen_audit_detail.py                   L844   W("三个「9.5 家族」文件里的 `_lu_pct(None)` / `_lu_pct('')` 都返回 **9.5**，")
+  tools\_patch_lu_board.py                     L49    ("""                'limitup': sum(1 for x in ps if x >= 9.5),""",
+  tools\_patch_lu_board.py                     L65    'limitup': sum(1 for x in allp if x >= 9.5),
+  tools\_patch_lu_board.py                     L75    """涨停：相对前收盘涨幅 >= 9.8%（主板 10%，留 0.2% 容差）"""''',
+  tools\_patch_lu_board.py                     L77    """涨停：相对前收盘涨幅 >= threshold（默认 9.8% = 主板 10% 留 0.2% 容差）。
+  tools\_patch_lu_board.py                     L80    「实体 >=3% 且涨幅 >=3%」判定）。创业板要按 19.5% 判，传 threshold=0.195。
+  tools\_patch_lu_board.py                     L86    """涨停判定阈值（%）：主板 9.5，创业板 19.5（均留 0.5% 容差）。
+  tools\_patch_lu_board.py                     L88    创业板是 20cm 板，若统一用 9.5% 判，+10%~19.4% 的非涨停创业板股
+  tools\_patch_lu_board.py                     L105   if pct >= 9.8:
+  tools\_patch_lu_board.py                     L108   # [CYB] 涨停阈值按板性：主板 9.8% / 创业板 19.8%
+  tools\_patch_lu_board.py                     L109   _lu_th = 19.8 if str(code).startswith(('300', '301')) else 9.8
+  tools\_patch_lu_board2.py                    L34    ("""                    'limit_up': sum(1 for s in stocks if s.get('pct_chg', 0) >= 9.8),
+  tools\_patch_lu_board2.py                    L35    'limit_down': sum(1 for s in stocks if s.get('pct_chg', 0) <= -9.8),""",
+  tools\_patch_lu_board2.py                    L36    """                    # [CYB] 涨停/跌停家数按板性：主板 9.8% / 创业板 19.8%
+  tools\_prove_auction_frozen.py               L20    'cur_pct': 5.10, 'cur_price': 19.55, 'open': 19.24, 'theme_display': 'PCB',
+  tools\_shot_ctrl_allmodules.py               L75    hr = [dict(code=c, name=n, price=10.0, pct=1.0, buy_point=9.8, sell_point=10.2, momentum="",
+  tools\_verify_all_batches.py                 L81    chk(not hits, "%s 已无写死的 >= 9.5 / <= -9.5 使用点（残留 %d）" % (rel, len(hits)))
+  tools\_verify_all_batches.py                 L88    "LIMIT_UP_PCT 仍被 _lu_pct 作主板基准返回（活常量，外部工具 _check_rhythm_doc.py 还在断言它=9.5）")
+  tools\_verify_ctrl_all.py                    L36    r = [dict(code=c, name=n, price=10.0, pct=1.0, trigger_price=9.5, take_profit=11.0,
+  tools\_verify_ctrl_all.py                    L48    rows = [dict(code=c, name=n, price=10.0, pct=1.0, buy_point=9.8, sell_point=10.2,
+  tools\_verify_lu_board.py                    L47    old_lu = sum(1 for x in pcts.values() if x >= 9.5)
+  tools\_verify_lu_board.py                    L49    # 旧口径误算的量：涨幅落在 9.5% 和该股真实涨停线之间的（创业板/科创板/北交所都算）
+  tools\_verify_lu_board.py                    L50    wrong = sum(1 for c, x in pcts.items() if 9.5 <= x < E._lu_threshold(c))
+  tools\_verify_lu_board.py                    L53    if 9.5 <= x < E._lu_threshold(c):
+  tools\_verify_lu_board.py                    L59    print("   旧口径（全市场统一 9.5%%）：涨停 %d 家" % old_lu)
+  tools\_verify_lu_board.py                    L60    print("   新口径（主板9.5 / 创业板·科创板19.5 / 北交所29.5）：涨停 %d 家" % new_lu)
+  tools\_verify_lu_board.py                    L78    print("   已无统一 9.5 判定：", "是" if "x >= 9.5" not in src else "!! 还在")
+  tools\_verify_lu_board.py                    L79    print("   已无统一跌停 9.5：", "是" if "<= -9.5" not in src else "!! 还在")
+  tools\_verify_lu_scope_fix.py                L145   chk("&& (pct >= 9.8);" not in html, "JS 里写死的 9.8 涨停线已消失")
+  tools\_verify_lu_scope_fix.py                L187   chk("_lu_pct = 19.8 if self.code.startswith(('300', '301', '688', '689')) else 9.8" in wsrc,
+  tools\_verify_lu_scope_fix2.py               L113   chk(calc_limit_up_count([10] * 4, PCTS, code="600111") == 3, "传 600111：9.8 口径 → 仍 3 次")
+  tools\_verify_lu_scope_fix2.py               L115   "传 830799：29.8 口径 → 0 次（12.0 / 19.6 / 20.0 都不算北交所涨停）")
+  tools\_verify_lu_scope_fix2.py               L151   old = [x["pct_chg"] for x in prev if x["pct_chg"] >= 9.5]
+  tools\_verify_regime_push.py                 L20    ROWS = [{"kind": "题材", "name": "AI漫剧", "count": 4, "avg_pct": 9.99,
+  ui\battle_console_v2.py                      L54    """[CYB-GATE] 按板性返回判涨停阈值（%）：主板 9.5，创业板/科创板 19.5，北交所 29.5。
+  ui\battle_console_v2.py                      L57    统一按 9.5% 判会把这两类板的「涨了一半」误当成涨停。
+  ui\battle_console_v2.py                      L3793  if pct >= _lu_pct(code):      # [CYB-GATE] 按板性：创业板 19.5 / 北交所 29.5
+  ui\echarts_kline.py                          L263   // 涨停阈值按板性：主板 10cm -> 9.8；创业板/科创板 20cm -> 19.8。
+  ui\echarts_kline.py                          L1111  # 主板：>=9.8%，创业板/科创板：>=19.8%
+  ui\echarts_kline.py                          L1114  if pct >= 19.8:
+  ui\echarts_kline.py                          L1117  if pct >= 9.8:
+  ui\echarts_kline.py                          L1160  # [CYB-GATE] 涨停阈值按板性：创业板/科创板 20cm -> 19.8，其余 9.8
+  ui\echarts_kline.py                          L1161  _lu_pct = 19.8 if str(kline_data.get('code', '') or '').startswith(
+  ui\market_sentiment_panel.py                 L26    # 原先把涨停/跌停/炸板统一按 9.8% 判：前缀 '0' 会把创业板、'6' 会把
+  ui\market_sentiment_panel.py                 L32    """按板性返回涨停幅度阈值（%）：主板 9.8，创业板/科创板 19.8。"""
+  ui\market_sentiment_panel.py                 L413   # 涨停判断（按板性：主板 9.8%，创业板/科创板 19.8%）
+  ui\trading_dashboard_panel.py                L518   # [CYB] 涨停/跌停家数按板性：主板 9.8% / 创业板 19.8%
+  ui\watchlist_panel.py                        L177   # [CYB-GATE] 涨停阈值按板性：创业板/科创板 20cm -> 19.8
+  ui\watchlist_panel.py                        L178   _lu_pct = 19.8 if self.code.startswith(('300', '301', '688', '689')) else 9.8
+  ui\watchlist_panel.py                        L1369  # [CYB] 涨停阈值按板性：主板 9.8% / 创业板 19.8%
+  ui\watchlist_panel.py                        L1370  _lu_th = 19.8 if str(code).startswith(('300', '301')) else 9.8
+  ui\battle_widgets\limit_up_widget.py         L251   # 涨停判定按板块真实涨停规则（不再统一9.8）：
+  ui\battle_widgets\limit_up_widget.py         L255   # 避免创业板/科创板涨9.8%~19.4%的非涨停股被误选
+  ui\battle_widgets.backup_20260915_1540\leader_ladder_widget.py L171   color = BC.RED if s['pct'] >= 9.8 else (BC.RED if s['pct'] > 0 else BC.GREEN)
+  ui\battle_widgets.backup_20260915_1540\limit_up_widget.py L4     - 数据来源：东方财富全市场行情，筛选涨幅>=9.8%
+  ui\battle_widgets.backup_20260915_1540\limit_up_widget.py L81    """从东方财富获取全市场行情，筛选涨停（涨幅>=9.8%）"""
+  ui\battle_widgets.backup_20260915_1540\limit_up_widget.py L106   # 涨停判定：主板>=9.8%，创业板/科创板>=19.5%
+  ui\battle_widgets.backup_20260915_1540\limit_up_widget.py L107   # 统一用>=9.8%筛选，20%涨停的也会被包含
+  ui\battle_widgets.backup_20260915_1540\limit_up_widget.py L108   if pct < 9.8:
+  ui\battle_widgets.backup_20260916_0300\leader_ladder_widget.py L171   color = BC.RED if s['pct'] >= 9.8 else (BC.RED if s['pct'] > 0 else BC.GREEN)
+  ui\battle_widgets.backup_20260916_0300\limit_up_widget.py L4     - 数据来源：东方财富全市场行情，筛选涨幅>=9.8%
+  ui\battle_widgets.backup_20260916_0300\limit_up_widget.py L81    """从东方财富获取全市场行情，筛选涨停（涨幅>=9.8%）"""
+  ui\battle_widgets.backup_20260916_0300\limit_up_widget.py L106   # 涨停判定：主板>=9.8%，创业板/科创板>=19.5%
+  ui\battle_widgets.backup_20260916_0300\limit_up_widget.py L107   # 统一用>=9.8%筛选，20%涨停的也会被包含
+  ui\battle_widgets.backup_20260916_0300\limit_up_widget.py L108   if pct < 9.8:
+  ui\battle_widgets.backup_20260916_0400\leader_ladder_widget.py L171   color = BC.RED if s['pct'] >= 9.8 else (BC.RED if s['pct'] > 0 else BC.GREEN)
+  ui\battle_widgets.backup_20260916_0400\limit_up_widget.py L4     - 数据来源：东方财富全市场行情，筛选涨幅>=9.8%
+  ui\battle_widgets.backup_20260916_0400\limit_up_widget.py L81    """从东方财富获取全市场行情，筛选涨停（涨幅>=9.8%）"""
+  ui\battle_widgets.backup_20260916_0400\limit_up_widget.py L106   # 涨停判定：主板>=9.8%，创业板/科创板>=19.5%
+  ui\battle_widgets.backup_20260916_0400\limit_up_widget.py L107   # 统一用>=9.8%筛选，20%涨停的也会被包含
+  ui\battle_widgets.backup_20260916_0400\limit_up_widget.py L108   if pct < 9.8:
+  ui\battle_widgets.backup_20260916_1200\leader_ladder_widget.py L253   color = BC.RED if s['pct'] >= 9.8 else (BC.RED if s['pct'] > 0 else BC.GREEN)
+  ui\battle_widgets.backup_20260916_1200\limit_up_widget.py L143   """从东方财富获取全市场行情，筛选涨停（涨幅>=9.8%），同时获取真实涨停时间"""
+  ui\battle_widgets.backup_20260916_1200\limit_up_widget.py L172   # 涨停判定：主板>=9.8%，创业板/科创板>=19.5%
+  ui\battle_widgets.backup_20260916_1200\limit_up_widget.py L173   # 统一用>=9.8%筛选，20%涨停的也会被包含
+  ui\battle_widgets.backup_20260916_1200\limit_up_widget.py L174   if pct < 9.8:
+  utils\indicators.py                          L332   def _lu_pct(code, base=9.8) -> float:
+  utils\indicators.py                          L351   统计N日内涨停次数（按板性；code 为空时沿用旧口径 9.8%）
+
+  共 207 行命中 —— 需逐条判断是否还需要按板性处理

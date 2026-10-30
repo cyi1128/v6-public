@@ -1,0 +1,8 @@
+{
+  "enabled": false,
+  "username": "",
+  "password": "",
+  "priority": 1,
+  "kline_days_default": 120,
+  "note": "聚宽免费版权限已过期(2026-05-19)，已禁用。使用现有数据接口。如需重新启用，将enabled改为true。凭据已清空，如需使用请通过环境变量或本地配置注入。"
+}

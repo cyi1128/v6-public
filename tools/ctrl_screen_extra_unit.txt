@@ -1,0 +1,53 @@
+PASS A1 缓存路径 = data/cache/ctrl_screen_extras.json ｜ D:\QuantMonitorV6\data\cache\ctrl_screen_extras.json
+PASS A2 TTL：主营 30 天 / 公告 6 小时；空结果 1 天 / 2 小时 ｜ 2592000/21600/86400/7200
+PASS A3 公告主源 = 东财公告接口（np-anotice-stock），详情链接模板齐备
+PASS A4 公告次源 = 新浪财经公告页（vCB_AllBulletin + GBK + 正则）
+PASS A5 公告兜底源仍是项目既有的巨潮 provider（用单例方法 get_org_id 判断，防走空）
+PASS A6 主营走项目既有 fetch_main_business_composition
+PASS A7 三源共享公告桶限速 0.3s/次、主营 0.2s/次（多线程共用一个节拍）
+PASS A8 失败退避 15 分钟 + 连续 12 只双失败熔断 + fetch_ann 返回三元组
+PASS A9 东财显式判 HTTP 状态（567 风控页不能当「没有公告」）
+PASS A10 补数层不依赖 kline / pandas（与扫描彻底解耦）
+PASS B1 空记录 / None / 非 dict 一律判过期
+PASS B2 刚补完（主营+公告都有数据）判新鲜
+PASS B3 主营时间戳归零 → 判过期
+PASS B4 公告超过 6 小时 → 判过期
+PASS B5 公告空结果 + 尝试在 2 小时内 → 不判过期（不会被每轮重拉）
+PASS B6 公告空结果 + 超过 2 小时 → 判过期（仍会择机重试）
+PASS B7 主营空结果 + 超过 1 天 → 判过期（择机重试）
+PASS B8 失败标记：20s 前刚失败 → 不重试（只等 15 分钟退避窗口，不套 30 天/6 小时 TTL）
+PASS B9 失败标记超过 15 分钟 → 自动重试
+PASS B10 失败标记优先于「有数据」的 TTL（有旧数据但标记了失败，到点就重试）
+PASS B11 extras_missing：只返回缺的、保持顺序、去重
+PASS B12 extras_missing 支持按字段判（只要公告）
+PASS C1 save/load 往返一致（含中文、时间戳）
+PASS C2 落盘结构含 saved_at + items ｜ ['saved_at', 'items']
+PASS C3 读不存在的路径 / 坏文件返回 {}（不抛）
+PASS C4 坏 JSON 也不抛异常
+PASS D0 真实补数缓存已存在且有数据 ｜ 条数=3294
+PASS D1 抽 8 只：缓存主营/公告与现拉结果一致（公告按日期比对；标题文案源差异已知） ｜ 样本=000779,002828,002969,300854 差异=[] 标题文案差异=['000779']
+PASS E1 东财失败 → 降级到新浪且 ok=True ｜ 条数=5 源=sina
+PASS E2 三源都没响应 → ok=False（会被记成失败、15 分钟后重试，不当成「没有公告」） ｜ ok=False src=''
+PASS E3 东财可用时优先东财（不打新浪）
+PASS E4 东财：要么给出合法 4 元组、要么返回 None（当前被限流），不允许其它结构 ｜ ['2026-10-10', '甘咨询:甘肃工程咨询集团股份有限公司2026年半年度权益分派实施公告']
+PASS E5 巨潮兜底层不再 ImportError（可执行；被风控时优雅返回 ok=False） ｜ ok=True src='cninfo' log=
+     覆盖率：主营 993/993=100.0% ｜ 公告 993/993=100.0% ｜ 来源 {'sina': 494, 'eastmoney': 499}
+PASS F1 主营覆盖率 ≥90%（东财 F10 覆盖度）
+PASS F2 公告覆盖率 ≥90% ｜ 993/993
+PASS F3 公告来源全部是已知源（东财/新浪/巨潮），无「空」 ｜ {'sina': 494, 'eastmoney': 499}
+PASS F4 不存在「上游没响应」还留在缓存里的记录（ann_fail 已清零）
+PASS G1 fmt_biz/fmt_ann 对空/非 dict 返回 ('','')
+PASS G2 fmt_biz：文本=「第一大项 营收」、tooltip 带报告期与同比 ｜ 智能终端 65.80亿
+PASS G3 fmt_ann：单元格去「简称:」+ 公司全称前缀、显示 MM-DD，tooltip 保留原始标题+来源+类型 ｜ 10-10 2026年半年度权益分派实施公告
+PASS G4 未知公告源不显示来源字样
+PASS G5 新浪公告也标注来源=新浪财经
+PASS G6 公司全称前缀被剥掉（4 个真实标题样例） ｜ []
+PASS G7 不误剥：主题词开头 / 无全称前缀的标题原样保留 ｜ []
+PASS G8 单元格文本 = MM-DD + 主题（剥前缀后），长度 ≤30 字 ｜ 10-09 重大诉讼结果公告
+PASS G9 tooltip 永远保留上游原始标题（剥离只影响一格显示） ｜ 10-01 关于发行股份购买资产并募集配套资金暨关联交易的… ｜ tip含全称=True
+PASS G10 主营单元格收敛到 ≤22 字，tooltip 仍含完整分项
+PASS H1 真实 5 只：主营/公告都能拿到有效响应（ok=True）且公告为 4 元组 ｜ []
+PASS H2 不存在的代码不抛异常（返回 ok=False 或空）
+PASS H3 单只公告调用 <3s（含限速等待） ｜ 0.339s
+
+=== 50 PASS / 0 FAIL ===

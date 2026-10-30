@@ -1,0 +1,27 @@
+[
+  {
+    "code": "002889",
+    "name": "东方嘉盛",
+    "anchor_price": 12.25,
+    "anchor_type": "前高",
+    "ignition_date": "2026-10-15",
+    "ignition_open": 11.56,
+    "ignition_close": 13.01,
+    "ignition_vol_ratio": 3.33,
+    "break_date": "2026-10-19",
+    "break_close": 15.74,
+    "break_vol_ratio": 3.53,
+    "wash_dates": [],
+    "wash_vol_ratio": null,
+    "second_break_date": "2026-10-20",
+    "second_break_vol_ratio": 1.23,
+    "retest_date": null,
+    "retest_vol_ratio": null,
+    "retest_count": 0,
+    "sector_count": 1,
+    "news_summary": "半导体设备板块持续走高 东方嘉盛等多股涨停；东方嘉盛10月20日龙虎榜数据；东方嘉盛(002889)龙虎榜数据(10-20)",
+    "kline_desc": "锚类型前高；点火日放量10.0%；突破日量比3.5；二次突破量比1.2",
+    "hard_filter_passed": true,
+    "days_since_break": 7
+  }
+]

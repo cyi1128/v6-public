@@ -1,0 +1,5043 @@
+{
+  "overview": {
+    "strategy_name": "五九回踩策略",
+    "code": "000001",
+    "period": "2023-01-03 ~ 2023-12-29",
+    "initial_cash": 1000000,
+    "params": {
+      "stop_loss_pct": 5,
+      "take_profit_pct": 20,
+      "max_hold_days": 20
+    },
+    "total_return": 12.92,
+    "annual_return": 13.03,
+    "max_drawdown": 12.25,
+    "sharpe": 0.64,
+    "calmar": 1.06,
+    "volatility": 17.35,
+    "win_rate": 52.0,
+    "profit_loss_ratio": 2.74,
+    "total_trades": 25,
+    "avg_hold_days": 20.1,
+    "max_consecutive_wins": 3,
+    "max_consecutive_losses": 2,
+    "benchmark_return": 36.11,
+    "excess_return": -23.19
+  },
+  "equity_curve": [
+    {
+      "date": "2023-01-03",
+      "equity": 0.9992,
+      "total_asset": 999187.05,
+      "cash": 300000.0,
+      "position_value": 699187.05,
+      "benchmark": 1.0,
+      "excess": -0.0008
+    },
+    {
+      "date": "2023-01-04",
+      "equity": 0.9981,
+      "total_asset": 998072.86,
+      "cash": 300000.0,
+      "position_value": 698072.86,
+      "benchmark": 0.9946,
+      "excess": 0.0035
+    },
+    {
+      "date": "2023-01-05",
+      "equity": 0.9974,
+      "total_asset": 997434.94,
+      "cash": 300000.0,
+      "position_value": 697434.94,
+      "benchmark": 1.0013,
+      "excess": -0.0039
+    },
+    {
+      "date": "2023-01-06",
+      "equity": 0.9825,
+      "total_asset": 982467.78,
+      "cash": 300000.0,
+      "position_value": 682467.78,
+      "benchmark": 1.0051,
+      "excess": -0.0226
+    },
+    {
+      "date": "2023-01-09",
+      "equity": 0.9809,
+      "total_asset": 980929.24,
+      "cash": 300000.0,
+      "position_value": 680929.24,
+      "benchmark": 0.9997,
+      "excess": -0.0188
+    },
+    {
+      "date": "2023-01-10",
+      "equity": 0.9828,
+      "total_asset": 982793.81,
+      "cash": 300000.0,
+      "position_value": 682793.81,
+      "benchmark": 0.9981,
+      "excess": -0.0153
+    },
+    {
+      "date": "2023-01-11",
+      "equity": 0.9902,
+      "total_asset": 990201.81,
+      "cash": 300000.0,
+      "position_value": 690201.81,
+      "benchmark": 0.9855,
+      "excess": 0.0047
+    },
+    {
+      "date": "2023-01-12",
+      "equity": 0.992,
+      "total_asset": 992036.1,
+      "cash": 300000.0,
+      "position_value": 692036.1,
+      "benchmark": 0.9938,
+      "excess": -0.0018
+    },
+    {
+      "date": "2023-01-13",
+      "equity": 0.9953,
+      "total_asset": 995285.3,
+      "cash": 300000.0,
+      "position_value": 695285.3,
+      "benchmark": 0.9915,
+      "excess": 0.0038
+    },
+    {
+      "date": "2023-01-16",
+      "equity": 1.0097,
+      "total_asset": 1009654.21,
+      "cash": 300000.0,
+      "position_value": 709654.21,
+      "benchmark": 0.9922,
+      "excess": 0.0175
+    },
+    {
+      "date": "2023-01-17",
+      "equity": 1.016,
+      "total_asset": 1016024.52,
+      "cash": 300000.0,
+      "position_value": 716024.52,
+      "benchmark": 0.9905,
+      "excess": 0.0255
+    },
+    {
+      "date": "2023-01-18",
+      "equity": 1.0011,
+      "total_asset": 1001128.94,
+      "cash": 300000.0,
+      "position_value": 701128.94,
+      "benchmark": 0.9985,
+      "excess": 0.0026
+    },
+    {
+      "date": "2023-01-19",
+      "equity": 1.011,
+      "total_asset": 1011015.6,
+      "cash": 300000.0,
+      "position_value": 711015.6,
+      "benchmark": 1.0012,
+      "excess": 0.0098
+    },
+    {
+      "date": "2023-01-20",
+      "equity": 1.0092,
+      "total_asset": 1009160.25,
+      "cash": 300000.0,
+      "position_value": 709160.25,
+      "benchmark": 0.9984,
+      "excess": 0.0108
+    },
+    {
+      "date": "2023-01-23",
+      "equity": 1.0182,
+      "total_asset": 1018191.33,
+      "cash": 300000.0,
+      "position_value": 718191.33,
+      "benchmark": 0.9994,
+      "excess": 0.0188
+    },
+    {
+      "date": "2023-01-24",
+      "equity": 1.0069,
+      "total_asset": 1006916.93,
+      "cash": 300000.0,
+      "position_value": 706916.93,
+      "benchmark": 1.0074,
+      "excess": -0.0005
+    },
+    {
+      "date": "2023-01-25",
+      "equity": 0.9798,
+      "total_asset": 979842.59,
+      "cash": 300000.0,
+      "position_value": 679842.59,
+      "benchmark": 1.011,
+      "excess": -0.0312
+    },
+    {
+      "date": "2023-01-26",
+      "equity": 0.9743,
+      "total_asset": 974333.58,
+      "cash": 300000.0,
+      "position_value": 674333.58,
+      "benchmark": 0.9982,
+      "excess": -0.0239
+    },
+    {
+      "date": "2023-01-27",
+      "equity": 0.9817,
+      "total_asset": 981726.96,
+      "cash": 300000.0,
+      "position_value": 681726.96,
+      "benchmark": 1.0006,
+      "excess": -0.0189
+    },
+    {
+      "date": "2023-01-30",
+      "equity": 0.9699,
+      "total_asset": 969942.55,
+      "cash": 300000.0,
+      "position_value": 669942.55,
+      "benchmark": 0.9945,
+      "excess": -0.0246
+    },
+    {
+      "date": "2023-01-31",
+      "equity": 0.9697,
+      "total_asset": 969745.81,
+      "cash": 300000.0,
+      "position_value": 669745.81,
+      "benchmark": 1.0001,
+      "excess": -0.0304
+    },
+    {
+      "date": "2023-02-01",
+      "equity": 0.9675,
+      "total_asset": 967462.99,
+      "cash": 300000.0,
+      "position_value": 667462.99,
+      "benchmark": 1.005,
+      "excess": -0.0375
+    },
+    {
+      "date": "2023-02-02",
+      "equity": 0.9745,
+      "total_asset": 974522.21,
+      "cash": 300000.0,
+      "position_value": 674522.21,
+      "benchmark": 1.0099,
+      "excess": -0.0354
+    },
+    {
+      "date": "2023-02-03",
+      "equity": 0.9787,
+      "total_asset": 978736.82,
+      "cash": 300000.0,
+      "position_value": 678736.82,
+      "benchmark": 1.0165,
+      "excess": -0.0378
+    },
+    {
+      "date": "2023-02-06",
+      "equity": 0.973,
+      "total_asset": 973032.18,
+      "cash": 300000.0,
+      "position_value": 673032.18,
+      "benchmark": 1.0189,
+      "excess": -0.0459
+    },
+    {
+      "date": "2023-02-07",
+      "equity": 0.9665,
+      "total_asset": 966463.0,
+      "cash": 300000.0,
+      "position_value": 666463.0,
+      "benchmark": 1.0219,
+      "excess": -0.0554
+    },
+    {
+      "date": "2023-02-08",
+      "equity": 0.9646,
+      "total_asset": 964629.08,
+      "cash": 300000.0,
+      "position_value": 664629.08,
+      "benchmark": 1.0257,
+      "excess": -0.0611
+    },
+    {
+      "date": "2023-02-09",
+      "equity": 0.9886,
+      "total_asset": 988579.86,
+      "cash": 300000.0,
+      "position_value": 688579.86,
+      "benchmark": 1.0126,
+      "excess": -0.024
+    },
+    {
+      "date": "2023-02-10",
+      "equity": 0.9972,
+      "total_asset": 997205.77,
+      "cash": 300000.0,
+      "position_value": 697205.77,
+      "benchmark": 1.0231,
+      "excess": -0.0259
+    },
+    {
+      "date": "2023-02-13",
+      "equity": 1.0128,
+      "total_asset": 1012772.8,
+      "cash": 300000.0,
+      "position_value": 712772.8,
+      "benchmark": 1.0027,
+      "excess": 0.0101
+    },
+    {
+      "date": "2023-02-14",
+      "equity": 1.0287,
+      "total_asset": 1028735.48,
+      "cash": 300000.0,
+      "position_value": 728735.48,
+      "benchmark": 0.9924,
+      "excess": 0.0363
+    },
+    {
+      "date": "2023-02-15",
+      "equity": 1.0284,
+      "total_asset": 1028436.39,
+      "cash": 300000.0,
+      "position_value": 728436.39,
+      "benchmark": 0.9968,
+      "excess": 0.0316
+    },
+    {
+      "date": "2023-02-16",
+      "equity": 1.0396,
+      "total_asset": 1039576.69,
+      "cash": 300000.0,
+      "position_value": 739576.69,
+      "benchmark": 0.9936,
+      "excess": 0.046
+    },
+    {
+      "date": "2023-02-17",
+      "equity": 1.0243,
+      "total_asset": 1024300.6,
+      "cash": 300000.0,
+      "position_value": 724300.6,
+      "benchmark": 1.0033,
+      "excess": 0.021
+    },
+    {
+      "date": "2023-02-20",
+      "equity": 1.0216,
+      "total_asset": 1021596.15,
+      "cash": 300000.0,
+      "position_value": 721596.15,
+      "benchmark": 1.0018,
+      "excess": 0.0198
+    },
+    {
+      "date": "2023-02-21",
+      "equity": 1.0302,
+      "total_asset": 1030150.3,
+      "cash": 300000.0,
+      "position_value": 730150.3,
+      "benchmark": 1.0144,
+      "excess": 0.0158
+    },
+    {
+      "date": "2023-02-22",
+      "equity": 1.0377,
+      "total_asset": 1037670.49,
+      "cash": 300000.0,
+      "position_value": 737670.49,
+      "benchmark": 1.0019,
+      "excess": 0.0358
+    },
+    {
+      "date": "2023-02-23",
+      "equity": 1.0317,
+      "total_asset": 1031665.08,
+      "cash": 300000.0,
+      "position_value": 731665.08,
+      "benchmark": 1.0073,
+      "excess": 0.0244
+    },
+    {
+      "date": "2023-02-24",
+      "equity": 1.0428,
+      "total_asset": 1042847.92,
+      "cash": 300000.0,
+      "position_value": 742847.92,
+      "benchmark": 1.0201,
+      "excess": 0.0227
+    },
+    {
+      "date": "2023-02-27",
+      "equity": 1.0373,
+      "total_asset": 1037274.71,
+      "cash": 300000.0,
+      "position_value": 737274.71,
+      "benchmark": 1.0096,
+      "excess": 0.0277
+    },
+    {
+      "date": "2023-02-28",
+      "equity": 1.03,
+      "total_asset": 1030011.12,
+      "cash": 300000.0,
+      "position_value": 730011.12,
+      "benchmark": 1.008,
+      "excess": 0.022
+    },
+    {
+      "date": "2023-03-01",
+      "equity": 1.0275,
+      "total_asset": 1027525.53,
+      "cash": 300000.0,
+      "position_value": 727525.53,
+      "benchmark": 1.0068,
+      "excess": 0.0207
+    },
+    {
+      "date": "2023-03-02",
+      "equity": 1.0221,
+      "total_asset": 1022057.41,
+      "cash": 300000.0,
+      "position_value": 722057.41,
+      "benchmark": 1.009,
+      "excess": 0.0131
+    },
+    {
+      "date": "2023-03-03",
+      "equity": 1.0273,
+      "total_asset": 1027282.52,
+      "cash": 300000.0,
+      "position_value": 727282.52,
+      "benchmark": 1.0242,
+      "excess": 0.0031
+    },
+    {
+      "date": "2023-03-06",
+      "equity": 1.0309,
+      "total_asset": 1030861.09,
+      "cash": 300000.0,
+      "position_value": 730861.09,
+      "benchmark": 1.0331,
+      "excess": -0.0022
+    },
+    {
+      "date": "2023-03-07",
+      "equity": 1.0334,
+      "total_asset": 1033433.38,
+      "cash": 300000.0,
+      "position_value": 733433.38,
+      "benchmark": 1.0227,
+      "excess": 0.0107
+    },
+    {
+      "date": "2023-03-08",
+      "equity": 1.0372,
+      "total_asset": 1037177.85,
+      "cash": 300000.0,
+      "position_value": 737177.85,
+      "benchmark": 1.0402,
+      "excess": -0.003
+    },
+    {
+      "date": "2023-03-09",
+      "equity": 1.0267,
+      "total_asset": 1026736.35,
+      "cash": 300000.0,
+      "position_value": 726736.35,
+      "benchmark": 1.0427,
+      "excess": -0.016
+    },
+    {
+      "date": "2023-03-10",
+      "equity": 1.0408,
+      "total_asset": 1040838.03,
+      "cash": 300000.0,
+      "position_value": 740838.03,
+      "benchmark": 1.0488,
+      "excess": -0.008
+    },
+    {
+      "date": "2023-03-13",
+      "equity": 1.0412,
+      "total_asset": 1041246.53,
+      "cash": 300000.0,
+      "position_value": 741246.53,
+      "benchmark": 1.0367,
+      "excess": 0.0045
+    },
+    {
+      "date": "2023-03-14",
+      "equity": 1.0597,
+      "total_asset": 1059700.53,
+      "cash": 300000.0,
+      "position_value": 759700.53,
+      "benchmark": 1.0374,
+      "excess": 0.0223
+    },
+    {
+      "date": "2023-03-15",
+      "equity": 1.0618,
+      "total_asset": 1061772.07,
+      "cash": 300000.0,
+      "position_value": 761772.07,
+      "benchmark": 1.0312,
+      "excess": 0.0306
+    },
+    {
+      "date": "2023-03-16",
+      "equity": 1.0608,
+      "total_asset": 1060808.08,
+      "cash": 300000.0,
+      "position_value": 760808.08,
+      "benchmark": 1.0203,
+      "excess": 0.0405
+    },
+    {
+      "date": "2023-03-17",
+      "equity": 1.0778,
+      "total_asset": 1077812.0,
+      "cash": 300000.0,
+      "position_value": 777812.0,
+      "benchmark": 1.0192,
+      "excess": 0.0586
+    },
+    {
+      "date": "2023-03-20",
+      "equity": 1.0509,
+      "total_asset": 1050870.08,
+      "cash": 300000.0,
+      "position_value": 750870.08,
+      "benchmark": 1.0133,
+      "excess": 0.0376
+    },
+    {
+      "date": "2023-03-21",
+      "equity": 1.0596,
+      "total_asset": 1059628.57,
+      "cash": 300000.0,
+      "position_value": 759628.57,
+      "benchmark": 1.0475,
+      "excess": 0.0121
+    },
+    {
+      "date": "2023-03-22",
+      "equity": 1.0532,
+      "total_asset": 1053239.52,
+      "cash": 300000.0,
+      "position_value": 753239.52,
+      "benchmark": 1.03,
+      "excess": 0.0232
+    },
+    {
+      "date": "2023-03-23",
+      "equity": 1.054,
+      "total_asset": 1053966.65,
+      "cash": 300000.0,
+      "position_value": 753966.65,
+      "benchmark": 1.0376,
+      "excess": 0.0164
+    },
+    {
+      "date": "2023-03-24",
+      "equity": 1.0499,
+      "total_asset": 1049882.36,
+      "cash": 300000.0,
+      "position_value": 749882.36,
+      "benchmark": 1.0493,
+      "excess": 0.0006
+    },
+    {
+      "date": "2023-03-27",
+      "equity": 1.0659,
+      "total_asset": 1065949.91,
+      "cash": 300000.0,
+      "position_value": 765949.91,
+      "benchmark": 1.0472,
+      "excess": 0.0187
+    },
+    {
+      "date": "2023-03-28",
+      "equity": 1.0678,
+      "total_asset": 1067839.24,
+      "cash": 300000.0,
+      "position_value": 767839.24,
+      "benchmark": 1.0397,
+      "excess": 0.0281
+    },
+    {
+      "date": "2023-03-29",
+      "equity": 1.0543,
+      "total_asset": 1054310.42,
+      "cash": 300000.0,
+      "position_value": 754310.42,
+      "benchmark": 1.0449,
+      "excess": 0.0094
+    },
+    {
+      "date": "2023-03-30",
+      "equity": 1.0651,
+      "total_asset": 1065080.45,
+      "cash": 300000.0,
+      "position_value": 765080.45,
+      "benchmark": 1.05,
+      "excess": 0.0151
+    },
+    {
+      "date": "2023-03-31",
+      "equity": 1.0659,
+      "total_asset": 1065882.03,
+      "cash": 300000.0,
+      "position_value": 765882.03,
+      "benchmark": 1.054,
+      "excess": 0.0119
+    },
+    {
+      "date": "2023-04-03",
+      "equity": 1.0823,
+      "total_asset": 1082337.27,
+      "cash": 300000.0,
+      "position_value": 782337.27,
+      "benchmark": 1.0437,
+      "excess": 0.0386
+    },
+    {
+      "date": "2023-04-04",
+      "equity": 1.0678,
+      "total_asset": 1067825.73,
+      "cash": 300000.0,
+      "position_value": 767825.73,
+      "benchmark": 1.0504,
+      "excess": 0.0174
+    },
+    {
+      "date": "2023-04-05",
+      "equity": 1.0887,
+      "total_asset": 1088699.69,
+      "cash": 300000.0,
+      "position_value": 788699.69,
+      "benchmark": 1.0451,
+      "excess": 0.0436
+    },
+    {
+      "date": "2023-04-06",
+      "equity": 1.0696,
+      "total_asset": 1069602.32,
+      "cash": 300000.0,
+      "position_value": 769602.32,
+      "benchmark": 1.0362,
+      "excess": 0.0334
+    },
+    {
+      "date": "2023-04-07",
+      "equity": 1.0881,
+      "total_asset": 1088075.24,
+      "cash": 300000.0,
+      "position_value": 788075.24,
+      "benchmark": 1.0366,
+      "excess": 0.0515
+    },
+    {
+      "date": "2023-04-10",
+      "equity": 1.0973,
+      "total_asset": 1097284.51,
+      "cash": 300000.0,
+      "position_value": 797284.51,
+      "benchmark": 1.034,
+      "excess": 0.0633
+    },
+    {
+      "date": "2023-04-11",
+      "equity": 1.0832,
+      "total_asset": 1083154.48,
+      "cash": 300000.0,
+      "position_value": 783154.48,
+      "benchmark": 1.0409,
+      "excess": 0.0423
+    },
+    {
+      "date": "2023-04-12",
+      "equity": 1.0862,
+      "total_asset": 1086233.33,
+      "cash": 300000.0,
+      "position_value": 786233.33,
+      "benchmark": 1.0453,
+      "excess": 0.0409
+    },
+    {
+      "date": "2023-04-13",
+      "equity": 1.0798,
+      "total_asset": 1079813.44,
+      "cash": 300000.0,
+      "position_value": 779813.44,
+      "benchmark": 1.059,
+      "excess": 0.0208
+    },
+    {
+      "date": "2023-04-14",
+      "equity": 1.0843,
+      "total_asset": 1084340.94,
+      "cash": 300000.0,
+      "position_value": 784340.94,
+      "benchmark": 1.0713,
+      "excess": 0.013
+    },
+    {
+      "date": "2023-04-17",
+      "equity": 1.0882,
+      "total_asset": 1088197.72,
+      "cash": 300000.0,
+      "position_value": 788197.72,
+      "benchmark": 1.0847,
+      "excess": 0.0035
+    },
+    {
+      "date": "2023-04-18",
+      "equity": 1.0987,
+      "total_asset": 1098727.57,
+      "cash": 300000.0,
+      "position_value": 798727.57,
+      "benchmark": 1.0697,
+      "excess": 0.029
+    },
+    {
+      "date": "2023-04-19",
+      "equity": 1.0861,
+      "total_asset": 1086140.68,
+      "cash": 300000.0,
+      "position_value": 786140.68,
+      "benchmark": 1.0915,
+      "excess": -0.0054
+    },
+    {
+      "date": "2023-04-20",
+      "equity": 1.0923,
+      "total_asset": 1092325.84,
+      "cash": 300000.0,
+      "position_value": 792325.84,
+      "benchmark": 1.0919,
+      "excess": 0.0004
+    },
+    {
+      "date": "2023-04-21",
+      "equity": 1.0848,
+      "total_asset": 1084795.33,
+      "cash": 300000.0,
+      "position_value": 784795.33,
+      "benchmark": 1.0886,
+      "excess": -0.0038
+    },
+    {
+      "date": "2023-04-24",
+      "equity": 1.0989,
+      "total_asset": 1098922.25,
+      "cash": 300000.0,
+      "position_value": 798922.25,
+      "benchmark": 1.0897,
+      "excess": 0.0092
+    },
+    {
+      "date": "2023-04-25",
+      "equity": 1.115,
+      "total_asset": 1114989.45,
+      "cash": 300000.0,
+      "position_value": 814989.45,
+      "benchmark": 1.0748,
+      "excess": 0.0402
+    },
+    {
+      "date": "2023-04-26",
+      "equity": 1.1233,
+      "total_asset": 1123252.7,
+      "cash": 300000.0,
+      "position_value": 823252.7,
+      "benchmark": 1.0733,
+      "excess": 0.05
+    },
+    {
+      "date": "2023-04-27",
+      "equity": 1.1271,
+      "total_asset": 1127085.39,
+      "cash": 300000.0,
+      "position_value": 827085.39,
+      "benchmark": 1.0619,
+      "excess": 0.0652
+    },
+    {
+      "date": "2023-04-28",
+      "equity": 1.1242,
+      "total_asset": 1124240.66,
+      "cash": 300000.0,
+      "position_value": 824240.66,
+      "benchmark": 1.0622,
+      "excess": 0.062
+    },
+    {
+      "date": "2023-05-01",
+      "equity": 1.1265,
+      "total_asset": 1126532.61,
+      "cash": 300000.0,
+      "position_value": 826532.61,
+      "benchmark": 1.0704,
+      "excess": 0.0561
+    },
+    {
+      "date": "2023-05-02",
+      "equity": 1.1338,
+      "total_asset": 1133798.38,
+      "cash": 300000.0,
+      "position_value": 833798.38,
+      "benchmark": 1.0733,
+      "excess": 0.0605
+    },
+    {
+      "date": "2023-05-03",
+      "equity": 1.113,
+      "total_asset": 1113038.02,
+      "cash": 300000.0,
+      "position_value": 813038.02,
+      "benchmark": 1.0795,
+      "excess": 0.0335
+    },
+    {
+      "date": "2023-05-04",
+      "equity": 1.1175,
+      "total_asset": 1117502.69,
+      "cash": 300000.0,
+      "position_value": 817502.69,
+      "benchmark": 1.0862,
+      "excess": 0.0313
+    },
+    {
+      "date": "2023-05-05",
+      "equity": 1.129,
+      "total_asset": 1129001.93,
+      "cash": 300000.0,
+      "position_value": 829001.93,
+      "benchmark": 1.0956,
+      "excess": 0.0334
+    },
+    {
+      "date": "2023-05-08",
+      "equity": 1.1374,
+      "total_asset": 1137386.05,
+      "cash": 300000.0,
+      "position_value": 837386.05,
+      "benchmark": 1.0872,
+      "excess": 0.0502
+    },
+    {
+      "date": "2023-05-09",
+      "equity": 1.1358,
+      "total_asset": 1135760.2,
+      "cash": 300000.0,
+      "position_value": 835760.2,
+      "benchmark": 1.1025,
+      "excess": 0.0333
+    },
+    {
+      "date": "2023-05-10",
+      "equity": 1.118,
+      "total_asset": 1118004.16,
+      "cash": 300000.0,
+      "position_value": 818004.16,
+      "benchmark": 1.1056,
+      "excess": 0.0124
+    },
+    {
+      "date": "2023-05-11",
+      "equity": 1.1097,
+      "total_asset": 1109677.49,
+      "cash": 300000.0,
+      "position_value": 809677.49,
+      "benchmark": 1.1111,
+      "excess": -0.0014
+    },
+    {
+      "date": "2023-05-12",
+      "equity": 1.1168,
+      "total_asset": 1116838.43,
+      "cash": 300000.0,
+      "position_value": 816838.43,
+      "benchmark": 1.0947,
+      "excess": 0.0221
+    },
+    {
+      "date": "2023-05-15",
+      "equity": 1.1226,
+      "total_asset": 1122560.61,
+      "cash": 300000.0,
+      "position_value": 822560.61,
+      "benchmark": 1.0942,
+      "excess": 0.0284
+    },
+    {
+      "date": "2023-05-16",
+      "equity": 1.1359,
+      "total_asset": 1135907.46,
+      "cash": 300000.0,
+      "position_value": 835907.46,
+      "benchmark": 1.0961,
+      "excess": 0.0398
+    },
+    {
+      "date": "2023-05-17",
+      "equity": 1.1368,
+      "total_asset": 1136777.92,
+      "cash": 300000.0,
+      "position_value": 836777.92,
+      "benchmark": 1.0898,
+      "excess": 0.047
+    },
+    {
+      "date": "2023-05-18",
+      "equity": 1.1661,
+      "total_asset": 1166056.91,
+      "cash": 300000.0,
+      "position_value": 866056.91,
+      "benchmark": 1.0942,
+      "excess": 0.0719
+    },
+    {
+      "date": "2023-05-19",
+      "equity": 1.1629,
+      "total_asset": 1162944.58,
+      "cash": 300000.0,
+      "position_value": 862944.58,
+      "benchmark": 1.0974,
+      "excess": 0.0655
+    },
+    {
+      "date": "2023-05-22",
+      "equity": 1.1625,
+      "total_asset": 1162510.55,
+      "cash": 300000.0,
+      "position_value": 862510.55,
+      "benchmark": 1.0931,
+      "excess": 0.0694
+    },
+    {
+      "date": "2023-05-23",
+      "equity": 1.1924,
+      "total_asset": 1192365.63,
+      "cash": 300000.0,
+      "position_value": 892365.63,
+      "benchmark": 1.1082,
+      "excess": 0.0842
+    },
+    {
+      "date": "2023-05-24",
+      "equity": 1.1873,
+      "total_asset": 1187339.63,
+      "cash": 300000.0,
+      "position_value": 887339.63,
+      "benchmark": 1.1032,
+      "excess": 0.0841
+    },
+    {
+      "date": "2023-05-25",
+      "equity": 1.179,
+      "total_asset": 1179033.85,
+      "cash": 300000.0,
+      "position_value": 879033.85,
+      "benchmark": 1.118,
+      "excess": 0.061
+    },
+    {
+      "date": "2023-05-26",
+      "equity": 1.1807,
+      "total_asset": 1180736.75,
+      "cash": 300000.0,
+      "position_value": 880736.75,
+      "benchmark": 1.1396,
+      "excess": 0.0411
+    },
+    {
+      "date": "2023-05-29",
+      "equity": 1.1538,
+      "total_asset": 1153807.86,
+      "cash": 300000.0,
+      "position_value": 853807.86,
+      "benchmark": 1.1352,
+      "excess": 0.0186
+    },
+    {
+      "date": "2023-05-30",
+      "equity": 1.1803,
+      "total_asset": 1180307.5,
+      "cash": 300000.0,
+      "position_value": 880307.5,
+      "benchmark": 1.1525,
+      "excess": 0.0278
+    },
+    {
+      "date": "2023-05-31",
+      "equity": 1.1679,
+      "total_asset": 1167889.29,
+      "cash": 300000.0,
+      "position_value": 867889.29,
+      "benchmark": 1.1414,
+      "excess": 0.0265
+    },
+    {
+      "date": "2023-06-01",
+      "equity": 1.1726,
+      "total_asset": 1172565.5,
+      "cash": 300000.0,
+      "position_value": 872565.5,
+      "benchmark": 1.1482,
+      "excess": 0.0244
+    },
+    {
+      "date": "2023-06-02",
+      "equity": 1.1539,
+      "total_asset": 1153866.86,
+      "cash": 300000.0,
+      "position_value": 853866.86,
+      "benchmark": 1.136,
+      "excess": 0.0179
+    },
+    {
+      "date": "2023-06-05",
+      "equity": 1.1477,
+      "total_asset": 1147721.04,
+      "cash": 300000.0,
+      "position_value": 847721.04,
+      "benchmark": 1.1384,
+      "excess": 0.0093
+    },
+    {
+      "date": "2023-06-06",
+      "equity": 1.165,
+      "total_asset": 1164976.82,
+      "cash": 300000.0,
+      "position_value": 864976.82,
+      "benchmark": 1.1432,
+      "excess": 0.0218
+    },
+    {
+      "date": "2023-06-07",
+      "equity": 1.1625,
+      "total_asset": 1162507.15,
+      "cash": 300000.0,
+      "position_value": 862507.15,
+      "benchmark": 1.1492,
+      "excess": 0.0133
+    },
+    {
+      "date": "2023-06-08",
+      "equity": 1.1794,
+      "total_asset": 1179415.17,
+      "cash": 300000.0,
+      "position_value": 879415.17,
+      "benchmark": 1.134,
+      "excess": 0.0454
+    },
+    {
+      "date": "2023-06-09",
+      "equity": 1.1864,
+      "total_asset": 1186437.25,
+      "cash": 300000.0,
+      "position_value": 886437.25,
+      "benchmark": 1.1233,
+      "excess": 0.0631
+    },
+    {
+      "date": "2023-06-12",
+      "equity": 1.2059,
+      "total_asset": 1205914.51,
+      "cash": 300000.0,
+      "position_value": 905914.51,
+      "benchmark": 1.1263,
+      "excess": 0.0796
+    },
+    {
+      "date": "2023-06-13",
+      "equity": 1.2357,
+      "total_asset": 1235717.49,
+      "cash": 300000.0,
+      "position_value": 935717.49,
+      "benchmark": 1.1298,
+      "excess": 0.1059
+    },
+    {
+      "date": "2023-06-14",
+      "equity": 1.2192,
+      "total_asset": 1219245.97,
+      "cash": 300000.0,
+      "position_value": 919245.97,
+      "benchmark": 1.1331,
+      "excess": 0.0861
+    },
+    {
+      "date": "2023-06-15",
+      "equity": 1.2085,
+      "total_asset": 1208538.01,
+      "cash": 300000.0,
+      "position_value": 908538.01,
+      "benchmark": 1.1113,
+      "excess": 0.0972
+    },
+    {
+      "date": "2023-06-16",
+      "equity": 1.2174,
+      "total_asset": 1217353.33,
+      "cash": 300000.0,
+      "position_value": 917353.33,
+      "benchmark": 1.1011,
+      "excess": 0.1163
+    },
+    {
+      "date": "2023-06-19",
+      "equity": 1.2117,
+      "total_asset": 1211690.4,
+      "cash": 300000.0,
+      "position_value": 911690.4,
+      "benchmark": 1.1177,
+      "excess": 0.094
+    },
+    {
+      "date": "2023-06-20",
+      "equity": 1.1968,
+      "total_asset": 1196780.05,
+      "cash": 300000.0,
+      "position_value": 896780.05,
+      "benchmark": 1.1178,
+      "excess": 0.079
+    },
+    {
+      "date": "2023-06-21",
+      "equity": 1.2063,
+      "total_asset": 1206331.78,
+      "cash": 300000.0,
+      "position_value": 906331.78,
+      "benchmark": 1.1188,
+      "excess": 0.0875
+    },
+    {
+      "date": "2023-06-22",
+      "equity": 1.2134,
+      "total_asset": 1213354.19,
+      "cash": 300000.0,
+      "position_value": 913354.19,
+      "benchmark": 1.1159,
+      "excess": 0.0975
+    },
+    {
+      "date": "2023-06-23",
+      "equity": 1.2351,
+      "total_asset": 1235119.6,
+      "cash": 300000.0,
+      "position_value": 935119.6,
+      "benchmark": 1.0951,
+      "excess": 0.14
+    },
+    {
+      "date": "2023-06-26",
+      "equity": 1.2305,
+      "total_asset": 1230457.97,
+      "cash": 300000.0,
+      "position_value": 930457.97,
+      "benchmark": 1.0812,
+      "excess": 0.1493
+    },
+    {
+      "date": "2023-06-27",
+      "equity": 1.221,
+      "total_asset": 1220998.88,
+      "cash": 300000.0,
+      "position_value": 920998.88,
+      "benchmark": 1.0738,
+      "excess": 0.1472
+    },
+    {
+      "date": "2023-06-28",
+      "equity": 1.2357,
+      "total_asset": 1235655.03,
+      "cash": 300000.0,
+      "position_value": 935655.03,
+      "benchmark": 1.0817,
+      "excess": 0.154
+    },
+    {
+      "date": "2023-06-29",
+      "equity": 1.2434,
+      "total_asset": 1243431.23,
+      "cash": 300000.0,
+      "position_value": 943431.23,
+      "benchmark": 1.0731,
+      "excess": 0.1703
+    },
+    {
+      "date": "2023-06-30",
+      "equity": 1.2532,
+      "total_asset": 1253153.52,
+      "cash": 300000.0,
+      "position_value": 953153.52,
+      "benchmark": 1.0637,
+      "excess": 0.1895
+    },
+    {
+      "date": "2023-07-03",
+      "equity": 1.2585,
+      "total_asset": 1258504.4,
+      "cash": 300000.0,
+      "position_value": 958504.4,
+      "benchmark": 1.0649,
+      "excess": 0.1936
+    },
+    {
+      "date": "2023-07-04",
+      "equity": 1.2811,
+      "total_asset": 1281124.21,
+      "cash": 300000.0,
+      "position_value": 981124.21,
+      "benchmark": 1.0659,
+      "excess": 0.2152
+    },
+    {
+      "date": "2023-07-05",
+      "equity": 1.2615,
+      "total_asset": 1261509.39,
+      "cash": 300000.0,
+      "position_value": 961509.39,
+      "benchmark": 1.0558,
+      "excess": 0.2057
+    },
+    {
+      "date": "2023-07-06",
+      "equity": 1.2738,
+      "total_asset": 1273766.47,
+      "cash": 300000.0,
+      "position_value": 973766.47,
+      "benchmark": 1.0755,
+      "excess": 0.1983
+    },
+    {
+      "date": "2023-07-07",
+      "equity": 1.255,
+      "total_asset": 1255044.15,
+      "cash": 300000.0,
+      "position_value": 955044.15,
+      "benchmark": 1.0668,
+      "excess": 0.1882
+    },
+    {
+      "date": "2023-07-10",
+      "equity": 1.255,
+      "total_asset": 1254980.47,
+      "cash": 300000.0,
+      "position_value": 954980.47,
+      "benchmark": 1.0748,
+      "excess": 0.1802
+    },
+    {
+      "date": "2023-07-11",
+      "equity": 1.2545,
+      "total_asset": 1254457.1,
+      "cash": 300000.0,
+      "position_value": 954457.1,
+      "benchmark": 1.0741,
+      "excess": 0.1804
+    },
+    {
+      "date": "2023-07-12",
+      "equity": 1.2379,
+      "total_asset": 1237884.32,
+      "cash": 300000.0,
+      "position_value": 937884.32,
+      "benchmark": 1.0586,
+      "excess": 0.1793
+    },
+    {
+      "date": "2023-07-13",
+      "equity": 1.2104,
+      "total_asset": 1210361.47,
+      "cash": 300000.0,
+      "position_value": 910361.47,
+      "benchmark": 1.0728,
+      "excess": 0.1376
+    },
+    {
+      "date": "2023-07-14",
+      "equity": 1.2248,
+      "total_asset": 1224831.58,
+      "cash": 300000.0,
+      "position_value": 924831.58,
+      "benchmark": 1.0651,
+      "excess": 0.1597
+    },
+    {
+      "date": "2023-07-17",
+      "equity": 1.2367,
+      "total_asset": 1236726.7,
+      "cash": 300000.0,
+      "position_value": 936726.7,
+      "benchmark": 1.0702,
+      "excess": 0.1665
+    },
+    {
+      "date": "2023-07-18",
+      "equity": 1.2357,
+      "total_asset": 1235747.35,
+      "cash": 300000.0,
+      "position_value": 935747.35,
+      "benchmark": 1.0471,
+      "excess": 0.1886
+    },
+    {
+      "date": "2023-07-19",
+      "equity": 1.2274,
+      "total_asset": 1227407.46,
+      "cash": 300000.0,
+      "position_value": 927407.46,
+      "benchmark": 1.0512,
+      "excess": 0.1762
+    },
+    {
+      "date": "2023-07-20",
+      "equity": 1.1982,
+      "total_asset": 1198207.06,
+      "cash": 300000.0,
+      "position_value": 898207.06,
+      "benchmark": 1.0284,
+      "excess": 0.1698
+    },
+    {
+      "date": "2023-07-21",
+      "equity": 1.2012,
+      "total_asset": 1201211.47,
+      "cash": 300000.0,
+      "position_value": 901211.47,
+      "benchmark": 1.0495,
+      "excess": 0.1517
+    },
+    {
+      "date": "2023-07-24",
+      "equity": 1.1925,
+      "total_asset": 1192462.85,
+      "cash": 300000.0,
+      "position_value": 892462.85,
+      "benchmark": 1.0537,
+      "excess": 0.1388
+    },
+    {
+      "date": "2023-07-25",
+      "equity": 1.1983,
+      "total_asset": 1198332.62,
+      "cash": 300000.0,
+      "position_value": 898332.62,
+      "benchmark": 1.0391,
+      "excess": 0.1592
+    },
+    {
+      "date": "2023-07-26",
+      "equity": 1.1924,
+      "total_asset": 1192390.6,
+      "cash": 300000.0,
+      "position_value": 892390.6,
+      "benchmark": 1.0548,
+      "excess": 0.1376
+    },
+    {
+      "date": "2023-07-27",
+      "equity": 1.1854,
+      "total_asset": 1185365.96,
+      "cash": 300000.0,
+      "position_value": 885365.96,
+      "benchmark": 1.0773,
+      "excess": 0.1081
+    },
+    {
+      "date": "2023-07-28",
+      "equity": 1.1846,
+      "total_asset": 1184587.8,
+      "cash": 300000.0,
+      "position_value": 884587.8,
+      "benchmark": 1.0972,
+      "excess": 0.0874
+    },
+    {
+      "date": "2023-07-31",
+      "equity": 1.1863,
+      "total_asset": 1186284.21,
+      "cash": 300000.0,
+      "position_value": 886284.21,
+      "benchmark": 1.1177,
+      "excess": 0.0686
+    },
+    {
+      "date": "2023-08-01",
+      "equity": 1.2009,
+      "total_asset": 1200917.15,
+      "cash": 300000.0,
+      "position_value": 900917.15,
+      "benchmark": 1.1153,
+      "excess": 0.0856
+    },
+    {
+      "date": "2023-08-02",
+      "equity": 1.1922,
+      "total_asset": 1192183.45,
+      "cash": 300000.0,
+      "position_value": 892183.45,
+      "benchmark": 1.12,
+      "excess": 0.0722
+    },
+    {
+      "date": "2023-08-03",
+      "equity": 1.1973,
+      "total_asset": 1197250.53,
+      "cash": 300000.0,
+      "position_value": 897250.53,
+      "benchmark": 1.1231,
+      "excess": 0.0742
+    },
+    {
+      "date": "2023-08-04",
+      "equity": 1.2038,
+      "total_asset": 1203783.46,
+      "cash": 300000.0,
+      "position_value": 903783.46,
+      "benchmark": 1.1191,
+      "excess": 0.0847
+    },
+    {
+      "date": "2023-08-07",
+      "equity": 1.2124,
+      "total_asset": 1212378.99,
+      "cash": 300000.0,
+      "position_value": 912378.99,
+      "benchmark": 1.121,
+      "excess": 0.0914
+    },
+    {
+      "date": "2023-08-08",
+      "equity": 1.1873,
+      "total_asset": 1187251.23,
+      "cash": 300000.0,
+      "position_value": 887251.23,
+      "benchmark": 1.1202,
+      "excess": 0.0671
+    },
+    {
+      "date": "2023-08-09",
+      "equity": 1.1882,
+      "total_asset": 1188156.8,
+      "cash": 300000.0,
+      "position_value": 888156.8,
+      "benchmark": 1.1344,
+      "excess": 0.0538
+    },
+    {
+      "date": "2023-08-10",
+      "equity": 1.1953,
+      "total_asset": 1195250.04,
+      "cash": 300000.0,
+      "position_value": 895250.04,
+      "benchmark": 1.1527,
+      "excess": 0.0426
+    },
+    {
+      "date": "2023-08-11",
+      "equity": 1.1806,
+      "total_asset": 1180590.5,
+      "cash": 300000.0,
+      "position_value": 880590.5,
+      "benchmark": 1.1574,
+      "excess": 0.0232
+    },
+    {
+      "date": "2023-08-14",
+      "equity": 1.1917,
+      "total_asset": 1191676.57,
+      "cash": 300000.0,
+      "position_value": 891676.57,
+      "benchmark": 1.1567,
+      "excess": 0.035
+    },
+    {
+      "date": "2023-08-15",
+      "equity": 1.2167,
+      "total_asset": 1216685.89,
+      "cash": 300000.0,
+      "position_value": 916685.89,
+      "benchmark": 1.1588,
+      "excess": 0.0579
+    },
+    {
+      "date": "2023-08-16",
+      "equity": 1.1893,
+      "total_asset": 1189338.36,
+      "cash": 300000.0,
+      "position_value": 889338.36,
+      "benchmark": 1.1501,
+      "excess": 0.0392
+    },
+    {
+      "date": "2023-08-17",
+      "equity": 1.2118,
+      "total_asset": 1211753.25,
+      "cash": 300000.0,
+      "position_value": 911753.25,
+      "benchmark": 1.142,
+      "excess": 0.0698
+    },
+    {
+      "date": "2023-08-18",
+      "equity": 1.2161,
+      "total_asset": 1216129.88,
+      "cash": 300000.0,
+      "position_value": 916129.88,
+      "benchmark": 1.1342,
+      "excess": 0.0819
+    },
+    {
+      "date": "2023-08-21",
+      "equity": 1.2259,
+      "total_asset": 1225895.43,
+      "cash": 300000.0,
+      "position_value": 925895.43,
+      "benchmark": 1.1433,
+      "excess": 0.0826
+    },
+    {
+      "date": "2023-08-22",
+      "equity": 1.2006,
+      "total_asset": 1200556.23,
+      "cash": 300000.0,
+      "position_value": 900556.23,
+      "benchmark": 1.1485,
+      "excess": 0.0521
+    },
+    {
+      "date": "2023-08-23",
+      "equity": 1.203,
+      "total_asset": 1202960.21,
+      "cash": 300000.0,
+      "position_value": 902960.21,
+      "benchmark": 1.1422,
+      "excess": 0.0608
+    },
+    {
+      "date": "2023-08-24",
+      "equity": 1.1976,
+      "total_asset": 1197562.38,
+      "cash": 300000.0,
+      "position_value": 897562.38,
+      "benchmark": 1.1299,
+      "excess": 0.0677
+    },
+    {
+      "date": "2023-08-25",
+      "equity": 1.2027,
+      "total_asset": 1202733.31,
+      "cash": 300000.0,
+      "position_value": 902733.31,
+      "benchmark": 1.1453,
+      "excess": 0.0574
+    },
+    {
+      "date": "2023-08-28",
+      "equity": 1.2282,
+      "total_asset": 1228201.97,
+      "cash": 300000.0,
+      "position_value": 928201.97,
+      "benchmark": 1.141,
+      "excess": 0.0872
+    },
+    {
+      "date": "2023-08-29",
+      "equity": 1.2319,
+      "total_asset": 1231942.64,
+      "cash": 300000.0,
+      "position_value": 931942.64,
+      "benchmark": 1.1513,
+      "excess": 0.0806
+    },
+    {
+      "date": "2023-08-30",
+      "equity": 1.2232,
+      "total_asset": 1223233.14,
+      "cash": 300000.0,
+      "position_value": 923233.14,
+      "benchmark": 1.1428,
+      "excess": 0.0804
+    },
+    {
+      "date": "2023-08-31",
+      "equity": 1.2111,
+      "total_asset": 1211086.61,
+      "cash": 300000.0,
+      "position_value": 911086.61,
+      "benchmark": 1.1277,
+      "excess": 0.0834
+    },
+    {
+      "date": "2023-09-01",
+      "equity": 1.2361,
+      "total_asset": 1236077.94,
+      "cash": 300000.0,
+      "position_value": 936077.94,
+      "benchmark": 1.124,
+      "excess": 0.1121
+    },
+    {
+      "date": "2023-09-04",
+      "equity": 1.2281,
+      "total_asset": 1228074.36,
+      "cash": 300000.0,
+      "position_value": 928074.36,
+      "benchmark": 1.1258,
+      "excess": 0.1023
+    },
+    {
+      "date": "2023-09-05",
+      "equity": 1.2181,
+      "total_asset": 1218083.23,
+      "cash": 300000.0,
+      "position_value": 918083.23,
+      "benchmark": 1.1431,
+      "excess": 0.075
+    },
+    {
+      "date": "2023-09-06",
+      "equity": 1.2253,
+      "total_asset": 1225328.35,
+      "cash": 300000.0,
+      "position_value": 925328.35,
+      "benchmark": 1.1414,
+      "excess": 0.0839
+    },
+    {
+      "date": "2023-09-07",
+      "equity": 1.2237,
+      "total_asset": 1223693.44,
+      "cash": 300000.0,
+      "position_value": 923693.44,
+      "benchmark": 1.1496,
+      "excess": 0.0741
+    },
+    {
+      "date": "2023-09-08",
+      "equity": 1.2352,
+      "total_asset": 1235200.63,
+      "cash": 300000.0,
+      "position_value": 935200.63,
+      "benchmark": 1.1767,
+      "excess": 0.0585
+    },
+    {
+      "date": "2023-09-11",
+      "equity": 1.2336,
+      "total_asset": 1233565.75,
+      "cash": 300000.0,
+      "position_value": 933565.75,
+      "benchmark": 1.1944,
+      "excess": 0.0392
+    },
+    {
+      "date": "2023-09-12",
+      "equity": 1.2329,
+      "total_asset": 1232866.37,
+      "cash": 300000.0,
+      "position_value": 932866.37,
+      "benchmark": 1.1959,
+      "excess": 0.037
+    },
+    {
+      "date": "2023-09-13",
+      "equity": 1.2218,
+      "total_asset": 1221768.38,
+      "cash": 300000.0,
+      "position_value": 921768.38,
+      "benchmark": 1.1775,
+      "excess": 0.0443
+    },
+    {
+      "date": "2023-09-14",
+      "equity": 1.2091,
+      "total_asset": 1209078.1,
+      "cash": 300000.0,
+      "position_value": 909078.1,
+      "benchmark": 1.1835,
+      "excess": 0.0256
+    },
+    {
+      "date": "2023-09-15",
+      "equity": 1.2218,
+      "total_asset": 1221793.33,
+      "cash": 300000.0,
+      "position_value": 921793.33,
+      "benchmark": 1.1879,
+      "excess": 0.0339
+    },
+    {
+      "date": "2023-09-18",
+      "equity": 1.2542,
+      "total_asset": 1254231.19,
+      "cash": 300000.0,
+      "position_value": 954231.19,
+      "benchmark": 1.1873,
+      "excess": 0.0669
+    },
+    {
+      "date": "2023-09-19",
+      "equity": 1.2555,
+      "total_asset": 1255532.13,
+      "cash": 300000.0,
+      "position_value": 955532.13,
+      "benchmark": 1.1903,
+      "excess": 0.0652
+    },
+    {
+      "date": "2023-09-20",
+      "equity": 1.2554,
+      "total_asset": 1255407.69,
+      "cash": 300000.0,
+      "position_value": 955407.69,
+      "benchmark": 1.1887,
+      "excess": 0.0667
+    },
+    {
+      "date": "2023-09-21",
+      "equity": 1.235,
+      "total_asset": 1235032.06,
+      "cash": 300000.0,
+      "position_value": 935032.06,
+      "benchmark": 1.1925,
+      "excess": 0.0425
+    },
+    {
+      "date": "2023-09-22",
+      "equity": 1.2295,
+      "total_asset": 1229523.4,
+      "cash": 300000.0,
+      "position_value": 929523.4,
+      "benchmark": 1.1848,
+      "excess": 0.0447
+    },
+    {
+      "date": "2023-09-25",
+      "equity": 1.2197,
+      "total_asset": 1219738.87,
+      "cash": 300000.0,
+      "position_value": 919738.87,
+      "benchmark": 1.1948,
+      "excess": 0.0249
+    },
+    {
+      "date": "2023-09-26",
+      "equity": 1.2185,
+      "total_asset": 1218456.12,
+      "cash": 300000.0,
+      "position_value": 918456.12,
+      "benchmark": 1.1955,
+      "excess": 0.023
+    },
+    {
+      "date": "2023-09-27",
+      "equity": 1.2079,
+      "total_asset": 1207940.76,
+      "cash": 300000.0,
+      "position_value": 907940.76,
+      "benchmark": 1.208,
+      "excess": -0.0001
+    },
+    {
+      "date": "2023-09-28",
+      "equity": 1.1995,
+      "total_asset": 1199523.86,
+      "cash": 300000.0,
+      "position_value": 899523.86,
+      "benchmark": 1.2051,
+      "excess": -0.0056
+    },
+    {
+      "date": "2023-09-29",
+      "equity": 1.2069,
+      "total_asset": 1206924.88,
+      "cash": 300000.0,
+      "position_value": 906924.88,
+      "benchmark": 1.1984,
+      "excess": 0.0085
+    },
+    {
+      "date": "2023-10-02",
+      "equity": 1.2269,
+      "total_asset": 1226873.07,
+      "cash": 300000.0,
+      "position_value": 926873.07,
+      "benchmark": 1.2061,
+      "excess": 0.0208
+    },
+    {
+      "date": "2023-10-03",
+      "equity": 1.2201,
+      "total_asset": 1220146.54,
+      "cash": 300000.0,
+      "position_value": 920146.54,
+      "benchmark": 1.2211,
+      "excess": -0.001
+    },
+    {
+      "date": "2023-10-04",
+      "equity": 1.2156,
+      "total_asset": 1215593.57,
+      "cash": 300000.0,
+      "position_value": 915593.57,
+      "benchmark": 1.2077,
+      "excess": 0.0079
+    },
+    {
+      "date": "2023-10-05",
+      "equity": 1.2329,
+      "total_asset": 1232936.11,
+      "cash": 300000.0,
+      "position_value": 932936.11,
+      "benchmark": 1.2202,
+      "excess": 0.0127
+    },
+    {
+      "date": "2023-10-06",
+      "equity": 1.2172,
+      "total_asset": 1217196.35,
+      "cash": 300000.0,
+      "position_value": 917196.35,
+      "benchmark": 1.2043,
+      "excess": 0.0129
+    },
+    {
+      "date": "2023-10-09",
+      "equity": 1.2258,
+      "total_asset": 1225840.83,
+      "cash": 300000.0,
+      "position_value": 925840.83,
+      "benchmark": 1.2048,
+      "excess": 0.021
+    },
+    {
+      "date": "2023-10-10",
+      "equity": 1.2178,
+      "total_asset": 1217765.63,
+      "cash": 300000.0,
+      "position_value": 917765.63,
+      "benchmark": 1.207,
+      "excess": 0.0108
+    },
+    {
+      "date": "2023-10-11",
+      "equity": 1.2221,
+      "total_asset": 1222076.75,
+      "cash": 300000.0,
+      "position_value": 922076.75,
+      "benchmark": 1.2243,
+      "excess": -0.0022
+    },
+    {
+      "date": "2023-10-12",
+      "equity": 1.2254,
+      "total_asset": 1225404.2,
+      "cash": 300000.0,
+      "position_value": 925404.2,
+      "benchmark": 1.207,
+      "excess": 0.0184
+    },
+    {
+      "date": "2023-10-13",
+      "equity": 1.2182,
+      "total_asset": 1218215.76,
+      "cash": 300000.0,
+      "position_value": 918215.76,
+      "benchmark": 1.2117,
+      "excess": 0.0065
+    },
+    {
+      "date": "2023-10-16",
+      "equity": 1.2108,
+      "total_asset": 1210783.48,
+      "cash": 300000.0,
+      "position_value": 910783.48,
+      "benchmark": 1.2229,
+      "excess": -0.0121
+    },
+    {
+      "date": "2023-10-17",
+      "equity": 1.2025,
+      "total_asset": 1202540.66,
+      "cash": 300000.0,
+      "position_value": 902540.66,
+      "benchmark": 1.215,
+      "excess": -0.0125
+    },
+    {
+      "date": "2023-10-18",
+      "equity": 1.1989,
+      "total_asset": 1198940.12,
+      "cash": 300000.0,
+      "position_value": 898940.12,
+      "benchmark": 1.2117,
+      "excess": -0.0128
+    },
+    {
+      "date": "2023-10-19",
+      "equity": 1.1913,
+      "total_asset": 1191329.97,
+      "cash": 300000.0,
+      "position_value": 891329.97,
+      "benchmark": 1.2267,
+      "excess": -0.0354
+    },
+    {
+      "date": "2023-10-20",
+      "equity": 1.1927,
+      "total_asset": 1192713.15,
+      "cash": 300000.0,
+      "position_value": 892713.15,
+      "benchmark": 1.2534,
+      "excess": -0.0607
+    },
+    {
+      "date": "2023-10-23",
+      "equity": 1.2088,
+      "total_asset": 1208802.27,
+      "cash": 300000.0,
+      "position_value": 908802.27,
+      "benchmark": 1.2672,
+      "excess": -0.0584
+    },
+    {
+      "date": "2023-10-24",
+      "equity": 1.1932,
+      "total_asset": 1193204.66,
+      "cash": 300000.0,
+      "position_value": 893204.66,
+      "benchmark": 1.2781,
+      "excess": -0.0849
+    },
+    {
+      "date": "2023-10-25",
+      "equity": 1.2038,
+      "total_asset": 1203769.25,
+      "cash": 300000.0,
+      "position_value": 903769.25,
+      "benchmark": 1.2775,
+      "excess": -0.0737
+    },
+    {
+      "date": "2023-10-26",
+      "equity": 1.1945,
+      "total_asset": 1194540.12,
+      "cash": 300000.0,
+      "position_value": 894540.12,
+      "benchmark": 1.2968,
+      "excess": -0.1023
+    },
+    {
+      "date": "2023-10-27",
+      "equity": 1.1958,
+      "total_asset": 1195789.14,
+      "cash": 300000.0,
+      "position_value": 895789.14,
+      "benchmark": 1.2923,
+      "excess": -0.0965
+    },
+    {
+      "date": "2023-10-30",
+      "equity": 1.1968,
+      "total_asset": 1196824.54,
+      "cash": 300000.0,
+      "position_value": 896824.54,
+      "benchmark": 1.282,
+      "excess": -0.0852
+    },
+    {
+      "date": "2023-10-31",
+      "equity": 1.1747,
+      "total_asset": 1174656.75,
+      "cash": 300000.0,
+      "position_value": 874656.75,
+      "benchmark": 1.2852,
+      "excess": -0.1105
+    },
+    {
+      "date": "2023-11-01",
+      "equity": 1.1904,
+      "total_asset": 1190363.05,
+      "cash": 300000.0,
+      "position_value": 890363.05,
+      "benchmark": 1.3106,
+      "excess": -0.1202
+    },
+    {
+      "date": "2023-11-02",
+      "equity": 1.2213,
+      "total_asset": 1221297.48,
+      "cash": 300000.0,
+      "position_value": 921297.48,
+      "benchmark": 1.3108,
+      "excess": -0.0895
+    },
+    {
+      "date": "2023-11-03",
+      "equity": 1.2224,
+      "total_asset": 1222353.98,
+      "cash": 300000.0,
+      "position_value": 922353.98,
+      "benchmark": 1.3211,
+      "excess": -0.0987
+    },
+    {
+      "date": "2023-11-06",
+      "equity": 1.2501,
+      "total_asset": 1250147.08,
+      "cash": 300000.0,
+      "position_value": 950147.08,
+      "benchmark": 1.3294,
+      "excess": -0.0793
+    },
+    {
+      "date": "2023-11-07",
+      "equity": 1.2301,
+      "total_asset": 1230134.63,
+      "cash": 300000.0,
+      "position_value": 930134.63,
+      "benchmark": 1.3226,
+      "excess": -0.0925
+    },
+    {
+      "date": "2023-11-08",
+      "equity": 1.195,
+      "total_asset": 1195046.64,
+      "cash": 300000.0,
+      "position_value": 895046.64,
+      "benchmark": 1.3315,
+      "excess": -0.1365
+    },
+    {
+      "date": "2023-11-09",
+      "equity": 1.2103,
+      "total_asset": 1210294.1,
+      "cash": 300000.0,
+      "position_value": 910294.1,
+      "benchmark": 1.3309,
+      "excess": -0.1206
+    },
+    {
+      "date": "2023-11-10",
+      "equity": 1.1993,
+      "total_asset": 1199347.44,
+      "cash": 300000.0,
+      "position_value": 899347.44,
+      "benchmark": 1.3285,
+      "excess": -0.1292
+    },
+    {
+      "date": "2023-11-13",
+      "equity": 1.2085,
+      "total_asset": 1208488.64,
+      "cash": 300000.0,
+      "position_value": 908488.64,
+      "benchmark": 1.3352,
+      "excess": -0.1267
+    },
+    {
+      "date": "2023-11-14",
+      "equity": 1.1944,
+      "total_asset": 1194380.34,
+      "cash": 300000.0,
+      "position_value": 894380.34,
+      "benchmark": 1.3237,
+      "excess": -0.1293
+    },
+    {
+      "date": "2023-11-15",
+      "equity": 1.185,
+      "total_asset": 1185014.02,
+      "cash": 300000.0,
+      "position_value": 885014.02,
+      "benchmark": 1.3504,
+      "excess": -0.1654
+    },
+    {
+      "date": "2023-11-16",
+      "equity": 1.1875,
+      "total_asset": 1187528.45,
+      "cash": 300000.0,
+      "position_value": 887528.45,
+      "benchmark": 1.3521,
+      "excess": -0.1646
+    },
+    {
+      "date": "2023-11-17",
+      "equity": 1.19,
+      "total_asset": 1190018.95,
+      "cash": 300000.0,
+      "position_value": 890018.95,
+      "benchmark": 1.3588,
+      "excess": -0.1688
+    },
+    {
+      "date": "2023-11-20",
+      "equity": 1.1748,
+      "total_asset": 1174784.04,
+      "cash": 300000.0,
+      "position_value": 874784.04,
+      "benchmark": 1.323,
+      "excess": -0.1482
+    },
+    {
+      "date": "2023-11-21",
+      "equity": 1.1852,
+      "total_asset": 1185172.65,
+      "cash": 300000.0,
+      "position_value": 885172.65,
+      "benchmark": 1.3418,
+      "excess": -0.1566
+    },
+    {
+      "date": "2023-11-22",
+      "equity": 1.1912,
+      "total_asset": 1191153.67,
+      "cash": 300000.0,
+      "position_value": 891153.67,
+      "benchmark": 1.3302,
+      "excess": -0.139
+    },
+    {
+      "date": "2023-11-23",
+      "equity": 1.185,
+      "total_asset": 1184980.25,
+      "cash": 300000.0,
+      "position_value": 884980.25,
+      "benchmark": 1.3448,
+      "excess": -0.1598
+    },
+    {
+      "date": "2023-11-24",
+      "equity": 1.1841,
+      "total_asset": 1184056.77,
+      "cash": 300000.0,
+      "position_value": 884056.77,
+      "benchmark": 1.3199,
+      "excess": -0.1358
+    },
+    {
+      "date": "2023-11-27",
+      "equity": 1.1836,
+      "total_asset": 1183634.19,
+      "cash": 300000.0,
+      "position_value": 883634.19,
+      "benchmark": 1.3217,
+      "excess": -0.1381
+    },
+    {
+      "date": "2023-11-28",
+      "equity": 1.1799,
+      "total_asset": 1179868.16,
+      "cash": 300000.0,
+      "position_value": 879868.16,
+      "benchmark": 1.3125,
+      "excess": -0.1326
+    },
+    {
+      "date": "2023-11-29",
+      "equity": 1.173,
+      "total_asset": 1172992.27,
+      "cash": 300000.0,
+      "position_value": 872992.27,
+      "benchmark": 1.3157,
+      "excess": -0.1427
+    },
+    {
+      "date": "2023-11-30",
+      "equity": 1.1784,
+      "total_asset": 1178365.78,
+      "cash": 300000.0,
+      "position_value": 878365.78,
+      "benchmark": 1.3072,
+      "excess": -0.1288
+    },
+    {
+      "date": "2023-12-01",
+      "equity": 1.1617,
+      "total_asset": 1161695.21,
+      "cash": 300000.0,
+      "position_value": 861695.21,
+      "benchmark": 1.3111,
+      "excess": -0.1494
+    },
+    {
+      "date": "2023-12-04",
+      "equity": 1.1525,
+      "total_asset": 1152509.43,
+      "cash": 300000.0,
+      "position_value": 852509.43,
+      "benchmark": 1.3207,
+      "excess": -0.1682
+    },
+    {
+      "date": "2023-12-05",
+      "equity": 1.1523,
+      "total_asset": 1152345.89,
+      "cash": 300000.0,
+      "position_value": 852345.89,
+      "benchmark": 1.3217,
+      "excess": -0.1694
+    },
+    {
+      "date": "2023-12-06",
+      "equity": 1.1541,
+      "total_asset": 1154147.62,
+      "cash": 300000.0,
+      "position_value": 854147.62,
+      "benchmark": 1.2994,
+      "excess": -0.1453
+    },
+    {
+      "date": "2023-12-07",
+      "equity": 1.1742,
+      "total_asset": 1174204.43,
+      "cash": 300000.0,
+      "position_value": 874204.43,
+      "benchmark": 1.2967,
+      "excess": -0.1225
+    },
+    {
+      "date": "2023-12-08",
+      "equity": 1.1492,
+      "total_asset": 1149224.69,
+      "cash": 300000.0,
+      "position_value": 849224.69,
+      "benchmark": 1.2906,
+      "excess": -0.1414
+    },
+    {
+      "date": "2023-12-11",
+      "equity": 1.1335,
+      "total_asset": 1133475.51,
+      "cash": 300000.0,
+      "position_value": 833475.51,
+      "benchmark": 1.3057,
+      "excess": -0.1722
+    },
+    {
+      "date": "2023-12-12",
+      "equity": 1.1295,
+      "total_asset": 1129450.19,
+      "cash": 300000.0,
+      "position_value": 829450.19,
+      "benchmark": 1.3165,
+      "excess": -0.187
+    },
+    {
+      "date": "2023-12-13",
+      "equity": 1.1275,
+      "total_asset": 1127501.98,
+      "cash": 300000.0,
+      "position_value": 827501.98,
+      "benchmark": 1.3392,
+      "excess": -0.2117
+    },
+    {
+      "date": "2023-12-14",
+      "equity": 1.1295,
+      "total_asset": 1129511.42,
+      "cash": 300000.0,
+      "position_value": 829511.42,
+      "benchmark": 1.3453,
+      "excess": -0.2158
+    },
+    {
+      "date": "2023-12-15",
+      "equity": 1.1242,
+      "total_asset": 1124177.9,
+      "cash": 300000.0,
+      "position_value": 824177.9,
+      "benchmark": 1.3581,
+      "excess": -0.2339
+    },
+    {
+      "date": "2023-12-18",
+      "equity": 1.1292,
+      "total_asset": 1129202.08,
+      "cash": 300000.0,
+      "position_value": 829202.08,
+      "benchmark": 1.3611,
+      "excess": -0.2319
+    }
+  ],
+  "equity_metrics": {
+    "total_return": 12.92,
+    "annual_return": 13.03,
+    "volatility": 17.35,
+    "sharpe": 0.64,
+    "max_drawdown": 12.25,
+    "max_drawdown_start": "2023-07-04",
+    "max_drawdown_end": "2023-12-15",
+    "calmar": 1.06,
+    "daily_win_rate": 51.4,
+    "trading_days": 250,
+    "benchmark_return": 36.11,
+    "excess_return": -23.19
+  },
+  "drawdown_curve": [
+    {
+      "date": "2023-01-03",
+      "equity": 0.9992,
+      "peak": 0.9992,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-01-04",
+      "equity": 0.9981,
+      "peak": 0.9992,
+      "drawdown": 0.11,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-05",
+      "equity": 0.9974,
+      "peak": 0.9992,
+      "drawdown": 0.18,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-06",
+      "equity": 0.9825,
+      "peak": 0.9992,
+      "drawdown": 1.67,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-09",
+      "equity": 0.9809,
+      "peak": 0.9992,
+      "drawdown": 1.83,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-10",
+      "equity": 0.9828,
+      "peak": 0.9992,
+      "drawdown": 1.64,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-11",
+      "equity": 0.9902,
+      "peak": 0.9992,
+      "drawdown": 0.9,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-12",
+      "equity": 0.992,
+      "peak": 0.9992,
+      "drawdown": 0.72,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-13",
+      "equity": 0.9953,
+      "peak": 0.9992,
+      "drawdown": 0.39,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-16",
+      "equity": 1.0097,
+      "peak": 1.0097,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-01-17",
+      "equity": 1.016,
+      "peak": 1.016,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-01-18",
+      "equity": 1.0011,
+      "peak": 1.016,
+      "drawdown": 1.47,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-19",
+      "equity": 1.011,
+      "peak": 1.016,
+      "drawdown": 0.49,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-20",
+      "equity": 1.0092,
+      "peak": 1.016,
+      "drawdown": 0.68,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-23",
+      "equity": 1.0182,
+      "peak": 1.0182,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-01-24",
+      "equity": 1.0069,
+      "peak": 1.0182,
+      "drawdown": 1.11,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-25",
+      "equity": 0.9798,
+      "peak": 1.0182,
+      "drawdown": 3.77,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-26",
+      "equity": 0.9743,
+      "peak": 1.0182,
+      "drawdown": 4.31,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-27",
+      "equity": 0.9817,
+      "peak": 1.0182,
+      "drawdown": 3.58,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-30",
+      "equity": 0.9699,
+      "peak": 1.0182,
+      "drawdown": 4.74,
+      "underwater": true
+    },
+    {
+      "date": "2023-01-31",
+      "equity": 0.9697,
+      "peak": 1.0182,
+      "drawdown": 4.76,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-01",
+      "equity": 0.9675,
+      "peak": 1.0182,
+      "drawdown": 4.98,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-02",
+      "equity": 0.9745,
+      "peak": 1.0182,
+      "drawdown": 4.29,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-03",
+      "equity": 0.9787,
+      "peak": 1.0182,
+      "drawdown": 3.87,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-06",
+      "equity": 0.973,
+      "peak": 1.0182,
+      "drawdown": 4.44,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-07",
+      "equity": 0.9665,
+      "peak": 1.0182,
+      "drawdown": 5.08,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-08",
+      "equity": 0.9646,
+      "peak": 1.0182,
+      "drawdown": 5.26,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-09",
+      "equity": 0.9886,
+      "peak": 1.0182,
+      "drawdown": 2.91,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-10",
+      "equity": 0.9972,
+      "peak": 1.0182,
+      "drawdown": 2.06,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-13",
+      "equity": 1.0128,
+      "peak": 1.0182,
+      "drawdown": 0.53,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-14",
+      "equity": 1.0287,
+      "peak": 1.0287,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-02-15",
+      "equity": 1.0284,
+      "peak": 1.0287,
+      "drawdown": 0.03,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-16",
+      "equity": 1.0396,
+      "peak": 1.0396,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-02-17",
+      "equity": 1.0243,
+      "peak": 1.0396,
+      "drawdown": 1.47,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-20",
+      "equity": 1.0216,
+      "peak": 1.0396,
+      "drawdown": 1.73,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-21",
+      "equity": 1.0302,
+      "peak": 1.0396,
+      "drawdown": 0.91,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-22",
+      "equity": 1.0377,
+      "peak": 1.0396,
+      "drawdown": 0.18,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-23",
+      "equity": 1.0317,
+      "peak": 1.0396,
+      "drawdown": 0.76,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-24",
+      "equity": 1.0428,
+      "peak": 1.0428,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-02-27",
+      "equity": 1.0373,
+      "peak": 1.0428,
+      "drawdown": 0.53,
+      "underwater": true
+    },
+    {
+      "date": "2023-02-28",
+      "equity": 1.03,
+      "peak": 1.0428,
+      "drawdown": 1.23,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-01",
+      "equity": 1.0275,
+      "peak": 1.0428,
+      "drawdown": 1.47,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-02",
+      "equity": 1.0221,
+      "peak": 1.0428,
+      "drawdown": 1.99,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-03",
+      "equity": 1.0273,
+      "peak": 1.0428,
+      "drawdown": 1.49,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-06",
+      "equity": 1.0309,
+      "peak": 1.0428,
+      "drawdown": 1.15,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-07",
+      "equity": 1.0334,
+      "peak": 1.0428,
+      "drawdown": 0.9,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-08",
+      "equity": 1.0372,
+      "peak": 1.0428,
+      "drawdown": 0.54,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-09",
+      "equity": 1.0267,
+      "peak": 1.0428,
+      "drawdown": 1.54,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-10",
+      "equity": 1.0408,
+      "peak": 1.0428,
+      "drawdown": 0.19,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-13",
+      "equity": 1.0412,
+      "peak": 1.0428,
+      "drawdown": 0.15,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-14",
+      "equity": 1.0597,
+      "peak": 1.0597,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-03-15",
+      "equity": 1.0618,
+      "peak": 1.0618,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-03-16",
+      "equity": 1.0608,
+      "peak": 1.0618,
+      "drawdown": 0.09,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-17",
+      "equity": 1.0778,
+      "peak": 1.0778,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-03-20",
+      "equity": 1.0509,
+      "peak": 1.0778,
+      "drawdown": 2.5,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-21",
+      "equity": 1.0596,
+      "peak": 1.0778,
+      "drawdown": 1.69,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-22",
+      "equity": 1.0532,
+      "peak": 1.0778,
+      "drawdown": 2.28,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-23",
+      "equity": 1.054,
+      "peak": 1.0778,
+      "drawdown": 2.21,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-24",
+      "equity": 1.0499,
+      "peak": 1.0778,
+      "drawdown": 2.59,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-27",
+      "equity": 1.0659,
+      "peak": 1.0778,
+      "drawdown": 1.1,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-28",
+      "equity": 1.0678,
+      "peak": 1.0778,
+      "drawdown": 0.93,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-29",
+      "equity": 1.0543,
+      "peak": 1.0778,
+      "drawdown": 2.18,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-30",
+      "equity": 1.0651,
+      "peak": 1.0778,
+      "drawdown": 1.18,
+      "underwater": true
+    },
+    {
+      "date": "2023-03-31",
+      "equity": 1.0659,
+      "peak": 1.0778,
+      "drawdown": 1.11,
+      "underwater": true
+    },
+    {
+      "date": "2023-04-03",
+      "equity": 1.0823,
+      "peak": 1.0823,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-04-04",
+      "equity": 1.0678,
+      "peak": 1.0823,
+      "drawdown": 1.34,
+      "underwater": true
+    },
+    {
+      "date": "2023-04-05",
+      "equity": 1.0887,
+      "peak": 1.0887,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-04-06",
+      "equity": 1.0696,
+      "peak": 1.0887,
+      "drawdown": 1.75,
+      "underwater": true
+    },
+    {
+      "date": "2023-04-07",
+      "equity": 1.0881,
+      "peak": 1.0887,
+      "drawdown": 0.06,
+      "underwater": true
+    },
+    {
+      "date": "2023-04-10",
+      "equity": 1.0973,
+      "peak": 1.0973,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-04-11",
+      "equity": 1.0832,
+      "peak": 1.0973,
+      "drawdown": 1.29,
+      "underwater": true
+    },
+    {
+      "date": "2023-04-12",
+      "equity": 1.0862,
+      "peak": 1.0973,
+      "drawdown": 1.01,
+      "underwater": true
+    },
+    {
+      "date": "2023-04-13",
+      "equity": 1.0798,
+      "peak": 1.0973,
+      "drawdown": 1.59,
+      "underwater": true
+    },
+    {
+      "date": "2023-04-14",
+      "equity": 1.0843,
+      "peak": 1.0973,
+      "drawdown": 1.18,
+      "underwater": true
+    },
+    {
+      "date": "2023-04-17",
+      "equity": 1.0882,
+      "peak": 1.0973,
+      "drawdown": 0.83,
+      "underwater": true
+    },
+    {
+      "date": "2023-04-18",
+      "equity": 1.0987,
+      "peak": 1.0987,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-04-19",
+      "equity": 1.0861,
+      "peak": 1.0987,
+      "drawdown": 1.15,
+      "underwater": true
+    },
+    {
+      "date": "2023-04-20",
+      "equity": 1.0923,
+      "peak": 1.0987,
+      "drawdown": 0.58,
+      "underwater": true
+    },
+    {
+      "date": "2023-04-21",
+      "equity": 1.0848,
+      "peak": 1.0987,
+      "drawdown": 1.27,
+      "underwater": true
+    },
+    {
+      "date": "2023-04-24",
+      "equity": 1.0989,
+      "peak": 1.0989,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-04-25",
+      "equity": 1.115,
+      "peak": 1.115,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-04-26",
+      "equity": 1.1233,
+      "peak": 1.1233,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-04-27",
+      "equity": 1.1271,
+      "peak": 1.1271,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-04-28",
+      "equity": 1.1242,
+      "peak": 1.1271,
+      "drawdown": 0.25,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-01",
+      "equity": 1.1265,
+      "peak": 1.1271,
+      "drawdown": 0.05,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-02",
+      "equity": 1.1338,
+      "peak": 1.1338,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-05-03",
+      "equity": 1.113,
+      "peak": 1.1338,
+      "drawdown": 1.83,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-04",
+      "equity": 1.1175,
+      "peak": 1.1338,
+      "drawdown": 1.44,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-05",
+      "equity": 1.129,
+      "peak": 1.1338,
+      "drawdown": 0.42,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-08",
+      "equity": 1.1374,
+      "peak": 1.1374,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-05-09",
+      "equity": 1.1358,
+      "peak": 1.1374,
+      "drawdown": 0.14,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-10",
+      "equity": 1.118,
+      "peak": 1.1374,
+      "drawdown": 1.7,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-11",
+      "equity": 1.1097,
+      "peak": 1.1374,
+      "drawdown": 2.44,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-12",
+      "equity": 1.1168,
+      "peak": 1.1374,
+      "drawdown": 1.81,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-15",
+      "equity": 1.1226,
+      "peak": 1.1374,
+      "drawdown": 1.3,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-16",
+      "equity": 1.1359,
+      "peak": 1.1374,
+      "drawdown": 0.13,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-17",
+      "equity": 1.1368,
+      "peak": 1.1374,
+      "drawdown": 0.05,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-18",
+      "equity": 1.1661,
+      "peak": 1.1661,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-05-19",
+      "equity": 1.1629,
+      "peak": 1.1661,
+      "drawdown": 0.27,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-22",
+      "equity": 1.1625,
+      "peak": 1.1661,
+      "drawdown": 0.3,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-23",
+      "equity": 1.1924,
+      "peak": 1.1924,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-05-24",
+      "equity": 1.1873,
+      "peak": 1.1924,
+      "drawdown": 0.42,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-25",
+      "equity": 1.179,
+      "peak": 1.1924,
+      "drawdown": 1.12,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-26",
+      "equity": 1.1807,
+      "peak": 1.1924,
+      "drawdown": 0.98,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-29",
+      "equity": 1.1538,
+      "peak": 1.1924,
+      "drawdown": 3.23,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-30",
+      "equity": 1.1803,
+      "peak": 1.1924,
+      "drawdown": 1.01,
+      "underwater": true
+    },
+    {
+      "date": "2023-05-31",
+      "equity": 1.1679,
+      "peak": 1.1924,
+      "drawdown": 2.05,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-01",
+      "equity": 1.1726,
+      "peak": 1.1924,
+      "drawdown": 1.66,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-02",
+      "equity": 1.1539,
+      "peak": 1.1924,
+      "drawdown": 3.23,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-05",
+      "equity": 1.1477,
+      "peak": 1.1924,
+      "drawdown": 3.74,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-06",
+      "equity": 1.165,
+      "peak": 1.1924,
+      "drawdown": 2.3,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-07",
+      "equity": 1.1625,
+      "peak": 1.1924,
+      "drawdown": 2.5,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-08",
+      "equity": 1.1794,
+      "peak": 1.1924,
+      "drawdown": 1.09,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-09",
+      "equity": 1.1864,
+      "peak": 1.1924,
+      "drawdown": 0.5,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-12",
+      "equity": 1.2059,
+      "peak": 1.2059,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-06-13",
+      "equity": 1.2357,
+      "peak": 1.2357,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-06-14",
+      "equity": 1.2192,
+      "peak": 1.2357,
+      "drawdown": 1.33,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-15",
+      "equity": 1.2085,
+      "peak": 1.2357,
+      "drawdown": 2.2,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-16",
+      "equity": 1.2174,
+      "peak": 1.2357,
+      "drawdown": 1.49,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-19",
+      "equity": 1.2117,
+      "peak": 1.2357,
+      "drawdown": 1.94,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-20",
+      "equity": 1.1968,
+      "peak": 1.2357,
+      "drawdown": 3.15,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-21",
+      "equity": 1.2063,
+      "peak": 1.2357,
+      "drawdown": 2.38,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-22",
+      "equity": 1.2134,
+      "peak": 1.2357,
+      "drawdown": 1.81,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-23",
+      "equity": 1.2351,
+      "peak": 1.2357,
+      "drawdown": 0.05,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-26",
+      "equity": 1.2305,
+      "peak": 1.2357,
+      "drawdown": 0.43,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-27",
+      "equity": 1.221,
+      "peak": 1.2357,
+      "drawdown": 1.19,
+      "underwater": true
+    },
+    {
+      "date": "2023-06-28",
+      "equity": 1.2357,
+      "peak": 1.2357,
+      "drawdown": 0.01,
+      "underwater": false
+    },
+    {
+      "date": "2023-06-29",
+      "equity": 1.2434,
+      "peak": 1.2434,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-06-30",
+      "equity": 1.2532,
+      "peak": 1.2532,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-07-03",
+      "equity": 1.2585,
+      "peak": 1.2585,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-07-04",
+      "equity": 1.2811,
+      "peak": 1.2811,
+      "drawdown": 0.0,
+      "underwater": false
+    },
+    {
+      "date": "2023-07-05",
+      "equity": 1.2615,
+      "peak": 1.2811,
+      "drawdown": 1.53,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-06",
+      "equity": 1.2738,
+      "peak": 1.2811,
+      "drawdown": 0.57,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-07",
+      "equity": 1.255,
+      "peak": 1.2811,
+      "drawdown": 2.04,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-10",
+      "equity": 1.255,
+      "peak": 1.2811,
+      "drawdown": 2.04,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-11",
+      "equity": 1.2545,
+      "peak": 1.2811,
+      "drawdown": 2.08,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-12",
+      "equity": 1.2379,
+      "peak": 1.2811,
+      "drawdown": 3.38,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-13",
+      "equity": 1.2104,
+      "peak": 1.2811,
+      "drawdown": 5.52,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-14",
+      "equity": 1.2248,
+      "peak": 1.2811,
+      "drawdown": 4.39,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-17",
+      "equity": 1.2367,
+      "peak": 1.2811,
+      "drawdown": 3.47,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-18",
+      "equity": 1.2357,
+      "peak": 1.2811,
+      "drawdown": 3.54,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-19",
+      "equity": 1.2274,
+      "peak": 1.2811,
+      "drawdown": 4.19,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-20",
+      "equity": 1.1982,
+      "peak": 1.2811,
+      "drawdown": 6.47,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-21",
+      "equity": 1.2012,
+      "peak": 1.2811,
+      "drawdown": 6.24,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-24",
+      "equity": 1.1925,
+      "peak": 1.2811,
+      "drawdown": 6.92,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-25",
+      "equity": 1.1983,
+      "peak": 1.2811,
+      "drawdown": 6.46,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-26",
+      "equity": 1.1924,
+      "peak": 1.2811,
+      "drawdown": 6.93,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-27",
+      "equity": 1.1854,
+      "peak": 1.2811,
+      "drawdown": 7.47,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-28",
+      "equity": 1.1846,
+      "peak": 1.2811,
+      "drawdown": 7.54,
+      "underwater": true
+    },
+    {
+      "date": "2023-07-31",
+      "equity": 1.1863,
+      "peak": 1.2811,
+      "drawdown": 7.4,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-01",
+      "equity": 1.2009,
+      "peak": 1.2811,
+      "drawdown": 6.26,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-02",
+      "equity": 1.1922,
+      "peak": 1.2811,
+      "drawdown": 6.94,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-03",
+      "equity": 1.1973,
+      "peak": 1.2811,
+      "drawdown": 6.55,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-04",
+      "equity": 1.2038,
+      "peak": 1.2811,
+      "drawdown": 6.04,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-07",
+      "equity": 1.2124,
+      "peak": 1.2811,
+      "drawdown": 5.37,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-08",
+      "equity": 1.1873,
+      "peak": 1.2811,
+      "drawdown": 7.33,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-09",
+      "equity": 1.1882,
+      "peak": 1.2811,
+      "drawdown": 7.26,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-10",
+      "equity": 1.1953,
+      "peak": 1.2811,
+      "drawdown": 6.7,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-11",
+      "equity": 1.1806,
+      "peak": 1.2811,
+      "drawdown": 7.85,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-14",
+      "equity": 1.1917,
+      "peak": 1.2811,
+      "drawdown": 6.98,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-15",
+      "equity": 1.2167,
+      "peak": 1.2811,
+      "drawdown": 5.03,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-16",
+      "equity": 1.1893,
+      "peak": 1.2811,
+      "drawdown": 7.16,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-17",
+      "equity": 1.2118,
+      "peak": 1.2811,
+      "drawdown": 5.41,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-18",
+      "equity": 1.2161,
+      "peak": 1.2811,
+      "drawdown": 5.07,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-21",
+      "equity": 1.2259,
+      "peak": 1.2811,
+      "drawdown": 4.31,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-22",
+      "equity": 1.2006,
+      "peak": 1.2811,
+      "drawdown": 6.29,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-23",
+      "equity": 1.203,
+      "peak": 1.2811,
+      "drawdown": 6.1,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-24",
+      "equity": 1.1976,
+      "peak": 1.2811,
+      "drawdown": 6.52,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-25",
+      "equity": 1.2027,
+      "peak": 1.2811,
+      "drawdown": 6.12,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-28",
+      "equity": 1.2282,
+      "peak": 1.2811,
+      "drawdown": 4.13,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-29",
+      "equity": 1.2319,
+      "peak": 1.2811,
+      "drawdown": 3.84,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-30",
+      "equity": 1.2232,
+      "peak": 1.2811,
+      "drawdown": 4.52,
+      "underwater": true
+    },
+    {
+      "date": "2023-08-31",
+      "equity": 1.2111,
+      "peak": 1.2811,
+      "drawdown": 5.47,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-01",
+      "equity": 1.2361,
+      "peak": 1.2811,
+      "drawdown": 3.52,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-04",
+      "equity": 1.2281,
+      "peak": 1.2811,
+      "drawdown": 4.14,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-05",
+      "equity": 1.2181,
+      "peak": 1.2811,
+      "drawdown": 4.92,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-06",
+      "equity": 1.2253,
+      "peak": 1.2811,
+      "drawdown": 4.36,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-07",
+      "equity": 1.2237,
+      "peak": 1.2811,
+      "drawdown": 4.48,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-08",
+      "equity": 1.2352,
+      "peak": 1.2811,
+      "drawdown": 3.58,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-11",
+      "equity": 1.2336,
+      "peak": 1.2811,
+      "drawdown": 3.71,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-12",
+      "equity": 1.2329,
+      "peak": 1.2811,
+      "drawdown": 3.77,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-13",
+      "equity": 1.2218,
+      "peak": 1.2811,
+      "drawdown": 4.63,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-14",
+      "equity": 1.2091,
+      "peak": 1.2811,
+      "drawdown": 5.62,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-15",
+      "equity": 1.2218,
+      "peak": 1.2811,
+      "drawdown": 4.63,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-18",
+      "equity": 1.2542,
+      "peak": 1.2811,
+      "drawdown": 2.1,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-19",
+      "equity": 1.2555,
+      "peak": 1.2811,
+      "drawdown": 2.0,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-20",
+      "equity": 1.2554,
+      "peak": 1.2811,
+      "drawdown": 2.01,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-21",
+      "equity": 1.235,
+      "peak": 1.2811,
+      "drawdown": 3.6,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-22",
+      "equity": 1.2295,
+      "peak": 1.2811,
+      "drawdown": 4.03,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-25",
+      "equity": 1.2197,
+      "peak": 1.2811,
+      "drawdown": 4.79,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-26",
+      "equity": 1.2185,
+      "peak": 1.2811,
+      "drawdown": 4.89,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-27",
+      "equity": 1.2079,
+      "peak": 1.2811,
+      "drawdown": 5.71,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-28",
+      "equity": 1.1995,
+      "peak": 1.2811,
+      "drawdown": 6.37,
+      "underwater": true
+    },
+    {
+      "date": "2023-09-29",
+      "equity": 1.2069,
+      "peak": 1.2811,
+      "drawdown": 5.79,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-02",
+      "equity": 1.2269,
+      "peak": 1.2811,
+      "drawdown": 4.23,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-03",
+      "equity": 1.2201,
+      "peak": 1.2811,
+      "drawdown": 4.76,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-04",
+      "equity": 1.2156,
+      "peak": 1.2811,
+      "drawdown": 5.12,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-05",
+      "equity": 1.2329,
+      "peak": 1.2811,
+      "drawdown": 3.76,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-06",
+      "equity": 1.2172,
+      "peak": 1.2811,
+      "drawdown": 4.99,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-09",
+      "equity": 1.2258,
+      "peak": 1.2811,
+      "drawdown": 4.32,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-10",
+      "equity": 1.2178,
+      "peak": 1.2811,
+      "drawdown": 4.95,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-11",
+      "equity": 1.2221,
+      "peak": 1.2811,
+      "drawdown": 4.61,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-12",
+      "equity": 1.2254,
+      "peak": 1.2811,
+      "drawdown": 4.35,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-13",
+      "equity": 1.2182,
+      "peak": 1.2811,
+      "drawdown": 4.91,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-16",
+      "equity": 1.2108,
+      "peak": 1.2811,
+      "drawdown": 5.49,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-17",
+      "equity": 1.2025,
+      "peak": 1.2811,
+      "drawdown": 6.13,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-18",
+      "equity": 1.1989,
+      "peak": 1.2811,
+      "drawdown": 6.41,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-19",
+      "equity": 1.1913,
+      "peak": 1.2811,
+      "drawdown": 7.01,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-20",
+      "equity": 1.1927,
+      "peak": 1.2811,
+      "drawdown": 6.9,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-23",
+      "equity": 1.2088,
+      "peak": 1.2811,
+      "drawdown": 5.65,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-24",
+      "equity": 1.1932,
+      "peak": 1.2811,
+      "drawdown": 6.86,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-25",
+      "equity": 1.2038,
+      "peak": 1.2811,
+      "drawdown": 6.04,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-26",
+      "equity": 1.1945,
+      "peak": 1.2811,
+      "drawdown": 6.76,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-27",
+      "equity": 1.1958,
+      "peak": 1.2811,
+      "drawdown": 6.66,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-30",
+      "equity": 1.1968,
+      "peak": 1.2811,
+      "drawdown": 6.58,
+      "underwater": true
+    },
+    {
+      "date": "2023-10-31",
+      "equity": 1.1747,
+      "peak": 1.2811,
+      "drawdown": 8.31,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-01",
+      "equity": 1.1904,
+      "peak": 1.2811,
+      "drawdown": 7.08,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-02",
+      "equity": 1.2213,
+      "peak": 1.2811,
+      "drawdown": 4.67,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-03",
+      "equity": 1.2224,
+      "peak": 1.2811,
+      "drawdown": 4.59,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-06",
+      "equity": 1.2501,
+      "peak": 1.2811,
+      "drawdown": 2.42,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-07",
+      "equity": 1.2301,
+      "peak": 1.2811,
+      "drawdown": 3.98,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-08",
+      "equity": 1.195,
+      "peak": 1.2811,
+      "drawdown": 6.72,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-09",
+      "equity": 1.2103,
+      "peak": 1.2811,
+      "drawdown": 5.53,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-10",
+      "equity": 1.1993,
+      "peak": 1.2811,
+      "drawdown": 6.38,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-13",
+      "equity": 1.2085,
+      "peak": 1.2811,
+      "drawdown": 5.67,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-14",
+      "equity": 1.1944,
+      "peak": 1.2811,
+      "drawdown": 6.77,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-15",
+      "equity": 1.185,
+      "peak": 1.2811,
+      "drawdown": 7.5,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-16",
+      "equity": 1.1875,
+      "peak": 1.2811,
+      "drawdown": 7.31,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-17",
+      "equity": 1.19,
+      "peak": 1.2811,
+      "drawdown": 7.11,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-20",
+      "equity": 1.1748,
+      "peak": 1.2811,
+      "drawdown": 8.3,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-21",
+      "equity": 1.1852,
+      "peak": 1.2811,
+      "drawdown": 7.49,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-22",
+      "equity": 1.1912,
+      "peak": 1.2811,
+      "drawdown": 7.02,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-23",
+      "equity": 1.185,
+      "peak": 1.2811,
+      "drawdown": 7.5,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-24",
+      "equity": 1.1841,
+      "peak": 1.2811,
+      "drawdown": 7.58,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-27",
+      "equity": 1.1836,
+      "peak": 1.2811,
+      "drawdown": 7.61,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-28",
+      "equity": 1.1799,
+      "peak": 1.2811,
+      "drawdown": 7.9,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-29",
+      "equity": 1.173,
+      "peak": 1.2811,
+      "drawdown": 8.44,
+      "underwater": true
+    },
+    {
+      "date": "2023-11-30",
+      "equity": 1.1784,
+      "peak": 1.2811,
+      "drawdown": 8.02,
+      "underwater": true
+    },
+    {
+      "date": "2023-12-01",
+      "equity": 1.1617,
+      "peak": 1.2811,
+      "drawdown": 9.32,
+      "underwater": true
+    },
+    {
+      "date": "2023-12-04",
+      "equity": 1.1525,
+      "peak": 1.2811,
+      "drawdown": 10.04,
+      "underwater": true
+    },
+    {
+      "date": "2023-12-05",
+      "equity": 1.1523,
+      "peak": 1.2811,
+      "drawdown": 10.05,
+      "underwater": true
+    },
+    {
+      "date": "2023-12-06",
+      "equity": 1.1541,
+      "peak": 1.2811,
+      "drawdown": 9.91,
+      "underwater": true
+    },
+    {
+      "date": "2023-12-07",
+      "equity": 1.1742,
+      "peak": 1.2811,
+      "drawdown": 8.35,
+      "underwater": true
+    },
+    {
+      "date": "2023-12-08",
+      "equity": 1.1492,
+      "peak": 1.2811,
+      "drawdown": 10.3,
+      "underwater": true
+    },
+    {
+      "date": "2023-12-11",
+      "equity": 1.1335,
+      "peak": 1.2811,
+      "drawdown": 11.52,
+      "underwater": true
+    },
+    {
+      "date": "2023-12-12",
+      "equity": 1.1295,
+      "peak": 1.2811,
+      "drawdown": 11.84,
+      "underwater": true
+    },
+    {
+      "date": "2023-12-13",
+      "equity": 1.1275,
+      "peak": 1.2811,
+      "drawdown": 11.99,
+      "underwater": true
+    },
+    {
+      "date": "2023-12-14",
+      "equity": 1.1295,
+      "peak": 1.2811,
+      "drawdown": 11.83,
+      "underwater": true
+    },
+    {
+      "date": "2023-12-15",
+      "equity": 1.1242,
+      "peak": 1.2811,
+      "drawdown": 12.25,
+      "underwater": true
+    },
+    {
+      "date": "2023-12-18",
+      "equity": 1.1292,
+      "peak": 1.2811,
+      "drawdown": 11.86,
+      "underwater": true
+    }
+  ],
+  "drawdown_events": [
+    {
+      "peak_date": "2023-07-04",
+      "peak_value": 1.2811,
+      "trough_date": "2023-12-15",
+      "trough_value": 1.1242,
+      "recovery_date": null,
+      "recovery_value": null,
+      "drawdown_pct": 12.25,
+      "duration_days": 164,
+      "recovery_days": -1,
+      "total_days": 164,
+      "recovered": false
+    },
+    {
+      "peak_date": "2023-01-23",
+      "peak_value": 1.0182,
+      "trough_date": "2023-02-08",
+      "trough_value": 0.9646,
+      "recovery_date": "2023-02-14",
+      "recovery_value": 1.0287,
+      "drawdown_pct": 5.26,
+      "duration_days": 16,
+      "recovery_days": 6,
+      "total_days": 22,
+      "recovered": true
+    },
+    {
+      "peak_date": "2023-05-23",
+      "peak_value": 1.1924,
+      "trough_date": "2023-06-05",
+      "trough_value": 1.1477,
+      "recovery_date": "2023-06-12",
+      "recovery_value": 1.2059,
+      "drawdown_pct": 3.74,
+      "duration_days": 13,
+      "recovery_days": 7,
+      "total_days": 20,
+      "recovered": true
+    },
+    {
+      "peak_date": "2023-06-13",
+      "peak_value": 1.2357,
+      "trough_date": "2023-06-20",
+      "trough_value": 1.1968,
+      "recovery_date": "2023-06-29",
+      "recovery_value": 1.2434,
+      "drawdown_pct": 3.15,
+      "duration_days": 7,
+      "recovery_days": 9,
+      "total_days": 16,
+      "recovered": true
+    },
+    {
+      "peak_date": "2023-03-17",
+      "peak_value": 1.0778,
+      "trough_date": "2023-03-24",
+      "trough_value": 1.0499,
+      "recovery_date": "2023-04-03",
+      "recovery_value": 1.0823,
+      "drawdown_pct": 2.59,
+      "duration_days": 7,
+      "recovery_days": 10,
+      "total_days": 17,
+      "recovered": true
+    }
+  ],
+  "drawdown_stats": {
+    "max_drawdown": 12.25,
+    "avg_drawdown": 2.63,
+    "event_count": 17,
+    "avg_duration": 14.2,
+    "avg_recovery": 5.6,
+    "unrecovered_count": 1,
+    "underwater_days": 221,
+    "underwater_pct": 88.4
+  },
+  "trade_stats": {
+    "total_trades": 25,
+    "win_count": 13,
+    "loss_count": 12,
+    "win_rate": 52.0,
+    "avg_profit": 13.55,
+    "avg_loss": -5.35,
+    "profit_loss_ratio": 2.74,
+    "max_profit": 20.92,
+    "max_loss": -7.74,
+    "avg_hold_days": 20.1,
+    "max_hold_days": 35,
+    "max_consecutive_wins": 3,
+    "max_consecutive_losses": 2,
+    "total_profit": 11294.64,
+    "total_loss": -5675.54
+  },
+  "trades": [
+    {
+      "code": "601153",
+      "buy_date": "2023-01-25",
+      "buy_price": 12.29,
+      "sell_date": "2023-02-16",
+      "sell_price": 12.59,
+      "quantity": 458,
+      "profit_pct": 2.44,
+      "profit_amount": 137.4,
+      "hold_days": 22,
+      "is_win": true,
+      "reason": "止损"
+    },
+    {
+      "code": "000353",
+      "buy_date": "2023-02-02",
+      "buy_price": 9.17,
+      "sell_date": "2023-03-07",
+      "sell_price": 8.46,
+      "quantity": 304,
+      "profit_pct": -7.74,
+      "profit_amount": -215.84,
+      "hold_days": 33,
+      "is_win": false,
+      "reason": "止盈"
+    },
+    {
+      "code": "601323",
+      "buy_date": "2023-02-15",
+      "buy_price": 10.59,
+      "sell_date": "2023-03-17",
+      "sell_price": 12.43,
+      "quantity": 576,
+      "profit_pct": 17.37,
+      "profit_amount": 1059.84,
+      "hold_days": 30,
+      "is_win": true,
+      "reason": "到期"
+    },
+    {
+      "code": "000896",
+      "buy_date": "2023-03-06",
+      "buy_price": 10.85,
+      "sell_date": "2023-03-24",
+      "sell_price": 10.55,
+      "quantity": 938,
+      "profit_pct": -2.76,
+      "profit_amount": -281.4,
+      "hold_days": 18,
+      "is_win": false,
+      "reason": "止损"
+    },
+    {
+      "code": "603484",
+      "buy_date": "2023-03-22",
+      "buy_price": 9.84,
+      "sell_date": "2023-04-07",
+      "sell_price": 10.74,
+      "quantity": 506,
+      "profit_pct": 9.15,
+      "profit_amount": 455.4,
+      "hold_days": 16,
+      "is_win": true,
+      "reason": "止损"
+    },
+    {
+      "code": "603891",
+      "buy_date": "2023-04-03",
+      "buy_price": 18.07,
+      "sell_date": "2023-04-10",
+      "sell_price": 16.93,
+      "quantity": 408,
+      "profit_pct": -6.31,
+      "profit_amount": -465.12,
+      "hold_days": 7,
+      "is_win": false,
+      "reason": "止盈"
+    },
+    {
+      "code": "300170",
+      "buy_date": "2023-04-19",
+      "buy_price": 21.3,
+      "sell_date": "2023-05-18",
+      "sell_price": 23.82,
+      "quantity": 618,
+      "profit_pct": 11.83,
+      "profit_amount": 1557.36,
+      "hold_days": 29,
+      "is_win": true,
+      "reason": "到期"
+    },
+    {
+      "code": "300750",
+      "buy_date": "2023-04-26",
+      "buy_price": 22.44,
+      "sell_date": "2023-05-01",
+      "sell_price": 20.81,
+      "quantity": 948,
+      "profit_pct": -7.26,
+      "profit_amount": -1545.24,
+      "hold_days": 5,
+      "is_win": false,
+      "reason": "趋势破位"
+    },
+    {
+      "code": "603376",
+      "buy_date": "2023-05-12",
+      "buy_price": 10.6,
+      "sell_date": "2023-06-16",
+      "sell_price": 12.08,
+      "quantity": 730,
+      "profit_pct": 13.96,
+      "profit_amount": 1080.4,
+      "hold_days": 35,
+      "is_win": true,
+      "reason": "趋势破位"
+    },
+    {
+      "code": "002950",
+      "buy_date": "2023-05-17",
+      "buy_price": 15.4,
+      "sell_date": "2023-06-09",
+      "sell_price": 14.46,
+      "quantity": 188,
+      "profit_pct": -6.1,
+      "profit_amount": -176.72,
+      "hold_days": 23,
+      "is_win": false,
+      "reason": "到期"
+    },
+    {
+      "code": "600444",
+      "buy_date": "2023-06-01",
+      "buy_price": 12.15,
+      "sell_date": "2023-06-26",
+      "sell_price": 14.1,
+      "quantity": 129,
+      "profit_pct": 16.05,
+      "profit_amount": 251.55,
+      "hold_days": 25,
+      "is_win": true,
+      "reason": "趋势破位"
+    },
+    {
+      "code": "300386",
+      "buy_date": "2023-06-06",
+      "buy_price": 11.09,
+      "sell_date": "2023-06-23",
+      "sell_price": 13.35,
+      "quantity": 710,
+      "profit_pct": 20.38,
+      "profit_amount": 1604.6,
+      "hold_days": 17,
+      "is_win": true,
+      "reason": "到期"
+    },
+    {
+      "code": "603516",
+      "buy_date": "2023-06-19",
+      "buy_price": 8.17,
+      "sell_date": "2023-07-17",
+      "sell_price": 7.57,
+      "quantity": 600,
+      "profit_pct": -7.34,
+      "profit_amount": -360.0,
+      "hold_days": 28,
+      "is_win": false,
+      "reason": "止损"
+    },
+    {
+      "code": "000195",
+      "buy_date": "2023-06-28",
+      "buy_price": 16.09,
+      "sell_date": "2023-08-02",
+      "sell_price": 15.31,
+      "quantity": 401,
+      "profit_pct": -4.85,
+      "profit_amount": -312.78,
+      "hold_days": 35,
+      "is_win": false,
+      "reason": "止损"
+    },
+    {
+      "code": "600666",
+      "buy_date": "2023-06-30",
+      "buy_price": 19.76,
+      "sell_date": "2023-07-21",
+      "sell_price": 22.8,
+      "quantity": 643,
+      "profit_pct": 15.38,
+      "profit_amount": 1954.72,
+      "hold_days": 21,
+      "is_win": true,
+      "reason": "到期"
+    },
+    {
+      "code": "600377",
+      "buy_date": "2023-07-26",
+      "buy_price": 24.94,
+      "sell_date": "2023-08-17",
+      "sell_price": 23.56,
+      "quantity": 413,
+      "profit_pct": -5.53,
+      "profit_amount": -569.94,
+      "hold_days": 22,
+      "is_win": false,
+      "reason": "到期"
+    },
+    {
+      "code": "601880",
+      "buy_date": "2023-08-07",
+      "buy_price": 10.05,
+      "sell_date": "2023-08-21",
+      "sell_price": 10.53,
+      "quantity": 806,
+      "profit_pct": 4.78,
+      "profit_amount": 386.88,
+      "hold_days": 14,
+      "is_win": true,
+      "reason": "止损"
+    },
+    {
+      "code": "601711",
+      "buy_date": "2023-08-16",
+      "buy_price": 11.68,
+      "sell_date": "2023-08-29",
+      "sell_price": 13.86,
+      "quantity": 389,
+      "profit_pct": 18.66,
+      "profit_amount": 848.02,
+      "hold_days": 13,
+      "is_win": true,
+      "reason": "止盈"
+    },
+    {
+      "code": "603646",
+      "buy_date": "2023-08-28",
+      "buy_price": 13.04,
+      "sell_date": "2023-09-08",
+      "sell_price": 14.21,
+      "quantity": 229,
+      "profit_pct": 8.97,
+      "profit_amount": 267.93,
+      "hold_days": 11,
+      "is_win": true,
+      "reason": "到期"
+    },
+    {
+      "code": "002753",
+      "buy_date": "2023-09-04",
+      "buy_price": 24.56,
+      "sell_date": "2023-09-08",
+      "sell_price": 23.79,
+      "quantity": 989,
+      "profit_pct": -3.14,
+      "profit_amount": -761.53,
+      "hold_days": 4,
+      "is_win": false,
+      "reason": "趋势破位"
+    },
+    {
+      "code": "600448",
+      "buy_date": "2023-09-11",
+      "buy_price": 22.84,
+      "sell_date": "2023-09-19",
+      "sell_price": 21.76,
+      "quantity": 288,
+      "profit_pct": -4.73,
+      "profit_amount": -311.04,
+      "hold_days": 8,
+      "is_win": false,
+      "reason": "止盈"
+    },
+    {
+      "code": "600603",
+      "buy_date": "2023-10-16",
+      "buy_price": 24.0,
+      "sell_date": "2023-10-31",
+      "sell_price": 29.02,
+      "quantity": 175,
+      "profit_pct": 20.92,
+      "profit_amount": 878.5,
+      "hold_days": 15,
+      "is_win": true,
+      "reason": "止盈"
+    },
+    {
+      "code": "002221",
+      "buy_date": "2023-10-26",
+      "buy_price": 10.54,
+      "sell_date": "2023-11-06",
+      "sell_price": 9.92,
+      "quantity": 671,
+      "profit_pct": -5.88,
+      "profit_amount": -416.02,
+      "hold_days": 11,
+      "is_win": false,
+      "reason": "趋势破位"
+    },
+    {
+      "code": "600561",
+      "buy_date": "2023-10-27",
+      "buy_price": 18.13,
+      "sell_date": "2023-11-28",
+      "sell_price": 17.66,
+      "quantity": 553,
+      "profit_pct": -2.59,
+      "profit_amount": -259.91,
+      "hold_days": 32,
+      "is_win": false,
+      "reason": "到期"
+    },
+    {
+      "code": "601857",
+      "buy_date": "2023-11-16",
+      "buy_price": 24.83,
+      "sell_date": "2023-12-15",
+      "sell_price": 28.87,
+      "quantity": 201,
+      "profit_pct": 16.27,
+      "profit_amount": 812.04,
+      "hold_days": 29,
+      "is_win": true,
+      "reason": "止损"
+    }
+  ],
+  "hold_period_distribution": {
+    "1-5天": 2,
+    "6-10天": 2,
+    "11-20天": 8,
+    "20天+": 13
+  },
+  "monthly_returns": [
+    {
+      "month": "2023-02",
+      "trades": 1,
+      "total_return": 2.44,
+      "avg_return": 2.44,
+      "win_rate": 100.0
+    },
+    {
+      "month": "2023-03",
+      "trades": 3,
+      "total_return": 6.87,
+      "avg_return": 2.29,
+      "win_rate": 33.3
+    },
+    {
+      "month": "2023-04",
+      "trades": 2,
+      "total_return": 2.84,
+      "avg_return": 1.42,
+      "win_rate": 50.0
+    },
+    {
+      "month": "2023-05",
+      "trades": 2,
+      "total_return": 4.57,
+      "avg_return": 2.28,
+      "win_rate": 50.0
+    },
+    {
+      "month": "2023-06",
+      "trades": 4,
+      "total_return": 44.29,
+      "avg_return": 11.07,
+      "win_rate": 75.0
+    },
+    {
+      "month": "2023-07",
+      "trades": 2,
+      "total_return": 8.04,
+      "avg_return": 4.02,
+      "win_rate": 50.0
+    },
+    {
+      "month": "2023-08",
+      "trades": 4,
+      "total_return": 13.06,
+      "avg_return": 3.26,
+      "win_rate": 50.0
+    },
+    {
+      "month": "2023-09",
+      "trades": 3,
+      "total_return": 1.11,
+      "avg_return": 0.37,
+      "win_rate": 33.3
+    },
+    {
+      "month": "2023-10",
+      "trades": 1,
+      "total_return": 20.92,
+      "avg_return": 20.92,
+      "win_rate": 100.0
+    },
+    {
+      "month": "2023-11",
+      "trades": 2,
+      "total_return": -8.47,
+      "avg_return": -4.24,
+      "win_rate": 0.0
+    },
+    {
+      "month": "2023-12",
+      "trades": 1,
+      "total_return": 16.27,
+      "avg_return": 16.27,
+      "win_rate": 100.0
+    }
+  ],
+  "buy_sell_points": {
+    "buy_points": [
+      {
+        "date": "2023-01-25",
+        "price": 12.29,
+        "code": "601153",
+        "type": "buy"
+      },
+      {
+        "date": "2023-02-02",
+        "price": 9.17,
+        "code": "000353",
+        "type": "buy"
+      },
+      {
+        "date": "2023-02-15",
+        "price": 10.59,
+        "code": "601323",
+        "type": "buy"
+      },
+      {
+        "date": "2023-03-06",
+        "price": 10.85,
+        "code": "000896",
+        "type": "buy"
+      },
+      {
+        "date": "2023-03-22",
+        "price": 9.84,
+        "code": "603484",
+        "type": "buy"
+      },
+      {
+        "date": "2023-04-03",
+        "price": 18.07,
+        "code": "603891",
+        "type": "buy"
+      },
+      {
+        "date": "2023-04-19",
+        "price": 21.3,
+        "code": "300170",
+        "type": "buy"
+      },
+      {
+        "date": "2023-04-26",
+        "price": 22.44,
+        "code": "300750",
+        "type": "buy"
+      },
+      {
+        "date": "2023-05-12",
+        "price": 10.6,
+        "code": "603376",
+        "type": "buy"
+      },
+      {
+        "date": "2023-05-17",
+        "price": 15.4,
+        "code": "002950",
+        "type": "buy"
+      },
+      {
+        "date": "2023-06-01",
+        "price": 12.15,
+        "code": "600444",
+        "type": "buy"
+      },
+      {
+        "date": "2023-06-06",
+        "price": 11.09,
+        "code": "300386",
+        "type": "buy"
+      },
+      {
+        "date": "2023-06-19",
+        "price": 8.17,
+        "code": "603516",
+        "type": "buy"
+      },
+      {
+        "date": "2023-06-28",
+        "price": 16.09,
+        "code": "000195",
+        "type": "buy"
+      },
+      {
+        "date": "2023-06-30",
+        "price": 19.76,
+        "code": "600666",
+        "type": "buy"
+      },
+      {
+        "date": "2023-07-26",
+        "price": 24.94,
+        "code": "600377",
+        "type": "buy"
+      },
+      {
+        "date": "2023-08-07",
+        "price": 10.05,
+        "code": "601880",
+        "type": "buy"
+      },
+      {
+        "date": "2023-08-16",
+        "price": 11.68,
+        "code": "601711",
+        "type": "buy"
+      },
+      {
+        "date": "2023-08-28",
+        "price": 13.04,
+        "code": "603646",
+        "type": "buy"
+      },
+      {
+        "date": "2023-09-04",
+        "price": 24.56,
+        "code": "002753",
+        "type": "buy"
+      },
+      {
+        "date": "2023-09-11",
+        "price": 22.84,
+        "code": "600448",
+        "type": "buy"
+      },
+      {
+        "date": "2023-10-16",
+        "price": 24.0,
+        "code": "600603",
+        "type": "buy"
+      },
+      {
+        "date": "2023-10-26",
+        "price": 10.54,
+        "code": "002221",
+        "type": "buy"
+      },
+      {
+        "date": "2023-10-27",
+        "price": 18.13,
+        "code": "600561",
+        "type": "buy"
+      },
+      {
+        "date": "2023-11-16",
+        "price": 24.83,
+        "code": "601857",
+        "type": "buy"
+      }
+    ],
+    "sell_points": [
+      {
+        "date": "2023-02-16",
+        "price": 12.59,
+        "code": "601153",
+        "type": "sell",
+        "profit_pct": 2.44,
+        "reason": "止损"
+      },
+      {
+        "date": "2023-03-07",
+        "price": 8.46,
+        "code": "000353",
+        "type": "sell",
+        "profit_pct": -7.74,
+        "reason": "止盈"
+      },
+      {
+        "date": "2023-03-17",
+        "price": 12.43,
+        "code": "601323",
+        "type": "sell",
+        "profit_pct": 17.37,
+        "reason": "到期"
+      },
+      {
+        "date": "2023-03-24",
+        "price": 10.55,
+        "code": "000896",
+        "type": "sell",
+        "profit_pct": -2.76,
+        "reason": "止损"
+      },
+      {
+        "date": "2023-04-07",
+        "price": 10.74,
+        "code": "603484",
+        "type": "sell",
+        "profit_pct": 9.15,
+        "reason": "止损"
+      },
+      {
+        "date": "2023-04-10",
+        "price": 16.93,
+        "code": "603891",
+        "type": "sell",
+        "profit_pct": -6.31,
+        "reason": "止盈"
+      },
+      {
+        "date": "2023-05-18",
+        "price": 23.82,
+        "code": "300170",
+        "type": "sell",
+        "profit_pct": 11.83,
+        "reason": "到期"
+      },
+      {
+        "date": "2023-05-01",
+        "price": 20.81,
+        "code": "300750",
+        "type": "sell",
+        "profit_pct": -7.26,
+        "reason": "趋势破位"
+      },
+      {
+        "date": "2023-06-16",
+        "price": 12.08,
+        "code": "603376",
+        "type": "sell",
+        "profit_pct": 13.96,
+        "reason": "趋势破位"
+      },
+      {
+        "date": "2023-06-09",
+        "price": 14.46,
+        "code": "002950",
+        "type": "sell",
+        "profit_pct": -6.1,
+        "reason": "到期"
+      },
+      {
+        "date": "2023-06-26",
+        "price": 14.1,
+        "code": "600444",
+        "type": "sell",
+        "profit_pct": 16.05,
+        "reason": "趋势破位"
+      },
+      {
+        "date": "2023-06-23",
+        "price": 13.35,
+        "code": "300386",
+        "type": "sell",
+        "profit_pct": 20.38,
+        "reason": "到期"
+      },
+      {
+        "date": "2023-07-17",
+        "price": 7.57,
+        "code": "603516",
+        "type": "sell",
+        "profit_pct": -7.34,
+        "reason": "止损"
+      },
+      {
+        "date": "2023-08-02",
+        "price": 15.31,
+        "code": "000195",
+        "type": "sell",
+        "profit_pct": -4.85,
+        "reason": "止损"
+      },
+      {
+        "date": "2023-07-21",
+        "price": 22.8,
+        "code": "600666",
+        "type": "sell",
+        "profit_pct": 15.38,
+        "reason": "到期"
+      },
+      {
+        "date": "2023-08-17",
+        "price": 23.56,
+        "code": "600377",
+        "type": "sell",
+        "profit_pct": -5.53,
+        "reason": "到期"
+      },
+      {
+        "date": "2023-08-21",
+        "price": 10.53,
+        "code": "601880",
+        "type": "sell",
+        "profit_pct": 4.78,
+        "reason": "止损"
+      },
+      {
+        "date": "2023-08-29",
+        "price": 13.86,
+        "code": "601711",
+        "type": "sell",
+        "profit_pct": 18.66,
+        "reason": "止盈"
+      },
+      {
+        "date": "2023-09-08",
+        "price": 14.21,
+        "code": "603646",
+        "type": "sell",
+        "profit_pct": 8.97,
+        "reason": "到期"
+      },
+      {
+        "date": "2023-09-08",
+        "price": 23.79,
+        "code": "002753",
+        "type": "sell",
+        "profit_pct": -3.14,
+        "reason": "趋势破位"
+      },
+      {
+        "date": "2023-09-19",
+        "price": 21.76,
+        "code": "600448",
+        "type": "sell",
+        "profit_pct": -4.73,
+        "reason": "止盈"
+      },
+      {
+        "date": "2023-10-31",
+        "price": 29.02,
+        "code": "600603",
+        "type": "sell",
+        "profit_pct": 20.92,
+        "reason": "止盈"
+      },
+      {
+        "date": "2023-11-06",
+        "price": 9.92,
+        "code": "002221",
+        "type": "sell",
+        "profit_pct": -5.88,
+        "reason": "趋势破位"
+      },
+      {
+        "date": "2023-11-28",
+        "price": 17.66,
+        "code": "600561",
+        "type": "sell",
+        "profit_pct": -2.59,
+        "reason": "到期"
+      },
+      {
+        "date": "2023-12-15",
+        "price": 28.87,
+        "code": "601857",
+        "type": "sell",
+        "profit_pct": 16.27,
+        "reason": "止损"
+      }
+    ]
+  },
+  "top_trades": {
+    "top_wins": [
+      {
+        "code": "600603",
+        "buy_date": "2023-10-16",
+        "buy_price": 24.0,
+        "sell_date": "2023-10-31",
+        "sell_price": 29.02,
+        "quantity": 175,
+        "profit_pct": 20.92,
+        "profit_amount": 878.5,
+        "hold_days": 15,
+        "is_win": true,
+        "reason": "止盈"
+      },
+      {
+        "code": "300386",
+        "buy_date": "2023-06-06",
+        "buy_price": 11.09,
+        "sell_date": "2023-06-23",
+        "sell_price": 13.35,
+        "quantity": 710,
+        "profit_pct": 20.38,
+        "profit_amount": 1604.6,
+        "hold_days": 17,
+        "is_win": true,
+        "reason": "到期"
+      },
+      {
+        "code": "601711",
+        "buy_date": "2023-08-16",
+        "buy_price": 11.68,
+        "sell_date": "2023-08-29",
+        "sell_price": 13.86,
+        "quantity": 389,
+        "profit_pct": 18.66,
+        "profit_amount": 848.02,
+        "hold_days": 13,
+        "is_win": true,
+        "reason": "止盈"
+      },
+      {
+        "code": "601323",
+        "buy_date": "2023-02-15",
+        "buy_price": 10.59,
+        "sell_date": "2023-03-17",
+        "sell_price": 12.43,
+        "quantity": 576,
+        "profit_pct": 17.37,
+        "profit_amount": 1059.84,
+        "hold_days": 30,
+        "is_win": true,
+        "reason": "到期"
+      },
+      {
+        "code": "601857",
+        "buy_date": "2023-11-16",
+        "buy_price": 24.83,
+        "sell_date": "2023-12-15",
+        "sell_price": 28.87,
+        "quantity": 201,
+        "profit_pct": 16.27,
+        "profit_amount": 812.04,
+        "hold_days": 29,
+        "is_win": true,
+        "reason": "止损"
+      }
+    ],
+    "top_losses": [
+      {
+        "code": "000353",
+        "buy_date": "2023-02-02",
+        "buy_price": 9.17,
+        "sell_date": "2023-03-07",
+        "sell_price": 8.46,
+        "quantity": 304,
+        "profit_pct": -7.74,
+        "profit_amount": -215.84,
+        "hold_days": 33,
+        "is_win": false,
+        "reason": "止盈"
+      },
+      {
+        "code": "603516",
+        "buy_date": "2023-06-19",
+        "buy_price": 8.17,
+        "sell_date": "2023-07-17",
+        "sell_price": 7.57,
+        "quantity": 600,
+        "profit_pct": -7.34,
+        "profit_amount": -360.0,
+        "hold_days": 28,
+        "is_win": false,
+        "reason": "止损"
+      },
+      {
+        "code": "300750",
+        "buy_date": "2023-04-26",
+        "buy_price": 22.44,
+        "sell_date": "2023-05-01",
+        "sell_price": 20.81,
+        "quantity": 948,
+        "profit_pct": -7.26,
+        "profit_amount": -1545.24,
+        "hold_days": 5,
+        "is_win": false,
+        "reason": "趋势破位"
+      },
+      {
+        "code": "603891",
+        "buy_date": "2023-04-03",
+        "buy_price": 18.07,
+        "sell_date": "2023-04-10",
+        "sell_price": 16.93,
+        "quantity": 408,
+        "profit_pct": -6.31,
+        "profit_amount": -465.12,
+        "hold_days": 7,
+        "is_win": false,
+        "reason": "止盈"
+      },
+      {
+        "code": "002950",
+        "buy_date": "2023-05-17",
+        "buy_price": 15.4,
+        "sell_date": "2023-06-09",
+        "sell_price": 14.46,
+        "quantity": 188,
+        "profit_pct": -6.1,
+        "profit_amount": -176.72,
+        "hold_days": 23,
+        "is_win": false,
+        "reason": "到期"
+      }
+    ]
+  }
+}

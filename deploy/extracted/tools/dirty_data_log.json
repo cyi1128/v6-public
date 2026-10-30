@@ -1,0 +1,716 @@
+[
+ {
+  "ts": "2026-10-23 09:52:38",
+  "concept": "13.25",
+  "from_stock": "002077",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 09:52:38",
+  "concept": "13.25",
+  "from_stock": "301313",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 10:12:49",
+  "concept": "3.74",
+  "from_stock": "603713",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 10:12:49",
+  "concept": "3.74",
+  "from_stock": "600094",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 10:20:43",
+  "concept": "1.57",
+  "from_stock": "603198",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 10:20:43",
+  "concept": "1.57",
+  "from_stock": "603919",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 10:21:30",
+  "concept": "6.37",
+  "from_stock": "300184",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 10:21:30",
+  "concept": "6.37",
+  "from_stock": "001283",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 10:40:42",
+  "concept": "8.44",
+  "from_stock": "603171",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 10:40:42",
+  "concept": "8.44",
+  "from_stock": "301199",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 11:01:28",
+  "concept": "2.19",
+  "from_stock": "300908",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 11:01:28",
+  "concept": "2.19",
+  "from_stock": "603919",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 11:23:46",
+  "concept": "5.88",
+  "from_stock": "300709",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 11:23:46",
+  "concept": "5.88",
+  "from_stock": "000639",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 11:26:10",
+  "concept": "其他",
+  "from_stock": "600187",
+  "reason": "score=75"
+ },
+ {
+  "ts": "2026-10-23 11:26:10",
+  "concept": "其他",
+  "from_stock": "002026",
+  "reason": "score=75"
+ },
+ {
+  "ts": "2026-10-23 13:01:22",
+  "concept": "15.68",
+  "from_stock": "603677",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 13:01:22",
+  "concept": "15.68",
+  "from_stock": "600785",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 13:10:46",
+  "concept": "2.08",
+  "from_stock": "301699",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 13:10:46",
+  "concept": "2.08",
+  "from_stock": "300466",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 13:25:32",
+  "concept": "4.1",
+  "from_stock": "000972",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 13:25:32",
+  "concept": "4.1",
+  "from_stock": "002343",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 14:10:46",
+  "concept": "7.32",
+  "from_stock": "688207",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 14:10:46",
+  "concept": "7.32",
+  "from_stock": "603859",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 14:21:02",
+  "concept": "13.32",
+  "from_stock": "301533",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 14:21:02",
+  "concept": "13.32",
+  "from_stock": "300503",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 14:25:34",
+  "concept": "13.25",
+  "from_stock": "300369",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 14:25:34",
+  "concept": "13.25",
+  "from_stock": "002077",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 14:31:56",
+  "concept": "10.08",
+  "from_stock": "301660",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 14:31:56",
+  "concept": "10.08",
+  "from_stock": "300709",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 14:40:42",
+  "concept": "-0.43",
+  "from_stock": "301707",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 14:40:42",
+  "concept": "-0.43",
+  "from_stock": "300368",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 14:51:01",
+  "concept": "13.88",
+  "from_stock": "300584",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-23 14:51:01",
+  "concept": "13.88",
+  "from_stock": "301533",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-25 11:49:25",
+  "concept": "13.25",
+  "from_stock": "300369",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-25 11:49:25",
+  "concept": "13.25",
+  "from_stock": "002077",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-25 12:06:30",
+  "concept": "13.25",
+  "from_stock": "300369",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-25 12:06:30",
+  "concept": "13.25",
+  "from_stock": "002077",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-25 14:34:05",
+  "concept": "13.25",
+  "from_stock": "300369",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-25 14:34:05",
+  "concept": "13.25",
+  "from_stock": "002077",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 09:31:00",
+  "concept": "8.74",
+  "from_stock": "001219",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 09:31:00",
+  "concept": "8.74",
+  "from_stock": "688617",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 09:50:39",
+  "concept": "9.17",
+  "from_stock": "601900",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 09:50:39",
+  "concept": "9.17",
+  "from_stock": "301538",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:01:15",
+  "concept": "4.71",
+  "from_stock": "002178",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:01:15",
+  "concept": "4.71",
+  "from_stock": "688575",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:10:56",
+  "concept": "7.92",
+  "from_stock": "688573",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:10:56",
+  "concept": "7.92",
+  "from_stock": "301275",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:20:39",
+  "concept": "8.36",
+  "from_stock": "600476",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:20:39",
+  "concept": "8.36",
+  "from_stock": "300224",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:34:23",
+  "concept": "8.36",
+  "from_stock": "600476",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:34:23",
+  "concept": "8.36",
+  "from_stock": "300860",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:34:23",
+  "concept": "8.36",
+  "from_stock": "300224",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:51:14",
+  "concept": "7.22",
+  "from_stock": "002696",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:51:14",
+  "concept": "7.22",
+  "from_stock": "300494",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:58:02",
+  "concept": "13.0",
+  "from_stock": "688228",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 10:58:02",
+  "concept": "13.0",
+  "from_stock": "301225",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 11:10:41",
+  "concept": "3.08",
+  "from_stock": "000635",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 11:10:41",
+  "concept": "3.08",
+  "from_stock": "300440",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 11:20:40",
+  "concept": "7.3",
+  "from_stock": "300473",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 11:20:40",
+  "concept": "7.3",
+  "from_stock": "605080",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 11:36:30",
+  "concept": "6.21",
+  "from_stock": "300976",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 11:36:30",
+  "concept": "6.21",
+  "from_stock": "603700",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 13:31:03",
+  "concept": "7.48",
+  "from_stock": "002795",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 13:31:03",
+  "concept": "7.48",
+  "from_stock": "002901",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 14:20:41",
+  "concept": "10.53",
+  "from_stock": "603138",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 14:20:41",
+  "concept": "10.53",
+  "from_stock": "300486",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 14:28:47",
+  "concept": "10.24",
+  "from_stock": "300486",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-26 14:28:47",
+  "concept": "10.24",
+  "from_stock": "688389",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-27 09:50:39",
+  "concept": "12.59",
+  "from_stock": "600828",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-27 09:50:39",
+  "concept": "12.59",
+  "from_stock": "603376",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-27 10:01:18",
+  "concept": "6.38",
+  "from_stock": "300839",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-27 10:01:18",
+  "concept": "6.38",
+  "from_stock": "300620",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-27 10:20:40",
+  "concept": "12.19",
+  "from_stock": "300631",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-27 10:20:40",
+  "concept": "12.19",
+  "from_stock": "688232",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-27 11:20:42",
+  "concept": "6.59",
+  "from_stock": "300877",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-27 11:20:42",
+  "concept": "6.59",
+  "from_stock": "688357",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-27 13:01:17",
+  "concept": "17.7",
+  "from_stock": "300504",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-27 13:01:17",
+  "concept": "17.7",
+  "from_stock": "600826",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-27 13:32:01",
+  "concept": "9.45",
+  "from_stock": "301227",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-27 13:32:01",
+  "concept": "9.45",
+  "from_stock": "603489",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 09:31:04",
+  "concept": "1.41",
+  "from_stock": "300613",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 09:31:04",
+  "concept": "1.41",
+  "from_stock": "300042",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 09:40:47",
+  "concept": "9.76",
+  "from_stock": "002249",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 09:40:47",
+  "concept": "9.76",
+  "from_stock": "605287",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 09:50:40",
+  "concept": "4.37",
+  "from_stock": "600351",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 09:50:40",
+  "concept": "4.37",
+  "from_stock": "603836",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 10:01:17",
+  "concept": "6.2",
+  "from_stock": "603081",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 10:01:17",
+  "concept": "6.2",
+  "from_stock": "688536",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 10:20:58",
+  "concept": "4.36",
+  "from_stock": "300953",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 10:20:58",
+  "concept": "4.36",
+  "from_stock": "300115",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 10:37:47",
+  "concept": "0.25",
+  "from_stock": "002915",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 10:37:47",
+  "concept": "0.25",
+  "from_stock": "603728",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 10:50:41",
+  "concept": "8.48",
+  "from_stock": "300258",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 10:50:41",
+  "concept": "8.48",
+  "from_stock": "002511",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 11:20:43",
+  "concept": "11.02",
+  "from_stock": "300969",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 11:20:43",
+  "concept": "11.02",
+  "from_stock": "002472",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 13:41:13",
+  "concept": "12.42",
+  "from_stock": "688818",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 13:41:13",
+  "concept": "12.42",
+  "from_stock": "300806",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 13:52:08",
+  "concept": "2.22",
+  "from_stock": "688315",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 13:52:08",
+  "concept": "2.22",
+  "from_stock": "688061",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 14:25:35",
+  "concept": "13.17",
+  "from_stock": "301359",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 14:25:35",
+  "concept": "13.17",
+  "from_stock": "301052",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 14:31:11",
+  "concept": "6.67",
+  "from_stock": "688698",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-28 14:31:11",
+  "concept": "6.67",
+  "from_stock": "603135",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 09:50:40",
+  "concept": "12.84",
+  "from_stock": "003032",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 09:50:40",
+  "concept": "12.84",
+  "from_stock": "688137",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 10:10:50",
+  "concept": "10.71",
+  "from_stock": "002337",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 10:10:50",
+  "concept": "10.71",
+  "from_stock": "300528",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 10:20:42",
+  "concept": "2.43",
+  "from_stock": "600510",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 10:20:42",
+  "concept": "2.43",
+  "from_stock": "002413",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 10:25:39",
+  "concept": "11.39",
+  "from_stock": "300102",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 10:25:39",
+  "concept": "11.39",
+  "from_stock": "002164",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 10:31:16",
+  "concept": "4.78",
+  "from_stock": "600501",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 10:31:16",
+  "concept": "4.78",
+  "from_stock": "300455",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 10:50:49",
+  "concept": "33.1",
+  "from_stock": "001400",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 10:50:49",
+  "concept": "33.1",
+  "from_stock": "002708",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 11:22:22",
+  "concept": "10.23",
+  "from_stock": "600118",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-10-29 11:22:22",
+  "concept": "10.23",
+  "from_stock": "002164",
+  "reason": "score=10"
+ }
+]

@@ -1,0 +1,12 @@
+﻿import duckdb, sys
+sys.stdout.reconfigure(encoding="utf-8")
+con = duckdb.connect(r"D:\QuantMonitorV6\data\cache\kline_cache.duckdb", read_only=True)
+print("表:", con.execute("SHOW TABLES").fetchall())
+print("总行数:", con.execute("SELECT COUNT(*) FROM kline_cache").fetchone()[0])
+print("股票数:", con.execute("SELECT COUNT(DISTINCT code) FROM kline_cache").fetchone()[0])
+print("日期数:", con.execute("SELECT COUNT(DISTINCT date) FROM kline_cache").fetchone()[0])
+print("日期范围:", con.execute("SELECT MIN(date), MAX(date) FROM kline_cache").fetchone())
+r = con.execute("SELECT code, COUNT(*) c FROM kline_cache GROUP BY code ORDER BY c DESC LIMIT 3").fetchall()
+print("单只最多天数:", r)
+print("有哪些指数类代码:", con.execute("SELECT DISTINCT code FROM kline_cache WHERE code LIKE '000%' OR code LIKE '1%' ORDER BY code LIMIT 12").fetchall())
+con.close()

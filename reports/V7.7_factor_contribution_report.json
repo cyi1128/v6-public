@@ -1,0 +1,463 @@
+{
+  "total_analyzed": 181,
+  "win_rate": 52.48618784530387,
+  "avg_return": 0.741458425582484,
+  "factor_contribution": {
+    "ma5_above_ma20": {
+      "type": "binary",
+      "desc": "MA5在MA20上方",
+      "count_true": 115,
+      "count_false": 66,
+      "win_rate_true": 53.91304347826087,
+      "win_rate_false": 50.0,
+      "win_rate_diff": 3.9130434782608674,
+      "avg_return_true": 0.8830484317496692,
+      "avg_return_false": 0.4947485663517827,
+      "return_diff": 0.38829986539788647,
+      "contribution": 3.898021066119866
+    },
+    "price_above_ma20": {
+      "type": "binary",
+      "desc": "价格在MA20上方",
+      "count_true": 116,
+      "count_false": 65,
+      "win_rate_true": 51.724137931034484,
+      "win_rate_false": 53.84615384615385,
+      "win_rate_diff": -2.1220159151193627,
+      "avg_return_true": 0.7239435583456472,
+      "avg_return_false": 0.772715727112839,
+      "return_diff": -0.048772168767191815,
+      "contribution": -1.3048688013956404
+    },
+    "macd_hist_positive": {
+      "type": "binary",
+      "desc": "MACD柱状图为正",
+      "count_true": 78,
+      "count_false": 103,
+      "win_rate_true": 58.97435897435898,
+      "win_rate_false": 47.57281553398058,
+      "win_rate_diff": 11.401543440378397,
+      "avg_return_true": 1.6209620134675289,
+      "avg_return_false": 0.07542658232973196,
+      "return_diff": 1.545535431137797,
+      "contribution": 13.428448875878182
+    },
+    "macd_golden_cross": {
+      "type": "binary",
+      "desc": "MACD金叉(DIF上穿DEA)",
+      "count_true": 12,
+      "count_false": 169,
+      "win_rate_true": 41.66666666666667,
+      "win_rate_false": 53.25443786982249,
+      "win_rate_diff": -11.587771203155818,
+      "avg_return_true": 0.3283333333333334,
+      "avg_return_false": 0.7707927516593469,
+      "return_diff": -0.4424594183260135,
+      "contribution": -8.006182693207975
+    },
+    "kdj_j_overbought": {
+      "type": "binary",
+      "desc": "KDJ超买(J>80)",
+      "count_true": 21,
+      "count_false": 160,
+      "win_rate_true": 28.57142857142857,
+      "win_rate_false": 55.625,
+      "win_rate_diff": -27.05357142857143,
+      "avg_return_true": -0.8822736418511063,
+      "avg_return_false": 0.9545732594331426,
+      "return_diff": -1.836846901284249,
+      "contribution": -22.71102022070696
+    },
+    "kdj_j_oversold": {
+      "type": "binary",
+      "desc": "KDJ超卖(J<20)",
+      "count_true": 57,
+      "count_false": 124,
+      "win_rate_true": 45.614035087719294,
+      "win_rate_false": 55.64516129032258,
+      "win_rate_diff": -10.031126202603282,
+      "avg_return_true": -0.1643102468536547,
+      "avg_return_false": 1.1578198314603867,
+      "return_diff": -1.3221300783140415,
+      "contribution": -11.626213492871848
+    },
+    "volume_above_ma5": {
+      "type": "binary",
+      "desc": "成交量大于5日均量",
+      "count_true": 84,
+      "count_false": 97,
+      "win_rate_true": 52.38095238095239,
+      "win_rate_false": 52.57731958762887,
+      "win_rate_diff": -0.19636720667648433,
+      "avg_return_true": 0.629859535075482,
+      "avg_return_false": 0.8381007637534964,
+      "return_diff": -0.20824122867801442,
+      "contribution": -1.1393897467283143
+    },
+    "kdj_j_range": {
+      "type": "range",
+      "desc": "KDJ J值区间",
+      "bins": [
+        {
+          "bin": "(-0.001, 20.0]",
+          "count": 32,
+          "win_rate": 43.75,
+          "avg_return": -0.9666314479060266
+        },
+        {
+          "bin": "(20.0, 50.0]",
+          "count": 47,
+          "win_rate": 57.446808510638306,
+          "avg_return": 1.328063700952943
+        },
+        {
+          "bin": "(50.0, 80.0]",
+          "count": 56,
+          "win_rate": 64.28571428571429,
+          "avg_return": 1.7799716363423725
+        },
+        {
+          "bin": "(80.0, 100.0]",
+          "count": 17,
+          "win_rate": 35.294117647058826,
+          "avg_return": -0.4598674399337196
+        }
+      ],
+      "best_bin": {
+        "bin": "(50.0, 80.0]",
+        "count": 56,
+        "win_rate": 64.28571428571429,
+        "avg_return": 1.7799716363423725
+      },
+      "worst_bin": {
+        "bin": "(80.0, 100.0]",
+        "count": 17,
+        "win_rate": 35.294117647058826,
+        "avg_return": -0.4598674399337196
+      }
+    },
+    "volume_ratio_range": {
+      "type": "range",
+      "desc": "量比区间",
+      "bins": [
+        {
+          "bin": "(-0.001, 0.8]",
+          "count": 57,
+          "win_rate": 42.10526315789473,
+          "avg_return": 0.3043589742099857
+        },
+        {
+          "bin": "(0.8, 1.5]",
+          "count": 112,
+          "win_rate": 58.92857142857143,
+          "avg_return": 1.0162992276826825
+        },
+        {
+          "bin": "(1.5, 3.0]",
+          "count": 11,
+          "win_rate": 36.36363636363637,
+          "avg_return": 0.030909090909090896
+        }
+      ],
+      "best_bin": {
+        "bin": "(0.8, 1.5]",
+        "count": 112,
+        "win_rate": 58.92857142857143,
+        "avg_return": 1.0162992276826825
+      },
+      "worst_bin": {
+        "bin": "(1.5, 3.0]",
+        "count": 11,
+        "win_rate": 36.36363636363637,
+        "avg_return": 0.030909090909090896
+      }
+    },
+    "amplitude_range": {
+      "type": "range",
+      "desc": "振幅区间(%)",
+      "bins": [
+        {
+          "bin": "(-0.001, 2.0]",
+          "count": 31,
+          "win_rate": 29.03225806451613,
+          "avg_return": -1.360348317320034
+        },
+        {
+          "bin": "(2.0, 5.0]",
+          "count": 120,
+          "win_rate": 60.0,
+          "avg_return": 1.4464564405612557
+        },
+        {
+          "bin": "(5.0, 8.0]",
+          "count": 16,
+          "win_rate": 43.75,
+          "avg_return": -0.21687500000000004
+        },
+        {
+          "bin": "(8.0, 12.0]",
+          "count": 13,
+          "win_rate": 46.15384615384615,
+          "avg_return": -0.4492307692307692
+        }
+      ],
+      "best_bin": {
+        "bin": "(2.0, 5.0]",
+        "count": 120,
+        "win_rate": 60.0,
+        "avg_return": 1.4464564405612557
+      },
+      "worst_bin": {
+        "bin": "(-0.001, 2.0]",
+        "count": 31,
+        "win_rate": 29.03225806451613,
+        "avg_return": -1.360348317320034
+      }
+    },
+    "ret_5d_range": {
+      "type": "range",
+      "desc": "5日涨幅区间(%)",
+      "bins": [
+        {
+          "bin": "(-10.001, -3.0]",
+          "count": 34,
+          "win_rate": 44.11764705882353,
+          "avg_return": 0.09522922550021024
+        },
+        {
+          "bin": "(-3.0, 0.0]",
+          "count": 45,
+          "win_rate": 60.0,
+          "avg_return": 0.7838069553552033
+        },
+        {
+          "bin": "(0.0, 3.0]",
+          "count": 57,
+          "win_rate": 57.89473684210527,
+          "avg_return": 1.0648848240088344
+        },
+        {
+          "bin": "(3.0, 8.0]",
+          "count": 27,
+          "win_rate": 48.148148148148145,
+          "avg_return": 1.7098679038494358
+        },
+        {
+          "bin": "(8.0, 15.0]",
+          "count": 12,
+          "win_rate": 50.0,
+          "avg_return": 0.12416666666666654
+        }
+      ],
+      "best_bin": {
+        "bin": "(-3.0, 0.0]",
+        "count": 45,
+        "win_rate": 60.0,
+        "avg_return": 0.7838069553552033
+      },
+      "worst_bin": {
+        "bin": "(-10.001, -3.0]",
+        "count": 34,
+        "win_rate": 44.11764705882353,
+        "avg_return": 0.09522922550021024
+      }
+    },
+    "dist_from_60d_high_range": {
+      "type": "range",
+      "desc": "距离60日高点区间(%)",
+      "bins": [
+        {
+          "bin": "(-0.001, 3.0]",
+          "count": 6,
+          "win_rate": 0.0,
+          "avg_return": -4.1033333333333335
+        },
+        {
+          "bin": "(3.0, 5.0]",
+          "count": 12,
+          "win_rate": 50.0,
+          "avg_return": 1.0247027836612306
+        },
+        {
+          "bin": "(5.0, 10.0]",
+          "count": 21,
+          "win_rate": 61.904761904761905,
+          "avg_return": 2.5335682581843417
+        },
+        {
+          "bin": "(10.0, 20.0]",
+          "count": 61,
+          "win_rate": 57.377049180327866,
+          "avg_return": 0.8157593086796289
+        },
+        {
+          "bin": "(20.0, 40.0]",
+          "count": 59,
+          "win_rate": 45.76271186440678,
+          "avg_return": 0.35866593856214096
+        }
+      ],
+      "best_bin": {
+        "bin": "(5.0, 10.0]",
+        "count": 21,
+        "win_rate": 61.904761904761905,
+        "avg_return": 2.5335682581843417
+      },
+      "worst_bin": {
+        "bin": "(-0.001, 3.0]",
+        "count": 6,
+        "win_rate": 0.0,
+        "avg_return": -4.1033333333333335
+      }
+    },
+    "ma_trend_strength": {
+      "type": "range",
+      "desc": "均线趋势强度(MA5/MA20-1)*100",
+      "bins": [
+        {
+          "bin": "(-5.001, 0.0]",
+          "count": 64,
+          "win_rate": 50.0,
+          "avg_return": 0.5598969590502758
+        },
+        {
+          "bin": "(0.0, 2.0]",
+          "count": 27,
+          "win_rate": 59.25925925925925,
+          "avg_return": 1.837777777777778
+        },
+        {
+          "bin": "(2.0, 5.0]",
+          "count": 54,
+          "win_rate": 48.148148148148145,
+          "avg_return": 0.029563441829613474
+        },
+        {
+          "bin": "(5.0, 10.0]",
+          "count": 29,
+          "win_rate": 58.620689655172406,
+          "avg_return": 1.1111773721521667
+        }
+      ],
+      "best_bin": {
+        "bin": "(0.0, 2.0]",
+        "count": 27,
+        "win_rate": 59.25925925925925,
+        "avg_return": 1.837777777777778
+      },
+      "worst_bin": {
+        "bin": "(2.0, 5.0]",
+        "count": 54,
+        "win_rate": 48.148148148148145,
+        "avg_return": 0.029563441829613474
+      }
+    },
+    "score_range": {
+      "type": "range",
+      "desc": "综合评分区间",
+      "bins": [
+        {
+          "bin": "(39.999, 45.0]",
+          "count": 88,
+          "win_rate": 45.45454545454545,
+          "avg_return": 0.4805681818181819
+        },
+        {
+          "bin": "(45.0, 50.0]",
+          "count": 45,
+          "win_rate": 51.11111111111111,
+          "avg_return": 0.4141080803982095
+        },
+        {
+          "bin": "(50.0, 55.0]",
+          "count": 35,
+          "win_rate": 65.71428571428571,
+          "avg_return": 1.207550671306476
+        },
+        {
+          "bin": "(55.0, 60.0]",
+          "count": 5,
+          "win_rate": 40.0,
+          "avg_return": -0.7799052864496879
+        },
+        {
+          "bin": "(60.0, 70.0]",
+          "count": 7,
+          "win_rate": 85.71428571428571,
+          "avg_return": 4.513480621290282
+        }
+      ],
+      "best_bin": {
+        "bin": "(60.0, 70.0]",
+        "count": 7,
+        "win_rate": 85.71428571428571,
+        "avg_return": 4.513480621290282
+      }
+    }
+  },
+  "suggestions": [
+    {
+      "factor": "macd_hist_positive",
+      "desc": "MACD柱状图为正",
+      "type": "positive",
+      "suggestion": "「MACD柱状图为正」时胜率59.0%（比无此条件高11.4%），建议在评分中增加正向权重",
+      "evidence": "样本78笔，平均收益1.62%"
+    },
+    {
+      "factor": "kdj_j_overbought",
+      "desc": "KDJ超买(J>80)",
+      "type": "negative",
+      "suggestion": "「KDJ超买(J>80)」时胜率28.6%（比无此条件低27.1%），建议在评分中增加负向权重或过滤",
+      "evidence": "样本21笔，平均收益-0.88%"
+    },
+    {
+      "factor": "kdj_j_oversold",
+      "desc": "KDJ超卖(J<20)",
+      "type": "negative",
+      "suggestion": "「KDJ超卖(J<20)」时胜率45.6%（比无此条件低10.0%），建议在评分中增加负向权重或过滤",
+      "evidence": "样本57笔，平均收益-0.16%"
+    },
+    {
+      "factor": "kdj_j_range",
+      "desc": "KDJ J值区间",
+      "type": "range",
+      "suggestion": "「KDJ J值区间」在(50.0, 80.0]区间胜率最高64.3%，在(80.0, 100.0]区间最低35.3%，建议分区间设置不同权重",
+      "evidence": "最佳区间56笔，最差区间17笔"
+    },
+    {
+      "factor": "volume_ratio_range",
+      "desc": "量比区间",
+      "type": "range",
+      "suggestion": "「量比区间」在(0.8, 1.5]区间胜率最高58.9%，在(1.5, 3.0]区间最低36.4%，建议分区间设置不同权重",
+      "evidence": "最佳区间112笔，最差区间11笔"
+    },
+    {
+      "factor": "amplitude_range",
+      "desc": "振幅区间(%)",
+      "type": "range",
+      "suggestion": "「振幅区间(%)」在(2.0, 5.0]区间胜率最高60.0%，在(-0.001, 2.0]区间最低29.0%，建议分区间设置不同权重",
+      "evidence": "最佳区间120笔，最差区间31笔"
+    },
+    {
+      "factor": "ret_5d_range",
+      "desc": "5日涨幅区间(%)",
+      "type": "range",
+      "suggestion": "「5日涨幅区间(%)」在(-3.0, 0.0]区间胜率最高60.0%，在(-10.001, -3.0]区间最低44.1%，建议分区间设置不同权重",
+      "evidence": "最佳区间45笔，最差区间34笔"
+    },
+    {
+      "factor": "dist_from_60d_high_range",
+      "desc": "距离60日高点区间(%)",
+      "type": "range",
+      "suggestion": "「距离60日高点区间(%)」在(5.0, 10.0]区间胜率最高61.9%，在(-0.001, 3.0]区间最低0.0%，建议分区间设置不同权重",
+      "evidence": "最佳区间21笔，最差区间6笔"
+    },
+    {
+      "factor": "ma_trend_strength",
+      "desc": "均线趋势强度(MA5/MA20-1)*100",
+      "type": "range",
+      "suggestion": "「均线趋势强度(MA5/MA20-1)*100」在(0.0, 2.0]区间胜率最高59.3%，在(2.0, 5.0]区间最低48.1%，建议分区间设置不同权重",
+      "evidence": "最佳区间27笔，最差区间54笔"
+    }
+  ]
+}
