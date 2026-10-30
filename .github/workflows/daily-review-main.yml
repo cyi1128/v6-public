@@ -31,7 +31,7 @@ on:
     - cron: '0 12 * * 0'           # 周日 20:00 北京 突破回踩·策略评估
 
 concurrency:
-  group: daily-review
+  group: daily-review-${{ github.event.inputs.slot || 'auto' }}
   cancel-in-progress: false
 
 jobs:
