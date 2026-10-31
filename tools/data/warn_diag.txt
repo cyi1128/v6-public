@@ -102,3 +102,8 @@
 12:22:51 [build_warn] 进入；新闻条数=20
 12:22:51 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
 12:24:00 [build_warn] LLM 返回长度=1766
+04:32:56 [反模板命中:pre] 值得关注/建议留意/风险与机会并存/管住手 (try1)
+04:33:46 [反模板命中:pre] 值得关注 (try2)
+04:49:03 [反模板命中:sec2_deep] 管住手 (try1)
+04:58:09 [反模板命中:brief_summary_v3] 资金认可 (try1)
+04:58:56 [反模板命中:brief_summary_v3] 资金认可 (try2)
