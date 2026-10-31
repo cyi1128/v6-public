@@ -9299,10 +9299,6 @@ def holiday_slot(slot):
     today = _bj_now().strftime('%Y-%m-%d')
     win = _bj_now().hour // 2 * 2
     win_key = f'{today}-{win:02d}'
-    # 兼容旧版"每休市日一次"的去重键（升级前已推送过的当天不再补推首份）
-    if news_push_done(today):
-        print(f'SLOT {slot} 休市日新闻汇总今日已推送（旧版每日去重），跳过')
-        return True
     if news_push_done(win_key):
         print(f'SLOT {slot} 休市日新闻汇总 {win_key} 窗口已推送（2小时去重），跳过')
         return True
@@ -9313,7 +9309,7 @@ def holiday_slot(slot):
     ok, msg = push(html, f'📰 休市日新闻汇总 {_bj_now().strftime("%m/%d %H:%M")}')
     if ok:
         mark_news_push_done(win_key)
-        mark_news_push_done(today)  # 兼容旧版每日去重键，避免升级后当日重复触发首份
+        mark_news_push_done(today)  # 兼容旧版每日键（仅记录，不作为 2h 窗口去重依据）
     print(f'SLOT {slot} 休市新闻 PUSH', ok, msg)
     return True
 
