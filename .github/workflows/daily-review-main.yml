@@ -29,16 +29,16 @@ on:
     - cron: '20 7 * * 1-5'         # 15:20 北京 突破回踩·主力成本锚
     - cron: '30 7 * * 1-5'         # 15:30 北京 突破回踩·复盘
     - cron: '0 12 * * 0'           # 周日 20:00 北京 突破回踩·策略评估
-    - cron: '0 */2 * * *'          # 每2小时：休市日发新闻汇总(2小时窗口去重)；交易日非盘面时段自动跳过
+    - cron: '0 */2 * * *'          # 每2小时：休市日(周末/节假日)发新闻汇总(2小时窗口去重)；交易日非盘面时段自动跳过
 
 concurrency:
-  group: daily-review-${{ github.event.inputs.slot || 'auto' }}
+  group: daily-review
   cancel-in-progress: false
 
 jobs:
   push:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: write
     steps:
@@ -84,6 +84,6 @@ jobs:
           git add tools/data/ || true
           if ! git diff --cached --quiet; then
             git commit -m "chore: 状态持久化 $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
-            git pull --rebase --autostash || { git rebase --abort 2>/dev/null; git reset --hard origin/main 2>/dev/null; git add tools/data/ 2>/dev/null; git commit -m "chore: 状态持久化(冲突自愈) $(date -u +%Y-%m-%dT%H:%M:%SZ)" 2>/dev/null || true; }
+            git pull --rebase --autostash || true
             git push || true
           fi
