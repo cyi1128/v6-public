@@ -221,7 +221,7 @@
   "name": "睿智医药",
   "close": 8.89,
   "pct": 11.26,
-  "next_open_pct": null
+  "next_open_pct": -10.011248593925771
  },
  {
   "date": "2026-10-30",
@@ -229,7 +229,7 @@
   "name": "上海石化",
   "close": 3.05,
   "pct": 8.93,
-  "next_open_pct": null
+  "next_open_pct": -6.229508196721312
  },
  {
   "date": "2026-10-30",
@@ -237,7 +237,7 @@
   "name": "西安银行",
   "close": 3.9,
   "pct": 8.64,
-  "next_open_pct": null
+  "next_open_pct": -6.41025641025641
  },
  {
   "date": "2026-10-30",
@@ -245,7 +245,7 @@
   "name": "邵阳液压",
   "close": 36.79,
   "pct": 8.21,
-  "next_open_pct": null
+  "next_open_pct": 2.0657787442239783
  },
  {
   "date": "2026-10-30",
@@ -253,7 +253,7 @@
   "name": "绿联科技",
   "close": 49.48,
   "pct": 10.55,
-  "next_open_pct": null
+  "next_open_pct": -1.1721907841552137
  },
  {
   "date": "2026-10-30",
@@ -261,6 +261,6 @@
   "name": "毕得医药",
   "close": 67.0,
   "pct": 19.01,
-  "next_open_pct": null
+  "next_open_pct": -12.985074626865678
  }
 ]
