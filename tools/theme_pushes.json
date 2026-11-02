@@ -839,5 +839,34 @@
     "pct": 10.0
    }
   ]
+ },
+ {
+  "ts": "2026-11-02 10:18:41",
+  "theme_name": "ST联光相关板块",
+  "card_type": "启动卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "600363",
+    "name": "ST联光",
+    "pct": 8.9
+   },
+   {
+    "code": "605066",
+    "name": "天正电气",
+    "pct": 5.1
+   },
+   {
+    "code": "300622",
+    "name": "博士眼镜",
+    "pct": 4.8
+   },
+   {
+    "code": "600416",
+    "name": "湘电股份",
+    "pct": 4.7
+   }
+  ]
  }
 ]
