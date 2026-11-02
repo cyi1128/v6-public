@@ -134,7 +134,7 @@ INDICES = [('sh000001', '上证'), ('sz399001', '深成'), ('sz399006', '创业'
 GLOBAL = [('usDJI', '道指'), ('usIXIC', '纳指'), ('usINX', '标普')]
 UA = {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://quote.eastmoney.com/'}
 
-RED, GREEN, GOLD, TEAL, GREY = '#e08a83', '#5fc98f', '#ddb46e', '#7ecfe0', '#9aa4b8'
+RED, GREEN, GOLD, TEAL, GREY = '#c2504a', '#3e9863', '#b1852e', '#2f8fa1', '#6b7280'
 
 # ============ 小白友好版新增配置（可调） ============
 AUCTION_TOP_N = 10         # 竞价输出数量（v3：Top10）
@@ -9309,16 +9309,40 @@ def _style_upgrade(html):
     # 未显式写行高的 div 统一补 line-height:1.9（长文透气；已有行高的不动）
     html = re.sub(r'<div style="([^"]*)"',
                   lambda m: m.group(0) if 'line-height:' in m.group(1) else '<div style="%s;line-height:1.9"' % m.group(1), html)
-    html = re.sub(r'#ff6b6b', '#e08a83', html)
-    html = re.sub(r'#ff5c5c', '#e08a83', html)
-    html = re.sub(r'#ff4d4f', '#e08a83', html)
-    html = re.sub(r'#ffd43b', '#ddb46e', html)
-    html = re.sub(r'#ffd666', '#e3c184', html)
-    html = re.sub(r'#ffc53d', '#ddb46e', html)
-    html = re.sub(r'#51cf66', '#5fc98f', html)
-    html = re.sub(r'#52c41a', '#5fc98f', html)
-    html = re.sub(r'#4cd07d', '#5fc98f', html)
-    html = re.sub(r'#66d9e8', '#7ecfe0', html)
+    # —— 浅色主题切换（2026-11-02 二版）：深底→暖白/白、亮色文字→深色、分隔线→浅灰、强调色→浅底可读版 ——
+    html = re.sub(r'#161b26', '#f5f4ef', html)   # 根卡背景 深→暖白
+    html = re.sub(r'#17212b', '#ffffff', html)   # 大卡背景 深→白
+    html = re.sub(r'#1f2635', '#eceff4', html)   # 子卡背景 深→浅灰蓝
+    html = re.sub(r'#1c2230', '#eceff4', html)
+    html = re.sub(r'#232a3a', '#eceff4', html)
+    html = re.sub(r'#1c2830', '#eceff4', html)
+    html = re.sub(r'#2a1f22', '#fce9e7', html)   # 炸板暗红底→浅粉
+    html = re.sub(r'#3a1a1a', '#fbe3e1', html)
+    html = re.sub(r'#33281a', '#fbf1e0', html)
+    html = re.sub(r'#e9ecef', '#1f2329', html)   # 亮白文字→深
+    html = re.sub(r'#e2e8f0', '#1f2329', html)
+    html = re.sub(r'#ced4da', '#41464e', html)
+    html = re.sub(r'#cfd6e4', '#41464e', html)
+    html = re.sub(r'#adb5bd', '#5c636e', html)
+    html = re.sub(r'color:#fff;', 'color:#1a1b1c;', html)
+    html = re.sub(r'color:#ffffff', 'color:#1a1b1c', html)
+    html = re.sub(r'#444(?![0-9a-f])', '#d8dce2', html)  # 分隔线 深灰→浅灰
+    html = re.sub(r'#3a3a3a', '#d8dce2', html)
+    # 强调色 深底柔和版→浅底可读版
+    html = re.sub(r'#e08a83', '#c2504a', html)
+    html = re.sub(r'#ff6b6b', '#c2504a', html)
+    html = re.sub(r'#ff5c5c', '#c2504a', html)
+    html = re.sub(r'#ff4d4f', '#c2504a', html)
+    html = re.sub(r'#ddb46e', '#b1852e', html)
+    html = re.sub(r'#ffd43b', '#b1852e', html)
+    html = re.sub(r'#ffd666', '#c29a45', html)
+    html = re.sub(r'#ffc53d', '#b1852e', html)
+    html = re.sub(r'#5fc98f', '#3e9863', html)
+    html = re.sub(r'#51cf66', '#3e9863', html)
+    html = re.sub(r'#52c41a', '#3e9863', html)
+    html = re.sub(r'#4cd07d', '#3e9863', html)
+    html = re.sub(r'#7ecfe0', '#2f8fa1', html)
+    html = re.sub(r'#66d9e8', '#2f8fa1', html)
     return html
 
 
