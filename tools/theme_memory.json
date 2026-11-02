@@ -1,4 +1,102 @@
 {
+ "2026-11-02": {
+  "广告营销": {
+   "leaders": [
+    "海看股份",
+    "天地在线",
+    "遥望科技"
+   ],
+   "reason": "9只涨停·龙头海看股份",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 110139,
+   "divergence": false
+  },
+  "出版": {
+   "leaders": [
+    "龙版传媒",
+    "城市传媒",
+    "山东出版"
+   ],
+   "reason": "8只涨停·龙头龙版传媒",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 94430,
+   "divergence": false
+  },
+  "游戏Ⅱ": {
+   "leaders": [
+    "文投控股",
+    "大晟文化",
+    "电魂网络"
+   ],
+   "reason": "7只涨停·龙头文投控股",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 93028,
+   "divergence": false
+  },
+  "影视院线": {
+   "leaders": [
+    "上海电影",
+    "欢瑞世纪",
+    "华智数媒"
+   ],
+   "reason": "7只涨停·龙头上海电影",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 104013,
+   "divergence": false
+  },
+  "软件开发": {
+   "leaders": [
+    "恒生电子",
+    "银之杰",
+    "丝路视觉"
+   ],
+   "reason": "6只涨停·龙头恒生电子",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 100655,
+   "divergence": false
+  },
+  "IT服务Ⅱ": {
+   "leaders": [
+    "城地香江",
+    "税友股份",
+    "华是科技"
+   ],
+   "reason": "6只涨停·龙头城地香江",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 110700,
+   "divergence": false
+  },
+  "数字媒体": {
+   "leaders": [
+    "生 意 宝",
+    "掌阅科技",
+    "视觉中国"
+   ],
+   "reason": "5只涨停·龙头生 意 宝",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 104142,
+   "divergence": false
+  },
+  "汽车零部": {
+   "leaders": [
+    "渤海汽车",
+    "青岛双星",
+    "襄阳轴承"
+   ],
+   "reason": "4只涨停·龙头渤海汽车",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 93003,
+   "divergence": false
+  }
+ },
  "2026-10-31": {
   "白酒Ⅱ": {
    "leaders": [
