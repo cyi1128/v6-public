@@ -160,3 +160,5 @@
 09:57:35 [反模板命中:news2h] 管住手 (try2)
 10:13:23 [反模板命中:brief_summary_v3] 管住手 (try1)
 10:14:26 [反模板命中:brief_summary_v3] 管住手 (try2)
+10:19:17 [反模板命中:board_watch] 管住手 (try1)
+10:20:39 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在是上午 10:30，盘面数据基于实时 Level-2 成交明细，因赛集团封单量在 10:25 达到峰值后稳定，川网传媒换手率 1.
