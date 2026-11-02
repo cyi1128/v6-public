@@ -15,7 +15,10 @@
       "entry_zone": "4.89~5.09",
       "stop_loss": 4.84,
       "entry_mid": 4.99,
-      "performance": null
+      "performance": {
+        "bars_after": 0,
+        "note": "推送日后暂无K线（停牌或未到交易日）"
+      }
     },
     {
       "code": "002929",
@@ -30,7 +33,10 @@
       "entry_zone": "52.9~55.06",
       "stop_loss": 52.36,
       "entry_mid": 53.98,
-      "performance": null
+      "performance": {
+        "bars_after": 0,
+        "note": "推送日后暂无K线（停牌或未到交易日）"
+      }
     },
     {
       "code": "001266",
@@ -45,7 +51,10 @@
       "entry_zone": "34.74~36.16",
       "stop_loss": 34.39,
       "entry_mid": 35.45,
-      "performance": null
+      "performance": {
+        "bars_after": 0,
+        "note": "推送日后暂无K线（停牌或未到交易日）"
+      }
     }
   ]
 }
