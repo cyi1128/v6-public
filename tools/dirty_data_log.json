@@ -808,5 +808,17 @@
   "concept": "5.39",
   "from_stock": "603014",
   "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-02 09:40:41",
+  "concept": "5.89",
+  "from_stock": "600299",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-02 09:40:41",
+  "concept": "5.89",
+  "from_stock": "603014",
+  "reason": "score=10"
  }
 ]
