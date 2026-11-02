@@ -1,0 +1,51 @@
+{
+  "trade_date": "2026-11-02",
+  "updated_at": "2026-11-02 07:23:51",
+  "candidates": [
+    {
+      "code": "300182",
+      "name": "捷成股份",
+      "score_total": 68,
+      "position_suggest": "中仓（建议15-30%）",
+      "anchor_price": 4.99,
+      "anchor_type": "前高",
+      "retest_date": "2026-08-27",
+      "sector_count": 7,
+      "push_date": "2026-11-02",
+      "entry_zone": "4.89~5.09",
+      "stop_loss": 4.84,
+      "entry_mid": 4.99,
+      "performance": null
+    },
+    {
+      "code": "002929",
+      "name": "润建股份",
+      "score_total": 66,
+      "position_suggest": "中仓（建议15-30%）",
+      "anchor_price": 53.98,
+      "anchor_type": "前高",
+      "retest_date": "2026-10-29",
+      "sector_count": 1,
+      "push_date": "2026-11-02",
+      "entry_zone": "52.9~55.06",
+      "stop_loss": 52.36,
+      "entry_mid": 53.98,
+      "performance": null
+    },
+    {
+      "code": "001266",
+      "name": "宏英智能",
+      "score_total": 62,
+      "position_suggest": "轻仓（建议5-15%）",
+      "anchor_price": 35.45,
+      "anchor_type": "前高",
+      "retest_date": "2026-09-28",
+      "sector_count": 3,
+      "push_date": "2026-11-02",
+      "entry_zone": "34.74~36.16",
+      "stop_loss": 34.39,
+      "entry_mid": 35.45,
+      "performance": null
+    }
+  ]
+}
