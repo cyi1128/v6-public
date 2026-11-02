@@ -904,5 +904,23 @@
   "concept": "其他",
   "from_stock": "605066",
   "reason": "score=75"
+ },
+ {
+  "ts": "2026-11-02 10:43:26",
+  "concept": "-2.18",
+  "from_stock": "605189",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-02 10:43:26",
+  "concept": "-2.18",
+  "from_stock": "603171",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-02 10:43:26",
+  "concept": "-2.18",
+  "from_stock": "600619",
+  "reason": "score=10"
  }
 ]
