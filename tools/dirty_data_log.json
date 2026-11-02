@@ -886,5 +886,23 @@
   "concept": "2.36",
   "from_stock": "300223",
   "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-02 10:31:15",
+  "concept": "其他",
+  "from_stock": "600793",
+  "reason": "score=75"
+ },
+ {
+  "ts": "2026-11-02 10:31:15",
+  "concept": "其他",
+  "from_stock": "600800",
+  "reason": "score=75"
+ },
+ {
+  "ts": "2026-11-02 10:31:15",
+  "concept": "其他",
+  "from_stock": "605066",
+  "reason": "score=75"
  }
 ]
