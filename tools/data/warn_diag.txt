@@ -133,3 +133,5 @@
 05:56:01 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 当前交易时段内，数据源基于输入 JSON 实时快照。思美传媒 002712 涨幅 10.0%，换手 2.1%；国脉文化 600640 
 06:16:14 [反模板命中:board_watch] 资金认可 (try1)
 06:17:37 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 数据采集时间未知，基于提供的盘中快照（涨幅、换手、角色标签）。川网传媒（300987）涨幅 12.1%，换手 1.7；宇信科技（300
+06:25:48 [反模板命中:board_watch] 建议谨慎 (try1)
+06:26:44 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 数据采集于盘后快照，非实时流。依据输入 JSON 数据：华智数媒（300426）涨幅 20.0%，状态栏 lu 为 true（涨停），
