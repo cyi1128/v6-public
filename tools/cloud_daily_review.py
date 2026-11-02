@@ -134,7 +134,7 @@ INDICES = [('sh000001', '上证'), ('sz399001', '深成'), ('sz399006', '创业'
 GLOBAL = [('usDJI', '道指'), ('usIXIC', '纳指'), ('usINX', '标普')]
 UA = {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://quote.eastmoney.com/'}
 
-RED, GREEN, GOLD, TEAL, GREY = '#ff6b6b', '#51cf66', '#ffd43b', '#66d9e8', '#9aa4b8'
+RED, GREEN, GOLD, TEAL, GREY = '#e08a83', '#5fc98f', '#ddb46e', '#7ecfe0', '#9aa4b8'
 
 # ============ 小白友好版新增配置（可调） ============
 AUCTION_TOP_N = 10         # 竞价输出数量（v3：Top10）
@@ -9279,6 +9279,49 @@ def _in_silence(bj=None):
 KEY_TITLES = ('盘前', '竞价', '午间', '收盘', '启动预警', '外盘窗口')
 
 
+def _style_upgrade(html):
+    """2026-11-02 视觉改版：正文字号升到 14-15px、行高拉大、卡片间距/内边距放宽、硬编码亮色降饱和。
+    全部正则为字面子串替换（带边界防误伤），作用于所有推送卡，不改任何构建逻辑。"""
+    html = re.sub(r'font-size:11px', 'font-size:13px', html)
+    html = re.sub(r'font-size:12px', 'font-size:14px', html)
+    html = re.sub(r'font-size:13px', 'font-size:15px', html)
+    html = re.sub(r'font-size:14px', 'font-size:15px', html)
+    html = re.sub(r'line-height:1\.6(?![0-9])', 'line-height:1.9', html)
+    html = re.sub(r'line-height:1\.65(?![0-9])', 'line-height:1.9', html)
+    html = re.sub(r'line-height:1\.7(?![0-9])', 'line-height:2.0', html)
+    html = re.sub(r'line-height:1\.75(?![0-9])', 'line-height:2.0', html)
+    html = re.sub(r'margin-top:2px', 'margin-top:5px', html)
+    html = re.sub(r'margin-top:3px', 'margin-top:6px', html)
+    html = re.sub(r'margin-top:4px', 'margin-top:7px', html)
+    html = re.sub(r'margin:5px 0', 'margin:8px 0', html)
+    html = re.sub(r'margin:6px 0', 'margin:9px 0', html)
+    html = re.sub(r'margin:7px 0', 'margin:10px 0', html)
+    html = re.sub(r'margin:8px 0', 'margin:11px 0', html)
+    html = re.sub(r'margin:10px 0', 'margin:13px 0', html)
+    html = re.sub(r'margin:12px 0', 'margin:15px 0', html)
+    html = re.sub(r'padding:8px 10px', 'padding:11px 13px', html)
+    html = re.sub(r'padding:8px 11px', 'padding:11px 14px', html)
+    html = re.sub(r'padding:8px 12px', 'padding:11px 15px', html)
+    html = re.sub(r'padding:9px 11px', 'padding:12px 14px', html)
+    html = re.sub(r'padding:10px 12px', 'padding:13px 15px', html)
+    html = re.sub(r'padding:12px 14px', 'padding:15px 17px', html)
+    html = re.sub(r'padding:14px', 'padding:17px', html)
+    # 未显式写行高的 div 统一补 line-height:1.9（长文透气；已有行高的不动）
+    html = re.sub(r'<div style="([^"]*)"',
+                  lambda m: m.group(0) if 'line-height:' in m.group(1) else '<div style="%s;line-height:1.9"' % m.group(1), html)
+    html = re.sub(r'#ff6b6b', '#e08a83', html)
+    html = re.sub(r'#ff5c5c', '#e08a83', html)
+    html = re.sub(r'#ff4d4f', '#e08a83', html)
+    html = re.sub(r'#ffd43b', '#ddb46e', html)
+    html = re.sub(r'#ffd666', '#e3c184', html)
+    html = re.sub(r'#ffc53d', '#ddb46e', html)
+    html = re.sub(r'#51cf66', '#5fc98f', html)
+    html = re.sub(r'#52c41a', '#5fc98f', html)
+    html = re.sub(r'#4cd07d', '#5fc98f', html)
+    html = re.sub(r'#66d9e8', '#7ecfe0', html)
+    return html
+
+
 def push(html, title):
     if DRY_RUN:
         print(f'[DRY-RUN] 模拟推送 title={title} 内容长={len(html)}B（未发真实请求）')
@@ -9309,6 +9352,7 @@ def push(html, title):
             print(f'[push] 备份通道 {ch} 失败（不阻断主通道） err={e}')
     # PushPlus 内容上限 20000 字（实测超限返回 999 服务端验证错误：发送内容过大）
     MAX_PUSH_LEN = 19000
+    html = _style_upgrade(html)
     if len(html) > MAX_PUSH_LEN:
         _cut = MAX_PUSH_LEN
         _tag = html.rfind('</div>', 0, MAX_PUSH_LEN)
