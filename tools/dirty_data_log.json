@@ -844,5 +844,29 @@
   "concept": "其他",
   "from_stock": "002500",
   "reason": "score=75"
+ },
+ {
+  "ts": "2026-11-02 10:12:56",
+  "concept": "其他",
+  "from_stock": "600363",
+  "reason": "score=75"
+ },
+ {
+  "ts": "2026-11-02 10:12:56",
+  "concept": "其他",
+  "from_stock": "605066",
+  "reason": "score=75"
+ },
+ {
+  "ts": "2026-11-02 10:12:56",
+  "concept": "其他",
+  "from_stock": "300622",
+  "reason": "score=75"
+ },
+ {
+  "ts": "2026-11-02 10:12:56",
+  "concept": "其他",
+  "from_stock": "600416",
+  "reason": "score=75"
  }
 ]
