@@ -9279,9 +9279,79 @@ def _in_silence(bj=None):
 KEY_TITLES = ('盘前', '竞价', '午间', '收盘', '启动预警', '外盘窗口')
 
 
-def _style_upgrade(html):
-    """2026-11-02 视觉改版：正文字号升到 14-15px、行高拉大、卡片间距/内边距放宽、硬编码亮色降饱和。
+# —— 推送卡主题（2026-11-02 多版可选）——
+# A 曜石黑（纯净深黑，柔和可读）| B 蓝黑科技（深蓝黑+科技亮色）
+# C 深邃暖黑（深底暖调，护眼） | D 极夜护眼（蓝紫深底低对比） | E 浅色（暖白参照）
+PUSH_THEME = 'C'  # 用户选定：C 深邃暖黑（2026-11-02）
+_THEMES = {
+    'A': {
+        '#161b26': '#0f1218', '#17212b': '#151a24', '#1f2635': '#1b212d', '#1c2230': '#1b212d',
+        '#232a3a': '#1b212d', '#1c2830': '#1b212d', '#2a1f22': '#291a1c', '#3a1a1a': '#311b1d',
+        '#33281a': '#2b2213',
+        '#e9ecef': '#e8eaf0', '#e2e8f0': '#e8eaf0', '#ced4da': '#c3c9d4', '#cfd6e4': '#c3c9d4',
+        '#adb5bd': '#8b93a3', 'color:#ffffff': 'color:#f2f4f8', 'color:#fff;': 'color:#f2f4f8;',
+        '#444': '#333a46', '#3a3a3a': '#333a46',
+        '#c2504a': '#e2706a', '#ff6b6b': '#e2706a', '#ff5c5c': '#e2706a', '#ff4d4f': '#e2706a',
+        '#b1852e': '#d4a95c', '#ffd43b': '#d4a95c', '#ffd666': '#dcb26a', '#ffc53d': '#d4a95c',
+        '#3e9863': '#5ec98f', '#51cf66': '#5ec98f', '#52c41a': '#5ec98f', '#4cd07d': '#5ec98f',
+        '#2f8fa1': '#6cc7d8', '#66d9e8': '#6cc7d8', '#6b7280': '#8b93a3',
+    },
+    'B': {
+        '#161b26': '#101828', '#17212b': '#16202f', '#1f2635': '#1a2637', '#1c2230': '#1a2637',
+        '#232a3a': '#1a2637', '#1c2830': '#1a2637', '#2a1f22': '#2a1d22', '#3a1a1a': '#311e24',
+        '#33281a': '#2b2218',
+        '#e9ecef': '#dfe5ef', '#e2e8f0': '#dfe5ef', '#ced4da': '#bcc5d2', '#cfd6e4': '#bcc5d2',
+        '#adb5bd': '#8490a3', 'color:#ffffff': 'color:#edf1f8', 'color:#fff;': 'color:#edf1f8;',
+        '#444': '#2e3a4c', '#3a3a3a': '#2e3a4c',
+        '#c2504a': '#ef7a6e', '#ff6b6b': '#ef7a6e', '#ff5c5c': '#ef7a6e', '#ff4d4f': '#ef7a6e',
+        '#b1852e': '#e0b15e', '#ffd43b': '#e0b15e', '#ffd666': '#e8bd6c', '#ffc53d': '#e0b15e',
+        '#3e9863': '#5fd09a', '#51cf66': '#5fd09a', '#52c41a': '#5fd09a', '#4cd07d': '#5fd09a',
+        '#2f8fa1': '#5fc2d6', '#66d9e8': '#5fc2d6', '#6b7280': '#8490a3',
+    },
+    'C': {
+        '#161b26': '#141210', '#17212b': '#1a1815', '#1f2635': '#211f1b', '#1c2230': '#211f1b',
+        '#232a3a': '#211f1b', '#1c2830': '#211f1b', '#2a1f22': '#2a1d1a', '#3a1a1a': '#31201d',
+        '#33281a': '#2b2116',
+        '#e9ecef': '#eae6df', '#e2e8f0': '#eae6df', '#ced4da': '#c9c4bb', '#cfd6e4': '#c9c4bb',
+        '#adb5bd': '#97918a', 'color:#ffffff': 'color:#f4f0ea', 'color:#fff;': 'color:#f4f0ea;',
+        '#444': '#3a352f', '#3a3a3a': '#3a352f',
+        '#c2504a': '#e2776e', '#ff6b6b': '#e2776e', '#ff5c5c': '#e2776e', '#ff4d4f': '#e2776e',
+        '#b1852e': '#d8ad63', '#ffd43b': '#d8ad63', '#ffd666': '#e0b96f', '#ffc53d': '#d8ad63',
+        '#3e9863': '#62bf8a', '#51cf66': '#62bf8a', '#52c41a': '#62bf8a', '#4cd07d': '#62bf8a',
+        '#2f8fa1': '#63b8c8', '#66d9e8': '#63b8c8', '#6b7280': '#97918a',
+    },
+    'D': {
+        '#161b26': '#131722', '#17212b': '#181d2a', '#1f2635': '#1d2330', '#1c2230': '#1d2330',
+        '#232a3a': '#1d2330', '#1c2830': '#1d2330', '#2a1f22': '#2a1e24', '#3a1a1a': '#302028',
+        '#33281a': '#2a2218',
+        '#e9ecef': '#e2e4ea', '#e2e8f0': '#e2e4ea', '#ced4da': '#b9c0cc', '#cfd6e4': '#b9c0cc',
+        '#adb5bd': '#828a99', 'color:#ffffff': 'color:#eef0f5', 'color:#fff;': 'color:#eef0f5;',
+        '#444': '#313846', '#3a3a3a': '#313846',
+        '#c2504a': '#dd7a72', '#ff6b6b': '#dd7a72', '#ff5c5c': '#dd7a72', '#ff4d4f': '#dd7a72',
+        '#b1852e': '#cfa45a', '#ffd43b': '#cfa45a', '#ffd666': '#d8b066', '#ffc53d': '#cfa45a',
+        '#3e9863': '#63c08a', '#51cf66': '#63c08a', '#52c41a': '#63c08a', '#4cd07d': '#63c08a',
+        '#2f8fa1': '#6bbfcf', '#66d9e8': '#6bbfcf', '#6b7280': '#828a99',
+    },
+    'E': {  # 浅色参照（二版）
+        '#161b26': '#f5f4ef', '#17212b': '#ffffff', '#1f2635': '#eceff4', '#1c2230': '#eceff4',
+        '#232a3a': '#eceff4', '#1c2830': '#eceff4', '#2a1f22': '#fce9e7', '#3a1a1a': '#fbe3e1',
+        '#33281a': '#fbf1e0',
+        '#e9ecef': '#1f2329', '#e2e8f0': '#1f2329', '#ced4da': '#41464e', '#cfd6e4': '#41464e',
+        '#adb5bd': '#5c636e', 'color:#ffffff': 'color:#1a1b1c', 'color:#fff;': 'color:#1a1b1c;',
+        '#444': '#d8dce2', '#3a3a3a': '#d8dce2',
+        '#c2504a': '#c2504a', '#ff6b6b': '#c2504a', '#ff5c5c': '#c2504a', '#ff4d4f': '#c2504a',
+        '#b1852e': '#b1852e', '#ffd43b': '#b1852e', '#ffd666': '#c29a45', '#ffc53d': '#b1852e',
+        '#3e9863': '#3e9863', '#51cf66': '#3e9863', '#52c41a': '#3e9863', '#4cd07d': '#3e9863',
+        '#2f8fa1': '#2f8fa1', '#66d9e8': '#2f8fa1', '#6b7280': '#6b7280',
+    },
+}
+
+
+def _style_upgrade(html, theme=None):
+    """2026-11-02 视觉改版：正文字号升到 14-15px、行高拉大、卡片间距/内边距放宽。
+    主题配色由 _THEMES 提供（A曜石黑/B蓝黑科技/C深邃暖黑/D极夜护眼/E浅色）。
     全部正则为字面子串替换（带边界防误伤），作用于所有推送卡，不改任何构建逻辑。"""
+    theme = theme or PUSH_THEME
     html = re.sub(r'font-size:11px', 'font-size:13px', html)
     html = re.sub(r'font-size:12px', 'font-size:14px', html)
     html = re.sub(r'font-size:13px', 'font-size:15px', html)
@@ -9309,40 +9379,13 @@ def _style_upgrade(html):
     # 未显式写行高的 div 统一补 line-height:1.9（长文透气；已有行高的不动）
     html = re.sub(r'<div style="([^"]*)"',
                   lambda m: m.group(0) if 'line-height:' in m.group(1) else '<div style="%s;line-height:1.9"' % m.group(1), html)
-    # —— 浅色主题切换（2026-11-02 二版）：深底→暖白/白、亮色文字→深色、分隔线→浅灰、强调色→浅底可读版 ——
-    html = re.sub(r'#161b26', '#f5f4ef', html)   # 根卡背景 深→暖白
-    html = re.sub(r'#17212b', '#ffffff', html)   # 大卡背景 深→白
-    html = re.sub(r'#1f2635', '#eceff4', html)   # 子卡背景 深→浅灰蓝
-    html = re.sub(r'#1c2230', '#eceff4', html)
-    html = re.sub(r'#232a3a', '#eceff4', html)
-    html = re.sub(r'#1c2830', '#eceff4', html)
-    html = re.sub(r'#2a1f22', '#fce9e7', html)   # 炸板暗红底→浅粉
-    html = re.sub(r'#3a1a1a', '#fbe3e1', html)
-    html = re.sub(r'#33281a', '#fbf1e0', html)
-    html = re.sub(r'#e9ecef', '#1f2329', html)   # 亮白文字→深
-    html = re.sub(r'#e2e8f0', '#1f2329', html)
-    html = re.sub(r'#ced4da', '#41464e', html)
-    html = re.sub(r'#cfd6e4', '#41464e', html)
-    html = re.sub(r'#adb5bd', '#5c636e', html)
-    html = re.sub(r'color:#fff;', 'color:#1a1b1c;', html)
-    html = re.sub(r'color:#ffffff', 'color:#1a1b1c', html)
-    html = re.sub(r'#444(?![0-9a-f])', '#d8dce2', html)  # 分隔线 深灰→浅灰
-    html = re.sub(r'#3a3a3a', '#d8dce2', html)
-    # 强调色 深底柔和版→浅底可读版
-    html = re.sub(r'#e08a83', '#c2504a', html)
-    html = re.sub(r'#ff6b6b', '#c2504a', html)
-    html = re.sub(r'#ff5c5c', '#c2504a', html)
-    html = re.sub(r'#ff4d4f', '#c2504a', html)
-    html = re.sub(r'#ddb46e', '#b1852e', html)
-    html = re.sub(r'#ffd43b', '#b1852e', html)
-    html = re.sub(r'#ffd666', '#c29a45', html)
-    html = re.sub(r'#ffc53d', '#b1852e', html)
-    html = re.sub(r'#5fc98f', '#3e9863', html)
-    html = re.sub(r'#51cf66', '#3e9863', html)
-    html = re.sub(r'#52c41a', '#3e9863', html)
-    html = re.sub(r'#4cd07d', '#3e9863', html)
-    html = re.sub(r'#7ecfe0', '#2f8fa1', html)
-    html = re.sub(r'#66d9e8', '#2f8fa1', html)
+    # 主题配色
+    cmap = _THEMES.get(theme) or _THEMES['A']
+    for old, new in sorted(cmap.items(), key=lambda kv: -len(kv[0])):
+        if old.startswith('color:'):
+            html = re.sub(old, new, html)
+        else:
+            html = re.sub(old + r'(?![0-9a-f])', new, html)
     return html
 
 
