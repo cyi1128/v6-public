@@ -1822,47 +1822,62 @@ def _sector_cards(tops, zb_names=None):
 
 # ============ 竞价强选（09:20 用户指定算法：全市场涨幅榜→硬过滤→双重打分→Top20+DeepSeek） ============
 def _clist_gainers():
-    """全市场涨幅榜（仅沪深主板+创业板，剔除科创/北交所）。失败返回 []。https 优先，失败换 http。"""
+    """全市场涨幅榜（仅沪深主板+创业板，剔除科创/北交所）。失败返回 []。https 优先，失败换 http。
+    分页取数 pn=1..3：东财 clist 单页实际只返回前 100（pz=600 也会被截断），
+    竞价/盘中涨幅前 100 基本全是 7%+ 的大涨票，2-7% 高开票大量在 100 名外——
+    单页取数会导致硬过滤后全滤（实证 2026-11-02 竞价「今日无符合」），必须分页拼接。"""
     rows = []
     for scheme in ('https', 'http'):
-        url = (scheme + '://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=600&po=1&np=1&fltt=2&invt=2'
-               '&fid=f3&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23'
-               '&fields=f2,f3,f5,f6,f8,f10,f12,f14,f15,f16,f18,f20,f26,f127')
-        _rows = None
-        for _try in (1, 2, 3):
-            try:
-                txt, ok = _getm(url, 'clist_auction')
-                if not ok or not txt:
+        merged = []
+        for pn in (1, 2, 3):
+            url = (scheme + '://push2.eastmoney.com/api/qt/clist/get?pn=%d&pz=100&po=1&np=1&fltt=2&invt=2'
+                   '&fid=f3&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23'
+                   '&fields=f2,f3,f5,f6,f8,f10,f12,f14,f15,f16,f18,f20,f26,f127') % pn
+            _rows = None
+            for _try in (1, 2, 3):
+                try:
+                    txt, ok = _getm(url, 'clist_auction')
+                    if not ok or not txt:
+                        if _try < 3:
+                            time.sleep(1.0)
+                            continue
+                        break
+                    d = json.loads(txt)
+                    _cand = []
+                    for x in (d.get('data') or {}).get('diff') or []:
+                        _c12 = str(x.get('f12', '')).strip() if x else ''
+                        _c14 = str(x.get('f14', '')).strip() if x else ''
+                        if not _c12 or not _c14:
+                            continue                      # 东财空壳限流行(缺code/name)，丢弃
+                        _cand.append(x)
+                    if len(_cand) < 30 and _try < 3:     # 有效行太少=降级响应，退避重试
+                        time.sleep(1.2)
+                        continue
+                    _rows = _cand
+                    break
+                except Exception as _e:
                     if _try < 3:
+                        print('[auction] clist 解析异常(重试):', _e)
                         time.sleep(1.0)
                         continue
                     break
-                d = json.loads(txt)
-                _cand = []
-                for x in (d.get('data') or {}).get('diff') or []:
-                    _c12 = str(x.get('f12', '')).strip() if x else ''
-                    _c14 = str(x.get('f14', '')).strip() if x else ''
-                    if not _c12 or not _c14:
-                        continue                      # 东财空壳限流行(缺code/name)，丢弃
-                    _cand.append(x)
-                if len(_cand) < 30 and _try < 3:     # 有效行太少=降级响应，退避重试
-                    time.sleep(1.2)
-                    continue
-                _rows = _cand
-                break
-            except Exception as _e:
-                if _try < 3:
-                    print('[auction] clist 解析异常(重试):', _e)
-                    time.sleep(1.0)
-                    continue
-                break
-        if _rows is None:
+            if _rows:
+                merged.extend(_rows)
+            else:
+                break                                # 某页连续失败即停（避免拿不全的降级数据）
+        if not merged:
             continue
+        # 按 code 去重（分页边界可能重复），保持涨幅降序
+        seen = set()
         rows = []
-        for x in _rows:
+        for x in merged:
             try:
+                code = str(x.get('f12', '')).strip()
+                if code in seen:
+                    continue
+                seen.add(code)
                 rows.append({
-                    'code': str(x.get('f12', '')).strip(),
+                    'code': code,
                     'name': str(x.get('f14', '')).strip(),
                     'price': float(x.get('f2') or 0),
                     'pct': float(x.get('f3') or 0),       # 竞价/现价涨幅
