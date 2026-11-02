@@ -4816,6 +4816,13 @@ def _mark_slot_done(key):
         d[key] = True
         with open(SLOT_DONE_PATH, 'w', encoding='utf-8') as f:
             json.dump(d, f, ensure_ascii=False, indent=1)
+        # 云端 runner 每次全新 checkout，必须把去重状态提交回仓库才能跨 run 生效
+        # （否则 09:20 推过竞价后 09:25 的自动 run 仍会重复推送——已实证 11-02 竞价重复推 2 次）
+        try:
+            rel = os.path.relpath(SLOT_DONE_PATH, os.getcwd())
+            _git_commit_push(rel, 'update slot_done')
+        except Exception as e:
+            print('[slot_done] commit fail:', e)
     except Exception as e:
         print('[slot_done] mark fail:', e)
 
