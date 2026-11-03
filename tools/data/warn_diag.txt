@@ -185,3 +185,6 @@
 02:44:53 [反模板命中:board_watch] 管住手 (try1)
 02:45:49 [反模板命中:board_watch] 管住手 (try2)
 02:45:50 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=现在时间 10 点 35 分，数据基于 10 点 30 分的收盘快照，市场情绪分 58.9 分，属于震荡分化状态，主力进攻意愿不强，这时候进场容错率很低。今天大
+02:56:51 [反模板命中:board_watch] 资金认可 (try1)
+02:57:54 [反模板命中:board_watch] 管住手 (try2)
+02:57:55 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在是盘中实时推演，基于你提供的最新行情快照，市场情绪分 56.0 分，标签是震荡分化，这个分数意味着主力今天没有统一进攻的意愿，更多
