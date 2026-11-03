@@ -157,6 +157,9 @@ def compute_resonance(idx=None, d=None, ctx=None):
             'avg_lb': round(avg_lb, 2), 'avg_pct': round(avg_pct, 2),
             'lu': lu, 'zb': zb, 'prev_lu': prev_lu, 'prev_zb': prev_zb,
             'mscore': mscore, 'seen_count': seen,
+            'zbr': round(zbr, 3) if (lu + zb) else None,
+            'leader_pct': round(_safe(leader.get('pct')) if stocks else None, 2) if stocks else None,
+            'leader_lb': round(_safe(leader.get('lb')) if stocks else None, 2) if stocks else None,
         },
     }
 
@@ -169,23 +172,60 @@ def grade_of(score, veto=None):
 
 
 def resonance_banner(res):
-    """卡片头部行：🎚共振档位:B(58分)·资金强/结构弱（挑最强/最弱因子标签）。"""
+    """卡片头部行（明细版）：🎚共振档位:B(47分)·对象:电池概念
+    第二行给每项命中原因：R1资金弱(量比1.1·价+3.1%)·R2龙头松(9.9%/量比1.0)·R3结构健(涨停49昨0·炸板40%)·R4情绪平(49分)·R5时1天新。"""
     if not res:
         return ''
     grade = res.get('grade', 'C')
     score = res.get('score', 0)
     f = res.get('factors') or {}
-    tags = []
-    for k in ('R1', 'R2', 'R3', 'R4', 'R5'):
-        _t = (f.get(k) or {}).get('tag', '')
-        if _t:
-            tags.append(_t)
-    tags_str = '·'.join(tags) if tags else ''
+    det = res.get('detail') or {}
+    sector = str(res.get('sector') or '')[:12]
+    reasons = []
+
+    r1t = (f.get('R1') or {}).get('tag', '')
+    if r1t:
+        _lb, _pc = det.get('avg_lb'), det.get('avg_pct')
+        _why = f'量比{_lb}' if _lb is not None else ''
+        if _pc is not None:
+            _why += (f'·价{_pc:+.1f}%' if _why else f'价{_pc:+.1f}%')
+        reasons.append(('资金' + r1t[2:] + (f'({_why})' if _why else '')) if _why else ('资金' + r1t[2:]))
+
+    r2t = (f.get('R2') or {}).get('tag', '')
+    if r2t:
+        _lp, _ll = det.get('leader_pct'), det.get('leader_lb')
+        _why = f'龙头{_lp:+.1f}%' if _lp is not None else ''
+        if _ll is not None:
+            _why += (f'/量比{_ll}' if _why else f'量比{_ll}')
+        reasons.append('龙头' + r2t[2:] + (f'({_why})' if _why else ''))
+
+    r3t = (f.get('R3') or {}).get('tag', '')
+    if r3t:
+        _lu, _plu, _zbr = det.get('lu'), det.get('prev_lu'), det.get('zbr')
+        _why = ''
+        if _lu is not None and _plu is not None:
+            _why = f'涨停{_lu}昨{_plu}'
+        if _zbr is not None:
+            _why += (f'·炸板{_zbr*100:.0f}%' if _why else f'炸板{_zbr*100:.0f}%')
+        reasons.append('结构' + r3t[2:] + (f'({_why})' if _why else ''))
+
+    r4t = (f.get('R4') or {}).get('tag', '')
+    if r4t:
+        _ms = det.get('mscore')
+        reasons.append('情绪' + r4t[2:] + (f'({int(_ms)}分)' if _ms is not None else ''))
+
+    r5t = (f.get('R5') or {}).get('tag', '')
+    if r5t:
+        reasons.append(r5t)
+
+    reasons_str = '·'.join(reasons) if reasons else ''
     color = {'A': '#51cf66', 'B': '#ffd43b', 'C': '#ff6b6b'}.get(grade, '#9aa4b8')
     veto_txt = (' <b style="color:#ff6b6b;">[一票否决:' + '/'.join(res.get('veto') or []) + ']</b>') if res.get('veto') else ''
     return (f'<div style="margin-bottom:8px;padding:7px 10px;background:#1a2029;border-left:4px solid {color};'
             f'border-radius:6px;color:#e9ecef;font-size:12px;">🎚 共振档位:<b style="color:{color};">{grade}</b>'
-            f'({score}分)·{tags_str}{veto_txt}</div>')
+            f'({score}分)·对象:{sector or "—"}'
+            + (f'<div style="color:#9aa4b8;font-size:11px;margin-top:2px;line-height:1.5;">🧩 {reasons_str}</div>' if reasons_str else '')
+            + veto_txt + '</div>')
 
 
 # ---------- 共振账本 ----------
