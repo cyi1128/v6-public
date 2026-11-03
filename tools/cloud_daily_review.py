@@ -36,6 +36,7 @@ try:
 except Exception as _re:
     _RESON_OK = False  # 共振引擎缺失/异常时全部降级，不阻断推送
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 MEM_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'theme_memory.json')
@@ -737,6 +738,8 @@ def three_way(open_pct, lb, vq_ratio=None):
     - 2%~7% 且量比≥1.8 且 竞价量/昨量≥10%：可加仓
     - 低开<0 且跌幅<3%：小仓试错
     - 其余：观察（标注位置风险由调用方补）"""
+    if open_pct is None:
+        return '待数据', '开盘数据未就绪（今开未取得），稍后盘中复核，不轻举妄动'
     if open_pct >= 7:
         return '不追', '一字/开幅≥7%，不追，观察是否炸板回封'
     if 2 <= open_pct < 7 and lb >= 1.8 and (vq_ratio is None or vq_ratio >= 10):
@@ -4433,7 +4436,7 @@ def build_auction():
     # FIX18: 早触发等待——09:20-24 触发时等齐集合竞价(09:25)再取数，避免推数据不全的早卡
     _bj0 = _bj_now()
     if _bj0.hour == 9 and 0 <= _bj0.minute < 25:
-        _wait = (_bj0.replace(hour=9, minute=25, second=0, microsecond=0) - _bj0).total_seconds()
+        _wait = (_bj0.replace(hour=9, minute=25, second=6, microsecond=0) - _bj0).total_seconds()
         if 0 < _wait <= 360:
             print(f'[auction] FIX18早触发等待竞价集合 {int(_wait)}s')
             time.sleep(_wait)
@@ -4444,7 +4447,9 @@ def build_auction():
             q = _qt(h['code'])
             if not q:
                 continue
-            op = (q['open'] / q['prev'] - 1) * 100 if q['prev'] else 0
+            op = None
+            if q.get('open') and q['prev']:
+                op = (q['open'] / q['prev'] - 1) * 100
             vq_ratio = None
             try:
                 arr = get_klines(h['code'], 2)
@@ -4452,18 +4457,22 @@ def build_auction():
                     vq_ratio = (q['vol'] * 100) / float(arr[-2][5]) * 100
             except Exception:
                 pass
-            act, why = three_way(op, q.get('lb', 0), vq_ratio)
+            lb_v = q.get('lb')
+            lb_txt = f'{lb_v:.1f}' if (lb_v or 0) else '未取得'
+            act, why = three_way(op, lb_v or 0, vq_ratio)
+            op_txt = f'{op:+.1f}%' if op is not None else '未就绪'
+            op_col = _c(op) if op is not None else GREY
             _, ptag = _pos_risk(h['code'], q['price'])
             own.append(f"""<div style="background:#1f2635;border-left:3px solid {TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
-<b style="color:#fff;">🐉 {h['name']}</b> <span style="color:{_c(op)};font-weight:800;float:right;">开{op:+.1f}%</span>
-<div style="color:{GREY};font-size:12px;">量比{q.get('lb',0):.1f}｜{act}{f'｜位置 {ptag}' if ptag else ''}<br>{why}</div></div>""")
+<b style="color:#fff;">🐉 {h['name']}</b> <span style="color:{op_col};font-weight:800;float:right;">开{op_txt}</span>
+<div style="color:{GREY};font-size:12px;">量比{lb_txt}｜{act}{f'｜位置 {ptag}' if ptag else ''}<br>{why}</div></div>""")
         except Exception:
             continue
     own_block = (''.join(own) if own else '<div style="color:' + GREY + ';font-size:13px;">持仓行情未取得（腾讯快照失败），稍后看盘中解读</div>')
     own_section = (f'<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">🛡 持仓竞价诊断</div>{own_block}')
-    # —— 数据拉取（09:29 硬截止，最多重试 6 次×20s；https/http 双通道）——
+    # —— 数据拉取（09:26:30 硬截止，预留选股+LLM+推送时间，保证 09:27 前强制出卡；https/http 双通道）——
     bj = _bj_now()
-    deadline = bj.replace(hour=9, minute=29, second=0, microsecond=0)
+    deadline = bj.replace(hour=9, minute=26, second=30, microsecond=0)
     rows_all = None
     for attempt in range(6):
         try:
@@ -4473,8 +4482,8 @@ def build_auction():
         except Exception as e:
             print(f'[auction] 第{attempt+1}次拉竞价数据失败: {e}')
         if _bj_now() >= deadline:
-            print('[auction] 09:29 已过且数据未就绪，本次跳过选股（保留持仓诊断）')
-            return _wrap(own_section + '<div style="color:#e2e8f0;font-size:13px;margin-top:8px;">⚠️ 全市场竞价数据未按时就绪（09:29 超时），本次不筛选股票；持仓诊断照常。下一时段：10:00 盘中解读。</div>',
+            print('[auction] 09:26:30 已过且数据未就绪，本次跳过选股（保留持仓诊断）')
+            return _wrap(own_section + '<div style="color:#e2e8f0;font-size:13px;margin-top:8px;">⚠️ 全市场竞价数据未按时就绪（09:26:30 超时），本次不筛选股票；持仓诊断照常。下一时段：10:00 盘中解读。</div>',
                          '🔔', '竞价观察')
         time.sleep(20)
     if not rows_all:
@@ -4488,15 +4497,48 @@ def build_auction():
     cands = _auction_filter(rows_all, zt_lbc)
     heat, cnt = _theme_heat(cands)
     mem = load_memory()
-    for s in cands:
+    _score_dead = _bj_now().replace(hour=9, minute=25, second=50, microsecond=0)
+    for i, s in enumerate(cands):
+        if _bj_now() >= _score_dead and i >= AUCTION_TOP_N:
+            print(f'[auction] 打分截止 {_bj_now()}，已算 {i} 只，截断保证 09:27 前推送')
+            break
         s['score'] = _auction_score_v3(s, heat, cnt, mem)
     cands.sort(key=lambda x: -x['score'])
     tops = cands[:AUCTION_TOP_N]
-    ds_map, ds_overall = _auction_ds(tops, heat)
+    # —— 并发：选股深挖 + 实盘确认深挖并行，压缩 LLM 串行耗时，保证 09:27 前推送 ——
+    _cinfos = []
+    for s in tops[:5]:
+        sym2 = ('sh' if s['code'].startswith('6') else 'sz') + s['code']
+        q2 = _qt(sym2)
+        if not q2 or not q2['prev'] or not q2['open']:
+            continue
+        op2 = (q2['open'] / q2['prev'] - 1) * 100
+        lb2 = float(q2.get('lb', 0))
+        gem2 = s.get('board') == 'gem'
+        lo2, hi2 = (2, 7) if not gem2 else (4, 14)
+        lb_min2 = 2.0 if not gem2 else 1.5
+        ok2 = lo2 <= op2 <= hi2 and lb2 >= lb_min2
+        why2 = ''
+        if not ok2:
+            why2 = (f'量比{lb2:.1f}<{lb_min2}，资金竞价没进场，撑不起高开' if lb2 < lb_min2
+                    else f'高开{op2:+.1f}%超过{hi2}%，竞价透支、开盘容易被砸' if op2 > hi2
+                    else f'高开{op2:+.1f}%不足{lo2}%，没溢价不值得做')
+        _cinfos.append({'name': s['name'], 'code': s['code'], 'op': op2, 'lb': lb2, 'sec': s['industry'], 'ok': ok2, 'why': why2})
+    _ex = ThreadPoolExecutor(max_workers=2)
+    _ds_fut = _ex.submit(_auction_ds, tops, heat)
+    _cf_fut = _ex.submit(_confirm_ds, _cinfos)
     try:
         _auction_pool_record(tops)
     except Exception:
         pass
+    try:
+        _llm_left = max(5, int((_bj_now().replace(hour=9, minute=26, second=50, microsecond=0) - _bj_now()).total_seconds()))
+        ds_map, ds_overall = _ds_fut.result(timeout=_llm_left)
+        if not ds_map:
+            print('[auction] 深挖空结果，渲染规则行')
+    except Exception:
+        ds_map, ds_overall = {}, ''
+        print(f'[auction] 深挖超时({_llm_left}s)，降级规则行出卡，保证 09:27 前推送')
     ds_block = (f"""<div style="margin-top:10px;padding:10px;background:#1c2230;border-left:4px solid {GOLD};border-radius:8px;">"""
                 f"""<div style="font-size:15px;font-weight:800;color:{GOLD};">🤖 竞价深挖总结（大白话）</div><div style="color:#e9ecef;font-size:13px;">{ds_overall}</div></div>""") if ds_overall else ''
     emotion = _emotion_from_pools(d)
@@ -4560,29 +4602,20 @@ def build_auction():
     # —— 竞价实盘确认（合并原 09:28：同一推送里直接复核高开/量能，数据同时点更可靠）——
     _confirm_block = ''
     try:
-        _cinfos, _crows = [], []
-        for s in tops[:5]:
-            sym2 = ('sh' if s['code'].startswith('6') else 'sz') + s['code']
-            q2 = _qt(sym2)
-            if not q2 or not q2['prev']:
-                continue
-            op2 = (q2['open'] / q2['prev'] - 1) * 100
-            lb2 = float(q2.get('lb', 0))
-            gem2 = s.get('board') == 'gem'
-            lo2, hi2 = (2, 7) if not gem2 else (4, 14)
-            lb_min2 = 2.0 if not gem2 else 1.5
-            ok2 = lo2 <= op2 <= hi2 and lb2 >= lb_min2
-            why2 = ''
-            if not ok2:
-                why2 = (f'量比{lb2:.1f}<{lb_min2}，资金竞价没进场，撑不起高开' if lb2 < lb_min2
-                        else f'高开{op2:+.1f}%超过{hi2}%，竞价透支、开盘容易被砸' if op2 > hi2
-                        else f'高开{op2:+.1f}%不足{lo2}%，没溢价不值得做')
-            _cinfos.append({'name': s['name'], 'code': s['code'], 'op': op2, 'lb': lb2, 'sec': s['industry'], 'ok': ok2, 'why': why2})
-            if ok2:
-                _crows.append(f'<div style="margin:4px 0;font-size:13px;background:#1c2830;border-left:3px solid {RED};border-radius:8px;padding:6px 10px;">✅ <b style="color:#fff;">{s["name"]}({s["code"]})</b> 高开{op2:+.1f}% 量比{lb2:.1f} → <span style="color:{RED};font-weight:800;">可跟 1成试探，止损-3%</span></div>')
+        _crows = []
+        for _cf in _cinfos:
+            if _cf['ok']:
+                _crows.append(f'<div style="margin:4px 0;font-size:13px;background:#1c2830;border-left:3px solid {RED};border-radius:8px;padding:6px 10px;">✅ <b style="color:#fff;">{_cf["name"]}({_cf["code"]})</b> 高开{_cf["op"]:+.1f}% 量比{_cf["lb"]:.1f} → <span style="color:{RED};font-weight:800;">可跟 1成试探，止损-3%</span></div>')
             else:
-                _crows.append(f'<div style="margin:4px 0;font-size:13px;background:#1f2635;border-left:3px solid {GREY};border-radius:8px;padding:6px 10px;">❌ {s["name"]}({s["code"]}) 高开{op2:+.1f}% 量比{lb2:.1f} → <span style="color:{GREY};">放弃（{why2}）</span></div>')
-        _dmap2 = _confirm_ds(_cinfos)
+                _crows.append(f'<div style="margin:4px 0;font-size:13px;background:#1f2635;border-left:3px solid {GREY};border-radius:8px;padding:6px 10px;">❌ {_cf["name"]}({_cf["code"]}) 高开{_cf["op"]:+.1f}% 量比{_cf["lb"]:.1f} → <span style="color:{GREY};">放弃（{_cf["why"]}）</span></div>')
+        try:
+            _llm_left2 = max(5, int((_bj_now().replace(hour=9, minute=26, second=55, microsecond=0) - _bj_now()).total_seconds()))
+            _dmap2 = _cf_fut.result(timeout=_llm_left2)
+            if not _dmap2:
+                print('[auction] 确认深挖空结果，保留规则文案')
+        except Exception:
+            _dmap2 = {}
+            print(f'[auction] 确认深挖超时({_llm_left2}s)，降级规则文案')
         if _dmap2:
             _crows.append('<div style="margin-top:6px;padding:8px 10px;background:#1c2230;border-left:4px solid ' + TEAL + ';border-radius:8px;">'
                           + ''.join('<div style="color:#e9ecef;font-size:12px;margin:3px 0;">🧠 ' + nm + '：' + rz + '</div>' for nm, rz in _dmap2.items()) + '</div>')
@@ -4595,6 +4628,7 @@ def build_auction():
     inner = (overall + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔔 持仓竞价诊断（先看自己的）</div>'
              + (''.join(own) or '<div style="color:' + GREY + ';font-size:13px;">无持仓</div>')
              + pick + wind + pos_cap_line(emotion, None) + _confirm_block)
+    _ex.shutdown(wait=False)
     return _wrap(inner, '🔔', '竞价观察')
 
 
