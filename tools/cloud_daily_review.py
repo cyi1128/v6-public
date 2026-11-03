@@ -68,6 +68,9 @@ def _git_commit_push(path, msg):
                                 'commit', '-m', msg], check=False, timeout=15, capture_output=True)
             if r.returncode != 0 and 'nothing to commit' not in (r.stdout or b'').decode(errors='ignore') + (r.stderr or b'').decode(errors='ignore'):
                 print(f'[git] commit attempt{attempt}: {r.stderr[:100] if r.stderr else ""}')
+            # 先 rebase 远端再 push：并发 run 都会各自 commit 状态文件，直接 push 会因远端推进而冲突失败，
+            # 导致去重状态（eod_status/slot_done）写不回仓库、下一 run 重复推送（11-03 收盘复盘双推实证）
+            subprocess.run(['git', 'pull', '--rebase', '--autostash'], check=False, timeout=30, capture_output=True)
             rp = subprocess.run(['git', 'push'], check=False, timeout=30, capture_output=True)
             if rp.returncode == 0:
                 print(f'[git] writeback ok attempt{attempt}')
@@ -5042,6 +5045,20 @@ def _slot_key(slot):
     return '%s|%s' % (slot, today)
 
 
+def _news_window_key():
+    """事件简报窗口键（防同一 5 分钟窗口被多 run 重复推送；不同窗口各推一次）。
+    11:40 午间 / 15:10 尾盘 / 15:35 尾盘三窗口独立；其余时刻（手动触发）按当日+分钟兜底。"""
+    today = _bj_now().strftime('%Y-%m-%d')
+    hm = _bj_now().strftime('%H:%M')
+    if '11:40' <= hm <= '11:44':
+        return 'news|%s|1140' % today
+    if '15:10' <= hm <= '15:14':
+        return 'news|%s|1510' % today
+    if '15:35' <= hm <= '15:39':
+        return 'news|%s|1535' % today
+    return 'news|%s|%s' % (today, _bj_now().strftime('%H%M'))
+
+
 def _slot_done(key):
     """当日该槽位是否已推送（tools/data/slot_done.json）。失败视为未推送。"""
     try:
@@ -5232,6 +5249,8 @@ def build_eod():
 <div style="color:{TEAL};font-size:12px;margin-top:3px;">🔎 可跟踪跟风（未涨停量能放大）：{fg_txt}</div>
 <div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 大白话：{plain}</div>{_llm2}</div>"""
     sec2 = f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">【今日主线 & 强势题材】（最多8条）</div>{sec2_rows}'
+    if not sec2_rows:
+        sec2 += '<div style="color:' + GREY + ';font-size:13px;margin-top:4px;">今日强势题材数据未取得（涨停池缺源），明日以竞价/开盘验证为准</div>'
     sec2 += ''.join(f'<div style="margin:3px 0;font-size:12px;color:{GREY};">{life_badge(n, d, mem, days)} {n}（{life_cycle(n, d, mem, days)[1]}）</div>'
                     for n, s in d['tops'][:3] if len(s) >= 1)
 
@@ -5350,6 +5369,9 @@ def build_eod():
             pass
         _save_gauge_from_md(ds_md, source='eod')
     sec_ds = f'<div style="margin-top:12px;border-left:4px solid #a78bfa;border-radius:8px;padding:10px 12px;background:#232a3a;font-size:13px;line-height:1.8;color:#e2e8f0;">{md2html(ds_md)}</div>' if ds_md else ''
+    if not ds_md:
+        sec_ds = ('<div style="margin-top:12px;border-left:4px solid #a78bfa;border-radius:8px;padding:10px 12px;background:#232a3a;'
+                  'font-size:13px;color:#9aa4b8;">🧠 大白话复盘生成失败（模型通道不可用），以上方结构化数据为准</div>')
 
     sec_sell = f"""<div style="margin-top:12px;border-left:4px solid {GREEN};border-radius:8px;padding:9px 11px;background:#1c2830;font-size:13px;color:#e2e8f0;">
 <div style="font-weight:800;color:{GREEN};">📋 明日开盘预案</div>
@@ -9956,11 +9978,18 @@ if __name__ == '__main__':
         sys.exit(0)
     if slot == 'news':
         # 旧事件简报独立档（11:40=noon 档 / 15:10·15:35=eod 档），复用 build_events
+        # 同日同窗口去重：同一 5 分钟窗口被多个 run 触发时只推一次（防手动/排队 run 双推）
+        _nk = _news_window_key()
+        if not force and _slot_done(_nk):
+            print('SLOT news 本窗口已推（slot_done 去重），跳过')
+            sys.exit(0)
         _b = build_events('noon' if _bj_now().hour < 14 else 'eod')
         if not _b:
             print('SLOT news: 无有效事件，不推送')
             sys.exit(0)
         ok, msg = push(_wrap(_b, '📰', '事件简报'), f'事件简报 {_bj_now().strftime("%H:%M")}')
+        if ok and not force:
+            _mark_slot_done(_nk)
         print('SLOT news PUSH', ok, msg)
         sys.exit(0)
 
@@ -10011,10 +10040,10 @@ if __name__ == '__main__':
         except Exception as e:
             print('[build] exception:', e)
             html = _wrap(f'<div style="color:{RED}">⚠️ 本卡片构建异常：{e}</div>', '⚠️', '构建异常')
-            ok, msg = push(html, f'{TITLES["eod"]} {datetime.now().strftime("%m/%d %H:%M")}')
+            ok, msg = push(html, f'{TITLES["eod"]} {_bj_now().strftime("%m/%d %H:%M")}')
             print('SLOT eod PUSH(异常兜底，不标记去重)', ok, msg)
             sys.exit(0)
-        ok, msg = push(html, f'{TITLES["eod"]} {datetime.now().strftime("%m/%d %H:%M")}')
+        ok, msg = push(html, f'{TITLES["eod"]} {_bj_now().strftime("%m/%d %H:%M")}')
         if ok:
             mark_eod_done(today)
             _git_commit_push('data/eod_status.json', 'update eod status')
@@ -10032,7 +10061,7 @@ if __name__ == '__main__':
     except Exception as e:
         print('[build] exception:', e)
         html = _wrap(f'<div style="color:{RED}">⚠️ 本卡片构建异常：{e}</div>', '⚠️', '构建异常')
-    ok, msg = push(html, f'{TITLES[slot]} {datetime.now().strftime("%m/%d %H:%M")}')
+    ok, msg = push(html, f'{TITLES[slot]} {_bj_now().strftime("%m/%d %H:%M")}')
     if ok and not force and slot in ('auction', 'pre', 'noon', 'hourly'):
         _mark_slot_done(_slot_key(slot))
     print('SLOT', slot, 'PUSH', ok, msg)
