@@ -9079,7 +9079,7 @@ def _warn_news_ds(items):
            + FIVE_BRIEF + '\n'
            + '先判断主力最可能选哪类票（低位有建仓痕迹的）作为点火点。\n'
            + '【深挖铁律·落到个股必做】fire 里每个方向最多举1只例子（stocks 字段），必须完整执行「股票深挖铁律」：本质（一句话大白话）+暗线业务（具体产品+阶段+真实贡献，写不出写「未见明确暗线业务」）+真实关联与弹性（实受益/沾边/纯蹭）+破灭点。没有明确标的写「该方向暂无明确点火标的」，禁止硬编。总输出≤250字。\n新闻列表：\n' + news_txt + '\n'
-           + '只输出 JSON：{"fire":[{"sector":"可能被点燃的板块(≥8字)","stocks":"相关个股(没有写无，别硬编)","logic":"为什么会被点燃：消息→板块→资金传导逻辑+主力可能选什么类型的票(≥30字)"}]}\n'
+           + '只输出 JSON：{"fire":[{"sector":"可能被点燃的板块(≥8字)","stocks":"真实关联候选个股1-2只(必须用新闻和板块逻辑推出具体股票名，禁止一律写无；完全推不出才写无，并写明推不出的原因)","logic":"为什么会被点燃：消息→板块→资金传导逻辑+主力可能选什么类型的票(≥30字)","verify":"开盘验证条件：竞价量比/高开幅度/板块多股联动等具体信号(≥15字，禁止空话)","fail_if":"失败则放弃的条件：出现什么信号即证伪(≥12字)","risk":"最大风险：位置/情绪/消息证伪/外围(≥12字)"}]}\n'
            + 'fire 最多5个。推不出就写"今日消息面无明确点火板块"，不许硬凑。\n'
            + 'JSON 另加 "news_brief":[{"t":"新闻原标题","p":"一句话大白话研判(≤40字)：说清这条消息可能利好/利空哪个方向、主力会不会借题发挥"}]，对新闻列表逐条给。')
     t = ask_deepseek({'task': 'warn_news_ds', 'news': items[:15], 'format': fmt}, purpose='warn_news_ds')
@@ -9115,12 +9115,18 @@ def _warn_render_fire(_j, items=None):
         for i, f_ in enumerate(fire[:5], 1):
             _conf = f_.get('confidence', '')
             _conf_txt = ('★' * int(_conf)) if str(_conf).isdigit() else ''
+            _stk = str(f_.get('stocks') or '').strip()
+            if not _stk or _stk in ('无', '暂无', '无。'):
+                _stk = '待竞价验证候选'
+            _vfy = str(f_.get('verify') or '').strip() or '待竞价验证：板块竞价量比放大+多股联动再确认'
+            _fail = str(f_.get('fail_if') or '').strip() or '竞价量能不足/冲高回落即放弃'
+            _risk = str(f_.get('risk') or '').strip() or '以竞价验证为准，逻辑未兑现不介入'
             out.append(f"""<div style="background:#1c2830;border-left:3px solid {RED};border-radius:8px;padding:9px 11px;margin:6px 0;">
-<div style="font-size:13px;font-weight:700;color:#fff;">{i}. {f_.get('sector','')} <span style="color:{GREY};font-weight:400;">｜相关个股：{f_.get('stocks','无')}</span> <span style="color:{GOLD};">{_conf_txt}</span></div>
+<div style="font-size:13px;font-weight:700;color:#fff;">{i}. {f_.get('sector','')} <span style="color:{GREY};font-weight:400;">｜相关个股：{_stk}</span> <span style="color:{GOLD};">{_conf_txt}</span></div>
 <div style="color:#a78bfa;font-size:12px;margin-top:2px;">🧠 点火逻辑：{f_.get('logic','')}</div>
-<div style="color:{TEAL};font-size:12px;margin-top:2px;">🔍 开盘验证：{f_.get('verify','')}</div>
-<div style="color:{GREEN};font-size:12px;margin-top:2px;">⛔ 失败则：{f_.get('fail_if','')}</div>
-<div style="color:{GREEN};font-size:12px;margin-top:2px;">⚠️ 风险：{f_.get('risk','')}</div></div>""")
+<div style="color:{TEAL};font-size:12px;margin-top:2px;">🔍 开盘验证：{_vfy}</div>
+<div style="color:{GREEN};font-size:12px;margin-top:2px;">⛔ 失败则：{_fail}</div>
+<div style="color:{GREEN};font-size:12px;margin-top:2px;">⚠️ 风险：{_risk}</div></div>""")
     avoid = _j.get('avoid') or []
     if avoid:
         out.append('<div style="font-size:14px;font-weight:800;color:' + GREEN + ';margin-top:6px;">🚫 消息面要避开的</div>')
