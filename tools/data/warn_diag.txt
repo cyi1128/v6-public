@@ -182,3 +182,6 @@
 02:27:02 [反模板命中:board_watch] 管住手 (try1)
 02:28:25 [反模板命中:board_watch] 管住手 (try2)
 02:28:26 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在是上午十点三十，盘面数据采集完毕，所有涨幅和量能数据都来自实时行情终端，海兴电力涨百分之四点二，海科新源涨百分之六点九，这些数字都
+02:44:53 [反模板命中:board_watch] 管住手 (try1)
+02:45:49 [反模板命中:board_watch] 管住手 (try2)
+02:45:50 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=现在时间 10 点 35 分，数据基于 10 点 30 分的收盘快照，市场情绪分 58.9 分，属于震荡分化状态，主力进攻意愿不强，这时候进场容错率很低。今天大
