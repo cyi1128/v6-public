@@ -269,7 +269,7 @@
   "name": "贝达药业",
   "close": 46.52,
   "pct": 16.01,
-  "next_open_pct": null
+  "next_open_pct": -0.7093723129836693
  },
  {
   "date": "2026-11-02",
@@ -277,7 +277,7 @@
   "name": "天阳科技",
   "close": 15.9,
   "pct": 15.89,
-  "next_open_pct": null
+  "next_open_pct": -5.534591194968563
  },
  {
   "date": "2026-11-02",
@@ -285,7 +285,7 @@
   "name": "安集科技",
   "close": 184.66,
   "pct": 16.87,
-  "next_open_pct": null
+  "next_open_pct": -1.3051012671937645
  },
  {
   "date": "2026-11-02",
@@ -293,7 +293,7 @@
   "name": "石头科技",
   "close": 126.99,
   "pct": 16.42,
-  "next_open_pct": null
+  "next_open_pct": -2.291519017245447
  },
  {
   "date": "2026-11-02",
@@ -301,7 +301,7 @@
   "name": "指南针",
   "close": 44.32,
   "pct": 15.99,
-  "next_open_pct": null
+  "next_open_pct": -2.166064981949456
  },
  {
   "date": "2026-11-02",
@@ -309,6 +309,6 @@
   "name": "福昕软件",
   "close": 60.7,
   "pct": 16.4,
-  "next_open_pct": null
+  "next_open_pct": -1.350906095551896
  }
 ]
