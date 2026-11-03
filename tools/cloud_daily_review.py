@@ -1773,7 +1773,7 @@ def _resonance():
 
 def _wrap(inner, emoji, title):
     return f"""<div style="background:#161b26;color:#e9ecef;font-family:-apple-system,'Microsoft YaHei',sans-serif;padding:14px;border-radius:12px;">
-<div style="font-size:20px;font-weight:800;color:{GOLD};">{emoji} {title} · {datetime.now().strftime('%m/%d %H:%M')}</div>
+<div style="font-size:20px;font-weight:800;color:{GOLD};">{emoji} {title} · {_bj_now().strftime('%m/%d %H:%M')}</div>
 {_reson_head()}{_ds_status_banner()}{inner}{health_footer()}
 <div style="margin-top:14px;font-size:12px;color:{GREY};">— 清一盘 · 公开行情，仅供参考 —</div></div>"""
 
@@ -8584,7 +8584,15 @@ def build_watch():
         build_intraday()
     except Exception as _e:
         print('[intra] 异常:', _e)
-    return _wrap(f'<div style="color:{RED};font-size:14px;font-weight:700;">⏰ {_bj_now().strftime("%H:%M")} 盘中异动 · 市场{mlabel}({mscore}分)</div>{cards}{link_cards}{pb}{hr}{piv}{pos_cap_line(emotion, None, mscore)}',
+    _body = cards + link_cards + pb + hr + piv
+    if not _body.strip():
+        # 空候选兜底：数据缺源/无达标候选时如实说明，不推空白卡
+        _bad = [k for k, v in HEALTH['sources'].items() if not v['ok']]
+        _body = (f'<div style="background:#1c2230;border-radius:8px;padding:10px 12px;margin:6px 0;">'
+                 f'<div style="color:#e9ecef;font-size:13px;">本轮无异动候选：{mlabel}（{mscore}分），情绪{emotion}</div>'
+                 f'<div style="color:{GREY};font-size:12px;margin-top:3px;">数据源：' + ('缺 ' + '、'.join(_bad) if _bad else '正常')
+                 + '；有达标候选才出卡，不硬凑，等下一轮</div></div>')
+    return _wrap(f'<div style="color:{RED};font-size:14px;font-weight:700;">⏰ {_bj_now().strftime("%H:%M")} 盘中异动 · 市场{mlabel}({mscore}分)</div>{_body}{pos_cap_line(emotion, None, mscore)}',
                  '🚨', '异动提醒')
 
 
