@@ -3592,7 +3592,7 @@ def _pre_ds(news):
                                    + '请严格按以下格式输出，不许加其他板块、不许打乱：\n'
                                    + '① 一句话总判断（今日情绪：强势/震荡/偏空/冰点 + 建议总仓位：空仓/1-2成/半仓 + 主基调：进攻/防守/观望/做分歧）\n'
                                    + '② 今日真正有价值的3-5个点（每个点=现象(数据)/含义/对比(与昨日或上周)/操作启示；只挑重要的）\n'
-                                   + '③ 重点标的（最多3只；没有就写「今日无强推」并说明缺哪项共振）\n'
+                                   + '③ 重点标的（最多3只；没有就写「今日无强推」并说明缺哪项共振；昨日涨停/连板票禁止列入）\n'
                                    + '每只格式：名称 代码 | 阶段(启动/中段/高位) | 共振x/4 | 为什么现在值得看(禁万能句) | 关键位置：支撑X/阻力X | 买入条件 | 放弃条件 | 仓位(仅1成试探/2成/半仓) | 唯一主风险\n'
                                    + '④ 今日最大风险（一句话）\n'
                                    + '【昨日复盘】若给了昨日判断：用今日新闻对照它，先写一句哪些说对了/哪些说错了（最多3条）\n'
@@ -3724,7 +3724,7 @@ def _focus_deep(focus):
     lines = '\n'.join(f"- {nm}({code}) 昨收{prev} 题材{sec} 角色{role}" for nm, code, prev, sec, _p, _t, role in focus[:8])
     fmt = ('你是一线游资，盘前重点个股参考，对下面每只深挖（严格按主力游资五步铁律）：\n'
            + FIVE_BRIEF + '\n'
-           + '只推有明显前期建仓痕迹、位置不高的票。共振不足3项或高位直接写「今日无买点」。\n'
+           + '只推有明显前期建仓痕迹、位置不高的票。共振不足3项或高位直接写「今日无买点」。昨日涨停/连板票禁止推荐（一律写「昨日已涨停，今日只观察不操作」）。\n'
            + '【深挖铁律·每只票必做】完整执行「股票深挖铁律」：本质（一句话大白话）+暗线业务（具体产品+进展阶段+对业绩真实贡献，写不出写「未见明确暗线业务」，禁「相关/涉及/布局/受益于」糊弄）+真实关联与弹性（实受益/沾边/纯蹭+弹性大小）+为什么是它+破灭点+动作。没有清晰暗线业务或弹性不足的写「今日无买点」，禁止硬推。\n个股：\n' + lines + '\n'
            + '只输出 JSON：{"per":[{"nm":"股票名(照抄)","stage":"启动/中段/高位","resonance":"满足共振几项(题材/资金/位置/买点, x/4)","plain":"本质+暗线业务+真实关联与弹性+为什么是它+破灭点(≥30字)","tip":"操作建议：买点+止损+仓位档(仅1成试探/2成/半仓)(≥20字)；不满足3项共振或无建仓痕迹或逻辑不硬则写「今日无买点」"}]}，必须覆盖每只。')
     t = ask_deepseek({'task': 'focus_deep', 'items': [{'nm': x[0], 'code': x[1], 'prev': x[2], 'sec': x[3], 'role': x[6]} for x in focus[:8]],
@@ -4224,22 +4224,38 @@ def _goodbad_action(news):
 
 
 def _action_list(news, d, gl_avg):
-    """⑥ 今日操作清单（核心）：可关注3-5（理由+仓位）、坚决回避3-5、持仓提示。"""
+    """⑧ 今日操作清单（核心）：可关注3-5（理由+仓位）、坚决回避3-5、持仓提示。
+    规格硬约束：昨日涨停/连板龙头一律进「坚决回避」（禁止推荐已涨停票给1-2成仓）；
+    可关注只许「能提前介入、位置相对安全」的低位票。"""
+    try:
+        zt = _zt_pool_names()
+    except Exception:
+        zt = set()
     watch = []
+    avoid = []
     for sec, sts in (d.get('tops') or [])[:5]:
-        lead = sorted(sts, key=lambda x: -(int(x.get('lbc') or 0)))[0] if sts else None
-        if lead:
-            lbc = int(lead.get('lbc') or 0)
-            if lbc >= 2:
-                watch.append((lead['n'] + '（' + sec + '）', '昨日龙头' + str(lbc) + '板，题材' + sec + '共振', '轻仓试错 1~2 成'))
+        for st in sts[:3]:
+            nm, cd = str(st.get('n') or ''), str(st.get('c') or '')
+            if not nm:
+                continue
+            lbc = int(st.get('lbc') or 0)
+            if nm in zt or cd in zt or lbc >= 2:
+                # 昨日涨停/连板龙头：坚决回避
+                if nm not in [a[0] for a in avoid]:
+                    avoid.append((nm + '（' + sec + '）', '昨日涨停/连板（' + str(lbc) + '板），高位追高即接刀，只观察不操作'))
             else:
-                watch.append((lead['n'] + '（' + sec + '）', '昨日' + sec + '领涨（' + str(len(sts)) + '家涨停），题材共振', '可关注 1~2 成试仓'))
+                # 板块强势但未涨停：可提前介入的低位票
+                if nm not in [w[0] for w in watch]:
+                    watch.append((nm + '（' + sec + '）', '昨日' + sec + '板块强势但该股未涨停处低位，题材共振', '可低吸 1~2 成试仓'))
     good, _ = _goodbad_action(news)
     for g in good[:3]:
         hit = _stock_hits(re.sub(r'<[^>]+>', '', g))
         if hit and not any(hit.split('、')[0] in w[0] for w in watch):
-            watch.append((hit.split('、')[0], '新闻利好催化', '可关注 1~2 成试仓'))
-    avoid = []
+            stk = hit.split('、')[0]
+            if stk in zt:
+                avoid.append((stk, '昨日涨停/连板且新闻利好催化，追高风险大，只观察'))
+                continue
+            watch.append((stk, '新闻利好催化', '可低吸 1~2 成试仓'))
     bad_secs = _sector_wind(d, news)[1]
     for sec, why in bad_secs[:2]:
         avoid.append((sec, why))
@@ -4254,26 +4270,34 @@ def _action_list(news, d, gl_avg):
 
 # ============ 盘前重点个股参考（小白友好版：昨收/题材/操作提示） ============
 def _focus_stocks(d, news):
-    """重点个股参考（FOCUS_N 只）：昨日主线龙头 + 新闻命中个股。只选真实数据，不编造。
+    """重点个股参考（FOCUS_N 只）：昨日主线低位跟风 + 新闻命中个股。只选真实数据，不编造。
+    规则强制：昨日涨停/连板票一律排除（禁止把涨停票列为可操作，规格硬约束）。
     返回 [(name, code, prev_close, sector, plain, tip, role)]。"""
     out, seen = [], set()
-    # ① 昨日涨停/连板池中主线龙头（有昨收价，角色=龙头）
+    try:
+        zt = _zt_pool_names()
+    except Exception:
+        zt = set()
+    # ① 昨日主线板块中的低位/未涨停代表（涨停池排除后剩跟风票；全涨停则跳过，宁缺毋滥）
     tops5 = {x[0] for x in d['tops'][:5]}
     for n, stocks in d['sectors'].items():
         if n not in tops5:
             continue
-        for st in stocks[:1]:
+        for st in stocks[:2]:
             nm = st.get('n', '')
+            cd = st.get('c', '')
             if nm in seen or not nm:
                 continue
+            if nm in zt or cd in zt:
+                continue  # 昨日涨停/连板：禁止列为可操作
             seen.add(nm)
-            out.append((nm, st.get('c'), st.get('pc') or '—', n,
-                        f'{n}昨天领涨，资金已验证。',
-                        '今天看竞价是否高开3~5%且量比>2，可轻仓；低开超过2%先观望',
-                        '龙头'))
+            out.append((nm, cd, st.get('pc') or '—', n,
+                        f'{n}板块昨日强势，该股未涨停处低位，补涨/跟风候选。',
+                        '今天看竞价是否高开2~5%且量比>1.5，可低吸试仓；低开超过3%先观望',
+                        '低位跟风'))
             if len(out) >= FOCUS_N:
                 return out[:FOCUS_N]
-    # ② 新闻命中个股（NEWS_THEME_MAP 规则提取，角色=关注）
+    # ② 新闻命中个股（NEWS_THEME_MAP 规则提取，涨停池同样排除，角色=关注）
     for nw in news[:12]:
         text = nw['title'] + ' ' + (nw.get('summary') or '')
         for _kws, sec, stocks, plain in NEWS_THEME_MAP:
@@ -4281,9 +4305,11 @@ def _focus_stocks(d, news):
                 stk = stk.strip()
                 if not stk or len(stk) < 2 or stk in seen:
                     continue
+                if stk in zt:
+                    continue  # 昨日涨停/连板：禁止列为可操作
                 if stk in text:
                     seen.add(stk)
-                    out.append((stk, '—', '—', sec, plain or '新闻催化', '看竞价强度，放量再跟', '关注'))
+                    out.append((stk, '—', '—', sec, plain or '新闻催化', '看竞价强度，放量再低吸，禁止追高', '关注'))
         if len(out) >= FOCUS_N:
             break
     return out[:FOCUS_N]
@@ -4346,7 +4372,8 @@ def build_pre():
 <div style="color:{TEAL};font-size:12px;margin-top:3px;">👉 {(_foc_map.get(nm) or {}).get("tip", "") or tip}</div></div>"""
         )(nm, code, prev, sec, plain, tip, role)
         for nm, code, prev, sec, plain, tip, role in focus)
-    focus_block = f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">⑤ 重点个股参考（{len(focus)}只）</div>{focus_rows}' if focus_rows else ''
+    focus_block = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">⑤ 重点个股参考（{len(focus)}只 · 只许低吸/观察，禁追高，昨日涨停票已剔除）</div>{focus_rows}'
+                   if focus_rows else '<div style="margin-top:10px;font-size:13px;color:' + GREY + ';">今日无可提前介入的低位标的，多看少动（昨日涨停票不列）</div>')
     g_rows = ''.join('<div style="margin:5px 0;font-size:13px;">🟢 ' + g + '</div>' for g in good)
     b_rows = ''.join('<div style="margin:5px 0;font-size:13px;">🔴 ' + b + '</div>' for b in bad)
     w_rows = ''.join('<div style="margin:5px 0;font-size:13px;">✅ <b>' + nm + '</b> — ' + why + '｜<span style="color:' + GOLD + ';">仓位 ' + pos + '</span></div>' for nm, why, pos in watch)
@@ -6667,9 +6694,9 @@ def build_evening():
                + '今日+晚间消息（东财7x24）：\n{news}\n'
                + '把下面的今日A股、全球行情、今日+晚间消息消化后，用「朋友复盘聊天」式大白话总结，给用户今晚睡前能看懂、明天能用上的东西。\n'
                + '输出三段（全部说人话，禁模板句、禁「利好/利空XX板块」空话、禁条目式清单「1.2.3.」、禁照抄新闻标题）：\n'
-               + '【今日大事】挑真正重要的3-5件事，每件说两层：今天到底发生了什么（一句话事实）+这句话翻译成人话意味着什么（讲清谁受益谁受伤、资金会往哪跑、为什么重要）；\n'
-               + '【明日关注】2-3条，说人话：明天最可能发生什么、盯什么盘面信号、什么情况别碰；尽量与 eod「明日板块优先级」对齐，推翻要说明原因；\n'
-               + '【最大风险】一句话大白话点破。\n'
+               + '【今日大事】挑真正重要的3-5件事，每件必须完整写四层：今天到底发生了什么（一句话事实）+翻译成人话意味着什么（讲清谁受益谁受伤、资金会往哪跑、为什么重要）+直接点明主题/板块/题材+直接点名相关个股（具体股票名，禁止只写板块不写个股）+该板块/个股今日实时盘面表现（涨跌幅/量能/资金/板块表现，用今日A股全景数据支撑；数据缺失明确说明）；\n'
+               + '【明日关注】2-3条，每条必须：具体题材名称+逻辑（为什么明天值得盯）+关注个股（点名具体股票）+今日数据支撑（今天盘面上已出现的迹象）；说人话，尽量与 eod「明日板块优先级」对齐，推翻要说明原因；\n'
+               + '【最大风险】必须写两层：风险是什么（一句话大白话点破）+主要影响哪些板块/题材+今日数据已体现的迹象（盘面/消息面证据）。\n'
                + '输出风格：短段落、短句，像微信群里交易员朋友聊天，一段最多两三行；没有值得说的就写「今日无大事，平稳过渡」并说原因。')
         t = ask_deepseek({'task': 'evening_summary', 'a_sec': a_sec, 'markets': markets_txt,
                           'news': news_brief, 'format': fmt}, purpose='evening')
@@ -6681,7 +6708,7 @@ def build_evening():
     inner = (f'<div style="font-size:15px;font-weight:800;color:#ff922b;">🇨🇳 今日A股全景</div>' + a_sec
              + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🌐 全球晚间行情</div>'
              + _global_markets_html(gl)
-             + (f'<div style="margin-top:10px;padding:10px;background:#1c2230;border-left:4px solid {GOLD};border-radius:8px;font-size:13px;line-height:1.8;color:#e2e8f0;">🤖 今日大事 & 明日关注：{ds_html}</div>' if ds_html else '')
+             + (f'<div style="margin-top:10px;padding:10px;background:#1c2230;border-left:4px solid {GOLD};border-radius:8px;font-size:13px;line-height:1.8;color:#e2e8f0;">🤖 今日大事 & 明日关注 & 最大风险：{ds_html}</div>' if ds_html else '')
              + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">📰 今日消息汇总（按时间）</div>'
              + news_rows)
     return _wrap(inner, '🌙', '晚间消息汇总')
@@ -9100,22 +9127,25 @@ def _warn_ds(data):
     return md2html(t) if t else ''
 
 
-def _warn_news_ds(items):
-    """08:20 消息面点火预判 LLM：新闻→可能被点燃的板块→个股→点火逻辑→开盘验证→风险。失败返回 ''。"""
+def _warn_news_ds(items, zt_names=None):
+    """08:20 消息面点火预判 LLM：新闻→可能被点燃的板块→个股→点火逻辑→实时数据→开盘验证→失败规则→风险。失败返回 ''。"""
     if not items or not (MODELSCOPE_KEY or DEEPSEEK_KEY):
         return ''
     # hold：持仓名（data/holdings.json 可选），供 LLM 判断「点火板块与持仓的关系」；无持仓写暂无
     _hs = _load_holdings()
     hold = '、'.join(str(h.get('name') or '') for h in _hs) if _hs else '暂无持仓'
     news_txt = '\n'.join(f"- {x['title']}（摘要：{x['summary'][:60]}）" for x in items[:15])
+    _zt = sorted(str(x) for x in (zt_names or set()))[:40]
+    zt_line = ('昨日已涨停/连板（禁止选为可操作候选，只可作风险提示）：' + '、'.join(_zt) + '\n') if _zt else ''
     fmt = ('你是一线游资，现在是开盘前08:20，手里只有隔夜和当天的新闻，没有盘中数据。\n'
            '任务：判断哪些板块今天可能被消息面点火启动。严格按主力游资五步铁律：\n'
            + FIVE_BRIEF + '\n'
+           + zt_line
            + '先判断主力最可能选哪类票（低位有建仓痕迹的）作为点火点。\n'
-           + '【深挖铁律·落到个股必做】fire 里每个方向最多举1只例子（stocks 字段），必须完整执行「股票深挖铁律」：本质（一句话大白话）+暗线业务（具体产品+阶段+真实贡献，写不出写「未见明确暗线业务」）+真实关联与弹性（实受益/沾边/纯蹭）+破灭点。没有明确标的写「该方向暂无明确点火标的」，禁止硬编。总输出≤250字。\n新闻列表：\n' + news_txt + '\n'
-           + '只输出 JSON：{"fire":[{"sector":"可能被点燃的板块(≥8字)","stocks":"真实关联候选个股1-2只(必须用新闻和板块逻辑推出具体股票名，禁止一律写无；完全推不出才写无，并写明推不出的原因)","logic":"为什么会被点燃：消息→板块→资金传导逻辑+主力可能选什么类型的票(≥30字)","verify":"开盘验证条件：竞价量比/高开幅度/板块多股联动等具体信号(≥15字，禁止空话)","fail_if":"失败则放弃的条件：出现什么信号即证伪(≥12字)","risk":"最大风险：位置/情绪/消息证伪/外围(≥12字)"}]}\n'
+           + '【深挖铁律·落到个股必做】fire 里每个方向必须举2-3只例子（stocks 字段），必须完整执行「股票深挖铁律」：本质（一句话大白话）+暗线业务（具体产品+阶段+真实贡献，写不出写「未见明确暗线业务」）+真实关联与弹性（实受益/沾边/纯蹭）+破灭点。禁止把昨日涨停/连板票列为 stocks 候选（涨停票只能写进 risk 提示）。没有明确标的写「该方向暂无明确点火标的」，禁止硬编。总输出≤380字。\n新闻列表：\n' + news_txt + '\n'
+           + '只输出 JSON：{"fire":[{"sector":"可能被点燃的板块(≥8字)","stocks":"真实关联候选个股2-3只(必须用新闻和板块逻辑推出具体股票名，优先低位未涨停；禁止一律写无；完全推不出才写无，并写明推不出的原因)","logic":"点火逻辑(≥35字)：板块逻辑(为什么这个板块会动)+题材逻辑(消息对应哪个题材)+主力可能选什么类型的票","data":"实时数据参考：当前竞价/早盘量能、板块涨跌幅、相关个股表现；开盘前无盘中数据则明确写「开盘前暂无盘中数据，待09:25竞价验证量能/高开/板块联动」(禁止硬编数据)","verify":"开盘验证条件：竞价量比/高开幅度/板块多股联动等具体信号(≥15字，禁止空话)","fail_if":"失败则放弃的条件：出现什么信号即证伪(≥12字)","risk":"最大风险：位置/情绪/消息证伪/外围(≥12字)"}]}\n'
            + 'fire 最多5个。推不出就写"今日消息面无明确点火板块"，不许硬凑。\n'
-           + 'JSON 另加 "news_brief":[{"t":"新闻原标题","p":"一句话大白话研判(≤40字)：说清这条消息可能利好/利空哪个方向、主力会不会借题发挥"}]，对新闻列表逐条给。')
+           + 'JSON 另加 "news_brief":[{"t":"新闻原标题","core":"消息核心内容完整版(≤80字，禁止只写一句话标题)","sec":"板块逻辑：利好/利空哪个板块(≥6字)","theme":"题材逻辑：对应哪个题材(≥6字)","dark":"个股暗线：直接点名可能受益的1-2只具体股(主业真实关联+弹性；无则写「暂无明确个股暗线」)","p":"大白话原因(≤45字)：说清这条消息可能点燃/压制哪个方向、主力会不会借题发挥","data":"实时数据参考：竞价/量能/板块涨跌/个股表现；开盘前无盘中数据则写「开盘前暂无盘中数据，待竞价验证」"}]，对新闻列表逐条给。')
     t = ask_deepseek({'task': 'warn_news_ds', 'news': items[:15], 'format': fmt}, purpose='warn_news_ds')
     return t if t else ''
 
@@ -9129,11 +9159,26 @@ def _warn_render_fire(_j, items=None):
     if _nb:
         for _n in _nb[:15]:
             _t = str(_n.get('t') or '').strip()
+            _c = str(_n.get('core') or '').strip()
+            _sec = str(_n.get('sec') or '').strip()
+            _theme = str(_n.get('theme') or '').strip()
+            _dark = str(_n.get('dark') or '').strip()
             _p = str(_n.get('p') or '').strip()
+            _data = str(_n.get('data') or '').strip()
             if _t:
-                _line = f'<div style="color:#e9ecef;font-size:12px;margin:4px 0;line-height:1.5;">• {_t[:44]}</div>'
+                _line = f'<div style="color:#e9ecef;font-size:12px;margin:5px 0 0;line-height:1.5;">• {_t[:44]}</div>'
+                if _c:
+                    _line += f'<div style="color:#c8d0e0;font-size:12px;margin:1px 0 0 10px;line-height:1.5;">📄 {_c[:80]}</div>'
+                if _sec:
+                    _line += f'<div style="color:#94d4d0;font-size:12px;margin:1px 0 0 10px;line-height:1.5;">🧭 板块逻辑：{_sec}</div>'
+                if _theme:
+                    _line += f'<div style="color:#94d4d0;font-size:12px;margin:1px 0 0 10px;line-height:1.5;">🎯 题材逻辑：{_theme}</div>'
+                if _dark:
+                    _line += f'<div style="color:#a78bfa;font-size:12px;margin:1px 0 0 10px;line-height:1.5;">🕳️ 个股暗线：{_dark[:70]}</div>'
                 if _p:
-                    _line += f'<div style="color:#a78bfa;font-size:12px;margin:1px 0 4px 10px;line-height:1.5;">💬 {_p[:60]}</div>'
+                    _line += f'<div style="color:#a78bfa;font-size:12px;margin:1px 0 0 10px;line-height:1.5;">💬 大白话：{_p[:50]}</div>'
+                if _data:
+                    _line += f'<div style="color:#6c7a89;font-size:11px;margin:1px 0 4px 10px;line-height:1.5;">📊 实时数据：{_data[:60]}</div>'
                 _news_brief.append(_line)
     else:
         for _n in (items or [])[:15]:
@@ -9152,12 +9197,16 @@ def _warn_render_fire(_j, items=None):
             _stk = str(f_.get('stocks') or '').strip()
             if not _stk or _stk in ('无', '暂无', '无。'):
                 _stk = '待竞价验证候选'
+            _data = str(f_.get('data') or '').strip()
+            if not _data or _data in ('无', '暂无'):
+                _data = '开盘前暂无盘中数据，待09:25竞价验证量能/高开/板块联动'
             _vfy = str(f_.get('verify') or '').strip() or '待竞价验证：板块竞价量比放大+多股联动再确认'
             _fail = str(f_.get('fail_if') or '').strip() or '竞价量能不足/冲高回落即放弃'
             _risk = str(f_.get('risk') or '').strip() or '以竞价验证为准，逻辑未兑现不介入'
             out.append(f"""<div style="background:#1c2830;border-left:3px solid {RED};border-radius:8px;padding:9px 11px;margin:6px 0;">
 <div style="font-size:13px;font-weight:700;color:#fff;">{i}. {f_.get('sector','')} <span style="color:{GREY};font-weight:400;">｜相关个股：{_stk}</span> <span style="color:{GOLD};">{_conf_txt}</span></div>
 <div style="color:#a78bfa;font-size:12px;margin-top:2px;">🧠 点火逻辑：{f_.get('logic','')}</div>
+<div style="color:#6c7a89;font-size:12px;margin-top:2px;">📊 实时数据：{_data}</div>
 <div style="color:{TEAL};font-size:12px;margin-top:2px;">🔍 开盘验证：{_vfy}</div>
 <div style="color:{GREEN};font-size:12px;margin-top:2px;">⛔ 失败则：{_fail}</div>
 <div style="color:{GREEN};font-size:12px;margin-top:2px;">⚠️ 风险：{_risk}</div></div>""")
@@ -9186,6 +9235,28 @@ def _warn_rule_fallback(items):
     inner = ('<div style="color:' + RED + ';font-size:14px;font-weight:700;">🚨 今日消息面板块预警（规则版，AI未返回）</div>'
              + '<div style="color:' + GREY + ';font-size:12px;">开盘前按当日新闻归集的热点板块，仅供开盘参考：</div>' + rows)
     return _wrap(inner, '🚨', '启动预警'), '【消息面预警】' + _bj_now().strftime('%H:%M')
+
+
+def _zt_pool_names():
+    """昨日涨停池股票名+代码集合（供 warn stocks / 盘前 focus / 操作清单 过滤：禁止把昨日涨停/连板票列为可操作）。
+    失败返回空 set（调用方不因排除集缺失而阻塞）。"""
+    try:
+        td = _last_trade_date()
+        if not td:
+            return set()
+        pool = _follow_pool(td.replace('-', ''))
+        out = set()
+        for x in pool:
+            nm = str(x.get('name') or '').strip()
+            cd = str(x.get('code') or '').strip()
+            if nm:
+                out.add(nm)
+            if cd:
+                out.add(cd)
+        return out
+    except Exception as e:
+        print('[ztpool] 涨停排除集异常:', e)
+        return set()
 
 
 def _warn_zt_items():
@@ -9253,7 +9324,7 @@ def build_warn():
         _warn_diag_wecom('云端数据源全失败 | ' + ('; '.join(_WARN_DIAG_LINES) if _WARN_DIAG_LINES else '新闻空') + ' | 涨停池降级空')
         return None
     _diag_append('[build_warn] LLM key: MODELSCOPE=%s DEEPSEEK=%s' % (bool(MODELSCOPE_KEY), bool(DEEPSEEK_KEY)))
-    t = _warn_news_ds(items)
+    t = _warn_news_ds(items, _zt_pool_names())
     _diag_append('[build_warn] LLM 返回长度=%d' % len(t))
     if not t:
         print('[warn] LLM 未返回且已禁规则版兜底，不推启动预警')
