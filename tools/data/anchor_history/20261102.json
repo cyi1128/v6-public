@@ -16,8 +16,12 @@
       "stop_loss": 4.84,
       "entry_mid": 4.99,
       "performance": {
-        "bars_after": 0,
-        "note": "推送日后暂无K线（停牌或未到交易日）"
+        "bars_after": 1,
+        "day1_close_pct": 11.62,
+        "max_high5": 5.81,
+        "min_low5": 5.55,
+        "max_high_pct": 16.43,
+        "hit_stop": false
       }
     },
     {
@@ -34,8 +38,12 @@
       "stop_loss": 52.36,
       "entry_mid": 53.98,
       "performance": {
-        "bars_after": 0,
-        "note": "推送日后暂无K线（停牌或未到交易日）"
+        "bars_after": 1,
+        "day1_close_pct": -4.63,
+        "max_high5": 55.93,
+        "min_low5": 50.75,
+        "max_high_pct": 3.61,
+        "hit_stop": true
       }
     },
     {
@@ -52,8 +60,12 @@
       "stop_loss": 34.39,
       "entry_mid": 35.45,
       "performance": {
-        "bars_after": 0,
-        "note": "推送日后暂无K线（停牌或未到交易日）"
+        "bars_after": 1,
+        "day1_close_pct": -2.17,
+        "max_high5": 38.95,
+        "min_low5": 34.4,
+        "max_high_pct": 9.87,
+        "hit_stop": false
       }
     }
   ]

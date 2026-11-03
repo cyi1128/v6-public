@@ -16,7 +16,7 @@
       "stop_loss": 11.88,
       "entry_mid": 12.25,
       "performance": {
-        "bars_after": 3,
+        "bars_after": 4,
         "day1_close_pct": 16.16,
         "day3_close_pct": 2.53,
         "max_high5": 16.92,
