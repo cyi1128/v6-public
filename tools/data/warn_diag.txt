@@ -237,3 +237,4 @@
 06:53:29 [反模板命中:board_watch] 管住手 (try1)
 06:54:28 [反模板命中:board_watch] 管住手 (try2)
 06:54:28 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在是盘中时段，数据基于你提供的实时行情快照，时间戳对应今日交易时间内。精智达涨幅 18.1%，换手 1.8；杰创智能涨幅 10.3%
+07:12:45 [反模板命中:brief_summary_v3] 管住手 (try1)
