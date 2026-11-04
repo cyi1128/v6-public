@@ -9,10 +9,10 @@ on:
         required: false
         type: string
       slot:
-        description: '强制时段（演示/手动）：pre/auction/tail/hourly/noon/eod/watch/warn/ext/news/news2h/evening/follow/anchor/review/evaluate/deep6/zscan，留空=按当前时刻'
+        description: '强制时段（演示/手动）：pre/auction/tail/hourly/noon/eod/watch/warn/ext/news/news2h/evening/follow/deep6/zscan，留空=按当前时刻'
         required: false
         type: choice
-        options: ['pre', 'auction', 'tail', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'news', 'news2h', 'evening', 'follow', 'anchor', 'review', 'evaluate', 'deep6', 'zscan', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3']
+        options: ['pre', 'auction', 'tail', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'news', 'news2h', 'evening', 'follow', 'deep6', 'zscan', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3']
   schedule:
     - cron: '20-24 0 * * 1-5'      # 08:20-08:24 北京 板块启动预警
     - cron: '30-34 0 * * 1-5'      # 08:30-08:34 北京 盘前速递
@@ -26,14 +26,14 @@ on:
     - cron: '1 6 * * 1-5'          # 14:01 北京 两小时市场消息汇总
     - cron: '6 6 * * 1-5'          # 14:06 北京 跟涨三步走·盘中
     - cron: '6 7 * * 1-5'          # 15:06 北京 跟涨三步走·收盘
-    - cron: '20 7 * * 1-5'         # 15:20 北京 突破回踩·主力成本锚
-    - cron: '30 7 * * 1-5'         # 15:30 北京 突破回踩·复盘
-    - cron: '0 12 * * 0'           # 周日 20:00 北京 突破回踩·策略评估
     - cron: '0 */2 * * *'          # 每2小时：休市日发新闻汇总(2小时窗口去重)；交易日非盘面时段自动跳过
     - cron: '55-58 6 * * 1-5'      # 14:55-14:58 北京 尾盘竞价筛选
 
 concurrency:
-  group: daily-review-${{ github.event.inputs.slot || 'auto' }}
+  # 双推修复②（2026-11-04）：所有 run 共用同一 concurrency 组，并发触发时后到者自动取消，
+  # 不再按 slot 分组建（此前 dispatch news 与 schedule 分属 daily-review-news / daily-review-auto
+  # 两组互不排队，造成 15:36:59 与 15:39:22 双推）
+  group: daily-review
   cancel-in-progress: false
 
 jobs:
@@ -44,6 +44,13 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      # 双推修复③（2026-11-04）：云端每次全新 checkout，去重状态来自仓库内 tools/data/；
+      # 并发 run 写回 slot_done 前先拉一次远端最新（rebase 自愈），降低旧状态覆盖/丢更新概率
+      - name: 同步去重状态到最新
+        run: |
+          git config user.name "v6-bot"
+          git config user.email "v6-bot@users.noreply.github.com"
+          git pull --rebase --autostash || { git rebase --abort 2>/dev/null; git reset --hard origin/main 2>/dev/null; }
       - name: 判定时段并推送
         env:
           MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
@@ -61,9 +68,6 @@ jobs:
             03:4[0-4])      T=news ;;       # 11:40-11:44 午间事件简报
             06:0[5-7])      T=follow ;;     # 14:05-14:07 跟涨三步走·盘中
             07:0[5-8])      T=follow ;;     # 15:05-15:08 跟涨三步走·收盘
-            07:2[0-3])      T=anchor ;;     # 15:20-15:23 主力成本锚
-            07:3[0-4])      T=review ;;     # 15:30-15:34 复盘
-            12:0[0-2])      T=evaluate ;;   # 周日 20:00-20:02 策略评估
             07:1[0-4])      T=news ;;       # 15:10-15:14 尾盘事件简报
             07:3[5-9])      T=news ;;       # 15:35-15:39 尾盘事件简报
             13:3[6-9]|14:3[6-9]) T=ext ;;     # 21:38-21:39/22:38-22:39 外盘窗口
