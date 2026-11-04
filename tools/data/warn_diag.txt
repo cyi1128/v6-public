@@ -229,3 +229,4 @@
 05:54:10 [反模板命中:board_watch] 管住手 (try1)
 05:55:12 [反模板命中:board_watch] 管住手 (try2)
 05:55:12 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 现在是交易时段，数据基于实时行情快照。市场情绪分 78.5 分，标签显示“主线持续”，说明今天主力进攻意愿强，不是防御状态。输入数
+06:18:16 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 现在是盘中实时状态，数据源直接对接交易所 Level-2 行情。华峰测控（688200）涨幅定格在 20.0%，处于 20cm 涨
