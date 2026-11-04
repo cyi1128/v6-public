@@ -10228,7 +10228,9 @@ if __name__ == '__main__':
             sys.exit(0)
     slot = slot if slot in BUILDERS else 'eod'
     try:
-        html = build_slim(slot)
+        # 竞价观察恢复「小白速判」原版（持仓竞价诊断+TOP8打分+Top3速判+行业风向+竞价实盘确认）；
+        # 其余档位保持极简三段式
+        html = build_auction() if slot == 'auction' else build_slim(slot)
     except Exception as e:
         print('[build] exception:', e)
         html = _wrap(f'<div style="color:{RED}">⚠️ 本卡片构建异常：{e}</div>', '⚠️', '构建异常')
