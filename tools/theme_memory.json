@@ -1,4 +1,102 @@
 {
+ "2026-11-04": {
+  "半导体": {
+   "leaders": [
+    "新洁能",
+    "托伦斯",
+    "先导基电"
+   ],
+   "reason": "19只涨停·龙头新洁能",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 95131,
+   "divergence": false
+  },
+  "贵金属": {
+   "leaders": [
+    "盛达资源",
+    "赤峰黄金",
+    "招金黄金"
+   ],
+   "reason": "11只涨停·龙头盛达资源",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 132439,
+   "divergence": false
+  },
+  "汽车零部": {
+   "leaders": [
+    "中马传动",
+    "三联锻造",
+    "海安集团"
+   ],
+   "reason": "7只涨停·龙头中马传动",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 102828,
+   "divergence": false
+  },
+  "元件": {
+   "leaders": [
+    "金安国纪",
+    "华正新材",
+    "海星股份"
+   ],
+   "reason": "7只涨停·龙头金安国纪",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 134706,
+   "divergence": false
+  },
+  "专用设备": {
+   "leaders": [
+    "海源复材",
+    "南矿集团",
+    "腾信精密"
+   ],
+   "reason": "6只涨停·龙头海源复材",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 130409,
+   "divergence": false
+  },
+  "自动化设": {
+   "leaders": [
+    "凯迪股份",
+    "博杰股份",
+    "大族激光"
+   ],
+   "reason": "5只涨停·龙头凯迪股份",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 101821,
+   "divergence": false
+  },
+  "光学光电": {
+   "leaders": [
+    "宝明科技",
+    "三利谱",
+    "光智科技"
+   ],
+   "reason": "5只涨停·龙头宝明科技",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 140157,
+   "divergence": false
+  },
+  "通用设备": {
+   "leaders": [
+    "冰山冷热",
+    "柯力传感",
+    "开勒股份"
+   ],
+   "reason": "4只涨停·龙头冰山冷热",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 102736,
+   "divergence": false
+  }
+ },
  "2026-11-03": {
   "电池": {
    "leaders": [
