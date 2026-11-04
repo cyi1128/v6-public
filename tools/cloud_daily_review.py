@@ -5497,12 +5497,54 @@ def _slim_market(idx, d, mscore, mlabel, mwhy, zbr):
             f'<div style="background:#232a3a;border-radius:8px;padding:9px 11px;margin:5px 0;">{sec_rows}</div>')
 
 
-def _slim_focus(d):
-    """段3：可以关注（板块/题材/个股 + 买卖点 + 止损位，不含已涨停）。"""
+def _slim_quantum(d):
+    """倍量阳线·涨幅4%附近候选（启动预警/盘前专用）：
+    未涨停 + 涨幅 3%~5.5%（4%左右）+ 量比≥2（今日是昨日均量2倍+的倍量阳线）+ 题材共振优先。
+    纯规则零 AI；数据缺源返回空，绝不硬编。"""
+    zt_codes = set()
+    for sec, sts in d.get('sectors', {}).items():
+        for st in sts:
+            zt_codes.add(st.get('c'))
+    tops_sec = {n for n, _ in d.get('tops', [])[:8]}
     try:
-        tpool = _track_pool(d)
+        rows = _clist_gainers()
     except Exception:
-        tpool = []
+        return []
+    out = []
+    for s in rows:
+        if s['code'] in zt_codes:
+            continue                                  # 已涨停 → 剔除
+        pct = s.get('pct', 0)
+        if not (3.0 <= pct <= 5.5):
+            continue                                  # 只留涨幅4%左右的倍量阳线
+        if s.get('lb', 0) < 2.0:
+            continue                                  # 量比≥2 才算倍量
+        ind = re.sub(r'[行业板块概念\s]+', '', s.get('industry') or '') or '其他'
+        tag = '倍量·题材共振' if ind in tops_sec else '倍量·独立放量'
+        out.append((s, tag))
+        if len(out) >= 4:
+            break
+    return out
+
+
+def _slim_focus(d, slot):
+    """段3：可以关注（板块/题材/个股 + 买卖点 + 止损位，不含已涨停）。
+    启动预警(warn)/盘前(pre)：倍量阳线+涨幅4%附近候选；其余档：量能+题材共振低吸池。"""
+    if slot in ('warn', 'pre'):
+        try:
+            tpool = _slim_quantum(d)
+        except Exception:
+            tpool = []
+        if not tpool:
+            try:
+                tpool = _track_pool(d)
+            except Exception:
+                tpool = []
+    else:
+        try:
+            tpool = _track_pool(d)
+        except Exception:
+            tpool = []
     rows = ''
     for s, kind in tpool[:3]:
         try:
@@ -5520,6 +5562,25 @@ def _slim_focus(d):
     return f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">🎯 可以关注（板块/题材/个股）</div>{rows}'
 
 
+def _slim_global():
+    """外围市场指数行（启动预警/盘前/外盘窗口用）：纳指/道指/标普/恒生/原油/黄金/比特币，红涨绿跌。"""
+    try:
+        gl = _global_markets()
+    except Exception:
+        return ''
+    if not gl:
+        return ''
+    rows = []
+    for nm, pct, note in gl:
+        if pct is None:
+            rows.append(f'{nm} <span style="color:{GREY}">{note or "未取得"}</span>')
+        else:
+            rows.append(f'{nm} <b style="color:{RED if pct >= 0 else GREEN}">{pct:+.2f}%</b>')
+    return (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#8bc8ea;">🌍 外围市场</div>'
+            f'<div style="background:#232a3a;border-radius:8px;padding:8px 11px;margin:5px 0;font-size:13px;color:#e2e8f0;">'
+            f'{"　".join(rows)}</div>')
+
+
 def build_slim(slot):
     """极简三段式统一推送：①发生了什么 ②市场怎么样/什么在涨 ③关注方向。全部定时推送统一入口。"""
     try:
@@ -5533,10 +5594,11 @@ def build_slim(slot):
         mscore, mlabel, mwhy = 50.0, '震荡分化', '数据未取得，以开盘/竞价验证为准'
     hour = _bj_now().hour
     ev = 'pre' if hour < 11 else ('noon' if hour < 14 else 'eod')
+    sec_g = _slim_global() if slot in ('warn', 'pre', 'ext') else ''
     sec1 = _slim_events(ev)
     sec2 = _slim_market(idx, d, mscore, mlabel, mwhy, zbr)
-    sec3 = _slim_focus(d)
-    inner = sec1 + sec2 + sec3
+    sec3 = _slim_focus(d, slot)
+    inner = sec_g + sec1 + sec2 + sec3
     icon = {'pre': '☀️', 'auction': '🔔', 'hourly': '⏰', 'noon': '🌞', 'eod': '🌆',
             'news': '📰', 'news2h': '📰', 'warn': '🚨', 'confirm': '🔔', 'ext': '🌍',
             'evening': '🌙', 'follow': '👣', 'anchor': '🔗', 'review': '🔁', 'evaluate': '📋'}.get(slot, '📊')
