@@ -1279,18 +1279,27 @@ def _brief_summary(items):
     fmt = ('以下是今日事件清单（每条含标签与影响板块）：\n' + evs + '\n'
            '严格按系统提示词输出：开头【今日核心大方向】一句话定调，然后 🔥利好实操 / 💣利空避险 / 💡隐形坑三段，'
            '每段用「- 题材细分 / - 明面龙头 / - 实战标的 / - 怎么买 / - 危险题材 / - 危险个股 / - 怎么跑」子项格式，'
-           '自然段大白话，直接输出，不要JSON、不要任何额外说明。')
+           '自然段大白话，直接输出，不要JSON、不要任何额外说明。'
+           '段落排序要求：每段首行前加编号「01」「02」「03」「04」字样（01=今日核心大方向，02=利好实操，03=利空避险，04=隐形坑），先利好后利空，把最重要的结论放前面。')
     t = ask_deepseek({'task': 'event_summary_v3', 'events': [x['title'] for x in items[:20]],
                       'format': fmt}, purpose='brief_summary_v3', system_text=sys_text)
     if not t or len(t.strip()) < 60:
         return ''
     import html as _h
+    _badges = [('01', GOLD), ('02', RED), ('03', GREEN), ('04', '#ffd666')]
     parts = []
     for ln in t.strip().split('\n'):
         ln = ln.strip()
         if not ln:
             continue
         e = _h.escape(ln)
+        _num, _numc = '', GREY
+        for _n, _c in _badges:
+            if _n in ln[:6]:
+                _num, _numc = _n, _c
+                ln = ln.replace(_n, '', 1).strip()
+                e = _h.escape(ln)
+                break
         if '【今日核心大方向】' in ln:
             parts.append('<div style="color:' + GOLD + ';font-size:14px;font-weight:900;margin-top:8px;">🧭 ' + e + '</div>')
         elif '🔥' in ln:
@@ -1335,17 +1344,20 @@ def build_events(slot, news=None):
         rel_s = '、'.join(rel[:3]) or '暂看不出直接板块影响'
         out.append({'tag': tag, 'color': color, 'title': nw['title'][:60],
                     'time': (nw.get('ts') or '')[-8:-3] or '', 'rel': rel_s})
-    n = 30  # 事件汇总：有多少显示多少，最多30条
-    out = out[:n]
+    # —— 事件简报改版（11-05 指令④）：按利好→利空→中性排序（段落排序），最多12条（内容紧密）——
+    _pri = {'利好': 0, '重大利好': 0, '正面': 0, '政策利好': 0, '中性': 2, '利空': 1, '重大利空': 1, '负面': 1, '风险提示': 1}
+    out.sort(key=lambda x: (_pri.get(x['tag'], 2), x['time'] or ''))
+    out = out[:12]
     if not out:
         return ''
     _sum_html = _brief_summary(out)      # 顶部大白话汇总（做减法+实战映射）
     cards = []
-    for x in out:
-        cards.append(f"""<div style="background:#1f2635;border-left:4px solid {x['color']};border-radius:10px;padding:8px 12px;margin:5px 0;">
-<div style="font-weight:800;color:{x['color']};">【{x['tag']}】</div>
-<div style="color:#fff;font-size:13px;margin-top:3px;">{x['title']}</div>
-<div style="color:{GREY};font-size:12px;margin-top:2px;">影响：{x['rel']}</div></div>""")
+    for i, x in enumerate(out, 1):
+        cards.append(f"""<div style="background:#1f2635;border-left:4px solid {x['color']};border-radius:10px;padding:7px 11px;margin:5px 0;display:flex;gap:8px;align-items:flex-start;">
+<div style="flex:0 0 auto;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:{x['color']}22;color:{x['color']};font-weight:900;font-size:11px;margin-top:1px;">{i:02d}</div>
+<div style="flex:1 1 auto;min-width:0;">
+<div style="color:#fff;font-size:13px;line-height:1.5;"><span style="font-weight:800;color:{x['color']};">{x['tag']}</span>　{x['title']}</div>
+<div style="color:{GREY};font-size:12px;margin-top:2px;">{x['time'] or ''}｜影响：{x['rel']}</div></div></div>""")
     cards = ''.join(cards)
     head = {'pre': '📰 早盘事件汇总', 'noon': '📰 午间事件汇总', 'eod': '📰 尾盘事件汇总'}[slot]
     # 写入事件日志
@@ -3955,8 +3967,9 @@ def _hourly_ds(idx, d, b, zbr):
         _g = load_position_gauge()
         _g_txt = (f'（当前仓位仪表盘：{_g.get("suggest", "")}，来自 {_g.get("source", "")}，不得与其矛盾）' if _g else '（仓位仪表盘未生成）')
         fmt = ('【主力游资五步铁律】先看筹码后说话，问三个主力问题，翻译成人话，套游资纪律，自查。\n'
-               + '你是一线游资，基于以下盘中数据做整点解读，先判断市场是主力进攻还是主力出货环境，再给仓位。炸板率>45%时，op不得出现「轻仓试」，只能观察或防守。整体偏空时 op 必须直接写「建议空仓」，不推个股；没有明确信号写「等」，不硬凑。\n只输出 JSON：\n'
-               + '{"overall":"现在盘面真正什么情况(用数据)+主力阶段，一句大白话+能不能做","emotion_score":0-100,"op":"该干什么：具体动作+仓位档(空仓/1成/2成/半仓)","risk":"最大风险+什么情况必须撤","next_watch":"下一小时最该盯的1个点"}\n'
+               + '你是一线游资，基于以下盘中数据做整点解读，先判断市场是主力进攻还是主力出货环境，再给仓位。炸板率>45%时，op不得出现「轻仓试」，只能观察或防守。整体偏空时 op 必须直接写「建议空仓」，不推个股；没有明确信号写「等」，不硬凑。\n'
+               + '【传染研判·硬要求】必须单独回答 contagion：今天哪个板块在突发异动（用最强板块/领涨数据），它最可能传染到哪个「还没启动」的题材和个股，讲清传染逻辑、原因、暗线（为什么资金会顺着产业链/比价/情绪扩散过去）以及确认传染的信号（什么时候算真传染）。没有可传染方向就写「暂无明确传染方向」。\n只输出 JSON：\n'
+               + '{"overall":"现在盘面真正什么情况(用数据)+主力阶段，一句大白话+能不能做","emotion_score":0-100,"op":"该干什么：具体动作+仓位档(空仓/1成/2成/半仓)","risk":"最大风险+什么情况必须撤","next_watch":"下一小时最该盯的1个点","contagion":"突发异动板块→传染方向：板块名→题材+未启动个股（点名具体股票）+传染逻辑与暗线+确认信号，≥40字"}\n'
                + '数据：指数 ' + idx_txt + '；涨停{d["lu"]}家 炸板{d["zb"]}家(炸板率{zbr*100:.0f}%) 跌停{d["dt"]}家 最高{d["max_lbc"]}板；情绪=' + b + '；最强板块 ' + tops + _g_txt + '\n炸板率>45% 时，op 不得出现「轻仓试」，只能观察或防守。')
         t = ask_deepseek({'task': 'hourly_ds', 'idx': idx_txt, 'tops': tops, 'b': b,
                           'lu': d['lu'], 'zb': d['zb'], 'dt': d['dt'], 'max_lbc': d['max_lbc'],
@@ -3982,6 +3995,8 @@ def _hourly_ds(idx, d, b, zbr):
             out.append('<div style="color:' + RED + ';font-size:13px;margin-top:3px;">⚠️ 风险：' + str(_j['risk']) + '</div>')
         if _j.get('next_watch'):
             out.append('<div style="color:' + GREY + ';font-size:13px;margin-top:3px;">👀 下一盯点：' + str(_j['next_watch']) + '</div>')
+        if _j.get('contagion'):
+            out.append('<div style="color:#94d4d0;font-size:13px;margin-top:3px;line-height:1.6;">🔄 传染方向：' + str(_j['contagion']) + '</div>')
         if not out:
             return ''
         return '<div style="margin-top:8px;padding:10px;background:#1c2230;border-left:4px solid ' + TEAL + ';border-radius:8px;">' + ''.join(out) + '</div>'
@@ -5546,7 +5561,7 @@ def _noon_ds(idx, d, news=None):
             fin_r = '、'.join(f"{nm}{v/1e8:+.1f}亿" for nm, v in fin[:5])
             fout_r = '、'.join(f"{nm}{v/1e8:+.1f}亿" for nm, v in fout[:5])
             net_total = sum(v for _, v in fin[:5]) + sum(v for _, v in fout[:5])
-            mf_note = f'主力净流入前5：{fin_r}；净流出前5：{fout_r}；' + ('净流入>净流出，真强概率大。' if net_total > 0 else '净流出占优，警惕诱多。')
+            mf_note = f'上午主力净流入前5板块：{fin_r}；净流出前5板块：{fout_r}；净额合计{net_total/1e8:+.1f}亿，' + ('净流入>净流出，资金在做多。' if net_total > 0 else '净流出占优，警惕诱多。')
         else:
             mf_note = '主力资金流接口未取得，不编造。'
     except Exception:
@@ -5583,10 +5598,11 @@ def _noon_ds(idx, d, news=None):
            '联动与情绪因子：上方筹码真空、老妖股记忆、龙虎榜游资接力、大盘跳水逆势抗跌。\n'
            '【执行流程】\n'
            '【盘面定调】用一两句话点明今天最强主线的龙头是否被通道党顶死，大资金现在在哪个新方向或细分领域做局。\n'
+           '【资金暗线与传染】必须单独深挖上午资金去向：为什么资金净流入上面这些板块（原因逻辑，用数据说话）、是什么导致资金异动的核心暗线（主力在打什么算盘：做多主线/高低切/防御/出货）、这笔资金会传染到哪个还没启动的板块/题材/个股（点名具体股+传染逻辑）、下午怎么跟这笔资金（操作建议+条件）。\n'
            '【核心埋伏标的】只推1-2只有硬逻辑的票，每只严格按一段大白话叙述：完整执行「股票深挖铁律」（本质一句话+暗线业务[具体产品+阶段+真实贡献，写不出写「未见明确暗线业务」]+真实关联与弹性[实受益/沾边/纯蹭]+为什么是它+破灭点+动作），把底牌逻辑、微观盘口手法、龙头触发信号和买卖点无缝揉在一起。没有硬逻辑就写「今日无强推」，绝不硬凑。\n'
            '【观察池】列出2到3只备用观察标的（同样限制30到800亿总市值）。用一句话说明它的题材逻辑以及在等什么信号才动手。\n'
            '【避风港与仓位】连贯陈述今天必须规避的高位断板风险和大资金流出的诱多板块。给出下午总仓位建议并说明理由。\n'
-           '【全文精简硬约束】全文≤220字，像老手在微信群发连串长语音；信息多时优先保证核心埋伏标的完整，观察池/避风港各一句话带过。\n'
+           '【全文精简硬约束】全文≤320字，像老手在微信群发连串长语音；信息多时优先保证资金暗线与传染、核心埋伏标的完整，观察池/避风港各一句话带过。\n'
            '【自检】检查全文是否无问号无列表；总市值是否在30到800亿之间；是否自然融入了庄家建仓与量化操作手法；买卖点止损是否明确。自检通过才输出。\n'
            '禁止万能句；数据不足以支撑推荐时明确写「今日无强推」；没有真实价位数据时写「待盘中确认」，禁止编造价位；禁止把推测当已核实事实。' + '\n'
            + (('昨日判断（供对照，别重复昨天的错）：\n{judgment}\n' if jc else ''))
@@ -5799,7 +5815,7 @@ def _sec2_deep(scored):
     fmt = ('你是一线游资，收盘复盘，对下面每个强势板块点评明天怎么看（严格按主力游资五步铁律）：\n'
            + FIVE_BRIEF + '\n'
            + '先判断主力明天还会继续做还是准备出货。\n板块数据：\n' + lines + '\n'
-           + '只输出 JSON：{"per":[{"name":"板块名(照抄)","logic":"今天为什么强/弱：主力阶段+驱动+资金+持续性(≥25字)","why":"大白话(≥20字)","stage":"启动|接力|分歧|退潮","verdict":"明天能不能跟：跟/看/别追","tomorrow_act":"明天怎么跟：低吸/接力/看戏+条件(≥15字)"}]}，必须覆盖每个板块。')
+           + '只输出 JSON：{"per":[{"name":"板块名(照抄)","logic":"今天为什么强/弱：主力阶段+驱动+资金+持续性(≥25字)","why":"大白话(≥20字)","stage":"启动|接力|分歧|退潮","verdict":"明天能不能跟：跟/看/别追","tomorrow_act":"明天怎么跟：低吸/接力/看戏+条件(≥15字)","dark":"暗线：资金选这个板块真正在做什么局、明天哪个细分最容易接力(≥15字)"}]}，必须覆盖每个板块。')
     t = ask_deepseek({'task': 'sec2_deep', 'items': [{'n': n, 'cnt': len(s), 'sc': sc, 'lv': lv} for n, s, sc, lv, _ol in scored[:8]],
                       'format': fmt}, purpose='sec2_deep')
     out = {}
@@ -5810,12 +5826,76 @@ def _sec2_deep(scored):
         for it in _j.get('per') or []:
             nm = str(it.get('name') or '').strip()
             if nm:
-                out[nm] = {k: str(it.get(k) or '') for k in ('logic', 'why', 'act', 'stage', 'verdict', 'tomorrow_act')}
+                out[nm] = {k: str(it.get(k) or '') for k in ('logic', 'why', 'act', 'stage', 'verdict', 'tomorrow_act', 'dark')}
                 if not out[nm].get('act') and out[nm].get('tomorrow_act'):
                     out[nm]['act'] = out[nm]['tomorrow_act']
     except Exception:
         pass
     return out
+
+
+def _eod_review_ds(d, idx, scored, tpool):
+    """收盘全面研判（11-05 指令⑤）：TOP10 板块上涨逻辑+涨停个股原因暗线+明日可介入个股原因暗线+
+    主线候选/下次爆发题材/主升启动股。失败返回 {}。"""
+    if not scored and not tpool:
+        return {}
+    tops_txt = '；'.join(f"「{n}」涨停{len(s)}家 龙头{sorted(s, key=lambda x: x.get('fbt') or 0)[0].get('n')}" for n, s, *_ in scored[:10])
+    pool_txt = '；'.join(f"{s.get('name')}（{s.get('pct')}%，量比{s.get('lb')}，题材{s.get('industry') or '其他'}）" for s, _k in tpool[:8])
+    idx_txt = '、'.join(f"{x['name']}{x['pct']:+.2f}%" for x in idx) or '未取得'
+    fmt = ('你是深谙A股主力运作的一线游资，收盘后做全面研判。基于以下收盘数据，只输出 JSON：\n'
+           '{"tops":[{"sec":"板块名(照抄TOP10)","logic":"上涨核心逻辑：驱动+资金+持续性(≥25字)","leader":"龙头股","leader_dark":"龙头涨停的真实原因与暗线(≥20字)：是板块爆发还是个股利好、资金为什么封它"}],"tomorrow":[{"name":"股票名","reason":"明日可介入原因(≥20字，只从盘面真实异动推导)","dark":"暗线(≥15字)","buy":"买点具体","stop":"止损具体","pos":"仓位"}],"mainline_next":["板块A：为什么可能成主线(≥15字)","板块B：…(最多3个)"],"spark_next":["题材X：下次爆发逻辑(≥15字)","题材Y：…(最多3个)"],"main_start":["股票Z：准备启动主升的理由(≥20字，用盘面数据说话)"]}\n'
+           '硬约束：明日可介入/主升启动票禁止推今日涨停/连板票与千亿大盘股；没有把握写「暂无」，禁止万能句；用数据说话。\n'
+           '数据：指数 ' + idx_txt + '；涨停' + str(d['lu']) + '炸板' + str(d['zb']) + '跌停' + str(d['dt']) + '；TOP10板块：' + tops_txt + '\n'
+           '可跟踪池（今日未涨停、量能放大）：' + (pool_txt or '无'))
+    t = ask_deepseek({'task': 'eod_review_ds', 'tops': [n for n, s, *_ in scored[:10]],
+                      'pool': [s.get('name') for s, _k in tpool[:8]], 'format': fmt}, purpose='eod_review_ds')
+    if not t:
+        return {}
+    try:
+        _j = json.loads(t)
+        return _j if isinstance(_j, dict) else {}
+    except Exception:
+        return {}
+
+
+def _eod_review_html(rv, scored):
+    """渲染收盘全面研判段。"""
+    if not rv:
+        return ''
+    out = []
+    _tops = rv.get('tops') or []
+    if _tops:
+        rows = []
+        for t_ in _tops[:10]:
+            rows.append(f"""<div style="background:#1f2635;border-left:3px solid {RED};border-radius:8px;padding:8px 11px;margin:5px 0;">
+<div style="font-weight:700;color:#fff;">{t_.get('sec','')} <span style="color:{GREY};font-size:12px;">龙头 {t_.get('leader','')}</span></div>
+<div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.6;">🧠 上涨逻辑：{t_.get('logic','')}</div>
+<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳️ 龙头暗线：{t_.get('leader_dark','')}</div></div>""")
+        out.append('<div style="margin-top:12px;font-size:15px;font-weight:800;color:' + RED + ';">【TOP10 板块/题材上涨逻辑 & 涨停个股原因暗线】（大模型研判）</div>' + ''.join(rows))
+    _tom = rv.get('tomorrow') or []
+    if _tom:
+        rows = []
+        for t_ in _tom[:6]:
+            rows.append(f"""<div style="background:#1f2635;border-left:3px solid {TEAL};border-radius:8px;padding:8px 11px;margin:5px 0;">
+<div style="font-weight:700;color:#fff;">明日可介入：{t_.get('name','')} <span style="color:{GREY};font-size:12px;">｜{t_.get('pos','')}</span></div>
+<div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.6;">🧠 原因：{t_.get('reason','')}</div>
+<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳️ 暗线：{t_.get('dark','')}</div>
+<div style="color:{GOLD};font-size:12px;margin-top:2px;">🎯 买点：{t_.get('buy','待确认')}｜止损：{t_.get('stop','-3%')}</div></div>""")
+        out.append('<div style="margin-top:12px;font-size:15px;font-weight:800;color:' + TEAL + ';">【明日可介入个股】（原因+暗线）</div>' + ''.join(rows))
+    _main = rv.get('mainline_next') or []
+    _spark = rv.get('spark_next') or []
+    _start = rv.get('main_start') or []
+    if _main or _spark or _start:
+        seg = []
+        if _main:
+            seg.append('<div style="margin:6px 0;"><b style="color:' + RED + ';">主线候选：</b>' + '<br>'.join('· ' + str(x) for x in _main[:3]) + '</div>')
+        if _spark:
+            seg.append('<div style="margin:6px 0;"><b style="color:' + GOLD + ';">下次爆发题材：</b>' + '<br>'.join('· ' + str(x) for x in _spark[:3]) + '</div>')
+        if _start:
+            seg.append('<div style="margin:6px 0;"><b style="color:' + TEAL + ';">准备主升：</b>' + '<br>'.join('· ' + str(x) for x in _start[:3]) + '</div>')
+        out.append('<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">【全面汇总：主线候选 / 下次爆发 / 主升启动】</div>'
+                   + '<div style="background:#232a3a;border-left:4px solid #ff922b;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.7;color:#e2e8f0;">' + ''.join(seg) + '</div>')
+    return ''.join(out)
 
 
 def _resonance_verdict(res):
@@ -5879,7 +5959,7 @@ def build_eod():
 
     # 2. 今日主线/强势题材（评分排序；加厚：龙头封板时间 + 跟风未涨停票 + 大白话）
     scored = []
-    for n, s in d['tops'][:8]:
+    for n, s in d['tops'][:10]:
         sc, lv = theme_score(n, s, n in prev_sec)
         old_leaders = []
         for pd in days[:3]:
@@ -5916,7 +5996,8 @@ def build_eod():
             _llm2 = (f'<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🧠 逻辑：{_dp2.get("logic", "")}</div>'
                      f'<div style="color:#e9ecef;font-size:12px;margin-top:2px;">👉 大白话：{_dp2.get("why", "")}</div>'
                      + (f'<div style="color:{GOLD};font-size:12px;margin-top:2px;">🎚️ 阶段：{_dp2.get("stage", "")} ｜ 结论：{_dp2.get("verdict", "")}</div>' if _dp2.get('stage') or _dp2.get('verdict') else '')
-                     + (f'<div style="color:{TEAL};font-size:12px;margin-top:2px;">🎯 明天：{_dp2.get("act", "")}</div>' if _dp2.get('act') else ''))
+                     + (f'<div style="color:{TEAL};font-size:12px;margin-top:2px;">🎯 明天：{_dp2.get("act", "")}</div>' if _dp2.get('act') else '')
+                     + (f'<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳️ 暗线：{_dp2.get("dark", "")}</div>' if _dp2.get('dark') else ''))
         plain = ('资金还在往里涌，明天低开别慌，回踩可轻仓。' if lv == '强'
                  else '今天有资金但不算最强，明天只跟龙头，别追跟风。')
         sec2_rows += f"""<div style="background:#1f2635;border-left:4px solid {GOLD if lv=='强' else GREY};border-radius:10px;padding:10px 12px;margin:7px 0;">
@@ -5925,7 +6006,7 @@ def build_eod():
 {f'<div style="color:{TEAL};font-size:12px;margin-top:3px;">📌 历史强势股：{"、".join(old_leaders)}</div>' if old_leaders else ''}
 <div style="color:{TEAL};font-size:12px;margin-top:3px;">🔎 可跟踪跟风（未涨停量能放大）：{fg_txt}</div>
 <div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 大白话：{plain}</div>{_llm2}</div>"""
-    sec2 = f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">【今日主线 & 强势题材】（最多8条）</div>{sec2_rows}'
+    sec2 = f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">【今日主线 & 强势题材】（TOP10 上涨逻辑）</div>{sec2_rows}'
     if not sec2_rows:
         sec2 += '<div style="color:' + GREY + ';font-size:13px;margin-top:4px;">今日强势题材数据未取得（涨停池缺源），明日以竞价/开盘验证为准</div>'
     sec2 += ''.join(f'<div style="margin:3px 0;font-size:12px;color:{GREY};">{life_badge(n, d, mem, days)} {n}（{life_cycle(n, d, mem, days)[1]}）</div>'
@@ -6050,6 +6131,14 @@ def build_eod():
         sec_ds = ('<div style="margin-top:12px;border-left:4px solid #a78bfa;border-radius:8px;padding:10px 12px;background:#232a3a;'
                   'font-size:13px;color:#9aa4b8;">🧠 大白话复盘生成失败（模型通道不可用），以上方结构化数据为准</div>')
 
+    # 全面研判（11-05 指令⑤）：TOP10 上涨逻辑+涨停个股原因暗线+明日可介入+主线候选/下次爆发/主升启动
+    try:
+        _rv = _eod_review_ds(d, idx, scored, tpool)
+    except Exception as _e:
+        print('[eod] 全面研判异常:', _e)
+        _rv = {}
+    sec8 = _eod_review_html(_rv, scored)
+
     sec_sell = f"""<div style="margin-top:12px;border-left:4px solid {GREEN};border-radius:8px;padding:9px 11px;background:#1c2830;font-size:13px;color:#e2e8f0;">
 <div style="font-weight:800;color:{GREEN};">📋 明日开盘预案</div>
 高开≥2%且量能配合 → 先卖一半，剩一半看封板；高开&lt;2%或平开 → 看前15分钟量能和分时结构；低开&gt;1.5% → 竞价直接减仓或清仓。</div>"""
@@ -6103,7 +6192,7 @@ def build_eod():
     except Exception:
         _reson_sec = ''
 
-    inner = (_overall + health_bar(idx, d, fin, fout) + sec1 + sec2 + sec4 + sec45 + sec5 + sec_ds + sec_sell + sec7
+    inner = (_overall + health_bar(idx, d, fin, fout) + sec1 + sec2 + sec8 + sec4 + sec45 + sec5 + sec_ds + sec_sell + sec7
              + build_events('eod') + sec6 + _pool_today
              + pos_cap_line(sentiment(idx, d)[0], hl)
              + (f'<div style="margin-top:6px;font-size:12px;color:{GREY};">{_st_line}</div>' if _st_line else '')
@@ -7288,6 +7377,7 @@ def build_news2h():
                + '请严格按以下格式输出（全大白话，禁模板句，不许加板块，不许罗列所有消息）：\n'
                + '【预期差】市场还没消化的1-2条（区分「已定价」与「未定价」；已定价禁止写成机会；没有写「今日无明显预期差，都是明牌」）\n'
                + '【怎么跟/怎么避】具体动作1-2条（结合利好利空说买什么、躲什么）\n'
+               + '【传染方向与暗线】这些消息最可能传染到哪个还没启动的题材/个股/板块（点名具体股+传染逻辑+暗线，最多2个方向；没有写「暂无明确传染方向」）\n'
                + '【明日操作建议】给明确仓位档位（用1-2成/2-4成/半仓/空仓这类明确数字）\n'
                + '【大白话总结】一句话（今天消息面对A股整体偏暖还是偏冷、最该记的一个点）')
         t = ask_deepseek({'task': 'news2h_summary',
@@ -9271,7 +9361,7 @@ def _intra_ds(now, prev_lu, d, top_new, ma5_map, pos_map, sec_cnt):
                    '必须先用 f10 把公司主业翻译成一句接地气大白话（像跟朋友解释这家公司干嘛的，如「做电子元器件『网上超市』的」，禁止照抄书面简介），再用 news 佐证催化；news 为空就老实说「新闻源没抓到，从盘面数据推」，不许编。\n'
                    '【股票深挖铁律·每票强制】每只票完整执行：①本质（一句大白话）②暗线业务（具体产品+阶段+对业绩真实贡献，写不出写「未见明确暗线业务」）③真实关联与弹性（实受益/沾边/纯蹭+弹性大小）④为什么是它⑤破灭点（必写）⑥动作。logic字段必须包含以上全部要点；单票≤90字；逻辑不硬直接写「不碰」。\n'
                    '按【底层核心逻辑链】输出：①公司主业(一句人话)②题材关联(实受益/沾边/纯蹭)③资金本质(龙头/订单/摘帽/低价/情绪，可引用 fund_wan 资金流入)④催化验证(news)⑤暗雷。\n'
-                   '{"overall":"情绪一句话+能不能追","mainline":"今日最强方向+还能不能跟","risk":"最大风险+什么情况立刻撤","per":[{"name":"股票名称","theme":"真实题材名","stage":"启动日|中段接力|末段高位|退潮反抽","verdict":"终审推荐|观察|不碰","evidence":["证据1","证据2"],"logic":"公司主业+题材关联+资金本质+催化+暗雷，至少55字，禁止只讲盘面高位、禁止固定比喻充当逻辑","why":"大白话，至少18字，比喻只能收尾一句","op":"别追/看/轻仓试/观望","buy":"买点具体条件","stop":"止损具体"}]}，'
+                   '{"overall":"情绪一句话+能不能追","mainline":"今日最强方向+还能不能跟","risk":"最大风险+什么情况立刻撤","contagion":"今天涨停/板块爆发会传染到哪个还没启动的题材/个股（点名具体股+传染逻辑与暗线；没有写「暂无明确传染方向」）","per":[{"name":"股票名称","theme":"真实题材名","driver":"涨停驱动：板块爆发/个股利好/资金接力/情绪扩散（写清判断依据：靠消息还是靠板块还是靠资金）","stage":"启动日|中段接力|末段高位|退潮反抽","verdict":"终审推荐|观察|不碰","evidence":["证据1","证据2"],"logic":"公司主业+题材关联+资金本质+催化+暗雷，至少55字，禁止只讲盘面高位、禁止固定比喻充当逻辑","why":"大白话，至少18字，比喻只能收尾一句","op":"别追/看/轻仓试/观望","buy":"买点具体条件","stop":"止损具体"}]}，'
                    '每条 logic 必须先写「我查到了什么」再下判断（真实数据摆在前：现价/涨幅/量比/换手/资金/F10主业一句/news催化），'
                    '禁止「值得关注/建议留意/板块强势带动/具备一定投资价值/XX概念+龙头」这类模板句；证据不足必须降级评级并说明原因；'
                    'lbc>=3 或 pos60>0.85 的票：op 只能「别追」、verdict 只能「不碰」，只解释原因；'
@@ -9286,7 +9376,7 @@ def _intra_ds(now, prev_lu, d, top_new, ma5_map, pos_map, sec_cnt):
 
 def _intra_parse_ds(txt, names):
     """解析 DS 输出：优先 JSON（overall/mainline/risk/per[logic,why,op,buy,stop]），回退【情绪】/竖线行。"""
-    out = {'overall': None, 'per': {}, 'mainline': None, 'risk': None}
+    out = {'overall': None, 'per': {}, 'mainline': None, 'risk': None, 'contagion': None}
     names_set = set(names)
     try:
         import json as _json
@@ -9294,6 +9384,7 @@ def _intra_parse_ds(txt, names):
         out['overall'] = str(_j.get('overall') or '') or None
         out['mainline'] = str(_j.get('mainline') or '') or None
         out['risk'] = str(_j.get('risk') or '') or None
+        out['contagion'] = str(_j.get('contagion') or '') or None
         for it in _j.get('per') or []:
             nm = str(it.get('name') or '').strip()
             nm = nm.split('（')[0].strip()
@@ -9302,6 +9393,7 @@ def _intra_parse_ds(txt, names):
                                   'op': str(it.get('op') or ''), 'buy': str(it.get('buy') or ''),
                                   'stop': str(it.get('stop') or ''), 'theme': str(it.get('theme') or ''),
                                   'stage': str(it.get('stage') or ''), 'verdict': str(it.get('verdict') or ''),
+                                  'driver': str(it.get('driver') or ''),
                                   'evidence': it.get('evidence') if isinstance(it.get('evidence'), list) else []}
         return out
     except Exception:
@@ -9472,10 +9564,12 @@ def build_intraday():
             '<div style="background:#1f2635;border-left:3px solid ' + op_col + ';border-radius:8px;padding:8px 10px;margin:6px 0;">'
             + '<div style="font-size:13px;font-weight:700;color:#fff;">' + name + '（' + code + '）｜' + (dsp.get('theme') if isinstance(dsp, dict) and dsp.get('theme') else sec) + '｜<span style="color:' + RED + ';">' + lb_txt + '</span>' + fbt_txt + '</div>'
             + (('<div style="color:' + TEAL + ';font-size:12px;margin-top:2px;">🧠 个股逻辑：' + _logic + '</div>') if _logic else '')
+            + (('<div style="color:#94d4d0;font-size:12px;margin-top:2px;">⚡ 涨停驱动：' + dsp.get('driver', '') + '</div>') if isinstance(dsp, dict) and dsp.get('driver') else '')
             + '<div style="color:' + GREY + ';font-size:12px;">👉 ' + ('AI 大白话' if dsp else '大白话') + '：' + why + '。</div>'
             + '<div style="color:#ced4da;font-size:12px;">操作：<b style="color:' + op_col + ';">' + op + '</b> ｜ 买点：' + buy + ' ｜ 止损：' + stop + '</div></div>')
     new_block = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">🆕 新进涨停 ' + str(len(new_xs)) + ' 只（增量，只讲新的）</div>'
                  + ''.join(rows)
+                 + (('<div style="color:#94d4d0;font-size:12px;margin-top:4px;line-height:1.6;">🔄 传染方向：' + str(ds.get('contagion')) + '</div>') if ds and ds.get('contagion') else '')
                  + ('<div style="color:' + GREY + ';font-size:12px;margin-top:4px;">另有 ' + str(rest_n) + ' 只首封（' + '、'.join(x.get('n', '') for x in new_xs[5:8]) + ' 等），不逐一展开。</div>' if rest_n else ''))
     # —— 主线归纳（DS 优先，模板回退）——
     from collections import Counter as _C
@@ -9656,7 +9750,7 @@ def _warn_news_ds(items, zt_names=None):
            + '【深挖铁律·落到个股必做】fire 里每个方向必须举2-3只例子（stocks 字段），必须完整执行「股票深挖铁律」：本质（一句话大白话）+暗线业务（具体产品+阶段+真实贡献，写不出写「未见明确暗线业务」）+真实关联与弹性（实受益/沾边/纯蹭）+破灭点。禁止把昨日涨停/连板票列为 stocks 候选（涨停票只能写进 risk 提示）。没有明确标的写「该方向暂无明确点火标的」，禁止硬编。总输出≤380字。\n新闻列表：\n' + news_txt + '\n'
            + '只输出 JSON：{"fire":[{"sector":"可能被点燃的板块(≥8字)","stocks":"真实关联候选个股2-3只(必须用新闻和板块逻辑推出具体股票名，优先低位未涨停；禁止一律写无；完全推不出才写无，并写明推不出的原因)","logic":"点火逻辑(≥35字)：板块逻辑(为什么这个板块会动)+题材逻辑(消息对应哪个题材)+主力可能选什么类型的票","data":"实时数据参考：当前竞价/早盘量能、板块涨跌幅、相关个股表现；开盘前无盘中数据则明确写「开盘前暂无盘中数据，待09:25竞价验证量能/高开/板块联动」(禁止硬编数据)","verify":"开盘验证条件：竞价量比/高开幅度/板块多股联动等具体信号(≥15字，禁止空话)","fail_if":"失败则放弃的条件：出现什么信号即证伪(≥12字)","risk":"最大风险：位置/情绪/消息证伪/外围(≥12字)"}]}\n'
            + 'fire 最多5个。推不出就写"今日消息面无明确点火板块"，不许硬凑。\n'
-           + 'JSON 另加 "news_brief":[{"t":"新闻原标题","core":"消息核心内容完整版(≤80字，禁止只写一句话标题)","sec":"板块逻辑：利好/利空哪个板块(≥6字)","theme":"题材逻辑：对应哪个题材(≥6字)","dark":"个股暗线：直接点名可能受益的1-2只具体股(主业真实关联+弹性；无则写「暂无明确个股暗线」)","p":"大白话原因(≤45字)：说清这条消息可能点燃/压制哪个方向、主力会不会借题发挥","data":"实时数据参考：竞价/量能/板块涨跌/个股表现；开盘前无盘中数据则写「开盘前暂无盘中数据，待竞价验证」"}]，对新闻列表逐条给。')
+           + 'JSON 另加 "news_brief":[{"t":"新闻原标题","core":"消息核心内容完整版(≤80字，禁止只写一句话标题)","sec":"板块逻辑：利好/利空哪个板块(≥6字)","theme":"题材逻辑：对应哪个题材(≥6字)","dark":"个股暗线：直接点名可能受益的1-2只具体股(主业真实关联+弹性；无则写「暂无明确个股暗线」)","p":"大白话原因(≤45字)：说清这条消息可能点燃/压制哪个方向、主力会不会借题发挥","act":"操作建议：这条消息带来的具体操作（买/躲/看+条件，≥10字，禁止万能句）","data":"实时数据参考：竞价/量能/板块涨跌/个股表现；开盘前无盘中数据则写「开盘前暂无盘中数据，待竞价验证」"}]，对新闻列表逐条给。')
     t = ask_deepseek({'task': 'warn_news_ds', 'news': items[:15], 'format': fmt}, purpose='warn_news_ds')
     return t if t else ''
 
@@ -9688,6 +9782,8 @@ def _warn_render_fire(_j, items=None):
                     _line += f'<div style="color:#a78bfa;font-size:12px;margin:1px 0 0 10px;line-height:1.5;">🕳️ 个股暗线：{_dark[:70]}</div>'
                 if _p:
                     _line += f'<div style="color:#a78bfa;font-size:12px;margin:1px 0 0 10px;line-height:1.5;">💬 大白话：{_p[:50]}</div>'
+                if str(_n.get('act') or '').strip():
+                    _line += f'<div style="color:{RED};font-size:12px;margin:1px 0 0 10px;line-height:1.5;">💡 操作：{str(_n.get("act")).strip()[:60]}</div>'
                 if _data:
                     _line += f'<div style="color:#6c7a89;font-size:11px;margin:1px 0 4px 10px;line-height:1.5;">📊 实时数据：{_data[:60]}</div>'
                 _news_brief.append(_line)
@@ -9768,6 +9864,233 @@ def _zt_pool_names():
     except Exception as e:
         print('[ztpool] 涨停排除集异常:', e)
         return set()
+
+
+# ============ 雷达扫描（11-05 指令⑪）：倍量 + 实体阳线 + 5日线金叉20日线 ============
+RADAR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'radar_done.json')
+
+
+def _radar_kctx(code, price):
+    """个股K线核验（雷达三条件）：返回 dict 或 None。
+    条件①成交量倍量（今日量 ≥ 前5日均量×2，量比口径）；②实体阳线（收>开、涨幅1.5~9.5%）；
+    ③五日均线上穿二十日均线（含今日 MA5>MA20 且昨日 MA5≤MA20，允许近2日刚金叉）。"""
+    try:
+        sym = ('sh' if code.startswith('6') else 'sz') + code
+        arr = get_klines(sym, 70)
+        if not arr or len(arr) < 26:
+            return None
+        today_s = _bj_now().strftime('%Y-%m-%d')
+        if str(arr[-1][0]) != today_s:
+            # 非交易时段跑（FORCE 回放）：用最新已收盘K线视为当日
+            pass
+        last = arr[-1]
+        prev = arr[-2] if len(arr) >= 2 else None
+        o, c, h, l, v = float(last[1]), float(last[2]), float(last[3]), float(last[4]), float(last[5])
+        if o <= 0 or c <= 0 or v <= 0:
+            return None
+        pct = (c / o - 1) * 100
+        v5 = sum(float(x[5]) for x in arr[-6:-1]) / 5.0
+        vol_r = v / v5 if v5 > 0 else 0.0
+        closes = [float(x[2]) for x in arr]
+        ma5_now = sum(closes[-5:]) / 5.0
+        ma20_now = sum(closes[-20:]) / 20.0
+        ma5_prev = sum(closes[-6:-1]) / 5.0 if len(closes) >= 6 else 0.0
+        ma20_prev = sum(closes[-21:-1]) / 20.0 if len(closes) >= 21 else 0.0
+        golden = (ma5_now > ma20_now and ma5_prev <= ma20_prev) or \
+                 (len(closes) >= 7 and ma5_now > ma20_now and
+                  sum(closes[-6:-1]) / 5.0 <= sum(closes[-21:-1]) / 20.0)
+        body_ok = c > o and 1.0 <= pct <= 9.5
+        if vol_r < 2.0 or not body_ok or not golden:
+            return None
+        return {'price': round(c, 2), 'pct': round(pct, 2), 'vol_r': round(vol_r, 1),
+                'ma5': round(ma5_now, 2), 'ma20': round(ma20_now, 2), 'golden': bool(golden)}
+    except Exception:
+        return None
+
+
+def _radar_candidates(maxn=8):
+    """雷达扫描选股：涨幅榜初筛（涨幅2~9.5%、量比≥1.8、换手≥2.5%、未涨停）→ K线核验三条件。"""
+    try:
+        rows = _clist_gainers()
+    except Exception as e:
+        print('[radar] 涨幅榜异常:', e)
+        return []
+    zt_codes = set()
+    try:
+        for _sec, sts in get_pools()['sectors'].items():
+            for st in sts:
+                zt_codes.add(str(st.get('c') or ''))
+    except Exception:
+        pass
+    cands = []
+    for s in rows:
+        try:
+            if float(s.get('pct') or 0) < 2.0 or float(s.get('pct') or 0) >= 9.5:
+                continue
+            if float(s.get('lb') or 0) < 1.8:
+                continue
+            if float(s.get('turn') or 0) < 2.5:
+                continue
+        except Exception:
+            continue
+        if str(s.get('code') or '') in zt_codes:
+            continue
+        cands.append(s)
+        if len(cands) >= 25:
+            break
+    cands.sort(key=lambda x: -(float(x.get('lb') or 0)))
+    out = []
+    for s in cands[:15]:
+        k = _radar_kctx(s.get('code') or '', float(s.get('price') or 0))
+        if k is None:
+            continue
+        s['_k'] = k
+        out.append(s)
+        if len(out) >= maxn:
+            break
+    return out
+
+
+def _radar_ds(stocks):
+    """雷达扫描 LLM 深挖：每只筛出股挖异动归因/逻辑/暗线/买点止损。失败返回 {}。"""
+    if not stocks or not (MODELSCOPE_KEY or DEEPSEEK_KEY):
+        return {}
+    stk_txt = '\n'.join(
+        f"- {s.get('name')}({s.get('code')}) 现价{s.get('price')} 涨幅{s.get('pct')}% 量比{s.get('lb')} 换手{s.get('turn')}% "
+        f"行业{s.get('industry') or '其他'} K线:量比{s['_k']['vol_r']} 实体阳线+{s['_k']['pct']}% "
+        f"MA5={s['_k']['ma5']} MA20={s['_k']['ma20']} 金叉={s['_k']['golden']}" for s in stocks)
+    fmt = ('你是一线游资，雷达扫描器今日筛出以下「倍量+实体阳线+五日均线上穿二十日均线」的异动股。'
+           '对每只完整执行「股票深挖铁律」：①本质（一句话大白话，禁标签糊弄）②异动归因（今天为什么放量上涨：消息/资金/板块/业绩，用数据说话）'
+           '③暗线业务（具体产品+阶段+对业绩真实贡献，挖不出写「未见明确暗线业务」，禁「相关/涉及/布局/受益于」糊弄）'
+           '④真实关联与弹性（实受益/沾边/纯蹭+弹性大小）⑤破灭点（必写）⑥动作（买点具体价位/条件+止损位+仓位1-2成，逻辑不硬写「不碰」）。'
+           '禁止推荐总市值千亿大票（30-800亿口径）；禁止「值得关注/建议留意」万能句；没有把握写「逻辑不硬，不碰」。'
+           '只输出 JSON：{"per":[{"name":"股票名称","why":"异动归因(≥30字)","dark":"暗线(≥20字,挖不出如实写)","elastic":"关联弹性(实受益/沾边/纯蹭+大小)","op":"别追/轻仓试/观望","buy":"买点具体","stop":"止损具体","verdict":"值得试/观察/不碰"}]}\n'
+           '股票列表：\n' + stk_txt)
+    t = ask_deepseek({'task': 'radar_ds', 'stocks': [{'name': s.get('name'), 'code': s.get('code')} for s in stocks],
+                      'format': fmt}, purpose='radar_ds')
+    if not t:
+        return {}
+    try:
+        _j = json.loads(t)
+        out = {}
+        for it in (_j.get('per') or []):
+            nm = str(it.get('name') or '').strip()
+            if nm:
+                out[nm] = it
+        return out
+    except Exception:
+        return {}
+
+
+def build_radar():
+    """雷达扫描（11-05 指令⑪）：倍量+实体阳线+5日线金叉20日线筛股 → LLM 挖异动归因/逻辑/暗线。
+    仅北京盘中 09:30-14:50 实时推送（--force 演示跳过闸门）。无达标股 → 不推送（如实说明）。"""
+    bj = _bj_now()
+    if not FORCE_SLOT and not _in_session(bj):
+        print(f'[radar] 当前北京时间 {bj.strftime("%H:%M")} 不在盘中窗口(09:30-14:50)，不推雷达扫描')
+        return None
+    stocks = _radar_candidates()
+    if not stocks:
+        print('[radar] 今日无达标（倍量+实体阳线+金叉）个股，不推送')
+        return None
+    ds = _radar_ds(stocks)
+    rows = []
+    for s in stocks:
+        name, code = s.get('name', ''), s.get('code', '')
+        _d = ds.get(name) or {}
+        _why = str(_d.get('why') or '') or '数据达标（倍量+阳线+金叉），归因见下方'
+        _dark = str(_d.get('dark') or '') or '未见明确暗线业务'
+        _op = str(_d.get('op') or '看')
+        _opc = TEAL if _op in ('轻仓试',) else (GOLD if _op in ('看', '观望') else RED)
+        _buy = str(_d.get('buy') or '待盘中确认')
+        _stop = str(_d.get('stop') or '-3%')
+        _vd = str(_d.get('verdict') or '观察')
+        rows.append(f"""<div style="background:#1f2635;border-left:4px solid {_opc};border-radius:10px;padding:9px 12px;margin:6px 0;">
+<div style="font-weight:700;color:#fff;">📡 {name}<span style="color:{GREY};font-size:12px;">（{code}）</span>
+<span style="color:{_c(s.get('pct'))};">+{s.get('pct')}%</span>
+<span style="color:{GREY};font-size:12px;">｜量比{s.get('lb')}·换手{s.get('turn')}%·量能{s['_k']['vol_r']}x</span>
+<span style="color:{TEAL};font-size:12px;">｜5日{s['_k']['ma5']}上穿20日{s['_k']['ma20']}</span></div>
+<div style="color:#e9ecef;font-size:12px;margin-top:3px;line-height:1.6;">🧠 异动归因：{_why}</div>
+<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳️ 暗线：{_dark}</div>
+<div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 结论：<b style="color:{_opc};">{_vd}（{_op}）</b>｜买点：{_buy}｜止损：{_stop}</div></div>""")
+    if not rows:
+        rows = ['<div style="color:' + GREY + ';font-size:13px;">今日无达标（倍量+实体阳线+金叉）个股，等下一轮</div>']
+    inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">📡 {bj.strftime("%H:%M")} 雷达扫描 · 倍量+实体阳线+5日线上穿20日线</div>'
+             + ''.join(rows)
+             + f'<div style="color:{GREY};font-size:11px;margin-top:6px;">筛股口径：量比≥1.8 + 实体阳线涨幅1~9.5% + MA5上穿MA20（含今日）。LLM 深挖归因/暗线；高位不追，按买点纪律执行。</div>')
+    return _wrap(inner, '📡', '雷达扫描')
+
+
+def _radar_done(d):
+    """雷达扫描当日去重：同交易日仅推一次（防 watch 每15分钟重复刷屏）。"""
+    try:
+        with open(RADAR_PATH, encoding='utf-8') as f:
+            m = json.load(f)
+    except Exception:
+        m = {}
+    return m.get(d) is True
+
+
+def _mark_radar_done(d):
+    try:
+        with open(RADAR_PATH, 'w', encoding='utf-8') as f:
+            json.dump({d: True}, f, ensure_ascii=False)
+        _git_commit_push(RADAR_PATH, 'update radar done')
+    except Exception:
+        pass
+
+
+# ============ 新闻发酵（11-05 指令⑧）：盘中 10 条消息汇总一起推 ============
+def build_newsfire():
+    """盘中新闻发酵（仅北京盘中 09:30-14:50 实时推送）：取最新 10 条消息一起汇总，
+    LLM 逐条深挖「带来什么信息→影响哪个行业/题材/个股→操作建议」。LLM 失败降级规则 news_tags。"""
+    bj = _bj_now()
+    if not FORCE_SLOT and not _in_session(bj):
+        print(f'[newsfire] 当前北京时间 {bj.strftime("%H:%M")} 不在盘中窗口(09:30-14:50)，不推新闻发酵')
+        return None
+    try:
+        news = get_news(20)
+    except Exception as e:
+        print('[newsfire] 新闻源异常:', e)
+        news = []
+    items = []
+    for nw in (news or []):
+        t = (nw.get('title') or '').strip()
+        s = (nw.get('summary') or '').strip()
+        if t or s:
+            items.append({'title': t[:80], 'summary': s[:90]})
+        if len(items) >= 10:
+            break
+    if not items:
+        print('[newsfire] 无新闻，不推送')
+        return None
+    _t = _warn_news_ds(items, _zt_pool_names())
+    _j = None
+    try:
+        _j = json.loads(_t) if _t else None
+    except Exception:
+        _j = None
+    if not (_j or {}).get('news_brief'):
+        # LLM 失败/无 brief：降级标题 + 规则板块
+        rows = []
+        for nw in items:
+            sector, stocks, plain = news_tags(nw.get('title', ''), nw.get('summary', ''))
+            rows.append(f"""<div style="background:#1f2635;border-left:3px solid {GOLD};border-radius:8px;padding:7px 11px;margin:5px 0;">
+<div style="color:#fff;font-size:13px;">• {nw.get('title','')}</div>
+<div style="color:{GREY};font-size:12px;margin-top:2px;">影响：{sector or '暂看不出直接关联'}{f'｜相关：{stocks}' if stocks else ''}</div>
+<div style="color:{TEAL};font-size:12px;">🧠 {plain}</div></div>""")
+        inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">📰 {bj.strftime("%H:%M")} 新闻发酵 · 10条汇总（规则版，AI未返回）</div>'
+                 + ''.join(rows))
+    else:
+        nb = [str(_n.get('t') or '') for _n in _j['news_brief'][:10]]
+        _s = 0
+        for nw in items:
+            if nw.get('title') in nb:
+                _s += 1
+        inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">📰 {bj.strftime("%H:%M")} 新闻发酵 · 10条汇总（{len(items)}条 · LLM 深挖）</div>'
+                 + f'<div style="color:{GREY};font-size:11px;margin:3px 0 0;">每条=带来什么信息 → 影响哪个行业/题材/个股 → 操作建议</div>'
+                 + _warn_render_fire({'fire': [], 'news_brief': _j['news_brief'][:10]}))
+    return _wrap(inner, '📰', '新闻发酵')
 
 
 def _warn_zt_items():
@@ -9857,12 +10180,15 @@ def build_warn():
 
 TITLES = {'pre': '盘前速递', 'auction': '竞价观察', 'tail': '尾盘竞价筛选', 'noon': '午间作战', 'eod': '收盘复盘',
          'news': '事件简报', 'news2h': '两小时市场消息汇总',
-          'hourly': '盘中解读', 'warn': '启动预警', 'confirm': '竞价确认', 'ext': '外盘窗口'}
+          'hourly': '盘中解读', 'warn': '启动预警', 'confirm': '竞价确认', 'ext': '外盘窗口',
+          'radar': '雷达扫描', 'newsfire': '新闻发酵'}
 
 
 BUILDERS['warn'] = build_warn
 BUILDERS['ext'] = build_ext
 BUILDERS['tail'] = build_tail
+BUILDERS['radar'] = build_radar
+BUILDERS['newsfire'] = build_newsfire
 
 
 
@@ -10350,6 +10676,40 @@ if __name__ == '__main__':
             sys.exit(0)
         ok, msg = push(html, f'异动提醒 {_bj_now().strftime("%H:%M")}')
         print('SLOT watch PUSH', ok, msg)
+        # —— 雷达扫描（11-05 指令⑪）：与盘中 watch 同批触发，当日去重，独立卡推送 ——
+        try:
+            _dkey = _bj_now().strftime('%Y-%m-%d')
+            if not force and _radar_done(_dkey):
+                print('[radar] 今日雷达扫描已推过，跳过')
+            else:
+                _rh = build_radar()
+                if _rh:
+                    _ok2, _msg2 = push(_rh, f'雷达扫描 {_bj_now().strftime("%H:%M")}')
+                    print('SLOT radar PUSH', _ok2, _msg2)
+                    if _ok2:
+                        _mark_radar_done(_dkey)
+                else:
+                    print('[radar] 无达标个股或构建失败，不推送雷达扫描')
+        except Exception as e:
+            print('[radar] build/push exception:', e)
+        sys.exit(0)
+    # 新闻发酵（11-05 指令⑧）：盘中 10 条消息汇总，窗口去重
+    if slot == 'newsfire':
+        if not force and _slot_done(_slot_window_key('newsfire')):
+            print('SLOT newsfire 本窗口已推（slot_done 去重），跳过')
+            sys.exit(0)
+        try:
+            _nf = build_newsfire()
+        except Exception as e:
+            print('[newsfire] build exception:', e)
+            _nf = None
+        if _nf is None:
+            print('SLOT newsfire: 构建失败/无新闻，不推送')
+            sys.exit(0)
+        ok, msg = push(_nf, f'新闻发酵 {_bj_now().strftime("%H:%M")}')
+        if ok:
+            _mark_slot_done(_slot_window_key('newsfire'))
+        print('SLOT newsfire PUSH', ok, msg)
         sys.exit(0)
     if slot == 'confirm':
         if not force and _slot_done(_slot_key('confirm')):
