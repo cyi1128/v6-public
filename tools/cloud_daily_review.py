@@ -4533,6 +4533,9 @@ def build_auction():
             print(f'[auction] 打分截止 {_bj_now()}，已算 {i} 只，截断保证 09:27 前推送')
             break
         s['score'] = _auction_score_v3(s, heat, cnt, mem)
+    # 兜底：被截断未打分的候选补 0 分，避免后续 sort 访问缺失键抛 KeyError('score')
+    for s in cands:
+        s.setdefault('score', 0)
     cands.sort(key=lambda x: -x['score'])
     tops = cands[:AUCTION_TOP_N]
     # —— 并发：选股深挖 + 实盘确认深挖并行，压缩 LLM 串行耗时，保证 09:27 前推送 ——
