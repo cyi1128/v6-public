@@ -4841,9 +4841,10 @@ def build_auction(title='竞价观察'):
 
 # ============ 尾盘竞价筛选（独立于早盘竞价，14:55-14:58） ============
 def _tail_gainers(max_pages=15, cover_pct=2.5):
-    """尾盘数据源：新浪 hs_a 涨幅排行动态翻页（页内粗滤 1~7%），直到本页最低涨幅 < cover_pct 或到 max_pages。
+    """尾盘数据源：新浪 hs_a 涨幅排行动态翻页（页内粗滤 0.5~9%，缓冲覆盖 v2 硬过滤 2.5~8.5%），
+    直到本页最低涨幅 < cover_pct 或到 max_pages。
     返回粗滤后的当日盘面行（code/name/price/pct/vol/amount/turn/lb/high/low/prev/industry/list_date），
-    lb 初 0 由 _tail_qt_fill 批量补。区别于早盘 _clist_gainers_alt：覆盖 1~7% 强票区间而非仅头部大涨。"""
+    lb 初 0 由 _tail_qt_fill 批量补。区别于早盘 _clist_gainers_alt：覆盖 2.5~8.5% 强票区间而非仅头部大涨。"""
     rows = []
     try:
         for pn in range(1, max_pages + 1):
@@ -4868,7 +4869,7 @@ def _tail_gainers(max_pages=15, cover_pct=2.5):
                 try:
                     pct = float(x.get('changepercent') or 0)
                     page_min = min(page_min, pct)
-                    if not (1.0 <= pct <= 7.0):
+                    if not (0.5 <= pct <= 9.0):
                         continue
                 except Exception:
                     continue
@@ -4925,10 +4926,13 @@ def _tail_qt_fill(rows):
     return rows
 
 
-def _tail_filter(rows):
-    """尾盘硬过滤（独立于早盘）：
-    仅沪深主板+创业板；剔除ST/退市、次新(无上市日期则跳过)；当日涨幅 1~7%（不追已涨停/7%+大涨）；
-    量比>=1.0、换手>=1.0%；总市值 30~150 亿（用户铁律，腾讯 f44 口径=总市值近似流通市值）。"""
+def _tail_filter(rows, heat=None, zt_names=None):
+    """尾盘硬过滤（v2 反推升级版，对齐早盘强势确认哲学）：
+    仅沪深主板+创业板；剔除ST/退市、次新(<365天，无上市日期则跳过)；当日涨幅 2.5~8.5%；
+    量比>=2.0；换手>=2.5%；当前价强制站上MA20；近5日涨幅<=20%
+    （题材热度>=65 且属于当日最强主线时放宽至 25%）；量能真实性二选一：量比>=2.5 或(量比>=2.0 且换手>=4%)。
+    市值 30~150 亿硬限制已删除（改为打分偏好，交给数据与趋势）。
+    过滤阶段缓存 s['_ma20_ok']/s['_ma5_up']/s['_chg5'] 供 _tail_score_v2 复用，避免重复拉K线。"""
     out = []
     try:
         from datetime import date
@@ -4940,7 +4944,7 @@ def _tail_filter(rows):
         code, name = s['code'], s['name']
         if not code or not name:
             continue
-        if code.startswith(('688', '689', '8', '4', '920', '92')):
+        if code.startswith(('688', '689', '8', '4', '920', '92', 'bj')):
             continue
         if code.startswith('6'):
             s['board'] = 'main'
@@ -4961,54 +4965,140 @@ def _tail_filter(rows):
                 pass
         try:
             pct = float(s['pct'] or 0)
-            if not (1.0 <= pct <= 7.0):
+            if not (2.5 <= pct <= 8.5):
                 continue
             lb = float(s['lb'] or 0)
-            if lb < 1.0:
+            if lb < 2.0:
                 continue
             turn = float(s['turn'] or 0)
-            if turn < 1.0:
-                continue
-            mv = float(s.get('mv') or 0)
-            if not (30.0 <= mv <= 150.0):
+            if turn < 2.5:
                 continue
         except Exception:
             continue
+        # 量能真实性二选一：量比>=2.5 或(量比>=2.0 且换手>=4%)（在量比>=2.0 硬条件之上）
+        try:
+            if not (lb >= 2.5 or (lb >= 2.0 and turn >= 4.0)):
+                continue
+        except Exception:
+            continue
+        # 趋势硬过滤：当前价必须站上 MA20（K线成功且明确跌破才剔除；K线失败放行，避免误杀）
+        # 同时缓存 MA5 向上/近5日涨幅供 _tail_score_v2 复用
+        sym = ('sh' if code.startswith('6') else 'sz') + code
+        s['_ma20_ok'] = False
+        s['_ma5_up'] = False
+        s['_chg5'] = None
+        try:
+            arr = get_klines(sym, 25)
+            if len(arr) >= 21:
+                closes = [float(r[2]) for r in arr[-20:]]
+                ma20 = sum(closes) / 20.0
+                s['_ma20_ok'] = s['price'] > ma20
+                if len(arr) >= 6:
+                    ma5_now = sum(float(r[2]) for r in arr[-5:]) / 5.0
+                    ma5_prev = sum(float(r[2]) for r in arr[-6:-1]) / 5.0
+                    s['_ma5_up'] = ma5_now > ma5_prev
+                if not s['_ma20_ok']:
+                    continue
+        except Exception:
+            pass
+        # 近5日涨幅：<=20%；题材热度>=65 且属于当日最强主线时放宽至 25%
+        try:
+            arr = get_klines(sym, 6)
+            if len(arr) >= 6 and float(arr[-6][2]) > 0:
+                chg5 = (s['price'] / float(arr[-6][2]) - 1) * 100
+                s['_chg5'] = round(chg5, 2)
+                limit5 = 25.0
+                try:
+                    ind = _sec_clean(s['industry']) or '其他'
+                    if not ((heat or {}).get(ind, 0) >= 65 and (zt_names and ind in zt_names)):
+                        limit5 = 20.0
+                except Exception:
+                    limit5 = 20.0
+                if chg5 > limit5:
+                    continue
+        except Exception:
+            pass
         out.append(s)
     return out
 
 
-def _tail_score(s, heat, cnt):
-    """尾盘综合分（独立于早盘 v3）：涨幅适中 30 + 量比 25 + 换手 15 + 题材热度 20 + 市值适中 10。"""
+def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
+    """尾盘 v2 综合分（反推升级版）= 量价趋势因子×0.75 + 题材因子×0.25 − 风险扣分。
+    量价趋势五因子：涨幅适中22 / 量比强度25 / 情绪代理(换手×量比)23 / 趋势强度(MA20+MA5向上)18 / 量能占比代理12；
+    题材因子：热度60 + 同题材≥4家20 + 主线持续(近3日持续涨停)20；
+    风险扣分：近5日>18% −4 / 题材热度<40 −5 / 当日涨幅>7.5% −3 / 跌破分时均线且量比回落 −3（日K代理）。"""
     sc = 0.0
+    # —— 量价趋势五因子 ——
     try:
         pct = float(s['pct'] or 0)
-        if 3.0 <= pct <= 6.0:
-            sc += 30
-        elif 2.0 <= pct < 3.0 or 6.0 < pct <= 7.0:
+        if 3.5 <= pct <= 6.5:
             sc += 22
-        else:
+        elif 2.5 <= pct < 3.5 or 6.5 < pct <= 8.5:
             sc += 15
+        else:
+            sc += 8
     except Exception:
-        sc += 15
+        sc += 8
     try:
         lb = float(s['lb'] or 0)
-        sc += 25 if lb >= 3.0 else (18 if lb >= 2.0 else (10 if lb >= 1.0 else 0))
+        sc += 25 if lb >= 4.0 else (18 if lb >= 3.0 else (10 if lb >= 2.0 else 0))
     except Exception:
         pass
     try:
         turn = float(s['turn'] or 0)
-        sc += 15 if turn >= 8.0 else (10 if turn >= 4.0 else 5)
+        emo = turn * float(s['lb'] or 0)
+        sc += 23 if emo >= 15 else (16 if emo >= 10 else (9 if emo >= 6 else 0))
     except Exception:
         pass
-    ind = _sec_clean(s['industry']) or '其他'
-    sc += min(20.0, (heat.get(ind) or 0) / 5.0)
+    if s.get('_ma20_ok'):
+        sc += 18 if s.get('_ma5_up') else 12
+    else:
+        sc += 0
     try:
-        mv = float(s.get('mv') or 0)
-        sc += 10 if 50.0 <= mv <= 120.0 else (6 if 30.0 <= mv <= 150.0 else 0)
+        turn = float(s['turn'] or 0)
+        lb = float(s['lb'] or 0)
+        if turn >= 6.0 and lb >= 3.0:
+            sc += 12
+        elif turn >= 4.0:
+            sc += 7
+        else:
+            sc += 3
+    except Exception:
+        sc += 3
+    # —— 题材因子（100，×0.25）——
+    ind = _sec_clean(s['industry']) or '其他'
+    heat60 = min(60.0, (heat.get(ind) or 0) / 100.0 * 60.0)
+    co20 = 20.0 if cnt.get(ind, 0) >= 4 else 0.0
+    persist = 0.0
+    if mem_days:
+        for pd, pv in list(mem_days.items())[:3]:
+            if ind in pv:
+                persist = 20.0
+                break
+    theme_score = min(100.0, heat60 + co20 + persist)
+    # —— 风险扣分 ——
+    risk = 0.0
+    try:
+        if (s.get('_chg5') or 0) > 18.0:
+            risk += 4.0
     except Exception:
         pass
-    return round(sc, 1)
+    if (heat.get(ind) or 0) < 40:
+        risk += 5.0
+    try:
+        if float(s['pct'] or 0) > 7.5:
+            risk += 3.0
+    except Exception:
+        pass
+    # 跌破当日均价线(成交额/成交量≈分时均线) 且 量比<3（未持续放量=回落）→ 尾盘走弱信号
+    try:
+        vwap = (s.get('amount') or 0) / (float(s.get('vol') or 0) * 100.0) if (s.get('vol') or 0) else 0.0
+        if vwap > 0 and s['price'] < vwap and float(s['lb'] or 0) < 3.0:
+            risk += 3.0
+    except Exception:
+        pass
+    total = sc * 0.75 + theme_score * 0.25 - risk
+    return round(total, 1)
 
 
 def _tail_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=None):
@@ -5025,25 +5115,29 @@ def _tail_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=
         'task': 'tail_top_deep',
         'stocks': [{'name': s['name'], 'code': s['code'], 'score': round(float(s['score']), 1),
                     'pct': s['pct'], 'lb': s.get('lb', 0), 'turn': s.get('turn', 0),
-                    'mv': round(float(s.get('mv') or 0), 1), 'industry': s['industry']} for s in tops],
+                    'mv': round(float(s.get('mv') or 0), 1), 'industry': s['industry'],
+                    'ma20_ok': bool(s.get('_ma20_ok')), 'ma5_up': bool(s.get('_ma5_up')),
+                    'chg5': s.get('_chg5')} for s in tops],
         'hot_sectors': sorted(heat.items(), key=lambda kv: -kv[1])[:6],
         'zt_themes': _zt_txt,
         'mkt_ctx': _mkt,
         'format': ('你是A股超短线交易员，现在是尾盘 14:55 竞价筛选窗口，收盘前最后一轮选股。对以下每只尾盘强势票做多因素深挖（禁止单条件结论）：\n'
                    '0.【暗线业务深挖·每只必做】先一句话说清公司本质（靠什么赚钱，禁「XX龙头/XX概念」标签）；再挖暗线业务——具体产品/技术/业务是什么、进展到哪个阶段、在产业链哪个环节、有没有卡位壁垒、对业绩是真实贡献还是纯故事/预期；然后判断跟今日最强主线（{hot_sectors}）是【实受益】【沾边】还是【纯蹭】、弹性大不大。挖不出来如实写「未见明确暗线业务」，禁止用「相关」「涉及」「布局」「受益于」等词糊弄。\n'
-                   '1. 尾盘资金逻辑：用涨幅/量比/换手说明尾盘谁在买，判断是尾盘抢筹、加速还是出货诱多（尾盘拉高次日容易低开，必须鉴别）。\n'
-                   '2. 次日竞价预期：重点！判断明天竞价大概率怎么走（高开延续/平开分歧/低开补跌），给具体观察条件。\n'
-                   '3. 题材归属与板块共振：属于什么题材、是不是今日主线、题材内地位（龙头/中军/跟风/补涨），同题材几只一起动还是独涨。\n'
-                   '4. 为什么是它：资金凭什么选它不选别人（主业匹配/位置/筹码/业绩/催化），用真实数据说。\n'
-                   '5. 破灭点与动作：逻辑什么时候会破（次日竞价低开/高开跳水/业绩证伪/主力出货），破了怎么走人；逻辑不硬就明确写「不碰」。\n'
-                   '6. 禁止编新闻猜消息、禁止万能句（「回踩分时均线可轻仓试」等）及变体、禁止满仓/必涨/稳了。\n'
-                   '7. 只输出 JSON，不要其他文字：\n'
+                   '1. 量能真实性评价：用涨幅/量比/换手/换手×量比判断尾盘放量是真突破还是偷量诱多（尾盘拉高次日容易低开，必须鉴别）——阶梯式放量+价格稳步抬升+站稳分时均线是真抢筹；最后3-5分钟脉冲直线拉升是假突破。\n'
+                   '2. 趋势是否干净：检查是否明显上影线、是否反复炸板后回落、是否尾盘跳水，给出趋势干净度结论（干净/有瑕疵/不干净）。\n'
+                   '3. 次日竞价预期：重点！判断明天竞价大概率怎么走（高开延续/平开分歧/低开补跌），给具体观察条件（例：「竞价量比≥X 且高开≥Y% 才继续」）。\n'
+                   '4. 题材归属与板块共振：属于什么题材、是不是今日主线、题材内地位（龙头/中军/跟风/补涨），同题材几只一起动还是独涨。\n'
+                   '5. 为什么是它：资金凭什么选它不选别人（主业匹配/位置/筹码/业绩/催化），用真实数据说。\n'
+                   '6. 破灭点与动作：逻辑什么时候会破（次日竞价低开/高开跳水/业绩证伪/主力出货），破了怎么走人；逻辑不硬就明确写「不碰」。\n'
+                   '7. 优先关注已站上MA20、量比真实放大、近5日未明显透支的票，弱化一日游反抽。\n'
+                   '8. 禁止编新闻猜消息、禁止万能句（「回踩分时均线可轻仓试」等）及变体、禁止满仓/必涨/稳了。\n'
+                   '9. 只输出 JSON，不要其他文字：\n'
                    '{"overall":"尾盘整体大白话：先点出尾盘情绪与次日能不能追，再说今日哪些涨停板块题材在涨停（引用 zt_themes），给涨停原因核心逻辑暗线（一句话说清主线为什么强），最后给明日竞价延续预期，一段连贯至少40字，禁止模板句/设问/列表符号",'
                    '"reson_reason":"共振档位原因：结合 mkt_ctx 说明当前档位是和什么共振出来的（资金/龙头/结构/情绪/发酵天数），为什么是这个档位，至少30字，禁止规则套话",'
                    '"cap_advice":"当前档位建议：结合 mkt_ctx（涨停家数/炸板/情绪分/指数涨跌）直接给明日仓位档位建议与一句话理由，禁止万能句，至少20字",'
                    '"wind_strong":"最强题材的暗线原因：一句话说透它今天为什么最强（涨停家数/催化/资金逻辑），至少20字",'
                    '"wind_weak":"最弱题材的暗线原因：一句话说透它为什么最弱（为什么别碰），至少15字",'
-                   '"per":[{"name":"股票名称","dark":"一句话暗线（这条票真正炒的是什么，禁标签糊弄，10-30字）","reason":"选中原因/暗线逻辑：为什么尾盘筛出它（主业匹配+位置+筹码+业绩+催化，真实数据，至少20字）","logic":"暗线业务深挖+题材归属+市场关联：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+尾盘资金逻辑+次日竞价预期+破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+次日该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件（含次日竞价条件）","stop":"具体止损条件","drop":"放弃条件：次日竞价出现什么情况就不做（低开/跳水/量能/情绪等具体条件，10-25字）","next":"次日竞价预期：明天竞价大概率高开还是低开，给具体观察信号，15-30字"}]}，'
+                   '"per":[{"name":"股票名称","dark":"一句话暗线（这条票真正炒的是什么，禁标签糊弄，10-30字）","reason":"选中原因/暗线逻辑：为什么尾盘筛出它（主业匹配+位置+筹码+业绩+催化，真实数据，至少20字）","logic":"暗线业务深挖+题材归属+市场关联：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+量能真实性(真突破/偷量诱多)+趋势干净度(上影/炸板回落/尾盘跳水)+次日竞价预期+破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+次日该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件（含次日竞价条件）","stop":"具体止损条件","drop":"放弃条件：次日竞价出现什么情况就不做（低开/跳水/量能/情绪等具体条件，10-25字）","next":"次日竞价预期：明天竞价大概率高开还是低开，给具体观察信号与触发条件（例：竞价量比≥X且高开≥Y%才继续），15-30字"}]}，'
                    'per 必须覆盖我给的每只股票。'),
     }
     t = ask_deepseek(payload, purpose='tail', system_text=_ASK_DS_SYS_AC)
@@ -5079,9 +5173,10 @@ def _tail_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=
 
 def build_tail(title='尾盘竞价筛选'):
     """尾盘竞价筛选（14:55-14:58 独立卡，不复用早盘 build_auction 语义）：
-    当日实时盘面（新浪 hs_a 涨幅榜+腾讯补量比/换手/总市值）→ 尾盘硬过滤 → 尾盘打分 → TOP10，
-    LLM 尾盘深挖（暗线+次日竞价预期），数据时点标注。失败仅兜底数据事实行，无规则模板句。"""
-    # 数据：尾盘独立拉取当日涨幅榜（覆盖 1~7% 强票区间，动态翻页）
+    当日实时盘面（新浪 hs_a 涨幅榜+腾讯补量比/换手/总市值）→ 尾盘 v2 硬过滤（涨幅2.5-8.5/量比≥2/换手≥2.5/MA20/近5日约束/量能真实性）→
+    尾盘 v2 打分（量价趋势×0.75+题材×0.25−风险）→ TOP10，LLM 尾盘深挖（暗线+量能真实性+趋势干净度+次日竞价预期）。
+    失败仅兜底数据事实行，无规则模板句。"""
+    # 数据：尾盘独立拉取当日涨幅榜（覆盖 2.5~8.5% 强票区间，动态翻页）
     rows_all = None
     try:
         rows_all = _tail_gainers()
@@ -5101,15 +5196,7 @@ def build_tail(title='尾盘竞价筛选'):
     for sec, sts in d['sectors'].items():
         for st in sts:
             zt_lbc[st.get('c')] = int(st.get('lbc') or 0)
-    cands = _tail_filter(rows_all)
-    heat, cnt = _theme_heat(cands)
-    for s in cands:
-        s['score'] = _tail_score(s, heat, cnt)
-    cands.sort(key=lambda x: -x['score'])
-    tops = cands[:AUCTION_TOP_N]
-    if not tops:
-        return _wrap('<div style="color:#e2e8f0;font-size:13px;">⚠️ 尾盘无符合硬过滤条件的票（涨幅/量比/换手/市值 30-150 亿全过滤），今日尾盘不推荐。下一时段：收盘复盘。</div>', '🔔', title)
-    # 大盘上下文 + 涨停板块题材
+    # 大盘上下文 + 涨停板块题材（先算：近5日放宽依赖题材热度与最强主线）
     try:
         _idx = get_indices()
         _mscore, _mlabel, _ = market_score(_idx, d)
@@ -5124,8 +5211,20 @@ def build_tail(title='尾盘竞价筛选'):
             _zt_list.append((_sec_n, len(_sec_sts)))
     _zt_list.sort(key=lambda kv: -kv[1])
     _zt_top = _zt_list[:6]
+    _zt_names = [n for n, _ in _zt_top]
     _mkt_ctx = (f'大盘：涨停{_lu}家/炸板{_zb}家({_zbr:.0f}%) 情绪分{int(_mscore)}({_mlabel}) '
                 f'最强板块{(_zt_top[0][0] if _zt_top else "—")}')
+    # 题材热度（粗算，供近5日放宽判断；过滤后再用候选池精算供打分）
+    heat_pre, _ = _theme_heat(rows_all)
+    cands = _tail_filter(rows_all, heat_pre, _zt_names)
+    heat, cnt = _theme_heat(cands)
+    mem = load_memory()
+    for s in cands:
+        s['score'] = _tail_score_v2(s, heat, cnt, mem, _zt_names)
+    cands.sort(key=lambda x: -x['score'])
+    tops = cands[:AUCTION_TOP_N]
+    if not tops:
+        return _wrap('<div style="color:#e2e8f0;font-size:13px;">⚠️ 尾盘无符合 v2 硬过滤条件的票（涨幅2.5-8.5%/量比≥2/换手≥2.5%/站上MA20/近5日约束全过滤），今日尾盘不推荐。下一时段：收盘复盘。</div>', '🔔', title)
     _ds_res = _tail_ds(tops, heat, _zt_top, _mkt_ctx, _mscore, _lu, _zb)
     ds_map = (_ds_res or {}).get('per') or {}
     ds_overall = (_ds_res or {}).get('overall') or ''
@@ -5161,13 +5260,13 @@ def build_tail(title='尾盘竞价筛选'):
 <div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分</span></div>
 <div style="color:{GREY};font-size:12px;">尾盘当日涨幅 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 换手 {s['turn']:.1f}% ｜ 市值 {s.get('mv',0):.0f}亿 ｜ 题材：{s['industry']}</div>
 {_rows_html}</div>"""
-    # Top3 速判（含暗线）
+    # Top3 速判（含暗线，v2 阈值：≥72 可轻仓试 / 60-71 观察 / <60 不追）
     top3_txt = ''
     if tops:
         def _quick_act_tail(s_):
             if s_['score'] < 60:
                 return '不追', RED
-            if s_['score'] >= 75:
+            if s_['score'] >= 72:
                 return '可轻仓试', TEAL
             return '观察', GOLD
         _t3 = []
@@ -5179,7 +5278,7 @@ def build_tail(title='尾盘竞价筛选'):
         top3_txt = (f'<div style="margin-top:10px;padding:9px 11px;background:#1c2830;border-left:4px solid #a78bfa;'
                     f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 尾盘 Top3 速判（含暗线）：</b>'
                     + ('<br>'.join(_t3) if _t3 else '—')
-                    + f'<br><span style="color:{GREY};font-size:12px;">≥75分可轻仓试 / 60~74观察 / &lt;60不追（暗线来自AI深挖，次日竞价见各票🔮）</span></div>')
+                    + f'<br><span style="color:{GREY};font-size:12px;">≥72分可轻仓试 / 60~71观察 / &lt;60不追（暗线来自AI深挖，次日竞价见各票🔮）</span></div>')
     # 行业/题材风向（最强/最弱暗线原因）
     hot = sorted(heat.items(), key=lambda kv: -kv[1])[:3]
     hot_txt = '、'.join(k for k, _ in hot) or '暂无'
@@ -5206,12 +5305,13 @@ def build_tail(title='尾盘竞价筛选'):
                          f'border-radius:6px;color:#e9ecef;font-size:12px;">🎚 共振原因：{reson_reason}</div>') if reson_reason else ''
     _cap_advice_row = (f'<div style="margin-top:8px;padding:7px 10px;background:#1c2230;border-left:4px solid {GOLD};'
                        f'border-radius:8px;font-size:13px;color:#e9ecef;">📊 当前档位建议（按盘面）：{cap_advice}</div>') if cap_advice else ''
-    _tail_note = ('<div style="color:#e6a23c;font-size:12px;margin-top:6px;">📌 尾盘 14:55 当日实时盘面（非早盘竞价快照），市值口径=腾讯总市值近似流通市值；次日竞价预期以 AI 深挖与开盘实际为准。</div>')
+    _v2_note = ('<div style="color:#a78bfa;font-size:12px;margin-top:6px;">📌 筛选逻辑已反推升级：站上MA20 + 量比≥2.0 + 换手≥2.5% + 近5日涨幅约束（完全对齐早盘强势确认哲学）</div>')
+    _tail_note = ('<div style="color:#e6a23c;font-size:12px;margin-top:6px;">📌 数据时点：14:55 当日实时盘面（非早盘竞价快照）；市值口径=腾讯总市值近似流通市值；次日竞价预期以 AI 深挖与开盘实际为准。</div>')
     emotion_t = _emotion_from_pools(d)
     inner = (_reson_reason_row + overall
              + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 尾盘竞价筛选 TOP{AUCTION_TOP_N}（尾盘走强·次日竞价延续）</div>'
              + top3_txt + _confirm_block + wind + _cap_advice_row
-             + pos_cap_line(emotion_t, None) + _tail_note)
+             + pos_cap_line(emotion_t, None) + _v2_note + _tail_note)
     return _wrap(inner, '🔔', title)
 
 
