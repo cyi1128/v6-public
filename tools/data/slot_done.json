@@ -13,5 +13,6 @@
  "hourly|2026-10-30|10": true,
  "auction|2026-11-02": true,
  "warn|2026-11-04": true,
- "pre|2026-11-04": true
+ "pre|2026-11-04": true,
+ "auction|2026-11-04": true
 }
