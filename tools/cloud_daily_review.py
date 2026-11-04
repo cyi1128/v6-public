@@ -1913,6 +1913,81 @@ def _clist_gainers():
     return rows
 
 
+def _clist_gainers_alt():
+    """东财 clist 不可用（收盘后/断连）时的当日盘面替代源：新浪 hs_a 涨幅排行 + 腾讯批量补量比。
+    字段对齐 _clist_gainers：code/name/price/pct/vol(手)/amount/turn/lb/high/low/prev/industry/list_date。
+    收盘后当日涨幅榜语义 = 「当日涨幅」（非竞价高开），调用方需在卡片标注数据时点。失败返回 []。"""
+    rows = []
+    try:
+        for pn in (1, 2, 3):
+            url = ('https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/'
+                   'Market_Center.getHQNodeData?page=%d&num=100&sort=changepercent&asc=0&node=hs_a'
+                   '&symbol=&_s_r_a=page') % pn
+            txt, ok = _getm(url, 'clist_alt_p%d' % pn)
+            if not ok or not txt:
+                continue
+            d = json.loads(txt)
+            for x in d:
+                code = str(x.get('code') or '').strip()
+                name = str(x.get('name') or '').strip()
+                if not code or not name:
+                    continue
+                # 仅沪深主板+创业板，剔除科创/北交所
+                if code.startswith(('688', '689', '8', '4', '920', '92', 'bj')):
+                    continue
+                try:
+                    pct = float(x.get('changepercent') or 0)
+                    if pct < 0:
+                        continue
+                except Exception:
+                    continue
+                try:
+                    rows.append({
+                        'code': code,
+                        'name': name,
+                        'price': float(x.get('trade') or 0),
+                        'pct': pct,
+                        'vol': round(float(x.get('volume') or 0) / 100.0),  # 新浪 volume 单位=股 → 手
+                        'amount': float(x.get('amount') or 0),
+                        'turn': float(x.get('turnoverratio') or 0),
+                        'lb': 0.0,   # 下方腾讯批量补
+                        'high': float(x.get('high') or 0),
+                        'low': float(x.get('low') or 0),
+                        'prev': float(x.get('settlement') or 0),
+                        'list_date': '',   # 新浪无上市日期 → 跳过次新过滤（非竞价时段可接受）
+                        'industry': _IND_CACHE.get(code, '其他'),
+                    })
+                except Exception:
+                    continue
+            if len(rows) >= 100:
+                break
+    except Exception as e:
+        print('[auction] 替代源拉取失败:', e)
+    # 腾讯批量补量比（f43）
+    if rows:
+        _lbq = {}
+        cs = [('sh' if c.startswith('6') else 'sz') + c for c in [r['code'] for r in rows]]
+        for i in range(0, len(cs), 60):
+            try:
+                txt, ok = _getm('http://qt.gtimg.cn/q=' + ','.join(cs[i:i + 60]), 'clist_alt_lb', encoding='gbk')
+                if not ok:
+                    continue
+                for line in txt.strip().split(';'):
+                    if '~' not in line:
+                        continue
+                    f = line.split('~')
+                    try:
+                        # 腾讯批量 f[2] 即完整代码（6位，如 600519），不要切前缀
+                        _lbq[f[2]] = float(f[43] or 0)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+        for r in rows:
+            r['lb'] = _lbq.get(r['code'], 0.0)
+    return rows
+
+
 def _auction_filter(rows, zt_lbc=None):
     """硬过滤：仅沪深主板+创业板；剔除ST/退市、次新(<365天)、高开/换手区间外、跌破MA20弱势、
     竞价量/昨量不足（主板<8%/创业<12%）、近5日累计涨幅>25%（连板龙头除外）。"""
@@ -4503,6 +4578,8 @@ def build_auction():
     # —— 数据拉取（09:26:30 硬截止，预留选股+LLM+推送时间，保证 09:27 前强制出卡；https/http 双通道）——
     bj = _bj_now()
     deadline = bj.replace(hour=9, minute=26, second=30, microsecond=0)
+    _alt_used = False
+    _alt_note = ''
     rows_all = None
     for attempt in range(6):
         try:
@@ -4512,12 +4589,24 @@ def build_auction():
         except Exception as e:
             print(f'[auction] 第{attempt+1}次拉竞价数据失败: {e}')
         if _bj_now() >= deadline:
-            print('[auction] 09:26:30 已过且数据未就绪，本次跳过选股（保留持仓诊断）')
-            return _wrap(own_section + '<div style="color:#e2e8f0;font-size:13px;margin-top:8px;">⚠️ 全市场竞价数据未按时就绪（09:26:30 超时），本次不筛选股票；持仓诊断照常。下一时段：10:00 盘中解读。</div>',
+            print('[auction] 09:26:30 已过且数据未就绪，尝试当日盘面替代源（非竞价时段强制出小白速判卡）')
+            # 非竞价时段（收盘后/盘中手动触发）：东财竞价快照不可用 → 用当日盘面数据强制出完整卡
+            rows_all = _clist_gainers_alt()
+            _alt_used = bool(rows_all)
+            if _alt_used:
+                _alt_note = ('<div style="color:#e6a23c;font-size:12px;margin-top:6px;">📌 非竞价时段：以下为当日盘面数据（涨幅榜）生成，非实时竞价快照，仅供参考</div>')
+                break
+            return _wrap(own_section + '<div style="color:#e2e8f0;font-size:13px;margin-top:8px;">⚠️ 全市场竞价数据未按时就绪且当日盘面替代源未取得，本次不筛选股票；持仓诊断照常。下一时段：10:00 盘中解读。</div>',
                          '🔔', '竞价观察')
         time.sleep(20)
     if not rows_all:
-        return _wrap(own_section + '<div style="color:#e2e8f0;font-size:13px;margin-top:8px;">⚠️ 全市场竞价数据未取得，本次不筛选股票；持仓诊断照常。下一时段：10:00 盘中解读。</div>', '🔔', '竞价观察')
+        # 6 次重试都失败且未过截止（竞价为 09:25 前窗口）→ 也尝试替代源兜底
+        rows_all = _clist_gainers_alt()
+        _alt_used = bool(rows_all)
+        if _alt_used:
+            _alt_note = ('<div style="color:#e6a23c;font-size:12px;margin-top:6px;">📌 竞价快照未就绪：以下为当日盘面数据（涨幅榜）生成，非实时竞价快照，仅供参考</div>')
+        else:
+            return _wrap(own_section + '<div style="color:#e2e8f0;font-size:13px;margin-top:8px;">⚠️ 全市场竞价数据未取得，本次不筛选股票；持仓诊断照常。下一时段：10:00 盘中解读。</div>', '🔔', '竞价观察')
     # —— 全市场涨幅榜 → 硬过滤 → 双重打分 → TOP8 ——
     d = get_pools()
     zt_lbc = {}
@@ -4660,7 +4749,7 @@ def build_auction():
         _confirm_block = ''
     inner = (overall + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔔 持仓竞价诊断（先看自己的）</div>'
              + (''.join(own) or '<div style="color:' + GREY + ';font-size:13px;">无持仓</div>')
-             + pick + wind + pos_cap_line(emotion, None) + _confirm_block)
+             + pick + wind + pos_cap_line(emotion, None) + _confirm_block + _alt_note)
     _ex.shutdown(wait=False)
     return _wrap(inner, '🔔', '竞价观察')
 
