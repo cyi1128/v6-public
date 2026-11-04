@@ -10887,6 +10887,25 @@ if __name__ == '__main__':
             _git_commit_push('data/eod_status.json', 'update eod status')
         print('SLOT eod PUSH', ok, msg)
         sys.exit(0)
+    # 雷达扫描（11-05 指令⑪）独立槽：当日去重 + 无达标股不推
+    if slot == 'radar':
+        _dkey = _bj_now().strftime('%Y-%m-%d')
+        if not force and _radar_done(_dkey):
+            print('SLOT radar 今日已推（radar_done.json 去重），跳过')
+            sys.exit(0)
+        try:
+            _rh = build_radar()
+        except Exception as e:
+            print('[build] radar exception:', e)
+            _rh = None
+        if _rh is None:
+            print('SLOT radar 无达标个股/非盘中/构建失败，不推送')
+            sys.exit(0)
+        ok, msg = push(_rh, f'{TITLES["radar"]} {_bj_now().strftime("%H:%M")}')
+        if ok:
+            _mark_radar_done(_dkey)
+        print('SLOT radar PUSH', ok, msg)
+        sys.exit(0)
     # —— 多点cron 当日去重（仅定时自动run；手动 --force 不受限，用于演示/验证）——
     if not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly'):
         _k = _slot_key(slot)
@@ -10899,6 +10918,9 @@ if __name__ == '__main__':
     except Exception as e:
         print('[build] exception:', e)
         html = _wrap(f'<div style="color:{RED}">⚠️ 本卡片构建异常：{e}</div>', '⚠️', '构建异常')
+    if html is None:
+        print('SLOT', slot, '构建返回 None，不推送')
+        sys.exit(0)
     ok, msg = push(html, f'{TITLES[slot]} {_bj_now().strftime("%m/%d %H:%M")}')
     if ok and slot in ('auction', 'tail', 'pre', 'noon', 'hourly'):
         # force 也标记（手动演示后同日定时不再重推——双推修复①）
