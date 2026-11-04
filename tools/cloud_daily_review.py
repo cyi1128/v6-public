@@ -3560,10 +3560,14 @@ def _auction_pool_stats(date_str=None):
         return ''
 
 
-def _auction_ds(tops, heat):
-    """竞价深挖：每只 TOP 票题材+市场关联+主线多因素深挖（JSON）。返回 (per_map, overall)；失败 ({}, '') 渲染回退规则行。"""
+def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=None):
+    """竞价深挖（8项强制修复版）：单次 LLM 调用同时输出
+    per（每只：dark 暗线/ reason 选中原因/ why 大白话/ op 建议/ buy/ stop/ drop 放弃）
+    + overall（今日整体：涨停板块题材+核心逻辑暗线）+ reson_reason（共振原因）
+    + cap_advice（盘面档位建议）+ wind_strong/wind_weak（最强/最弱题材暗线原因）。
+    返回 dict 或 {}；失败由调用方渲染「数据事实行」（不落回规则模板句）。"""
     if not tops:
-        return {}, ''
+        return {}
     # 持仓诊断纯文本（供 LLM 终审参考）
     hold_txt = []
     for h in HOLDINGS:
@@ -3580,6 +3584,10 @@ def _auction_ds(tops, heat):
             pass
         act, _ = three_way(op, q.get('lb', 0), vq_ratio)
         hold_txt.append(f"{h['name']} 开幅{op:+.1f}% 量比{q.get('lb',0):.1f} {act}")
+    _zt = (zt_themes or [])[:8]
+    _zt_txt = '、'.join(f'{n}(涨停{int(c)}家)' for n, c in _zt) or '暂无'
+    _heat_txt = '、'.join(f'{k}(热度{v:.0f})' for k, v in sorted(heat.items(), key=lambda kv: -kv[1])[:6]) or '暂无'
+    _mkt = mkt_ctx or ''
     payload = {
         'task': 'auction_top_deep',
         'stocks': [{'name': s['name'], 'code': s['code'], 'score': round(float(s['score']), 1),
@@ -3587,6 +3595,8 @@ def _auction_ds(tops, heat):
                     'vr': round(float(s.get('_vr') or 0), 1), 'revise': round(float(s.get('_revise') or 0), 1),
                     'rtag': s.get('_rtag', '')} for s in tops],
         'hot_sectors': sorted(heat.items(), key=lambda kv: -kv[1])[:6],
+        'zt_themes': _zt_txt,
+        'mkt_ctx': _mkt,
         'holding_diagnosis': '\n'.join(hold_txt) or '无持仓',
         'format': ('你是A股竞价短线交易员。对以下每只竞价强票做「暗线业务深挖+题材+市场关联」多因素深挖（禁止单条件结论）：\n'
                    '0.【暗线业务深挖·每只必做】先一句话说清公司本质（靠什么赚钱，禁「XX龙头/XX概念」标签）；再挖暗线业务——具体产品/技术/业务是什么、进展到哪个阶段、在产业链哪个环节、有没有卡位壁垒、对业绩是真实贡献还是纯故事/预期；然后判断跟今日最强主线（{hot_sectors}）是【实受益】【沾边】还是【纯蹭】、弹性大不大。挖不出来如实写「未见明确暗线业务」，禁止用「相关」「涉及」「布局」「受益于」等词糊弄。\n'
@@ -3598,29 +3608,42 @@ def _auction_ds(tops, heat):
                    '6. 破灭点与动作：逻辑什么时候会破（催化兑现/业绩证伪/位置透支/主力出货），破了怎么走人；逻辑不硬就明确写「不碰」。\n'
                    '7. 禁止编新闻猜消息、禁止万能句（「回踩分时均线可轻仓试」等）及变体、禁止满仓/必涨/稳了。\n'
                    '8. 只输出 JSON，不要其他文字：\n'
-                   '{"overall":"竞价情绪一句话+今天能不能追+最强方向","per":[{"name":"股票名称","logic":"暗线业务深挖+题材归属+市场关联：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+资金逻辑+位置+预期差+破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件","stop":"具体止损条件"}]}，'
+                   '{"overall":"今日整体大白话：先点出竞价情绪与能不能追，再说今日竞价里哪些涨停板块题材在涨停（引用 zt_themes），最后给涨停原因的核心逻辑暗线（一句话说清主线为什么强、资金在炒什么逻辑），禁止模板句/设问/列表符号，一段连贯至少40字",'
+                   '"reson_reason":"共振档位原因：结合 mkt_ctx 说明当前共振档位是和什么共振出来的（资金/龙头/结构/情绪/发酵天数各自命中什么、靠什么支撑），为什么是这个档位，一段连贯至少30字，禁止规则套话",'
+                   '"cap_advice":"当前档位建议：结合 mkt_ctx（涨停家数/炸板/情绪分/指数涨跌）直接给仓位档位建议与一句话理由，禁止万能句，至少20字",'
+                   '"wind_strong":"最强题材的暗线原因：一句话说透它今天为什么最强（涨停家数/催化/资金逻辑），至少20字",'
+                   '"wind_weak":"最弱题材的暗线原因：一句话说透它为什么最弱（为什么别碰），至少15字",'
+                   '"per":[{"name":"股票名称","dark":"一句话暗线（这条票真正炒的是什么，禁标签糊弄，10-30字）","reason":"选中原因/暗线逻辑：为什么筛出它（主业匹配+位置+筹码+业绩+催化，真实数据，至少20字）","logic":"暗线业务深挖+题材归属+市场关联：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+资金逻辑+位置+预期差+破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件","stop":"具体止损条件","drop":"放弃条件：什么情况出现就不做（破位/量能/情绪/高开透支等具体条件，10-25字）"}]}，'
                    'per 必须覆盖我给的每只股票。'),
     }
     t = ask_deepseek(payload, purpose='auction', system_text=_ASK_DS_SYS_AC)
     if not t:
-        return {}, ''
-    overall = ''
-    per = {}
+        return {}
+    out = {}
     try:
         j = json.loads(t[t.find('{'):t.rfind('}') + 1])
         if isinstance(j, dict):
-            overall = str(j.get('overall', '') or '')
+            out['overall'] = str(j.get('overall', '') or '')
+            out['reson_reason'] = str(j.get('reson_reason', '') or '')
+            out['cap_advice'] = str(j.get('cap_advice', '') or '')
+            out['wind_strong'] = str(j.get('wind_strong', '') or '')
+            out['wind_weak'] = str(j.get('wind_weak', '') or '')
+            per = {}
             for it in (j.get('per') or []):
                 nm = str(it.get('name', '')).split('（')[0].split('(')[0].strip()
                 if nm:
-                    per[nm] = {'logic': str(it.get('logic', '') or ''),
+                    per[nm] = {'dark': str(it.get('dark', '') or ''),
+                               'reason': str(it.get('reason', '') or ''),
+                               'logic': str(it.get('logic', '') or ''),
                                'why': str(it.get('why', '') or ''),
                                'op': str(it.get('op', '') or ''),
                                'buy': str(it.get('buy', '') or ''),
-                               'stop': str(it.get('stop', '') or '')}
+                               'stop': str(it.get('stop', '') or ''),
+                               'drop': str(it.get('drop', '') or '')}
+            out['per'] = per
     except Exception:
-        pass
-    return per, overall
+        return {}
+    return out
 
 
 def _news_summary_rows(news):
@@ -4535,9 +4558,10 @@ def _pos_risk(sym, price):
     return None, ''
 
 
-def build_auction():
+def build_auction(title='竞价观察'):
     """竞价观察 09:25（集合竞价最后阶段数据更可靠；数据延迟最多重试到 09:27，超时跳过不推空卡）：
-    持仓竞价诊断 + 全市场涨幅榜→硬过滤→双重打分→TOP8 + 行业风向 + DeepSeek 大白话总结。"""
+    持仓竞价诊断 + 全市场涨幅榜→硬过滤→双重打分→TOP8 + 行业风向 + DeepSeek 大白话总结。
+    title 参数：尾盘竞价筛选（14:55 触发）复用本函数，标题区分。"""
     # FIX18: 早触发等待——09:20-24 触发时等齐集合竞价(09:25)再取数，避免推数据不全的早卡
     _bj0 = _bj_now()
     if _bj0.hour == 9 and 0 <= _bj0.minute < 25:
@@ -4597,7 +4621,7 @@ def build_auction():
                 _alt_note = ('<div style="color:#e6a23c;font-size:12px;margin-top:6px;">📌 非竞价时段：以下为当日盘面数据（涨幅榜）生成，非实时竞价快照，仅供参考</div>')
                 break
             return _wrap(own_section + '<div style="color:#e2e8f0;font-size:13px;margin-top:8px;">⚠️ 全市场竞价数据未按时就绪且当日盘面替代源未取得，本次不筛选股票；持仓诊断照常。下一时段：10:00 盘中解读。</div>',
-                         '🔔', '竞价观察')
+                         '🔔', title)
         time.sleep(20)
     if not rows_all:
         # 6 次重试都失败且未过截止（竞价为 09:25 前窗口）→ 也尝试替代源兜底
@@ -4606,9 +4630,15 @@ def build_auction():
         if _alt_used:
             _alt_note = ('<div style="color:#e6a23c;font-size:12px;margin-top:6px;">📌 竞价快照未就绪：以下为当日盘面数据（涨幅榜）生成，非实时竞价快照，仅供参考</div>')
         else:
-            return _wrap(own_section + '<div style="color:#e2e8f0;font-size:13px;margin-top:8px;">⚠️ 全市场竞价数据未取得，本次不筛选股票；持仓诊断照常。下一时段：10:00 盘中解读。</div>', '🔔', '竞价观察')
+            return _wrap(own_section + '<div style="color:#e2e8f0;font-size:13px;margin-top:8px;">⚠️ 全市场竞价数据未取得，本次不筛选股票；持仓诊断照常。下一时段：10:00 盘中解读。</div>', '🔔', title)
     # —— 全市场涨幅榜 → 硬过滤 → 双重打分 → TOP8 ——
     d = get_pools()
+    # 行业补强：get_pools 已把涨停池股票行业写入 _IND_CACHE，替代源(新浪)无行业字段的用缓存补
+    for _s in rows_all:
+        if not _s.get('industry') or _s['industry'] in ('', '其他'):
+            _ic = _IND_CACHE.get(_s.get('code') or '')
+            if _ic:
+                _s['industry'] = _ic
     zt_lbc = {}
     for sec, sts in d['sectors'].items():
         for st in sts:
@@ -4647,49 +4677,82 @@ def build_auction():
                     else f'高开{op2:+.1f}%不足{lo2}%，没溢价不值得做')
         _cinfos.append({'name': s['name'], 'code': s['code'], 'op': op2, 'lb': lb2, 'sec': s['industry'], 'ok': ok2, 'why': why2})
     _ex = ThreadPoolExecutor(max_workers=2)
-    _ds_fut = _ex.submit(_auction_ds, tops, heat)
-    _cf_fut = _ex.submit(_confirm_ds, _cinfos)
+    # 8项强制修复：大盘上下文（涨停/炸板/情绪/指数）+ 涨停板块题材 → 喂给 LLM，禁止规则性回答
+    try:
+        _idx = get_indices()
+        _mscore, _mlabel, _ = market_score(_idx, d)
+    except Exception:
+        _mscore, _mlabel = 50, '—'
+    _lu = int(d.get('lu') or 0)
+    _zb = int(d.get('zb') or 0)
+    _zbr = (_zb / (_lu + _zb) * 100) if (_lu + _zb) else 0.0
+    _zt_list = []
+    for _sec_n, _sec_sts in (d.get('sectors') or {}).items():
+        if len(_sec_sts) >= 2:
+            _zt_list.append((_sec_n, len(_sec_sts)))
+    _zt_list.sort(key=lambda kv: -kv[1])
+    _zt_top = _zt_list[:6]
+    _mkt_ctx = (f'大盘：涨停{_lu}家/炸板{_zb}家({_zbr:.0f}%) 情绪分{int(_mscore)}({_mlabel}) '
+                f'最强板块{(_zt_top[0][0] if _zt_top else "—")}')
+    _ds_fut = _ex.submit(_auction_ds, tops, heat, _zt_top, _mkt_ctx, _mscore, _lu, _zb)
+    _cf_fut = _ex.submit(_confirm_ds, _cinfos, _mkt_ctx)
     try:
         _auction_pool_record(tops)
     except Exception:
         pass
+    # —— LLM 时间门双轨：竞价窗口 09:25-09:27 保推送(短预算)；非竞价/尾盘给足 LLM 时间(禁规则回退) ——
+    _now = _bj_now()
+    _in_auction_win = (_now.hour == 9 and _now.minute >= 25)
+    _llm_budget = (max(5, int((_bj_now().replace(hour=9, minute=26, second=50, microsecond=0) - _bj_now()).total_seconds()))
+                   if _in_auction_win else 90)
     try:
-        _llm_left = max(5, int((_bj_now().replace(hour=9, minute=26, second=50, microsecond=0) - _bj_now()).total_seconds()))
-        ds_map, ds_overall = _ds_fut.result(timeout=_llm_left)
-        if not ds_map:
-            print('[auction] 深挖空结果，渲染规则行')
+        _ds_res = _ds_fut.result(timeout=_llm_budget)
+        if not isinstance(_ds_res, dict):
+            _ds_res = {}
+        if not _ds_res.get('per'):
+            print('[auction] 深挖空结果，渲染数据事实行')
     except Exception:
-        ds_map, ds_overall = {}, ''
-        print(f'[auction] 深挖超时({_llm_left}s)，降级规则行出卡，保证 09:27 前推送')
+        _ds_res = {}
+        print(f'[auction] 深挖超时({_llm_budget}s)，渲染数据事实行(非规则模板)')
+    ds_map = _ds_res.get('per') or {}
+    ds_overall = _ds_res.get('overall') or ''
+    reson_reason = _ds_res.get('reson_reason') or ''
+    cap_advice = _ds_res.get('cap_advice') or ''
+    wind_strong = _ds_res.get('wind_strong') or ''
+    wind_weak = _ds_res.get('wind_weak') or ''
     ds_block = (f"""<div style="margin-top:10px;padding:10px;background:#1c2230;border-left:4px solid {GOLD};border-radius:8px;">"""
                 f"""<div style="font-size:15px;font-weight:800;color:{GOLD};">🤖 竞价深挖总结（大白话）</div><div style="color:#e9ecef;font-size:13px;">{ds_overall}</div></div>""") if ds_overall else ''
     emotion = _emotion_from_pools(d)
-    pos_txt = _pos_advice(emotion)
-    overall = (f'<div style="margin-top:4px;padding:8px 10px;background:#1c2830;border-left:4px solid {GOLD};'
-               f'border-radius:8px;font-size:13px;color:#e9ecef;">🧭 今天整体：竞价情绪偏'
-               f'{"多" if emotion=="偏多" else "空" if emotion=="偏空" else "震荡"}，建议仓位 {pos_txt}。'
-               f'只看竞价，不追已经涨停的。</div>')
+    # 今日整体（8项修复②）：LLM 输出涨停板块题材+核心逻辑暗线；LLM 失败时用数据事实行（非规则模板）
+    if ds_overall:
+        overall = (f'<div style="margin-top:4px;padding:8px 10px;background:#1c2830;border-left:4px solid {GOLD};'
+                   f'border-radius:8px;font-size:13px;color:#e9ecef;">🧭 今日整体（竞价涨停板块题材+核心逻辑暗线）<div style="color:#e9ecef;margin-top:3px;">{ds_overall}</div></div>')
+    else:
+        _zt_fact = ('、'.join(f'{n}(涨停{c}家)' for n, c in _zt_top) or '暂无')
+        overall = (f'<div style="margin-top:4px;padding:8px 10px;background:#1c2830;border-left:4px solid {GOLD};'
+                   f'border-radius:8px;font-size:13px;color:#e9ecef;">🧭 今日整体（数据事实）：竞价情绪偏'
+                   f'{"多" if emotion=="偏多" else "空" if emotion=="偏空" else "震荡"}，涨停{_lu}家/炸板{_zb}家，'
+                   f'涨停板块题材：{_zt_fact}。AI 深挖未返回，以上为盘面数据。</div>')
     rows = ''
     for i, s in enumerate(tops, 1):
         buy_low = round(max(0.0, s['price'] * 0.995), 2)
         buy_high = round(min(10.0, s['price'] * 1.01), 2)
         stop = round(buy_low * 0.97, 2)
         brk_txt = '站上昨收' if s['price'] > (s.get('prev') or 0) else '未站上昨收'
-        _qiang = ('量价配合到位，资金抢得凶' if s['score'] >= 75 else '量价一般，能上别贪' if s['score'] >= 60 else '量价偏弱，随时可能砸')
         _deep = (ds_map or {}).get(s['name'])
         if _deep and _deep.get('logic'):
-            _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY}.get(_deep.get('op', ''), GOLD)
-            _deep_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🧠 题材深挖：{_deep.get('logic','')}</div>
+            _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(_deep.get('op', ''), GOLD)
+            _deep_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线：{_deep.get('dark','')}（{_deep.get('reason','')}）</div>
+<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🧠 题材深挖：{_deep.get('logic','')}</div>
 <div style="color:#e9ecef;font-size:12px;margin-top:2px;">👉 大白话：{_deep.get('why','')}</div>
-<div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 操作：<b style="color:{_opcol};">{_deep.get('op','')}</b> ｜ 买点：{_deep.get('buy','')} ｜ 止损：{_deep.get('stop','')}</div>""")
+<div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 建议：<b style="color:{_opcol};">{_deep.get('op','')}</b> ｜ 买点：{_deep.get('buy','')} ｜ 止损：{_deep.get('stop','')} ｜ 放弃：{_deep.get('drop','')}</div>""")
         else:
-            _deep_html = ''
+            # LLM 未返回时只给数据事实行，绝不落回规则模板句（8项强制修复④）
+            _deep_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 数据事实：{s['industry']}竞价高开{s['pct']:+.1f}%、量比{s['lb']:.1f}、{brk_txt}、得分{s['score']:.0f}。AI 深挖未返回，未给建议，等盘中解读。</div>""")
         rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD if s['score'] >= 70 else TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
 <div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分</span></div>
 <div style="color:{GREY};font-size:12px;">竞价高开 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 竞价量比(归一) {s.get('_vr', 0):.2f} ｜ 题材：{s['industry']}{f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else ''}</div>
-{_deep_html or f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 大白话：{s['industry']}竞价高开{s['pct']:+.1f}%、量比{s['lb']:.1f}、{brk_txt}，{_qiang}。</div>
-<div style="color:{TEAL};font-size:12px;margin-top:3px;">👉 建议：开盘30分钟站稳不破均线再动手（1成试探），买入区间 {buy_low}~{buy_high}，破 {buy_low} 的 -3% 止损</div>
-<div style="color:#ced4da;font-size:12px;margin-top:2px;">🚫 放弃：跌破分时均线且量能萎缩，或低开超过2%先观望</div>"""}</div>"""
+{_deep_html}</div>"""
     # —— Top3 重点点评（v3）——
     top3_txt = ''
     if tops:
@@ -4703,69 +4766,93 @@ def build_auction():
         _t3 = []
         for i, s_ in enumerate(tops[:3], 1):
             _a, _col = _quick_act(s_)
-            _t3.append(f'<b style="color:{_col}">{i}.{s_["name"]} {_a}</b>')
+            _d3 = (ds_map or {}).get(s_['name']) or {}
+            _dark_txt = (f'｜🔍暗线:{_d3.get("dark","")}' if _d3.get('dark') else '')
+            _t3.append(f'<b style="color:{_col}">{i}.{s_["name"]} {_a}</b>{_dark_txt}')
         top3_txt = (f'<div style="margin-top:10px;padding:9px 11px;background:#1c2830;border-left:4px solid #a78bfa;'
-                    f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 Top3 速判（小白版）：</b>{("　".join(_t3))}'
-                    f'<br><span style="color:{GREY};font-size:12px;">≥75分可轻仓试 / 60~74观察 / &lt;60或暴力反抽、无量反弹不追</span></div>')
+                    f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 Top3 速判（小白版·含暗线）：</b>'
+                    + ('<br>'.join(_t3) if _t3 else '—')
+                    + f'<br><span style="color:{GREY};font-size:12px;">≥75分可轻仓试 / 60~74观察 / &lt;60或暴力反抽、无量反弹不追（暗线来自AI深挖）</span></div>')
     try:
         _pool_prev = _auction_pool_stats()
     except Exception:
         _pool_prev = ''
     pick = f"""{top3_txt}<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 今日可关注 TOP{AUCTION_TOP_N}（量价×0.72+题材×0.28−风险+反推修正）</div>
 {rows or '<div style="color:' + GREY + ';font-size:13px;">今日无符合硬过滤条件的竞价票（涨幅榜未取得或全被过滤）</div>'}{ds_block}{_pool_prev}"""
-    # —— 行业/题材风向 ——
+    # —— 行业/题材风向（8项修复⑤：补涨停板块题材数据 + 最强/最弱暗线原因）——
     hot = sorted(heat.items(), key=lambda kv: -kv[1])[:3]
     hot_txt = '、'.join(k for k, _ in hot) or '暂无'
     weak_lst = sorted(heat.items(), key=lambda kv: kv[1])
     weak_txt = (weak_lst[0][0] if weak_lst else '暂无')
+    # 涨停板块题材补强：heat 只有行业维度，叠加真实涨停板块（竞价涨幅榜+涨停池双口径）
+    if _zt_top:
+        _zt_hot = '、'.join(f'{n}({c}家)' for n, c in _zt_top[:3])
+    else:
+        _zt_hot = ''
+    _ws = (f'<div style="font-size:13px;color:{RED};">🔥 最强（涨幅前3题材）：{hot_txt}' + (f'；涨停板块：{_zt_hot}' if _zt_hot else '')
+           + (f'<br><span style="color:#e9ecef;">📌 暗线原因：{wind_strong}</span>' if wind_strong else '') + '</div>')
+    _ww = (f'<div style="font-size:13px;color:{GREEN};">🥶 最弱：{weak_txt}（今天别碰）'
+           + (f'<br><span style="color:#e9ecef;">📌 暗线原因：{wind_weak}</span>' if wind_weak else '') + '</div>')
     wind = (f"""<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🌬️ 行业/题材风向</div>
-<div style="font-size:13px;color:{RED};">• 最强（竞价涨幅前3题材）：{hot_txt}</div>
-<div style="font-size:13px;color:{GREEN};">• 最弱：{weak_txt}（今天别碰）</div>""")
-    # —— 竞价实盘确认（合并原 09:28：同一推送里直接复核高开/量能，数据同时点更可靠）——
+{_ws}{_ww}""")
+    # —— 竞价实盘确认（8项修复⑦：结合大盘实时总结；AI逐票深挖；无AI时只给数据事实行）——
     _confirm_block = ''
     try:
         _crows = []
-        for _cf in _cinfos:
-            if _cf['ok']:
-                _crows.append(f'<div style="margin:4px 0;font-size:13px;background:#1c2830;border-left:3px solid {RED};border-radius:8px;padding:6px 10px;">✅ <b style="color:#fff;">{_cf["name"]}({_cf["code"]})</b> 高开{_cf["op"]:+.1f}% 量比{_cf["lb"]:.1f} → <span style="color:{RED};font-weight:800;">可跟 1成试探，止损-3%</span></div>')
-            else:
-                _crows.append(f'<div style="margin:4px 0;font-size:13px;background:#1f2635;border-left:3px solid {GREY};border-radius:8px;padding:6px 10px;">❌ {_cf["name"]}({_cf["code"]}) 高开{_cf["op"]:+.1f}% 量比{_cf["lb"]:.1f} → <span style="color:{GREY};">放弃（{_cf["why"]}）</span></div>')
+        _dmap2 = {}
         try:
-            _llm_left2 = max(5, int((_bj_now().replace(hour=9, minute=26, second=55, microsecond=0) - _bj_now()).total_seconds()))
+            _llm_left2 = (max(5, int((_bj_now().replace(hour=9, minute=26, second=55, microsecond=0) - _bj_now()).total_seconds()))
+                          if _in_auction_win else 90)
             _dmap2 = _cf_fut.result(timeout=_llm_left2)
             if not _dmap2:
-                print('[auction] 确认深挖空结果，保留规则文案')
+                print('[auction] 确认深挖空结果，渲染数据事实行')
         except Exception:
             _dmap2 = {}
-            print(f'[auction] 确认深挖超时({_llm_left2}s)，降级规则文案')
-        if _dmap2:
-            _crows.append('<div style="margin-top:6px;padding:8px 10px;background:#1c2230;border-left:4px solid ' + TEAL + ';border-radius:8px;">'
-                          + ''.join('<div style="color:#e9ecef;font-size:12px;margin:3px 0;">🧠 ' + nm + '：' + rz + '</div>' for nm, rz in _dmap2.items()) + '</div>')
+            print(f'[auction] 确认深挖超时({_llm_left2}s)，渲染数据事实行(非规则模板)')
+        _mkt_sum = (_dmap2.get('market') or '') if isinstance(_dmap2, dict) else ''
+        _per2 = (_dmap2.get('per') or {}) if isinstance(_dmap2, dict) else {}
+        for _cf in _cinfos:
+            _nm2 = _cf['name']
+            _rz2 = _per2.get(_nm2) or ''
+            if _rz2:
+                _crows.append(f'<div style="margin:4px 0;font-size:13px;background:#1c2830;border-left:3px solid {TEAL};border-radius:8px;padding:6px 10px;">🧠 <b style="color:#fff;">{_nm2}({_cf["code"]})</b> 高开{_cf["op"]:+.1f}% 量比{_cf["lb"]:.1f}<br>{_rz2}</div>')
+            else:
+                _crows.append(f'<div style="margin:4px 0;font-size:13px;background:#1f2635;border-left:3px solid {GREY};border-radius:8px;padding:6px 10px;">📊 <b style="color:#fff;">{_nm2}({_cf["code"]})</b> 高开{_cf["op"]:+.1f}% 量比{_cf["lb"]:.1f} — AI 未返回确认深挖，仅展示数据</div>')
+        if _mkt_sum:
+            _crows.insert(0, f'<div style="margin:4px 0;font-size:13px;background:#1a2029;border-left:3px solid {GOLD};border-radius:8px;padding:6px 10px;">🌍 大盘实时：{_mkt_sum}</div>')
         if _crows:
-            _confirm_block = ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔔 竞价实盘确认（高开+量能复核，AI逐票深挖）</div>'
+            _confirm_block = ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔔 竞价实盘确认（结合大盘·AI逐票深挖）</div>'
                               + ''.join(_crows))
     except Exception as e:
         print('[auction] 确认段失败:', e)
         _confirm_block = ''
-    inner = (overall + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔔 持仓竞价诊断（先看自己的）</div>'
+    # 8项修复①：共振档位原因（LLM 大白话，紧跟 _wrap 档位行之后）
+    _reson_reason_row = (f'<div style="margin-bottom:6px;padding:6px 10px;background:#1a2029;border-left:4px solid #a78bfa;'
+                         f'border-radius:6px;color:#e9ecef;font-size:12px;">🎚 共振原因：{reson_reason}</div>') if reson_reason else ''
+    # 8项修复⑥：当前档位建议（LLM 按盘面），保留数据行 pos_cap_line
+    _cap_advice_row = (f'<div style="margin-top:8px;padding:7px 10px;background:#1c2230;border-left:4px solid {GOLD};'
+                       f'border-radius:8px;font-size:13px;color:#e9ecef;">📊 当前档位建议（按盘面）：{cap_advice}</div>') if cap_advice else ''
+    inner = (_reson_reason_row + overall + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔔 持仓竞价诊断（先看自己的）</div>'
              + (''.join(own) or '<div style="color:' + GREY + ';font-size:13px;">无持仓</div>')
-             + pick + wind + pos_cap_line(emotion, None) + _confirm_block + _alt_note)
+             + pick + wind + _cap_advice_row + pos_cap_line(emotion, None) + _confirm_block + _alt_note)
     _ex.shutdown(wait=False)
-    return _wrap(inner, '🔔', '竞价观察')
+    return _wrap(inner, '🔔', title)
 
 
-def _confirm_ds(infos):
-    """竞价确认 LLM 深挖：对 TOP5 每只输出 为什么能跟/为什么放弃（大白话五步）。失败返回 {}（保留原规则文案）。"""
+def _confirm_ds(infos, mkt_ctx=None):
+    """竞价确认 LLM 深挖（8项修复⑦）：结合大盘实时总结 + 对 TOP5 每只输出 为什么能跟/为什么放弃。
+    返回 {"market": 大盘总结, "per": {name: reason}}；失败返回 {}（渲染数据事实行，不落规则模板）。"""
     if not infos or not (MODELSCOPE_KEY or DEEPSEEK_KEY):
         return {}
-    lines = '\n'.join(f"- {x['name']}({x['code']}) 高开{x['op']:+.1f}% 量比{'未取得' if not x.get('lb') or float(x.get('lb') or 0) <= 0 else ('%.1f' % x['lb'])} 题材{x['sec']} 判定={'可跟' if x['ok'] else '放弃'}（规则原因：{x['why']}）" for x in infos)
-    fmt = ('你是10年A股超短线交易员，竞价确认阶段，对下面每只票逐一解释判定，不许只说"不在区间"：\n'
+    lines = '\n'.join(f"- {x['name']}({x['code']}) 高开{x['op']:+.1f}% 量比{'未取得' if not x.get('lb') or float(x.get('lb') or 0) <= 0 else ('%.1f' % x['lb'])} 题材{x['sec']} 判定={'可跟' if x['ok'] else '放弃'}（规则初判：{x['why']}）" for x in infos)
+    fmt = ('你是10年A股超短线交易员，竞价确认阶段，先结合大盘实时环境给一句话总结，再对每只票逐一解释判定（不许只说"不在区间"）：\n'
            + _FIVE_BRIEF_OLD + '\n'
+           + f'【大盘实时环境】{mkt_ctx or "未提供"}\n'
            + '竞价名单：\n' + lines + '\n'
            + '【暗线业务深挖·每只必做】先一句话说清公司靠什么赚钱（禁「XX龙头/XX概念」标签）；再挖暗线业务——具体产品/技术/业务是什么、进展到哪个阶段、在产业链哪个环节、有没有卡位壁垒、对业绩是真实贡献还是纯故事/预期；然后判断跟今日最强主线是【实受益】【沾边】还是【纯蹭】、弹性大不大。挖不出来如实写「未见明确暗线业务」，禁止用「相关」「涉及」「布局」「受益于」糊弄。暗线不硬就明确写「不碰/放弃」。\n'
+           + '【大盘决定仓位】大盘强(涨停多/情绪分高/指数涨)时同票可跟，大盘弱(炸板多/情绪分低/指数跌)时同票必须放弃，理由要落到大盘数据上。\n'
            + '【量比红线】量比标注"未取得"的票说明数据源没取到该字段，绝不得把"未取得"当作量比0来解读，更不得以量比不足为由否决它——只凭高开幅度/题材热度/位置判定；\n'
-
-           + '只输出 JSON：{"per":[{"name":"股票名称","reason":"为什么能跟/为什么放弃(大白话深挖: 高开是否透支/量比真假/暗线业务(公司靠什么赚钱+暗线产品或技术进展到哪+对业绩真实贡献+与今日主线实受益/沾边/纯蹭，挖不出写未见明确暗线业务)/题材是不是当日主线/有没有暗雷)，至少40字"}]}，'
+           + '只输出 JSON：{"market":"大盘实时总结一句话（结合涨停/炸板/情绪分/指数，至少25字，禁止模板句）","per":[{"name":"股票名称","reason":"为什么能跟/为什么放弃(大白话深挖: 大盘环境怎么影响这只+高开是否透支/量比真假/暗线业务(公司靠什么赚钱+暗线产品或技术进展到哪+对业绩真实贡献+与今日主线实受益/沾边/纯蹭，挖不出写未见明确暗线业务)/题材是不是当日主线/有没有暗雷)，至少40字"}]}，'
            + '必须覆盖每只，不许偷懒。')
     t = ask_deepseek({'task': 'confirm_ds', 'stocks': [{'name': x['name'], 'code': x['code'], 'op': x['op'],
                                                         'lb': x['lb'], 'sec': x['sec'], 'ok': x['ok']} for x in infos],
@@ -4774,11 +4861,15 @@ def _confirm_ds(infos):
     if not t:
         return out
     try:
-        _j = json.loads(t)
-        for it in _j.get('per') or []:
-            nm = str(it.get('name') or '').strip()
-            if nm and it.get('reason'):
-                out[nm] = str(it['reason'])
+        _j = json.loads(t[t.find('{'):t.rfind('}') + 1])
+        if isinstance(_j, dict):
+            out['market'] = str(_j.get('market', '') or '')
+            per = {}
+            for it in (_j.get('per') or []):
+                nm = str(it.get('name') or '').strip()
+                if nm and it.get('reason'):
+                    per[nm] = str(it['reason'])
+            out['per'] = per
     except Exception:
         pass
     return out
@@ -4846,12 +4937,25 @@ def build_confirm():
             continue
     if not rows:
         return _wrap('<div style="color:#e2e8f0;font-size:13px;">今日竞价无确认标的，多看少动</div>', '🔔', '竞价确认')
-    _dmap = _confirm_ds(infos)
+    try:
+        _idx = get_indices()
+        _mscore, _mlabel, _ = market_score(_idx, d)
+    except Exception:
+        _mscore, _mlabel = 50, '—'
+    _lu = int(d.get('lu') or 0)
+    _zb = int(d.get('zb') or 0)
+    _mkt_ctx = (f'大盘：涨停{_lu}家/炸板{_zb}家 情绪分{int(_mscore)}({_mlabel}) '
+                f'最强板块{(sorted(d.get("sectors", {}).items(), key=lambda kv: -len(kv[1]))[:1] or [["—"]])[0][0] if d.get("sectors") else "—"}')
+    _dmap = _confirm_ds(infos, _mkt_ctx)
     rows2 = list(rows)
-    if _dmap:
+    _per2 = (_dmap.get('per') or {}) if isinstance(_dmap, dict) else {}
+    _mkt2 = (_dmap.get('market') or '') if isinstance(_dmap, dict) else ''
+    if _per2 or _mkt2:
+        _head2 = (f'<div style="color:#e9ecef;font-size:12px;margin:3px 0;">🌍 大盘实时：{_mkt2}</div>' if _mkt2 else '')
         rows2.append('<div style="margin-top:6px;padding:8px 10px;background:#1c2230;border-left:4px solid ' + TEAL + ';border-radius:8px;">'
+                     + _head2
                      + ''.join('<div style="color:#e9ecef;font-size:12px;margin:3px 0;">🧠 ' + nm + '：' + rz + '</div>'
-                               for nm, rz in _dmap.items()) + '</div>')
+                               for nm, rz in _per2.items()) + '</div>')
     inner = (f'<div style="color:{TEAL};font-size:13px;">基于 09:20 双打分 TOP5 实盘复核（规则复核 + AI 深挖）'
              f'｜确认 {ok_n} 只</div>' + ''.join(rows2))
     return _wrap(inner, '🔔', '竞价确认')
@@ -9466,7 +9570,7 @@ def build_warn():
              + '<div style="color:' + GREY + ';font-size:11px;margin-top:8px;">① 验证：板块竞价量比明显放大+多股联动才算真启动；② 纪律：高位连板不追，低吸为主。</div>')
     return _wrap(inner, '🚨', '启动预警'), '【消息面点火预判】' + bj.strftime('%H:%M')
 
-TITLES = {'pre': '盘前速递', 'auction': '竞价观察', 'noon': '午间作战', 'eod': '收盘复盘',
+TITLES = {'pre': '盘前速递', 'auction': '竞价观察', 'tail': '尾盘竞价筛选', 'noon': '午间作战', 'eod': '收盘复盘',
          'news': '事件简报', 'news2h': '两小时市场消息汇总',
           'hourly': '盘中解读', 'warn': '启动预警', 'confirm': '竞价确认', 'ext': '外盘窗口', 'anchor': '突破回踩', 'review': '突破回踩·复盘', 'evaluate': '突破回踩·策略评估'}
 
@@ -9476,6 +9580,7 @@ BUILDERS['ext'] = build_ext
 BUILDERS['anchor'] = build_anchor
 BUILDERS['review'] = build_review
 BUILDERS['evaluate'] = build_evaluate
+BUILDERS['tail'] = lambda: build_auction(title='尾盘竞价筛选')
 
 
 
@@ -9894,7 +9999,7 @@ if __name__ == '__main__':
     if force:
         FORCE_SLOT = force
         slot = force
-    alias = {'morning': 'pre', 'pre': 'pre', 'auction': 'auction', 'hourly': 'hourly',
+    alias = {'morning': 'pre', 'pre': 'pre', 'auction': 'auction', 'tail': 'tail', 'tail_auction': 'tail', 'hourly': 'hourly',
              'noon': 'noon', 'midday': 'noon', 'eod': 'eod', 'close': 'eod'}
     slot = alias.get(slot, slot) if slot else None
     if not slot:
@@ -10142,7 +10247,7 @@ if __name__ == '__main__':
         print('SLOT eod PUSH', ok, msg)
         sys.exit(0)
     # —— 多点cron 当日去重（仅定时自动run；手动 --force 不受限，用于演示/验证）——
-    if not force and slot in ('auction', 'pre', 'noon', 'hourly'):
+    if not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly'):
         _k = _slot_key(slot)
         if _slot_done(_k):
             print('SLOT %s 今日已推（slot_done.json 去重），跳过' % slot)
@@ -10154,7 +10259,7 @@ if __name__ == '__main__':
         print('[build] exception:', e)
         html = _wrap(f'<div style="color:{RED}">⚠️ 本卡片构建异常：{e}</div>', '⚠️', '构建异常')
     ok, msg = push(html, f'{TITLES[slot]} {_bj_now().strftime("%m/%d %H:%M")}')
-    if ok and not force and slot in ('auction', 'pre', 'noon', 'hourly'):
+    if ok and not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly'):
         _mark_slot_done(_slot_key(slot))
     print('SLOT', slot, 'PUSH', ok, msg)
 
