@@ -5434,178 +5434,6 @@ def build_eod():
     return _wrap(inner, '🌆', '收盘复盘')
 
 
-# ============ 极简三段式统一推送（2026-11-03：全部定时推送精简为三段） ============
-def _slim_events(slot):
-    """段1：发生了什么（消息面精简版，最多5条：标签+标题+影响板块）。"""
-    try:
-        news = get_news(30)
-    except Exception:
-        return ''
-    mem = load_memory()
-    days = sorted(mem.keys(), reverse=True)
-    out = []
-    try:
-        for nw in news:
-            text = nw['title'] + nw['summary']
-            if len(text) < 12:
-                continue
-            tag, color = classify_news(text)
-            rel = []
-            for pd in days[:3]:
-                for sec, info in mem.get(pd, {}).items():
-                    if sec in text:
-                        rel.append(sec + '(龙头:' + '/'.join(info['leaders'][:2]) + ')')
-            if not rel:
-                for kw, bd in _EVENT_SEC_MAP:
-                    if kw in text:
-                        rel.append(bd)
-                        break
-            rel_s = '、'.join(rel[:2]) or '暂看不出直接板块影响'
-            out.append({'tag': tag, 'color': color, 'title': nw['title'][:50], 'rel': rel_s})
-            if len(out) >= 5:
-                break
-    except Exception:
-        pass
-    if not out:
-        return ''
-    rows = ''.join(
-        f'<div style="background:#1f2635;border-left:4px solid {x["color"]};border-radius:8px;padding:7px 10px;margin:4px 0;font-size:12px;color:#e9ecef;">'
-        f'<b style="color:{x["color"]};">[{x["tag"]}]</b> {x["title"]} <span style="color:{GREY};">→ {x["rel"]}</span></div>'
-        for x in out)
-    label = '开盘前发生了什么' if _bj_now().hour < 10 else '今日发生了什么'
-    return f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:{GOLD};">📰 {label}</div>{rows}'
-
-
-def _slim_market(idx, d, mscore, mlabel, mwhy, zbr):
-    """段2：市场现在怎么样 + 什么在涨（指数/涨停数据/强势题材top3）。"""
-    bits = '｜'.join(f"<span style='color:{_c(x['pct'])}'>{x['name']}{x['pct']:+.1f}%</span>" for x in idx)
-    if not bits:
-        bits = '<span style="color:' + GREY + '">指数未取得</span>'
-    sec_rows = ''
-    for n, s in (d.get('tops') or [])[:3]:
-        try:
-            leader = sorted(s, key=lambda x: x.get('fbt') or 0)[0]
-        except Exception:
-            leader = {}
-        sec_rows += (f'<div style="margin:4px 0;font-size:13px;color:#e9ecef;"><b style="color:{GOLD};">{n}</b> '
-                     f'<span style="color:{RED};">{len(s)}涨停</span> · 龙头 {leader.get("n", "—")} {_hhmm(leader.get("fbt"))}封</div>')
-    if not sec_rows:
-        sec_rows = '<div style="color:' + GREY + ';font-size:12px;margin-top:3px;">强势题材数据未取得（涨停池缺源）</div>'
-    return (f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:{TEAL};">📊 市场现在怎么样（{mlabel} {mscore}分）</div>'
-            f'<div style="background:#232a3a;border-radius:8px;padding:9px 11px;margin:5px 0;font-size:13px;color:#ced4da;">{bits}<br>'
-            f'<span style="color:{GREY};font-size:12px;">涨停{d.get("lu",0)}｜炸板{d.get("zb",0)}｜跌停{d.get("dt",0)}｜炸板率{zbr*100:.0f}%｜最高{d.get("max_lbc",0)}板｜{mwhy}</span></div>'
-            f'<div style="background:#232a3a;border-radius:8px;padding:9px 11px;margin:5px 0;">{sec_rows}</div>')
-
-
-def _slim_quantum(d):
-    """倍量阳线·涨幅4%附近候选（启动预警/盘前专用）：
-    未涨停 + 涨幅 3%~5.5%（4%左右）+ 量比≥2（今日是昨日均量2倍+的倍量阳线）+ 题材共振优先。
-    纯规则零 AI；数据缺源返回空，绝不硬编。"""
-    zt_codes = set()
-    for sec, sts in d.get('sectors', {}).items():
-        for st in sts:
-            zt_codes.add(st.get('c'))
-    tops_sec = {n for n, _ in d.get('tops', [])[:8]}
-    try:
-        rows = _clist_gainers()
-    except Exception:
-        return []
-    out = []
-    for s in rows:
-        if s['code'] in zt_codes:
-            continue                                  # 已涨停 → 剔除
-        pct = s.get('pct', 0)
-        if not (3.0 <= pct <= 5.5):
-            continue                                  # 只留涨幅4%左右的倍量阳线
-        if s.get('lb', 0) < 2.0:
-            continue                                  # 量比≥2 才算倍量
-        ind = re.sub(r'[行业板块概念\s]+', '', s.get('industry') or '') or '其他'
-        tag = '倍量·题材共振' if ind in tops_sec else '倍量·独立放量'
-        out.append((s, tag))
-        if len(out) >= 4:
-            break
-    return out
-
-
-def _slim_focus(d, slot):
-    """段3：可以关注（板块/题材/个股 + 买卖点 + 止损位，不含已涨停）。
-    启动预警(warn)/盘前(pre)：倍量阳线+涨幅4%附近候选；其余档：量能+题材共振低吸池。"""
-    if slot in ('warn', 'pre'):
-        try:
-            tpool = _slim_quantum(d)
-        except Exception:
-            tpool = []
-        if not tpool:
-            try:
-                tpool = _track_pool(d)
-            except Exception:
-                tpool = []
-    else:
-        try:
-            tpool = _track_pool(d)
-        except Exception:
-            tpool = []
-    rows = ''
-    for s, kind in tpool[:3]:
-        try:
-            deep = _deep_logic(s, re.sub(r'[行业板块概念\s]+', '', s.get('industry') or '') or '其他',
-                               None, eod_kind=kind)
-            deep_html = deep.replace('\n', '<br>')
-        except Exception:
-            deep_html = ''
-        rows += (f'<div style="background:#1f2635;border-left:3px solid {TEAL};border-radius:8px;padding:8px 10px;margin:5px 0;">'
-                 f'<b style="color:#fff;">{s["name"]}</b> <span style="color:{GREY};font-size:12px;">{s["code"]} · {s.get("industry","")}（{kind}）</span> '
-                 f'<span style="color:{_c(s["pct"])};">{s["pct"]:+.1f}%</span> 量比{s.get("lb",0):.1f}'
-                 f'<div style="color:#ced4da;font-size:12px;line-height:1.6;margin-top:3px;">{deep_html}</div></div>')
-    if not rows:
-        rows = '<div style="color:' + GREY + ';font-size:13px;">今日无合适跟踪票（全市场涨停或无量），明天多看少动</div>'
-    return f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">🎯 可以关注（板块/题材/个股）</div>{rows}'
-
-
-def _slim_global():
-    """外围市场指数行（启动预警/盘前/外盘窗口用）：纳指/道指/标普/恒生/原油/黄金/比特币，红涨绿跌。"""
-    try:
-        gl = _global_markets()
-    except Exception:
-        return ''
-    if not gl:
-        return ''
-    rows = []
-    for nm, pct, note in gl:
-        if pct is None:
-            rows.append(f'{nm} <span style="color:{GREY}">{note or "未取得"}</span>')
-        else:
-            rows.append(f'{nm} <b style="color:{RED if pct >= 0 else GREEN}">{pct:+.2f}%</b>')
-    return (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#8bc8ea;">🌍 外围市场</div>'
-            f'<div style="background:#232a3a;border-radius:8px;padding:8px 11px;margin:5px 0;font-size:13px;color:#e2e8f0;">'
-            f'{"　".join(rows)}</div>')
-
-
-def build_slim(slot):
-    """极简三段式统一推送：①发生了什么 ②市场怎么样/什么在涨 ③关注方向。全部定时推送统一入口。"""
-    try:
-        idx = get_indices()
-        d = get_pools()
-        b, r, avg, zbr = sentiment(idx, d)
-        mscore, mlabel, mwhy = market_score(idx, d)
-    except Exception:
-        idx, d = [], {'tops': [], 'lu': 0, 'zb': 0, 'dt': 0, 'max_lbc': 0, 'sectors': {}}
-        b, r, avg, zbr = 50.0, 0, 0, 0.5
-        mscore, mlabel, mwhy = 50.0, '震荡分化', '数据未取得，以开盘/竞价验证为准'
-    hour = _bj_now().hour
-    ev = 'pre' if hour < 11 else ('noon' if hour < 14 else 'eod')
-    sec_g = _slim_global() if slot in ('warn', 'pre', 'ext') else ''
-    sec1 = _slim_events(ev)
-    sec2 = _slim_market(idx, d, mscore, mlabel, mwhy, zbr)
-    sec3 = _slim_focus(d, slot)
-    inner = sec_g + sec1 + sec2 + sec3
-    icon = {'pre': '☀️', 'auction': '🔔', 'hourly': '⏰', 'noon': '🌞', 'eod': '🌆',
-            'news': '📰', 'news2h': '📰', 'warn': '🚨', 'confirm': '🔔', 'ext': '🌍',
-            'evening': '🌙', 'follow': '👣', 'anchor': '🔗', 'review': '🔁', 'evaluate': '📋'}.get(slot, '📊')
-    title = TITLES.get(slot, '市场速览')
-    return _wrap(inner, icon, title)
-
-
 BUILDERS = {'pre': build_pre, 'auction': build_auction, 'noon': build_noon,
             'eod': build_eod, 'hourly': build_hourly}
 WATCH_SLOT = 'watch'
@@ -10108,7 +9936,7 @@ if __name__ == '__main__':
         sys.exit(0)
     if slot == 'evening':
         try:
-            _ev = build_slim('evening')
+            _ev = build_evening()
         except Exception as e:
             print('[evening] build exception:', e)
             _ev = None
@@ -10120,12 +9948,12 @@ if __name__ == '__main__':
         sys.exit(0)
     if slot == 'follow':
         try:
-            _fl = build_slim('follow')
+            _fl, _why = build_followup()
         except Exception as e:
             print('[follow] build exception:', e)
-            _fl = None
+            _fl, _why = None, f'异常 {e}'
         if _fl is None:
-            print('SLOT follow: 不推送（', e if 'e' in dir() else '构建异常', '）')
+            print('SLOT follow: 不推送（', _why, '）')
             sys.exit(0)
         ok, msg = push(_fl, f'跟涨三步走 {_bj_now().strftime("%H:%M")}')
         print('SLOT follow PUSH', ok, msg)
@@ -10135,30 +9963,31 @@ if __name__ == '__main__':
             print('SLOT warn 今日已推（slot_done.json 去重），跳过')
             sys.exit(0)
         try:
-            _wr = build_slim('warn')
+            _wr = build_warn()
         except Exception as e:
             print('[warn] build exception:', e)
             _wr = None
         if _wr is None:
-            print('SLOT warn: 构建失败，不推送')
+            print('SLOT warn: 今日暂无明确启动预警，不调用不推送')
             sys.exit(0)
-        html, wtitle = _wr, f'启动预警 {_bj_now().strftime("%H:%M")}'
+        html, wtitle = _wr
         ok, msg = push(html, wtitle)
         if ok and not force:
             _mark_slot_done(_slot_key('warn'))
         print('SLOT warn PUSH', ok, msg)
         sys.exit(0)
     if slot == 'news':
-        # 事件简报（极简三段式），同日同窗口去重：同一 5 分钟窗口被多个 run 触发时只推一次
+        # 旧事件简报独立档（11:40=noon 档 / 15:10·15:35=eod 档），复用 build_events
+        # 同日同窗口去重：同一 5 分钟窗口被多个 run 触发时只推一次（防手动/排队 run 双推）
         _nk = _news_window_key()
         if not force and _slot_done(_nk):
             print('SLOT news 本窗口已推（slot_done 去重），跳过')
             sys.exit(0)
-        _b = build_slim('news')
+        _b = build_events('noon' if _bj_now().hour < 14 else 'eod')
         if not _b:
-            print('SLOT news: 构建失败，不推送')
+            print('SLOT news: 无有效事件，不推送')
             sys.exit(0)
-        ok, msg = push(_b, f'事件简报 {_bj_now().strftime("%H:%M")}')
+        ok, msg = push(_wrap(_b, '📰', '事件简报'), f'事件简报 {_bj_now().strftime("%H:%M")}')
         if ok and not force:
             _mark_slot_done(_nk)
         print('SLOT news PUSH', ok, msg)
@@ -10191,7 +10020,7 @@ if __name__ == '__main__':
         sys.exit(0)
     if slot == 'news2h':
         try:
-            _n2 = build_slim('news2h')
+            _n2 = build_news2h()
         except Exception as e:
             print('[news2h] build exception:', e)
             _n2 = None
@@ -10207,7 +10036,7 @@ if __name__ == '__main__':
             print(f'SLOT eod 今日已推送（eod_status.json 去重），跳过')
             sys.exit(0)
         try:
-            html = build_slim('eod')
+            html = build_eod()
         except Exception as e:
             print('[build] exception:', e)
             html = _wrap(f'<div style="color:{RED}">⚠️ 本卡片构建异常：{e}</div>', '⚠️', '构建异常')
@@ -10228,9 +10057,7 @@ if __name__ == '__main__':
             sys.exit(0)
     slot = slot if slot in BUILDERS else 'eod'
     try:
-        # 竞价观察恢复「小白速判」原版（持仓竞价诊断+TOP8打分+Top3速判+行业风向+竞价实盘确认）；
-        # 其余档位保持极简三段式
-        html = build_auction() if slot == 'auction' else build_slim(slot)
+        html = BUILDERS[slot]()
     except Exception as e:
         print('[build] exception:', e)
         html = _wrap(f'<div style="color:{RED}">⚠️ 本卡片构建异常：{e}</div>', '⚠️', '构建异常')
