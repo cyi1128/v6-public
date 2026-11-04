@@ -4934,6 +4934,7 @@ def _tail_filter(rows, heat=None, zt_names=None):
     市值 30~150 亿硬限制已删除（改为打分偏好，交给数据与趋势）。
     过滤阶段缓存 s['_ma20_ok']/s['_ma5_up']/s['_chg5'] 供 _tail_score_v2 复用，避免重复拉K线。"""
     out = []
+    pending = []   # 通过基础硬过滤、待并发拉K线做趋势判定的候选
     try:
         from datetime import date
         yy, mm, dd = map(int, _bj_now().strftime('%Y-%m-%d').split('-'))
@@ -4981,43 +4982,54 @@ def _tail_filter(rows, heat=None, zt_names=None):
                 continue
         except Exception:
             continue
-        # 趋势硬过滤：当前价必须站上 MA20（K线成功且明确跌破才剔除；K线失败放行，避免误杀）
-        # 同时缓存 MA5 向上/近5日涨幅供 _tail_score_v2 复用
-        sym = ('sh' if code.startswith('6') else 'sz') + code
+        # 趋势硬过滤（K线段）：先收集，后并发单次拉 25 根一次算完 MA20/MA5/近5日，再统一判定
+        # （避免数百候选串行 2 次 HTTP 导致云端超时；语义不变：K线成功且明确跌破/近5日超限才剔除，K线失败放行）
+        s['_kline_ok'] = False
         s['_ma20_ok'] = False
         s['_ma5_up'] = False
         s['_chg5'] = None
+        pending.append(s)
+    # —— 并发拉 K 线（每只 1 次 25 根请求，MA20 用后20根、MA5 用后5/前5根、近5日用 arr[-6] 基准）——
+    def _kline_fetch(s):
         try:
+            sym = ('sh' if s['code'].startswith('6') else 'sz') + s['code']
             arr = get_klines(sym, 25)
             if len(arr) >= 21:
                 closes = [float(r[2]) for r in arr[-20:]]
                 ma20 = sum(closes) / 20.0
                 s['_ma20_ok'] = s['price'] > ma20
+                s['_kline_ok'] = True
                 if len(arr) >= 6:
                     ma5_now = sum(float(r[2]) for r in arr[-5:]) / 5.0
                     ma5_prev = sum(float(r[2]) for r in arr[-6:-1]) / 5.0
                     s['_ma5_up'] = ma5_now > ma5_prev
-                if not s['_ma20_ok']:
-                    continue
+                if len(arr) >= 6 and float(arr[-6][2]) > 0:
+                    s['_chg5'] = round((s['price'] / float(arr[-6][2]) - 1) * 100, 2)
         except Exception:
             pass
-        # 近5日涨幅：<=20%；题材热度>=65 且属于当日最强主线时放宽至 25%
+        return s
+    if pending:
         try:
-            arr = get_klines(sym, 6)
-            if len(arr) >= 6 and float(arr[-6][2]) > 0:
-                chg5 = (s['price'] / float(arr[-6][2]) - 1) * 100
-                s['_chg5'] = round(chg5, 2)
-                limit5 = 25.0
-                try:
-                    ind = _sec_clean(s['industry']) or '其他'
-                    if not ((heat or {}).get(ind, 0) >= 65 and (zt_names and ind in zt_names)):
-                        limit5 = 20.0
-                except Exception:
-                    limit5 = 20.0
-                if chg5 > limit5:
-                    continue
+            with ThreadPoolExecutor(max_workers=16) as _ex:
+                list(_ex.map(_kline_fetch, pending))
         except Exception:
             pass
+    for s in pending:
+        # 当前价强制站上MA20（K线成功且明确跌破才剔除；失败放行）
+        if s['_kline_ok'] and not s['_ma20_ok']:
+            continue
+        # 近5日涨幅：<=20%；题材热度>=65 且属于当日最强主线时放宽至 25%
+        chg5 = s.get('_chg5')
+        if chg5 is not None:
+            limit5 = 25.0
+            try:
+                ind = _sec_clean(s['industry']) or '其他'
+                if not ((heat or {}).get(ind, 0) >= 65 and (zt_names and ind in zt_names)):
+                    limit5 = 20.0
+            except Exception:
+                limit5 = 20.0
+            if chg5 > limit5:
+                continue
         out.append(s)
     return out
 
