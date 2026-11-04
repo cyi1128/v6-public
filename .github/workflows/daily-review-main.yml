@@ -9,10 +9,10 @@ on:
         required: false
         type: string
       slot:
-        description: '强制时段（演示/手动）：pre/auction/hourly/noon/eod/watch/warn/ext/news/news2h/evening/follow/anchor/review/evaluate/deep6/zscan，留空=按当前时刻'
+        description: '强制时段（演示/手动）：pre/auction/tail/hourly/noon/eod/watch/warn/ext/news/news2h/evening/follow/anchor/review/evaluate/deep6/zscan，留空=按当前时刻'
         required: false
         type: choice
-        options: ['pre', 'auction', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'news', 'news2h', 'evening', 'follow', 'anchor', 'review', 'evaluate', 'deep6', 'zscan', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3']
+        options: ['pre', 'auction', 'tail', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'news', 'news2h', 'evening', 'follow', 'anchor', 'review', 'evaluate', 'deep6', 'zscan', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3']
   schedule:
     - cron: '20-24 0 * * 1-5'      # 08:20-08:24 北京 板块启动预警
     - cron: '30-34 0 * * 1-5'      # 08:30-08:34 北京 盘前速递
@@ -29,16 +29,17 @@ on:
     - cron: '20 7 * * 1-5'         # 15:20 北京 突破回踩·主力成本锚
     - cron: '30 7 * * 1-5'         # 15:30 北京 突破回踩·复盘
     - cron: '0 12 * * 0'           # 周日 20:00 北京 突破回踩·策略评估
-    - cron: '0 */2 * * *'          # 每2小时：休市日(周末/节假日)发新闻汇总(2小时窗口去重)；交易日非盘面时段自动跳过
+    - cron: '0 */2 * * *'          # 每2小时：休市日发新闻汇总(2小时窗口去重)；交易日非盘面时段自动跳过
+    - cron: '55-58 6 * * 1-5'      # 14:55-14:58 北京 尾盘竞价筛选
 
 concurrency:
-  group: daily-review
+  group: daily-review-${{ github.event.inputs.slot || 'auto' }}
   cancel-in-progress: false
 
 jobs:
   push:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -54,6 +55,7 @@ jobs:
             00:2[0-4])   T=warn ;;      # 08:20-08:24 北京（板块启动预警）
             00:3[0-4])   T=pre ;;       # 08:30-08:34 北京 盘前速递
             01:2[0-9])   T=auction ;;   # 09:20-09:29 竞价观察
+            06:5[5-8])   T=tail ;;      # 14:55-14:58 尾盘竞价筛选
             04:0[0-4]|06:0[1-4]|08:0[0-4]) T=news2h ;;  # 12:00-04/14:01-04/16:00-04 两小时汇总
             02:0[0-4]|03:0[0-4]|05:0[0-4]|06:0[0-4]) T=hourly ;;  # 10/11/13/14:00 盘中解读
             03:4[0-4])      T=news ;;       # 11:40-11:44 午间事件简报
@@ -81,9 +83,9 @@ jobs:
         run: |
           git config user.name "v6-bot"
           git config user.email "v6-bot@users.noreply.github.com"
-          git add tools/data/ data/ || true
+          git add tools/data/ || true
           if ! git diff --cached --quiet; then
             git commit -m "chore: 状态持久化 $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
-            git pull --rebase --autostash || true
+            git pull --rebase --autostash || { git rebase --abort 2>/dev/null; git reset --hard origin/main 2>/dev/null; git add tools/data/ 2>/dev/null; git commit -m "chore: 状态持久化(冲突自愈) $(date -u +%Y-%m-%dT%H:%M:%SZ)" 2>/dev/null || true; }
             git push || true
           fi
