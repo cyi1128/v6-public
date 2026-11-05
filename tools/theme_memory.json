@@ -1,4 +1,100 @@
 {
+ "2026-11-05": {
+  "光伏设备": {
+   "leaders": [
+    "永臻股份",
+    "贝特利",
+    "赛伍技术"
+   ],
+   "reason": "11只涨停·龙头永臻股份",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 92502,
+   "divergence": false
+  },
+  "专用设备": {
+   "leaders": [
+    "南矿集团",
+    "海源复材",
+    "威派格"
+   ],
+   "reason": "4只涨停·龙头南矿集团",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 93003,
+   "divergence": false
+  },
+  "半导体": {
+   "leaders": [
+    "先导基电",
+    "有研新材",
+    "瑞芯微"
+   ],
+   "reason": "4只涨停·龙头先导基电",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 93101,
+   "divergence": false
+  },
+  "广告营销": {
+   "leaders": [
+    "引力传媒",
+    "浙文互联",
+    "福石控股"
+   ],
+   "reason": "3只涨停·龙头引力传媒",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 93000,
+   "divergence": false
+  },
+  "电网设备": {
+   "leaders": [
+    "中利集团",
+    "顺钠股份",
+    "维通利"
+   ],
+   "reason": "3只涨停·龙头中利集团",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 93251,
+   "divergence": false
+  },
+  "一般零售": {
+   "leaders": [
+    "国光连锁",
+    "锦和商管",
+    "百大集团"
+   ],
+   "reason": "3只涨停·龙头国光连锁",
+   "strength": 9,
+   "max_lbc": 1,
+   "fbt": 111827,
+   "divergence": false
+  },
+  "装修装饰": {
+   "leaders": [
+    "金 螳 螂",
+    "德才股份"
+   ],
+   "reason": "2只涨停·龙头金 螳 螂",
+   "strength": 9,
+   "max_lbc": 2,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "工业金属": {
+   "leaders": [
+    "闽发铝业",
+    "鼎胜新材"
+   ],
+   "reason": "2只涨停·龙头闽发铝业",
+   "strength": 10,
+   "max_lbc": 4,
+   "fbt": 92500,
+   "divergence": false
+  }
+ },
  "2026-11-04": {
   "半导体": {
    "leaders": [
