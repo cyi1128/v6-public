@@ -659,14 +659,43 @@ def signals_review_html():
             f'红盘{win:.0f}%（样本积累中，不代表实盘胜率）')
 
 
+def _klines_em(sym, n):
+    """东方财富前复权日K（腾讯 fqkline 限流 501 时的 fallback）。行格式与腾讯一致：[日期,开,收,高,低,量]。"""
+    sec = ('1.' if sym.startswith('sh') else '0.') + sym[2:]
+    url = (f'https://push2his.eastmoney.com/api/qt/stock/kline/get?secid={sec}'
+           f'&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58'
+           f'&klt=101&fqt=1&beg=0&end=20500101&lmt={n}')
+    d = json.loads(_get(url))
+    kl = (d.get('data') or {}).get('klines') or []
+    out = []
+    for row in kl:
+        p = row.split(',')
+        if len(p) < 6:
+            continue
+        try:
+            out.append([p[0], float(p[1]), float(p[2]), float(p[3]), float(p[4]), float(p[5])])
+        except ValueError:
+            continue
+    return out
+
+
 def get_klines(code, n=20):
     url = f'https://ifzq.gtimg.cn/appstock/app/fqkline/get?param={code},day,,,{n},qfq'
-    d = json.loads(_get(url))
-    _data = d.get('data') or {}
-    if not isinstance(_data, dict):
+    try:
+        d = json.loads(_get(url))
+        _data = d.get('data') or {}
+        if isinstance(_data, dict):
+            node = _data.get(code, {}) or {}
+            ks = node.get('qfqday') or node.get('day') or []
+            if ks:
+                return ks
+    except Exception:
+        pass
+    # 腾讯接口限流/异常（HTTP 501）时回退东财，保证周期视角真实出数据
+    try:
+        return _klines_em(code, n)
+    except Exception:
         return []
-    node = _data.get(code, {}) or {}
-    return node.get('qfqday') or node.get('day') or []
 
 
 # —— 多周期视角引擎（券商量化配置：超短线/短线/中长线/长线 + 原因）——
@@ -5163,12 +5192,6 @@ def build_auction(title='竞价观察'):
         stop = round(buy_low * 0.97, 2)
         brk_txt = '站上昨收' if s['price'] > (s.get('prev') or 0) else '未站上昨收'
         _deep = (ds_map or {}).get(s['name'])
-        # 多周期视角（Top5 打标；失败静默）
-        _cyc_html = ''
-        if i <= 5:
-            _cyc, _cyc_reason = _cycle_tag(s.get('code') or '', s.get('industry') or '', 0)
-            if _cyc:
-                _cyc_html = f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">⏱ 周期视角：<b>{_cyc}</b> ｜ {_cyc_reason}</div>'
         if _deep and _deep.get('logic'):
             _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(_deep.get('op', ''), GOLD)
             _deep_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线：{_deep.get('dark','')}（{_deep.get('reason','')}）</div>
@@ -5181,7 +5204,6 @@ def build_auction(title='竞价观察'):
         rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD if s['score'] >= 70 else TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
 <div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分 ｜ 共振 {s.get('_reson', 0)}</span></div>
 <div style="color:{GREY};font-size:12px;">竞价高开 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 竞价量比(归一) {s.get('_vr', 0):.2f} ｜ 共振 <b style="color:{GOLD if (s.get('_reson') or 0) >= 60 else TEAL}">{s.get('_reson', 0)}</b>（{s.get('_reson_det', '—')}）｜ 题材：{s['industry']}{f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else ''}</div>
-{_cyc_html}
 {_deep_html}</div>"""
     # —— Top3 重点点评（v3）——
     top3_txt = ''
@@ -5820,6 +5842,85 @@ def _confirm_ds(infos, mkt_ctx=None):
     except Exception:
         pass
     return out
+
+
+def build_cycle(title='多周期视角研判'):
+    """多周期视角研判（新增独立推送项目 2026-11-05；周期标注不再进竞价卡，竞价已恢复原状）：
+    收盘后推送：复用尾盘量价候选（_tail_gainers→_tail_qt_fill→_tail_filter），逐只打 _cycle_tag
+    （超短线/短线/中长线/长线+原因），按周期分组展示 + 仓位档建议。纯规则零 LLM 预算，失败静默。"""
+    try:
+        rows_all = _tail_gainers()
+    except Exception:
+        rows_all = None
+    if not rows_all:
+        return None
+    try:
+        rows_all = _tail_qt_fill(rows_all)
+        d = get_pools()
+    except Exception:
+        return None
+    for _s in rows_all:
+        if not _s.get('industry') or _s['industry'] in ('', '其他'):
+            _ic = _IND_CACHE.get(_s.get('code') or '')
+            if _ic:
+                _s['industry'] = _ic
+    try:
+        heat_pre, _ = _theme_heat(rows_all)
+        _zt_list = []
+        for _sec_n, _sec_sts in (d.get('sectors') or {}).items():
+            if len(_sec_sts) >= 2:
+                _zt_list.append((_sec_n, len(_sec_sts)))
+        _zt_list.sort(key=lambda kv: -kv[1])
+        _zt_names = [n for n, _ in _zt_list[:6]]
+        cands = _tail_filter(rows_all, heat_pre, _zt_names)
+    except Exception:
+        return None
+    if not cands:
+        return None
+    heat, cnt = _theme_heat(cands)
+
+    def _sec(s):
+        return _sec_clean(s.get('industry') or '') or '其他'
+
+    # 弱共振剔除（同尾盘口径）
+    cands = [s for s in cands if not (cnt.get(_sec(s), 0) < 2 and heat.get(_sec(s), 0) < 45)]
+    if not cands:
+        return None
+    groups = {}
+    order = ['超短线（1-3日）', '短线（3-10日）', '中长线（1-6月）', '长线（6月+）', '短线观察']
+    for s in cands[:12]:
+        cyc, reason = _cycle_tag(s.get('code') or '', s.get('industry') or '', heat.get(_sec(s), 0) or 0)
+        if not cyc:
+            continue
+        groups.setdefault(cyc, []).append((s, reason))
+    if not groups:
+        return None
+    cap = {'超短线（1-3日）': '仓位1-2成试错，次日竞价/分时博弈，快进快出',
+           '短线（3-10日）': '仓位2-3成，回踩MA10/MA20低吸，趋势持有',
+           '中长线（1-6月）': '仓位3-5成，趋势仓波段参与，跌破MA20减仓',
+           '长线（6月+）': '底仓配置，回撤可控，按月跟踪不追高',
+           '短线观察': '等放量确认再参与，不提前埋伏'}
+    _gcol = {'超短线（1-3日）': TEAL, '短线（3-10日）': GOLD,
+             '中长线（1-6月）': '#8bd3c7', '长线（6月+）': '#b1852e', '短线观察': GREY}
+    rows = ''
+    for g in order:
+        items = groups.get(g)
+        if not items:
+            continue
+        _gc = _gcol.get(g, GREY)
+        rows += f'<div style="color:{_gc};font-size:14px;font-weight:800;margin:10px 0 4px;">{g}（{len(items)}）</div>'
+        for s, reason in items:
+            rows += (f'<div style="background:#1f2635;border-left:3px solid {_gc};border-radius:8px;padding:8px 11px;margin:5px 0;">'
+                     f'<div style="font-size:13px;font-weight:700;color:#fff;">{s["name"]} <span style="color:{GREY};font-size:11px;">{s.get("code","")}</span> <span style="color:{_c(s["pct"])};font-size:12px;">{s["pct"]:+.2f}%</span></div>'
+                     f'<div style="color:{GREY};font-size:11px;">量比{s["lb"]:.1f} ｜ 换手{s.get("turn",0):.1f}% ｜ 市值{s.get("mv",0):.0f}亿 ｜ 题材:{s.get("industry","")}</div>'
+                     f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">⏱ {reason}</div>'
+                     f'<div style="color:#e6a23c;font-size:11px;margin-top:2px;">仓位：{cap.get(g,"")}</div></div>')
+    _lu = int(d.get('lu') or 0)
+    _zb = int(d.get('zb') or 0)
+    _mkt = f'涨停{_lu}家/炸板{_zb}家' if (_lu or _zb) else '情绪—'
+    head = (f'<div style="font-size:12px;color:#8490a3;margin-bottom:6px;">'
+            f'周期依据：MA5/10/20/60 + 量能比 + 距60日高点回撤 + 5日涨幅（收盘日K实算）｜ {_mkt}</div>')
+    return _wrap(head + rows, '🔎', title, show_reson=False)
 
 
 def build_confirm():
@@ -6694,6 +6795,7 @@ BUILDERS = {'pre': build_pre, 'auction': build_auction, 'noon': build_noon,
             'eod': build_eod, 'hourly': build_hourly}
 WATCH_SLOT = 'watch'
 BUILDERS['confirm'] = build_confirm
+BUILDERS['cycle'] = build_cycle
 
 
 def _in_session(bj):
@@ -10746,7 +10848,8 @@ def build_warn():
 TITLES = {'pre': '盘前速递', 'auction': '竞价观察', 'tail': '尾盘竞价筛选', 'noon': '午间作战', 'eod': '收盘复盘',
          'news': '事件简报', 'news2h': '两小时市场消息汇总',
           'hourly': '盘中解读', 'warn': '启动预警', 'confirm': '竞价确认', 'ext': '外盘窗口',
-          'radar': '雷达扫描', 'newsfire': '新闻发酵', 'risk': '盘中风险体检'}
+          'radar': '雷达扫描', 'newsfire': '新闻发酵', 'risk': '盘中风险体检',
+          'cycle': '多周期视角研判'}
 
 
 BUILDERS['warn'] = build_warn
@@ -11474,7 +11577,7 @@ if __name__ == '__main__':
         print('SLOT radar PUSH', ok, msg)
         sys.exit(0)
     # —— 多点cron 当日去重（仅定时自动run；手动 --force 不受限，用于演示/验证）——
-    if not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk'):
+    if not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle'):
         _k = _slot_key(slot)
         if _slot_done(_k):
             print('SLOT %s 今日已推（slot_done.json 去重），跳过' % slot)
@@ -11489,7 +11592,7 @@ if __name__ == '__main__':
         print('SLOT', slot, '构建返回 None，不推送')
         sys.exit(0)
     ok, msg = push(html, f'{TITLES[slot]} {_bj_now().strftime("%m/%d %H:%M")}')
-    if ok and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk'):
+    if ok and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle'):
         # force 也标记（手动演示后同日定时不再重推——双推修复①）
         _mark_slot_done(_slot_key(slot))
     print('SLOT', slot, 'PUSH', ok, msg)
