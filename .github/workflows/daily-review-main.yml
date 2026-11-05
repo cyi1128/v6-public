@@ -9,10 +9,10 @@ on:
         required: false
         type: string
       slot:
-        description: '强制时段（演示/手动）：pre/auction/tail/hourly/noon/eod/watch/warn/ext/news/news2h/evening/follow/deep6/zscan/radar/newsfire，留空=按当前时刻'
+        description: '强制时段（演示/手动）：pre/auction/tail/hourly/noon/eod/watch/warn/ext/news/news2h/evening/follow/deep6/zscan/radar/newsfire/risk，留空=按当前时刻'
         required: false
         type: choice
-        options: ['pre', 'auction', 'tail', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'news', 'news2h', 'evening', 'follow', 'deep6', 'zscan', 'radar', 'newsfire', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3']
+        options: ['pre', 'auction', 'tail', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'news', 'news2h', 'evening', 'follow', 'deep6', 'zscan', 'radar', 'newsfire', 'risk', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3']
   schedule:
     - cron: '20-24 0 * * 1-5'      # 08:20-08:24 北京 板块启动预警
     - cron: '30-34 0 * * 1-5'      # 08:30-08:34 北京 盘前速递
@@ -30,6 +30,7 @@ on:
     - cron: '55-59 6 * * 1-5'      # 14:55-14:59 北京 尾盘竞价筛选（59分=GitHub schedule 延迟兜底，slot_done 防双推）
     - cron: '*/15 1-6 * * 1-5'     # 北京 09:00-14:59 每15分钟：盘中异动提醒(watch)+雷达扫描(radar)；整点前4分命中hourly、07:xx命中eod，其余落watch
     - cron: '30-34 2,5 * * 1-5'    # 北京 10:30-34/13:30-34 盘中新闻发酵(newsfire·10条汇总)
+    - cron: '35-39 2,5 * * 1-5'    # 北京 10:35-39/13:35-39 盘中风险体检(risk·红橙黄才推，绿静默)
 
 concurrency:
   # 双推修复②（2026-11-04）：schedule 与 dispatch 原共用一组防双推；
@@ -71,6 +72,7 @@ jobs:
             02:0[0-4]|03:0[0-4]|05:0[0-4]|06:0[0-4]) T=hourly ;;  # 10/11/13/14:00 盘中解读
             03:4[0-4])      T=news ;;       # 11:40-11:44 午间事件简报
             02:3[0-4]|05:3[0-4]) T=newsfire ;;  # 10:30-34/13:30-34 新闻发酵10条汇总
+            02:3[5-9]|05:3[5-9]) T=risk ;;     # 10:35-39/13:35-39 盘中风险体检（红橙黄才推，绿静默）
             06:0[5-7])      T=follow ;;     # 14:05-14:07 跟涨三步走·盘中
             07:0[5-8])      T=follow ;;     # 15:05-15:08 跟涨三步走·收盘
             07:1[0-4])      T=news ;;       # 15:10-15:14 尾盘事件简报
