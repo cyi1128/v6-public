@@ -271,3 +271,6 @@
 05:11:40 [反模板命中:board_watch] 管住手 (try1)
 05:12:30 [反模板命中:board_watch] 管住手 (try2)
 05:12:31 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在是盘中时间，数据基于你提供的实时快照。市场情绪分 70.1，标注“主线持续”，这个分数说明今天不是退潮期，但你要盯着 09:45 
+05:24:02 [反模板命中:board_watch] 管住手 (try1)
+05:25:02 [反模板命中:board_watch] 管住手 (try2)
+05:25:03 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 现在是盘中 10 点 30 分节点，数据采集截止于此刻。市场情绪分 70 分，主线持续标签明确。核心数据源锁定为输入中的个股表现：
