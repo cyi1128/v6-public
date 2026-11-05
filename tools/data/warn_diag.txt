@@ -274,3 +274,6 @@
 05:24:02 [反模板命中:board_watch] 管住手 (try1)
 05:25:02 [反模板命中:board_watch] 管住手 (try2)
 05:25:03 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 现在是盘中 10 点 30 分节点，数据采集截止于此刻。市场情绪分 70 分，主线持续标签明确。核心数据源锁定为输入中的个股表现：
+05:53:23 [反模板命中:board_watch] 管住手 (try1)
+05:54:23 [反模板命中:board_watch] 管住手 (try2)
+05:54:24 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在是盘中实时数据节点，所有涨跌幅、量比、换手率均基于此刻最新成交统计。市场情绪分定格在 65.0 分，标签显示震荡分化，这个分数处于
