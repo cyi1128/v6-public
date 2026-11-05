@@ -666,6 +666,61 @@ def get_klines(code, n=20):
     return node.get('qfqday') or node.get('day') or []
 
 
+# —— 多周期视角引擎（券商量化配置：超短线/短线/中长线/长线 + 原因）——
+_CYCLE_CACHE = {}
+
+def _cycle_tag(code, industry='', heat=0):
+    """基于日K(70)算 MA5/10/20/60 与位置/量能/回撤，输出 (主周期, 原因串)。
+    口径：超短线1-3日(动量/接力)、短线3-10日(趋势低吸)、中长线1-6月(趋势仓)、长线6月+(底仓/配置)。
+    拉取失败/数据不足静默返回 ('','')，不破坏卡片；结果按 code 缓存（当日一次）。"""
+    if not code:
+        return '', ''
+    if code in _CYCLE_CACHE:
+        return _CYCLE_CACHE[code]
+    out = ('', '')
+    try:
+        ks = get_klines(code, 70)
+        if not ks or len(ks) < 25:
+            return '', ''
+        closes = [float(k[2]) for k in ks]
+        vols = [float(k[5]) for k in ks]
+        cur = closes[-1]
+        def _ma(n):
+            return (sum(closes[-n:]) / n) if len(closes) >= n else None
+        ma5, ma10, ma20, ma60 = _ma(5), _ma(10), _ma(20), _ma(60)
+        if ma5 is None or ma20 is None:
+            return '', ''
+        vol5 = (sum(vols[-5:]) / 5) if len(vols) >= 5 else 0
+        vol20 = (sum(vols[-20:]) / 20) if len(vols) >= 20 else vol5
+        vr = (vol5 / vol20) if vol20 else 1.0
+        highs60 = max(float(k[3]) for k in ks[-60:]) if len(ks) >= 5 else cur
+        dd = ((highs60 - cur) / highs60 * 100) if highs60 else 0.0
+        chg5 = ((cur / closes[-6] - 1) * 100) if len(closes) >= 6 else 0.0
+        above20 = cur >= ma20 if ma20 is not None else False
+        above60 = cur >= ma60 if ma60 is not None else False
+        bull = bool(ma20 and ma60 and ma20 > ma60)
+        _ht = f'、题材热度{heat:.0f}' if heat >= 55 else ''
+        if above60 and bull and dd < 12:
+            if vr < 1.3:
+                out = ('长线（6月+）', f'MA20>MA60多头排列、距60日高点回撤仅{dd:.0f}%、量能温和({vr:.1f}倍)——机构趋势特征，可作底仓/波段持有{_ht}')
+            else:
+                out = ('中长线（1-6月）', f'多头排列、回撤{dd:.0f}%、量能放大({vr:.1f}倍)、5日涨幅{chg5:+.1f}%，趋势仓波段参与{_ht}')
+        elif cur >= ma5 and chg5 > 8 and vr >= 1.8 and not bull:
+            out = ('超短线（1-3日）', f'非趋势急拉：5日涨幅{chg5:+.1f}%、量能放大({vr:.1f}倍)，次日竞价/分时博弈，快进快出')
+        elif above20 and vr >= 1.2:
+            out = ('短线（3-10日）', f'站上MA20、5日量能{"放大" if vr >= 1.5 else "温和"}({vr:.1f}倍)、5日涨幅{chg5:+.1f}%，回踩MA10/MA20参与{_ht}')
+        elif cur >= ma5 and (chg5 > 8 or vr >= 1.8):
+            out = ('超短线（1-3日）', f'MA5上方强动量、5日涨幅{chg5:+.1f}%、量能放大({vr:.1f}倍)——次日竞价/分时博弈，快进快出')
+        elif above20:
+            out = ('短线（3-10日）', f'站上MA20但量能未跟上({vr:.1f}倍)，等放量确认再参与')
+        else:
+            out = ('短线观察', f'未站上MA20{"（跌破MA60，趋势偏弱）" if not above60 else ""}，趋势未修复，观望为主')
+    except Exception:
+        out = ('', '')
+    _CYCLE_CACHE[code] = out
+    return out
+
+
 def get_pools():
     day = datetime.now().strftime('%Y%m%d')
     sectors = defaultdict(list)
@@ -1536,6 +1591,83 @@ def market_score(idx, d):
     else:
         label, why = '情绪退潮', '炸板高/涨停少/指数弱，不新开仓'
     return round(s, 1), label, why
+
+
+def _risk_engine(d, idx=None):
+    """盘中风险体检引擎（纯规则、零 LLM、符合 DS_DAILY_LIMIT 预算）：
+    炸板率/连板高度/跌停数/涨停数/指数破位/情绪降幅 → 风险分0-100 + 等级 + 动作。
+    返回 {'level','score','act','evid',...} 或 {}（数据不可得/异常）。"""
+    try:
+        lu = int(d.get('lu') or 0)
+        zb = int(d.get('zb') or 0)
+        dt = int(d.get('dt') or 0)
+        max_lbc = int(d.get('max_lbc') or 0)
+        # 三池全空 = 接口失败/非交易日，静默（不推送误报）
+        if lu == 0 and zb == 0 and dt == 0 and max_lbc == 0:
+            return {}
+        zbr = (zb / (lu + zb) * 100) if (lu + zb) else 0.0
+        evid, score = [], 0
+        # 炸板率（打板资金退潮核心指标）
+        if zbr >= 45:
+            score += 40; evid.append(f'炸板率{zbr:.0f}%（≥45%）高位——打板资金退潮，追高容易被砸')
+        elif zbr >= 35:
+            score += 30; evid.append(f'炸板率{zbr:.0f}%（35~45%）——资金追高意愿明显转弱')
+        elif zbr >= 28:
+            score += 18; evid.append(f'炸板率{zbr:.0f}%（28~35%）——分歧加大')
+        elif zbr >= 25:
+            score += 12; evid.append(f'炸板率{zbr:.0f}%（25~28%）——承接转弱')
+        # 连板高度（题材梯队）
+        if max_lbc <= 1 and lu >= 30:
+            score += 16; evid.append(f'最高仅{max_lbc}板，无高度——纯情绪轮动，隔日难有溢价')
+        elif max_lbc <= 2:
+            score += 8; evid.append(f'连板高度仅{max_lbc}板，题材无龙头梯队')
+        # 跌停扩散（亏钱效应）
+        if dt >= 30:
+            score += 40; evid.append(f'跌停{dt}家（≥30）——恐慌扩散，资金夺路')
+        elif dt >= 15:
+            score += 28; evid.append(f'跌停{dt}家（15~30）——亏钱效应显现')
+        elif dt >= 8:
+            score += 16; evid.append(f'跌停{dt}家（8~15）——亏钱效应抬头')
+        # 涨停匮乏（情绪冰点）
+        if lu < 30 and dt >= 8:
+            score += 20; evid.append(f'涨停仅{lu}家——情绪冰点，赚钱效应枯竭')
+        elif lu < 40:
+            score += 8; evid.append(f'涨停{lu}家偏少')
+        # 指数破位
+        if idx:
+            avg = (sum(float(x.get('pct') or 0) for x in idx) / len(idx)) if idx else 0
+            if avg <= -2.0:
+                score += 32; evid.append(f'指数平均{avg:+.1f}% 深度破位——系统性风险窗口')
+            elif avg <= -1.5:
+                score += 24; evid.append(f'指数平均{avg:+.1f}% 破位下杀')
+            elif avg <= -0.8:
+                score += 16; evid.append(f'指数平均{avg:+.1f}% 转弱')
+            elif avg >= 0.8:
+                score -= 6
+        # 情绪降幅（对比昨日涨停家数账本）
+        try:
+            mem = load_memory()
+            days = sorted(mem.keys())
+            if days:
+                prev = mem.get(days[-1], {}) or {}
+                prev_zt = sum(float(v) for v in prev.values() if isinstance(v, (int, float)))
+                if prev_zt >= 30 and lu < prev_zt * 0.6:
+                    score += 12; evid.append(f'涨停{lu}家 &lt; 昨日{prev_zt:.0f}家的60%——情绪退潮加速')
+        except Exception:
+            pass
+        score = max(0, min(100, score))
+        if score >= 65:
+            level, act = '红', '全体防守：高位连板不碰、持仓破位就走、不开新仓；等炸板率回落到30%以下再看'
+        elif score >= 45:
+            level, act = '橙', '降仓防守：只做低位补涨/回踩，躲避高位接刀；持仓跌破纪律先减'
+        elif score >= 25:
+            level, act = '黄', '轻仓试错：精选主线低吸，别追高；止损严格执行'
+        else:
+            level, act = '绿', '正常：有主线就做，按既有节奏参与'
+        return {'level': level, 'score': score, 'act': act, 'evid': evid,
+                'lu': lu, 'zb': zb, 'dt': dt, 'zbr': zbr, 'max_lbc': max_lbc}
+    except Exception:
+        return {}
 
 
 def mainline_health(idx, d, fin, fout):
@@ -3865,6 +3997,8 @@ def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, 
                    '5. 为什么是它：资金凭什么选它不选别人（主业匹配/位置/筹码/业绩/催化），用真实数据说。\n'
                    '6. 破灭点与动作：逻辑什么时候会破（催化兑现/业绩证伪/位置透支/主力出货），破了怎么走人；逻辑不硬就明确写「不碰」。\n'
                    '7. 禁止编新闻猜消息、禁止万能句（「回踩分时均线可轻仓试」等）及变体、禁止满仓/必涨/稳了。\n'
+                   '7.5 周期适配：先判定每只票当前最适合的参与周期（超短线1-3日/短线3-10日/中长线1-6月/长线6月+），'
+                   'buy/stop 必须按该周期口径给——超短线看分时与MA5、短线看MA10/MA20回踩、中长线看MA20/MA60趋势仓；buy 字段开头用【周期：XXX】标注。\n'
                    '8. 共振判断：必须明确写出「主题共振（同题材几只一起动）+ 量价共振（个股量能是否明显强于板块）+ 板块热度共振（是否今日最强主线、持续几天）」，三者缺一就降级为「沾边/观望」，禁止只谈单票。\n'
                    '9. 只输出 JSON，不要其他文字：\n'
                    '{"cap_advice":"当前档位建议：结合 mkt_ctx（涨停家数/炸板/情绪分/指数涨跌）直接给仓位档位建议与一句话理由，禁止万能句，至少20字",'
@@ -5025,6 +5159,12 @@ def build_auction(title='竞价观察'):
         stop = round(buy_low * 0.97, 2)
         brk_txt = '站上昨收' if s['price'] > (s.get('prev') or 0) else '未站上昨收'
         _deep = (ds_map or {}).get(s['name'])
+        # 多周期视角（Top5 打标；失败静默）
+        _cyc_html = ''
+        if i <= 5:
+            _cyc, _cyc_reason = _cycle_tag(s.get('code') or '', s.get('industry') or '', 0)
+            if _cyc:
+                _cyc_html = f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">⏱ 周期视角：<b>{_cyc}</b> ｜ {_cyc_reason}</div>'
         if _deep and _deep.get('logic'):
             _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(_deep.get('op', ''), GOLD)
             _deep_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线：{_deep.get('dark','')}（{_deep.get('reason','')}）</div>
@@ -5037,6 +5177,7 @@ def build_auction(title='竞价观察'):
         rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD if s['score'] >= 70 else TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
 <div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分 ｜ 共振 {s.get('_reson', 0)}</span></div>
 <div style="color:{GREY};font-size:12px;">竞价高开 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 竞价量比(归一) {s.get('_vr', 0):.2f} ｜ 共振 <b style="color:{GOLD if (s.get('_reson') or 0) >= 60 else TEAL}">{s.get('_reson', 0)}</b>（{s.get('_reson_det', '—')}）｜ 题材：{s['industry']}{f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else ''}</div>
+{_cyc_html}
 {_deep_html}</div>"""
     # —— Top3 重点点评（v3）——
     top3_txt = ''
@@ -5441,6 +5582,8 @@ def _tail_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=
                    '5. 为什么是它：资金凭什么选它不选别人（主业匹配/位置/筹码/业绩/催化），用真实数据说。\n'
                    '6. 破灭点与动作：逻辑什么时候会破（次日竞价低开/高开跳水/业绩证伪/主力出货），破了怎么走人；逻辑不硬就明确写「不碰」。\n'
                    '7. 优先关注量比真实放大、趋势向上（MA5向上）、近5日未明显透支的票，弱化一日游反抽。\n'
+                   '7.5 周期适配：先判定每只票当前最适合的参与周期（超短线1-3日/短线3-10日/中长线1-6月/长线6月+），'
+                   'buy/stop 必须按该周期口径给——超短线看分时与MA5、短线看MA10/MA20回踩、中长线看MA20/MA60趋势仓、长线看多头结构与回撤位置；buy 字段开头用【周期：XXX】标注。\n'
                    '8. 禁止编新闻猜消息、禁止万能句（「回踩分时均线可轻仓试」等）及变体、禁止满仓/必涨/稳了。\n'
                    '9. 共振判断：必须明确写出「主题共振（同题材几只一起动）+ 量价共振（尾盘放量是否板块级）+ 板块热度共振（是否今日最强主线、持续几天）」，三者缺一就降级；次日竞价预期必须结合共振强度给出观察条件。\n'
                    '10. 只输出 JSON，不要其他文字：\n'
@@ -5553,6 +5696,12 @@ def build_tail(title='尾盘竞价筛选'):
     rows = ''
     for i, s in enumerate(tops, 1):
         _deep = ds_map.get(s['name'])
+        # 多周期视角（Top5 打标，缓存免重复拉K；失败静默）
+        _cyc_html = ''
+        if i <= 5:
+            _cyc, _cyc_reason = _cycle_tag(s.get('code') or '', s.get('industry') or '', heat.get(_sec_clean(s.get('industry') or '') or '其他') or 0)
+            if _cyc:
+                _cyc_html = f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">⏱ 周期视角：<b>{_cyc}</b> ｜ {_cyc_reason}</div>'
         if _deep and _deep.get('logic'):
             _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(_deep.get('op', ''), GOLD)
             _rows_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线：{_deep.get('dark','')}（{_deep.get('reason','')}）</div>
@@ -5565,6 +5714,7 @@ def build_tail(title='尾盘竞价筛选'):
         rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD if s['score'] >= 70 else TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
 <div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分 ｜ 共振 {s.get('_reson', 0)}</span></div>
 <div style="color:{GREY};font-size:12px;">尾盘当日涨幅 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 换手 {s['turn']:.1f}% ｜ 市值 {s.get('mv',0):.0f}亿 ｜ 共振 <b style="color:{GOLD if (s.get('_reson') or 0) >= 60 else TEAL}">{s.get('_reson', 0)}</b>（{s.get('_reson_det', '—')}）｜ 题材：{s['industry']}</div>
+{_cyc_html}
 {_rows_html}</div>"""
     # Top3 速判（含暗线，v2 阈值：≥72 可轻仓试 / 60-71 观察 / <60 不追）
     top3_txt = ''
@@ -6028,10 +6178,18 @@ SLOT_DONE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data'
 
 
 def _slot_key(slot):
-    """去重键：auction/pre/noon/warn 按天；hourly 按天+小时（10/11/13/14 各一次）。"""
+    """去重键：auction/pre/noon/warn 按天；hourly 按天+小时（10/11/13/14 各一次）；
+    risk 按 10:35/13:35 两个盘口窗口（各推一次，跨窗口互不干扰）。"""
     today = _bj_now().strftime('%Y-%m-%d')
     if slot == 'hourly':
         return 'hourly|%s|%02d' % (today, _bj_now().hour)
+    if slot == 'risk':
+        hm = _bj_now().strftime('%H:%M')
+        if '10:35' <= hm <= '10:39':
+            return 'risk|%s|1035' % today
+        if '13:35' <= hm <= '13:39':
+            return 'risk|%s|1335' % today
+        return 'risk|%s|%s' % (today, hm)
     return '%s|%s' % (slot, today)
 
 
@@ -8634,8 +8792,12 @@ def _board_card(board, mscore, mlabel, confidence='高', lifecycle='', data_sour
             if i < 2:   # 前 2 只完整六段逻辑；第 3 只起只写名称+涨幅（防卡片过长）
                 deep = _deep_logic(s, sec, len(stocks))
                 deep_html = deep.replace('\n', '<br>')
+                _cyc, _cyc_reason = _cycle_tag(s['code'], sec, 0)
+                _cyc_html = (f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">⏱ 周期视角：<b>{_cyc}</b> ｜ {_cyc_reason}</div>'
+                             if _cyc else '')
                 follow_rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD};border-radius:8px;padding:9px 11px;margin:6px 0;">
 <div style="font-size:14px;font-weight:700;color:#fff;">{i + 1}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{_c(s['pct'])};font-weight:800;float:right;">+{float(s.get('pct') or 0):.1f}%</span></div>
+{_cyc_html}
 <div style="color:#ced4da;font-size:12px;line-height:1.7;margin-top:4px;">{deep_html}</div></div>"""
             else:
                 follow_rows += (f'<div style="font-size:13px;color:#e9ecef;margin:2px 0;">{i + 1}. {s["name"]} '
@@ -10339,11 +10501,16 @@ def build_radar():
         _buy = str(_d.get('buy') or '待盘中确认')
         _stop = str(_d.get('stop') or '-3%')
         _vd = str(_d.get('verdict') or '观察')
+        # 多周期视角（雷达标的已备 _k 日K数据，直接复用）
+        _cyc, _cyc_reason = _cycle_tag(code, '', 0)
+        _cyc_html = (f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">⏱ 周期视角：<b>{_cyc}</b> ｜ {_cyc_reason}</div>'
+                     if _cyc else '')
         rows.append(f"""<div style="background:#1f2635;border-left:4px solid {_opc};border-radius:10px;padding:9px 12px;margin:6px 0;">
 <div style="font-weight:700;color:#fff;">📡 {name}<span style="color:{GREY};font-size:12px;">（{code}）</span>
 <span style="color:{_c(s.get('pct'))};">+{s.get('pct')}%</span>
 <span style="color:{GREY};font-size:12px;">｜量比{s.get('lb')}·换手{s.get('turn')}%·量能{s['_k']['vol_r']}x</span>
 <span style="color:{TEAL};font-size:12px;">｜5日{s['_k']['ma5']}上穿20日{s['_k']['ma20']}</span></div>
+{_cyc_html}
 <div style="color:#e9ecef;font-size:12px;margin-top:3px;line-height:1.6;">🧠 异动归因：{_why}</div>
 <div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳️ 暗线：{_dark}</div>
 <div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 结论：<b style="color:{_opc};">{_vd}（{_op}）</b>｜买点：{_buy}｜止损：{_stop}</div></div>""")
@@ -10372,6 +10539,46 @@ def _mark_radar_done(d):
         _git_commit_push(RADAR_PATH, 'update radar done')
     except Exception:
         pass
+
+
+# ============ 盘中风险体检（11-05 用户诉求：及时参与/躲避风险，10:35/13:35 每交易日两次）============
+def build_risk():
+    """盘中风险体检：纯规则（_risk_engine，零 LLM 预算）。红/橙/黄等级才推送；
+    绿色（无风险）静默不打扰。数据：东财涨停/炸板/跌停池 + 指数 + 昨日情绪账本对比。"""
+    bj = _bj_now()
+    if not FORCE_SLOT and not _in_session(bj):
+        print(f'[risk] 当前北京时间 {bj.strftime("%H:%M")} 不在盘中窗口(09:30-14:50)，不推风险体检')
+        return None
+    try:
+        d = get_pools()
+    except Exception as e:
+        print('[risk] 池数据异常:', e)
+        return None
+    try:
+        idx = get_indices()
+    except Exception:
+        idx = None
+    r = _risk_engine(d, idx)
+    if not r:
+        print('[risk] 引擎数据不可得，不推送')
+        return None
+    if r['level'] == '绿':
+        print(f"[risk] 当前无风险（绿，{r['score']:.0f}分），不打扰推送")
+        return None
+    try:
+        _mscore, _mlabel, _ = market_score(idx, d) if idx else (50, '—', '')
+    except Exception:
+        _mscore, _mlabel = 50, '—'
+    col = {'红': RED, '橙': GOLD, '黄': GOLD}.get(r['level'], GREY)
+    ev = '<br>'.join(f'<span style="color:#e9ecef;">• {e}</span>' for e in r['evid'])
+    inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">🛡️ {bj.strftime("%H:%M")} 盘中风险体检 · '
+             f'风险等级：<b style="color:{col};">{r["level"]}</b>（{r["score"]:.0f}/100）</div>'
+             f'<div style="color:#e2e8f0;font-size:13px;line-height:1.8;margin-top:6px;">'
+             f'盘口实况：涨停{r["lu"]} 炸板{r["zb"]}（{r["zbr"]:.0f}%） 跌停{r["dt"]} 最高{r["max_lbc"]}板 ｜ '
+             f'情绪分{int(_mscore)}（{_mlabel}）<br>{ev}</div>'
+             f'<div style="color:#ffd43b;font-size:13px;margin-top:6px;">👉 动作：{r["act"]}</div>'
+             f'<div style="color:{GREY};font-size:11px;margin-top:4px;">纯规则体检（零 LLM 预算），数据来自东财涨停/炸板/跌停池与指数；10:35/13:35 每交易日两次。</div>')
+    return _wrap(inner, '🛡️', '盘中风险体检')
 
 
 # ============ 新闻发酵（11-05 指令⑧）：盘中 10 条消息汇总一起推 ============
@@ -10535,7 +10742,7 @@ def build_warn():
 TITLES = {'pre': '盘前速递', 'auction': '竞价观察', 'tail': '尾盘竞价筛选', 'noon': '午间作战', 'eod': '收盘复盘',
          'news': '事件简报', 'news2h': '两小时市场消息汇总',
           'hourly': '盘中解读', 'warn': '启动预警', 'confirm': '竞价确认', 'ext': '外盘窗口',
-          'radar': '雷达扫描', 'newsfire': '新闻发酵'}
+          'radar': '雷达扫描', 'newsfire': '新闻发酵', 'risk': '盘中风险体检'}
 
 
 BUILDERS['warn'] = build_warn
@@ -10543,6 +10750,7 @@ BUILDERS['ext'] = build_ext
 BUILDERS['tail'] = build_tail
 BUILDERS['radar'] = build_radar
 BUILDERS['newsfire'] = build_newsfire
+BUILDERS['risk'] = build_risk
 
 
 
@@ -10963,7 +11171,7 @@ if __name__ == '__main__':
         FORCE_SLOT = force
         slot = force
     alias = {'morning': 'pre', 'pre': 'pre', 'auction': 'auction', 'tail': 'tail', 'tail_auction': 'tail', 'hourly': 'hourly',
-             'noon': 'noon', 'midday': 'noon', 'eod': 'eod', 'close': 'eod'}
+             'noon': 'noon', 'midday': 'noon', 'eod': 'eod', 'close': 'eod', 'risk': 'risk'}
     slot = alias.get(slot, slot) if slot else None
     if not slot:
         h = datetime.utcnow().hour
@@ -11262,7 +11470,7 @@ if __name__ == '__main__':
         print('SLOT radar PUSH', ok, msg)
         sys.exit(0)
     # —— 多点cron 当日去重（仅定时自动run；手动 --force 不受限，用于演示/验证）——
-    if not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly'):
+    if not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk'):
         _k = _slot_key(slot)
         if _slot_done(_k):
             print('SLOT %s 今日已推（slot_done.json 去重），跳过' % slot)
@@ -11277,7 +11485,7 @@ if __name__ == '__main__':
         print('SLOT', slot, '构建返回 None，不推送')
         sys.exit(0)
     ok, msg = push(html, f'{TITLES[slot]} {_bj_now().strftime("%m/%d %H:%M")}')
-    if ok and slot in ('auction', 'tail', 'pre', 'noon', 'hourly'):
+    if ok and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk'):
         # force 也标记（手动演示后同日定时不再重推——双推修复①）
         _mark_slot_done(_slot_key(slot))
     print('SLOT', slot, 'PUSH', ok, msg)
