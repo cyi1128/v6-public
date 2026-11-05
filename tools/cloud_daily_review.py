@@ -3268,6 +3268,113 @@ def _theme_heat(cands):
     return heat, cnt
 
 
+def _calc_resonance(cands, heat, cnt, mem_days=None, is_tail=False):
+    """共振因子（2026-11-05 升级规格）：共振分 = 主题共振(0-40) + 量价共振(0-30) + 板块热度共振(0-30)。
+    早盘量能指标=竞价量比归一 vr；尾盘=量比 lb。板块平均在过滤后池内按题材聚合（禁止全市场数据）。
+    结果挂 s['_reson']（分数）与 s['_reson_det']（明细，供渲染/提示词）。
+    早盘同时预计算 _vr/_avg_vol5/_ref_vol/_pos60/_bars 供 _auction_score_v3 复用（K线全程只拉一次）。"""
+    if not cands:
+        return cands
+    grp = defaultdict(list)
+    sec_of = {}
+    for s in cands:
+        ind = _sec_clean(s['industry']) or '其他'
+        grp[ind].append(s)
+        sec_of[id(s)] = ind
+    # persist 天数：mem_days 近3日该题材出现天数（逐日去重累加，≥2天=持续2天）
+    persist_days = defaultdict(int)
+    if mem_days:
+        for pd, pv in list(mem_days.items())[:3]:
+            for sec in set(sec_of.values()):
+                if sec in pv:
+                    persist_days[sec] += 1
+    hot_sorted = [k for k, _ in sorted(heat.items(), key=lambda kv: -kv[1])]
+    hot3, hot6 = set(hot_sorted[:3]), set(hot_sorted[:6])
+    # 早盘：预计算 vr（竞价量比归一）并缓存 K 线数据，_auction_score_v3 复用
+    if not is_tail:
+        for s in cands:
+            if s.get('_vr') is not None:
+                continue
+            code = s['code']
+            sym = ('sh' if code.startswith('6') else 'sz') + code
+            avg_vol5 = ref_vol = 0.0
+            bars = []
+            try:
+                arr = get_klines(sym, 130)
+                if arr:
+                    today_s = _bj_now().strftime('%Y-%m-%d')
+                    b = arr[:-1] if str(arr[-1][0]) == today_s else arr
+                    bars = b
+                    if len(b) >= 2:
+                        h5 = b[-5:]
+                        vs = [float(r[5]) for r in h5 if float(r[5]) > 0]
+                        avg_vol5 = sum(vs) / len(vs) if vs else 0.0
+                        ref_vol = float(b[-1][5])
+                        hi60 = max(float(r[3]) for r in b[-60:])
+                        lo60 = min(float(r[4]) for r in b[-60:])
+                        if hi60 > lo60:
+                            s['_pos60'] = (s['price'] - lo60) / (hi60 - lo60)
+            except Exception:
+                pass
+            s['_bars'] = bars
+            s['_avg_vol5'] = avg_vol5
+            s['_ref_vol'] = ref_vol
+            elapsed = _auction_elapsed_minutes()
+            expected = avg_vol5 / 240.0 * elapsed if avg_vol5 > 0 and elapsed > 0 else 0.0
+            vol = (s['vol'] or 0) * 100.0
+            vr = vol / expected if expected > 0 else (s['lb'] or 0)
+            s['_vr'] = round(vr, 2)
+    # 量价共振：题材内均值 + 个股相对强度
+    qmean = {}
+    for sec, lst in grp.items():
+        if is_tail:
+            qmean[sec] = sum(float(x.get('lb') or 0) for x in lst) / max(len(lst), 1)
+        else:
+            qmean[sec] = sum(float(x.get('_vr') or 0) for x in lst) / max(len(lst), 1)
+    pmean = {}
+    for sec, lst in grp.items():
+        pmean[sec] = sum(float(x['pct'] or 0) for x in lst) / max(len(lst), 1)
+    for s in cands:
+        sec = sec_of[id(s)]
+        q = float(s.get('lb') or 0) if is_tail else float(s.get('_vr') or 0)
+        qv = qmean.get(sec, 0.0)
+        ratio = (q / qv) if qv > 0 else (1.0 if q > 0 else 0.0)
+        s['_qratio'] = round(ratio, 2)
+        pm = pmean.get(sec, 0.0)
+        pr = (float(s['pct'] or 0) / pm) if pm > 0 else 0.0
+        s['_pratio'] = round(pr, 2)
+    # 逐票共振分
+    for s in cands:
+        sec = sec_of[id(s)]
+        n = cnt.get(sec, 0)
+        if is_tail:
+            theme_r = 40 if n >= 4 else (28 if n >= 3 else (15 if n >= 2 else 0))
+        else:
+            theme_r = 40 if n >= 5 else (28 if n >= 4 else (15 if n >= 3 else 0))
+        ratio = s.get('_qratio') or 0
+        pr = s.get('_pratio') or 0
+        if ratio >= 1.5 and pr >= 0.8:
+            vol_r = 30
+        elif ratio >= 1.2:
+            vol_r = 20
+        elif ratio >= 1.0:
+            vol_r = 10
+        else:
+            vol_r = 0
+        pd_ = persist_days.get(sec, 0)
+        if sec in hot3 and pd_ >= 2:
+            hot_r = 30
+        elif sec in hot6 and pd_ >= 1:
+            hot_r = 18
+        elif sec in hot6:
+            hot_r = 8
+        else:
+            hot_r = 0
+        s['_reson'] = theme_r + vol_r + hot_r
+        s['_reson_det'] = ('主题%d家+量价%.1fx+%s' % (n, ratio, ('前3' if sec in hot3 else ('前6' if sec in hot6 else '冷'))))
+    return cands
+
+
 # ============ 批次D-2：竞价 v3（对齐本地 auction_filter_widget 五因子） ============
 _GAP_SCORE_MAIN = (3.0, 4.0, 2.0, 5.0)    # 满分下限/上限、次优下限/上限
 _GAP_SCORE_CYB = (6.0, 8.0, 4.0, 10.0)
@@ -3326,34 +3433,41 @@ def _auction_revise(s, vr, pos60, bars):
 
 
 def _auction_score_v3(s, heat, cnt, mem_days=None):
-    """竞价 v3 综合分 = 量价五因子×0.72 + 题材分×0.28 − 风险扣分 + 反推修正。
+    """竞价 v3 综合分 = 量价五因子×0.60 + 题材分×0.20 + 共振分×0.20 − 风险扣分 + 反推修正
+    （2026-11-05 共振因子升级：原 0.72/0.28 调整，co20→co10，共振分来自 _calc_resonance）。
     五因子对齐本地 auction_filter_widget._score_volume_price：
     高开幅度20 / 竞价量比(分钟归一)25 / 换手×量比情绪25 / 量能占比(竞价量/昨量)15 / 分时形态代理15。"""
     code = s['code']
     cyb = code.startswith(('300', '301'))
     sym = ('sh' if code.startswith('6') else 'sz') + code
     gap = max(0.0, s['pct'] or 0)
-    # —— K线：一次拉 130 根（5日均量/昨量/60日区间/MA20 共用）——
+    # —— K线：一次拉 130 根（5日均量/昨量/60日区间/MA20 共用）；共振因子已预拉则直接复用 ——
     bars = None
     avg_vol5 = ref_vol = 0.0
     pos60 = None
-    try:
-        arr = get_klines(sym, 130)
-        if arr:
-            today_s = _bj_now().strftime('%Y-%m-%d')
-            b = arr[:-1] if str(arr[-1][0]) == today_s else arr
-            bars = b
-            if len(b) >= 2:
-                h5 = b[-5:]
-                vs = [float(r[5]) for r in h5 if float(r[5]) > 0]
-                avg_vol5 = sum(vs) / len(vs) if vs else 0.0
-                ref_vol = float(b[-1][5])
-                hi60 = max(float(r[3]) for r in b[-60:])
-                lo60 = min(float(r[4]) for r in b[-60:])
-                if hi60 > lo60:
-                    pos60 = (s['price'] - lo60) / (hi60 - lo60)
-    except Exception:
-        pass
+    if s.get('_bars') is not None:
+        bars = s['_bars']
+        avg_vol5 = s.get('_avg_vol5') or 0.0
+        ref_vol = s.get('_ref_vol') or 0.0
+        pos60 = s.get('_pos60')
+    else:
+        try:
+            arr = get_klines(sym, 130)
+            if arr:
+                today_s = _bj_now().strftime('%Y-%m-%d')
+                b = arr[:-1] if str(arr[-1][0]) == today_s else arr
+                bars = b
+                if len(b) >= 2:
+                    h5 = b[-5:]
+                    vs = [float(r[5]) for r in h5 if float(r[5]) > 0]
+                    avg_vol5 = sum(vs) / len(vs) if vs else 0.0
+                    ref_vol = float(b[-1][5])
+                    hi60 = max(float(r[3]) for r in b[-60:])
+                    lo60 = min(float(r[4]) for r in b[-60:])
+                    if hi60 > lo60:
+                        pos60 = (s['price'] - lo60) / (hi60 - lo60)
+        except Exception:
+            pass
     # 1 高开幅度 20
     o1, o2, s1, s2 = _GAP_SCORE_CYB if cyb else _GAP_SCORE_MAIN
     if o1 <= gap <= o2:
@@ -3406,17 +3520,17 @@ def _auction_score_v3(s, heat, cnt, mem_days=None):
         shape_score, shape = 5, '平稳'
     s['_shape'] = shape
     base = gap_score + vr_score + em_score + ar_score + shape_score
-    # —— 题材分（100，云端 heat 体系：热度60+同题材≥5家20+主线持续20）——
+    # —— 题材分（100，云端 heat 体系：热度60+同题材≥5家10+主线持续20；co20 已按共振升级降为 co10）——
     ind = re.sub(r'[行业板块概念\s]+', '', s['industry']) or '其他'
     heat60 = min(60.0, heat.get(ind, 0.0) / 100.0 * 60.0)
-    co20 = 20.0 if cnt.get(ind, 0) >= 5 else 0.0
+    co10 = 10.0 if cnt.get(ind, 0) >= 5 else 0.0
     persist = 0.0
     if mem_days:
         for pd, pv in list(mem_days.items())[:3]:
             if ind in pv:
                 persist = 20.0
                 break
-    theme_score_v = min(100.0, heat60 + co20 + persist)
+    theme_score_v = min(100.0, heat60 + co10 + persist)
     # —— 风险扣分：高位+10 / 题材弱+5 / 接近涨停+2 ——
     risk = 0.0
     if pos60 is not None and pos60 >= 0.95:
@@ -3428,7 +3542,7 @@ def _auction_score_v3(s, heat, cnt, mem_days=None):
     # —— 反推修正 ——
     rv, rtag = _auction_revise(s, vr, pos60, bars)
     s['_revise'], s['_rtag'] = rv, rtag
-    total = base * 0.72 + theme_score_v * 0.28 - risk + rv
+    total = base * 0.60 + theme_score_v * 0.20 + (s.get('_reson') or 0) * 0.20 - risk + rv
     return round(total, 1)
 
 
@@ -3611,11 +3725,12 @@ def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, 
                    '5. 为什么是它：资金凭什么选它不选别人（主业匹配/位置/筹码/业绩/催化），用真实数据说。\n'
                    '6. 破灭点与动作：逻辑什么时候会破（催化兑现/业绩证伪/位置透支/主力出货），破了怎么走人；逻辑不硬就明确写「不碰」。\n'
                    '7. 禁止编新闻猜消息、禁止万能句（「回踩分时均线可轻仓试」等）及变体、禁止满仓/必涨/稳了。\n'
-                   '8. 只输出 JSON，不要其他文字：\n'
+                   '8. 共振判断：必须明确写出「主题共振（同题材几只一起动）+ 量价共振（个股量能是否明显强于板块）+ 板块热度共振（是否今日最强主线、持续几天）」，三者缺一就降级为「沾边/观望」，禁止只谈单票。\n'
+                   '9. 只输出 JSON，不要其他文字：\n'
                    '{"cap_advice":"当前档位建议：结合 mkt_ctx（涨停家数/炸板/情绪分/指数涨跌）直接给仓位档位建议与一句话理由，禁止万能句，至少20字",'
                    '"wind_strong":"最强题材的暗线原因：一句话说透它今天为什么最强（涨停家数/催化/资金逻辑），至少20字",'
                    '"wind_weak":"最弱题材的暗线原因：一句话说透它为什么最弱（为什么别碰），至少15字",'
-                   '"per":[{"name":"股票名称","dark":"一句话暗线（这条票真正炒的是什么，禁标签糊弄，10-30字）","reason":"选中原因/暗线逻辑：为什么筛出它（主业匹配+位置+筹码+业绩+催化，真实数据，至少20字）","logic":"暗线业务深挖+题材归属+市场关联：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+资金逻辑+位置+预期差+破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件","stop":"具体止损条件","drop":"放弃条件：什么情况出现就不做（破位/量能/情绪/高开透支等具体条件，10-25字）"}]}，'
+                   '"per":[{"name":"股票名称","dark":"一句话暗线（这条票真正炒的是什么，禁标签糊弄，10-30字）","reason":"选中原因/暗线逻辑：为什么筛出它（主业匹配+位置+筹码+业绩+催化，真实数据，至少20字）","logic":"暗线业务深挖+题材归属+市场关联：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+资金逻辑+位置+预期差+共振判断(主题X家+量价共振强/弱+板块热度共振强/中/无)→破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件","stop":"具体止损条件","drop":"放弃条件：什么情况出现就不做（破位/量能/情绪/高开透支等具体条件，10-25字）"}]}，'
                    'per 必须覆盖我给的每只股票。'),
     }
     t = ask_deepseek(payload, purpose='auction', system_text=_ASK_DS_SYS_AC)
@@ -4650,7 +4765,13 @@ def build_auction(title='竞价观察'):
             zt_lbc[st.get('c')] = int(st.get('lbc') or 0)
     cands = _auction_filter(rows_all, zt_lbc)
     heat, cnt = _theme_heat(cands)
+    # 共振升级-弱共振剔除：同题材候选<2家 且 题材热度<50 的「独涨+冷题材」剔除（早盘口径）
+    cands = [s for s in cands
+             if not (cnt.get(_sec_clean(s['industry']) or '其他', 0) < 2
+                     and heat.get(_sec_clean(s['industry']) or '其他', 0) < 50)]
+    heat, cnt = _theme_heat(cands)
     mem = load_memory()
+    _calc_resonance(cands, heat, cnt, mem, is_tail=False)
     _score_dead = _bj_now().replace(hour=9, minute=25, second=50, microsecond=0)
     for i, s in enumerate(cands):
         if _bj_now() >= _score_dead and i >= AUCTION_TOP_N:
@@ -4742,10 +4863,10 @@ def build_auction(title='竞价观察'):
 <div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 建议：<b style="color:{_opcol};">{_deep.get('op','')}</b> ｜ 买点：{_deep.get('buy','')} ｜ 止损：{_deep.get('stop','')} ｜ 放弃：{_deep.get('drop','')}</div>""")
         else:
             # LLM 未返回时只给数据事实行，绝不落回规则模板句（8项强制修复④）
-            _deep_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 数据事实：{s['industry']}竞价高开{s['pct']:+.1f}%、量比{s['lb']:.1f}、{brk_txt}、得分{s['score']:.0f}。AI 深挖未返回，未给建议，等盘中解读。</div>""")
+            _deep_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 数据事实：{s['industry']}竞价高开{s['pct']:+.1f}%、量比{s['lb']:.1f}、{brk_txt}、得分{s['score']:.0f}、共振{s.get('_reson', 0)}。AI 深挖未返回，未给建议，等盘中解读。</div>""")
         rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD if s['score'] >= 70 else TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
-<div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分</span></div>
-<div style="color:{GREY};font-size:12px;">竞价高开 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 竞价量比(归一) {s.get('_vr', 0):.2f} ｜ 题材：{s['industry']}{f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else ''}</div>
+<div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分 ｜ 共振 {s.get('_reson', 0)}</span></div>
+<div style="color:{GREY};font-size:12px;">竞价高开 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 竞价量比(归一) {s.get('_vr', 0):.2f} ｜ 共振 <b style="color:{GOLD if (s.get('_reson') or 0) >= 60 else TEAL}">{s.get('_reson', 0)}</b>（{s.get('_reson_det', '—')}）｜ 题材：{s['industry']}{f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else ''}</div>
 {_deep_html}</div>"""
     # —— Top3 重点点评（v3）——
     top3_txt = ''
@@ -4766,12 +4887,13 @@ def build_auction(title='竞价观察'):
         top3_txt = (f'<div style="margin-top:10px;padding:9px 11px;background:#1c2830;border-left:4px solid #a78bfa;'
                     f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 Top3 速判（小白版·含暗线）：</b>'
                     + ('<br>'.join(_t3) if _t3 else '—')
-                    + f'<br><span style="color:{GREY};font-size:12px;">≥75分可轻仓试 / 60~74观察 / &lt;60或暴力反抽、无量反弹不追（暗线来自AI深挖）</span></div>')
+                    + f'<br><span style="color:{GREY};font-size:12px;">≥75分可轻仓试 / 60~74观察 / &lt;60或暴力反抽、无量反弹不追（暗线来自AI深挖）</span>'
+                    + f'<br><span style="color:#a78bfa;font-size:12px;">共振分≥60 优先 / 40-59 观察 / &lt;40 降权</span></div>')
     try:
         _pool_prev = _auction_pool_stats()
     except Exception:
         _pool_prev = ''
-    pick = f"""{top3_txt}<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 今日可关注 TOP{AUCTION_TOP_N}（量价×0.72+题材×0.28−风险+反推修正）</div>
+    pick = f"""{top3_txt}<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 今日可关注 TOP{AUCTION_TOP_N}（量价×0.60+题材×0.20+共振×0.20−风险+反推修正）</div>
 {rows or '<div style="color:' + GREY + ';font-size:13px;">今日无符合硬过滤条件的竞价票（涨幅榜未取得或全被过滤）</div>'}{_pool_prev}"""
     # —— 行业/题材风向（8项修复⑤：补涨停板块题材数据 + 最强/最弱暗线原因）——
     hot = sorted(heat.items(), key=lambda kv: -kv[1])[:3]
@@ -4783,7 +4905,20 @@ def build_auction(title='竞价观察'):
         _zt_hot = '、'.join(f'{n}({c}家)' for n, c in _zt_top[:3])
     else:
         _zt_hot = ''
-    _ws = (f'<div style="font-size:13px;color:{RED};">🔥 最强（涨幅前3题材）：{hot_txt}' + (f'；涨停板块：{_zt_hot}' if _zt_hot else '')
+    # 共振强度：最强题材内候选平均共振分（高≥60/中40-59/低<40）
+    _reson_avg = {}
+    for _s in cands:
+        _ind = _sec_clean(_s.get('industry') or '') or '其他'
+        _reson_avg.setdefault(_ind, []).append(_s.get('_reson') or 0)
+    _rs_txt = ''
+    if hot:
+        _sc = hot[0][0]
+        _rlst = _reson_avg.get(_sc) or []
+        if _rlst:
+            _rv = sum(_rlst) / len(_rlst)
+            _rl = '高' if _rv >= 60 else ('中' if _rv >= 40 else '低')
+            _rs_txt = f'；共振强度：{_rl}'
+    _ws = (f'<div style="font-size:13px;color:{RED};">🔥 最强（涨幅前3题材）：{hot_txt}{_rs_txt}' + (f'；涨停板块：{_zt_hot}' if _zt_hot else '')
            + (f'<br><span style="color:#e9ecef;">📌 暗线原因：{wind_strong}</span>' if wind_strong else '') + '</div>')
     _ww = (f'<div style="font-size:13px;color:{GREEN};">🥶 最弱：{weak_txt}（今天别碰）'
            + (f'<br><span style="color:#e9ecef;">📌 暗线原因：{wind_weak}</span>' if wind_weak else '') + '</div>')
@@ -5019,7 +5154,8 @@ def _tail_filter(rows, heat=None, zt_names=None):
 
 
 def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
-    """尾盘 v2 综合分（无MA20/市值版）= 量价趋势因子×0.75 + 题材因子×0.25 − 风险扣分。
+    """尾盘 v2 综合分（无MA20/市值版）= 量价趋势因子×0.60 + 题材因子×0.20 + 共振分×0.20 − 风险扣分
+    （2026-11-05 共振因子升级：原 0.75/0.25 调整，co20→co10，共振分来自 _calc_resonance）。
     量价趋势五因子：涨幅适中22 / 量比强度25 / 情绪代理(换手×量比)23 / 趋势强度(MA5向上12+当日价站上均价6)18 / 量能占比代理12；
     题材因子：热度60 + 同题材≥4家20 + 主线持续(近3日持续涨停)20；
     风险扣分：近5日>18% −4 / 题材热度<40 −5 / 当日涨幅>7.5% −3 / 跌破分时均线且量比回落 −3（日K代理）。
@@ -5069,17 +5205,17 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
             sc += 3
     except Exception:
         sc += 3
-    # —— 题材因子（100，×0.25）——
+    # —— 题材因子（100，×0.20；co20 已按共振升级降为 co10）——
     ind = _sec_clean(s['industry']) or '其他'
     heat60 = min(60.0, (heat.get(ind) or 0) / 100.0 * 60.0)
-    co20 = 20.0 if cnt.get(ind, 0) >= 4 else 0.0
+    co10 = 10.0 if cnt.get(ind, 0) >= 4 else 0.0
     persist = 0.0
     if mem_days:
         for pd, pv in list(mem_days.items())[:3]:
             if ind in pv:
                 persist = 20.0
                 break
-    theme_score = min(100.0, heat60 + co20 + persist)
+    theme_score = min(100.0, heat60 + co10 + persist)
     # —— 风险扣分 ——
     risk = 0.0
     try:
@@ -5101,7 +5237,7 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
             risk += 3.0
     except Exception:
         pass
-    total = sc * 0.75 + theme_score * 0.25 - risk
+    total = sc * 0.60 + theme_score * 0.20 + (s.get('_reson') or 0) * 0.20 - risk
     return round(total, 1)
 
 
@@ -5136,11 +5272,12 @@ def _tail_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=
                    '6. 破灭点与动作：逻辑什么时候会破（次日竞价低开/高开跳水/业绩证伪/主力出货），破了怎么走人；逻辑不硬就明确写「不碰」。\n'
                    '7. 优先关注量比真实放大、趋势向上（MA5向上）、近5日未明显透支的票，弱化一日游反抽。\n'
                    '8. 禁止编新闻猜消息、禁止万能句（「回踩分时均线可轻仓试」等）及变体、禁止满仓/必涨/稳了。\n'
-                   '9. 只输出 JSON，不要其他文字：\n'
+                   '9. 共振判断：必须明确写出「主题共振（同题材几只一起动）+ 量价共振（尾盘放量是否板块级）+ 板块热度共振（是否今日最强主线、持续几天）」，三者缺一就降级；次日竞价预期必须结合共振强度给出观察条件。\n'
+                   '10. 只输出 JSON，不要其他文字：\n'
                    '"cap_advice":"当前档位建议：结合 mkt_ctx（涨停家数/炸板/情绪分/指数涨跌）直接给明日仓位档位建议与一句话理由，禁止万能句，至少20字",'
                    '"wind_strong":"最强题材的暗线原因：一句话说透它今天为什么最强（涨停家数/催化/资金逻辑），至少20字",'
                    '"wind_weak":"最弱题材的暗线原因：一句话说透它为什么最弱（为什么别碰），至少15字",'
-                   '"per":[{"name":"股票名称","dark":"一句话暗线（这条票真正炒的是什么，禁标签糊弄，10-30字）","reason":"选中原因/暗线逻辑：为什么尾盘筛出它（主业匹配+位置+筹码+业绩+催化，真实数据，至少20字）","logic":"暗线业务深挖+题材归属+市场关联：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+量能真实性(真突破/偷量诱多)+趋势干净度(上影/炸板回落/尾盘跳水)+次日竞价预期+破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+次日该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件（含次日竞价条件）","stop":"具体止损条件","drop":"放弃条件：次日竞价出现什么情况就不做（低开/跳水/量能/情绪等具体条件，10-25字）","next":"次日竞价预期：明天竞价大概率高开还是低开，给具体观察信号与触发条件（例：竞价量比≥X且高开≥Y%才继续），15-30字"}]}，'
+                   '"per":[{"name":"股票名称","dark":"一句话暗线（这条票真正炒的是什么，禁标签糊弄，10-30字）","reason":"选中原因/暗线逻辑：为什么尾盘筛出它（主业匹配+位置+筹码+业绩+催化，真实数据，至少20字）","logic":"暗线业务深挖+题材归属+市场关联：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+共振判断(主题X家+量价共振强/弱+板块热度共振强/中/无)+量能真实性(真突破/偷量诱多)+趋势干净度(上影/炸板回落/尾盘跳水)+次日竞价预期+破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+次日该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件（含次日竞价条件）","stop":"具体止损条件","drop":"放弃条件：次日竞价出现什么情况就不做（低开/跳水/量能/情绪等具体条件，10-25字）","next":"次日竞价预期：明天竞价大概率高开还是低开，结合共振强弱给具体观察信号与触发条件（例：竞价量比≥X且高开≥Y%才继续；共振弱则只给低吸/放弃信号），15-30字"}]}，'
                    'per 必须覆盖我给的每只股票。'),
     }
     t = ask_deepseek(payload, purpose='tail', system_text=_ASK_DS_SYS_AC)
@@ -5221,7 +5358,13 @@ def build_tail(title='尾盘竞价筛选'):
     heat_pre, _ = _theme_heat(rows_all)
     cands = _tail_filter(rows_all, heat_pre, _zt_names)
     heat, cnt = _theme_heat(cands)
+    # 共振升级-弱共振剔除：同题材候选<2家 且 题材热度<45 的「独涨+冷题材」剔除（尾盘口径）
+    cands = [s for s in cands
+             if not (cnt.get(_sec_clean(s['industry']) or '其他', 0) < 2
+                     and heat.get(_sec_clean(s['industry']) or '其他', 0) < 45)]
+    heat, cnt = _theme_heat(cands)
     mem = load_memory()
+    _calc_resonance(cands, heat, cnt, mem, is_tail=True)
     for s in cands:
         s['score'] = _tail_score_v2(s, heat, cnt, mem, _zt_names)
     cands.sort(key=lambda x: -x['score'])
@@ -5248,10 +5391,10 @@ def build_tail(title='尾盘竞价筛选'):
 <div style="color:#ffd43b;font-size:12px;margin-top:2px;">🔮 次日竞价预期：{_deep.get('next','')}</div>
 <div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 建议：<b style="color:{_opcol};">{_deep.get('op','')}</b> ｜ 买点：{_deep.get('buy','')} ｜ 止损：{_deep.get('stop','')} ｜ 放弃：{_deep.get('drop','')}</div>""")
         else:
-            _rows_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 数据事实：{s['industry']}当日涨幅{s['pct']:+.1f}%、量比{s['lb']:.1f}、换手{s['turn']:.1f}%、市值{s.get('mv',0):.0f}亿、得分{s['score']:.0f}。AI 深挖未返回，未给建议。</div>""")
+            _rows_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 数据事实：{s['industry']}当日涨幅{s['pct']:+.1f}%、量比{s['lb']:.1f}、换手{s['turn']:.1f}%、市值{s.get('mv',0):.0f}亿、得分{s['score']:.0f}、共振{s.get('_reson', 0)}。AI 深挖未返回，未给建议。</div>""")
         rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD if s['score'] >= 70 else TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
-<div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分</span></div>
-<div style="color:{GREY};font-size:12px;">尾盘当日涨幅 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 换手 {s['turn']:.1f}% ｜ 市值 {s.get('mv',0):.0f}亿 ｜ 题材：{s['industry']}</div>
+<div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分 ｜ 共振 {s.get('_reson', 0)}</span></div>
+<div style="color:{GREY};font-size:12px;">尾盘当日涨幅 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 换手 {s['turn']:.1f}% ｜ 市值 {s.get('mv',0):.0f}亿 ｜ 共振 <b style="color:{GOLD if (s.get('_reson') or 0) >= 60 else TEAL}">{s.get('_reson', 0)}</b>（{s.get('_reson_det', '—')}）｜ 题材：{s['industry']}</div>
 {_rows_html}</div>"""
     # Top3 速判（含暗线，v2 阈值：≥72 可轻仓试 / 60-71 观察 / <60 不追）
     top3_txt = ''
@@ -5271,7 +5414,8 @@ def build_tail(title='尾盘竞价筛选'):
         top3_txt = (f'<div style="margin-top:10px;padding:9px 11px;background:#1c2830;border-left:4px solid #a78bfa;'
                     f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 尾盘 Top3 速判（含暗线）：</b>'
                     + ('<br>'.join(_t3) if _t3 else '—')
-                    + f'<br><span style="color:{GREY};font-size:12px;">≥72分可轻仓试 / 60~71观察 / &lt;60不追（暗线来自AI深挖，次日竞价见各票🔮）</span></div>')
+                    + f'<br><span style="color:{GREY};font-size:12px;">≥72分可轻仓试 / 60~71观察 / &lt;60不追（暗线来自AI深挖，次日竞价见各票🔮）</span>'
+                    + f'<br><span style="color:#a78bfa;font-size:12px;">共振分≥60 优先 / 40-59 观察 / &lt;40 降权</span></div>')
     # 行业/题材风向（最强/最弱暗线原因）
     hot = sorted(heat.items(), key=lambda kv: -kv[1])[:3]
     hot_txt = '、'.join(k for k, _ in hot) or '暂无'
@@ -5281,7 +5425,20 @@ def build_tail(title='尾盘竞价筛选'):
         _zt_hot = '、'.join(f'{n}({c}家)' for n, c in _zt_top[:3])
     else:
         _zt_hot = ''
-    _ws = (f'<div style="font-size:13px;color:{RED};">🔥 最强（尾盘涨幅前3题材）：{hot_txt}' + (f'；涨停板块：{_zt_hot}' if _zt_hot else '')
+    # 共振强度：最强题材内候选平均共振分（高≥60/中40-59/低<40）
+    _reson_avg = {}
+    for _s in cands:
+        _ind = _sec_clean(_s.get('industry') or '') or '其他'
+        _reson_avg.setdefault(_ind, []).append(_s.get('_reson') or 0)
+    _rs_txt = ''
+    if hot:
+        _sc = hot[0][0]
+        _rlst = _reson_avg.get(_sc) or []
+        if _rlst:
+            _rv = sum(_rlst) / len(_rlst)
+            _rl = '高' if _rv >= 60 else ('中' if _rv >= 40 else '低')
+            _rs_txt = f'；共振强度：{_rl}'
+    _ws = (f'<div style="font-size:13px;color:{RED};">🔥 最强（尾盘涨幅前3题材）：{hot_txt}{_rs_txt}' + (f'；涨停板块：{_zt_hot}' if _zt_hot else '')
            + (f'<br><span style="color:#e9ecef;">📌 暗线原因：{wind_strong}</span>' if wind_strong else '') + '</div>')
     _ww = (f'<div style="font-size:13px;color:{GREEN};">🥶 最弱：{weak_txt}（今天别碰）'
            + (f'<br><span style="color:#e9ecef;">📌 暗线原因：{wind_weak}</span>' if wind_weak else '') + '</div>')
