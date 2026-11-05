@@ -1145,6 +1145,146 @@ def classify_news(text):
     return '中性', GREY
 
 
+# ============ 事件驱动量化层（Event Intelligence，2026-11-05 券商量化机构配置） ============
+# 新闻强度分级(S/A/B/C) + 时间衰减 + 板块事件热度聚合 + 预期差标记。纯计算，不耗 LLM。
+# S=重大(政策/规划/宏观/大厂重磅) A=产业催化(涨价/订单/量产/补贴) B=公司公告(业绩/回购/中标) C=一般
+_EV_S_KW = ['国常会', '国务院', '发改委', '央行', '证监会', '降准', '降息', 'LPR', '印发', '规划', '规划纲要',
+            '重大突破', '重组', '并购', '收购', '首发', '全球首', '量产', '大基金', '专项债', '万亿', '白名单',
+            '座谈会', '一号文', '试点', '挂牌', '上市', '退市新规']
+_EV_A_KW = ['涨价', '提价', '上调', '补贴', '中标', '订单', '签约', '招标', '装机', '并网', '招标公告',
+            '预增', '增持', '回购', '业绩', '净利', '同比', '扩产', '投产', '交付', '出口', '涨超', '创新高']
+_EV_B_KW = ['公告', '披露', '协议', '合作', '合资', '入股', '注册', '获批', '许可', '通过', '验收', '下线']
+# 情绪加分词（在 classify_news 基础上加程度）
+_EV_SENT_UP = ['超预期', '大幅', '首个', '首次', '创纪录', '历史新高', '全面', '重磅', '重大', '顶格', '翻倍', '突破']
+_EV_SENT_DN = ['不及预期', '下滑', '亏损', '处罚', '立案', '调查', '退市', '暴雷', '违约', '下调', '收紧', '清仓']
+
+
+def _ev_ts_min(ts):
+    """新闻时间戳 → 分钟级 datetime；解析失败返回 None。"""
+    if not ts:
+        return None
+    s = str(ts).strip()
+    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+        try:
+            return datetime.strptime(s, fmt)
+        except Exception:
+            continue
+    return None
+
+
+def _ev_sec(text):
+    """新闻文本 → 板块题材。细粒度 _EVENT_SEC_MAP 优先（数据中心/存储/低空等专词），
+    NEWS_THEME_MAP 兜底（泛板块）。未命中返回 ''。"""
+    for k, sec in _EVENT_SEC_MAP:
+        if k in text:
+            return sec
+    for kws, sec, _stocks, _plain in NEWS_THEME_MAP:
+        if any(k in text for k in kws):
+            return sec
+    return ''
+
+
+def _score_event(nw, now=None):
+    """单条事件评分：返回 dict(score, level, sent, sec, age_h)。
+    score = 强度基数 × 情绪符号 × 时间衰减(exp(-age_h/6))，保留1位。"""
+    text = (nw.get('title') or '') + ' ' + (nw.get('summary') or '')
+    if '注册资本' in text or '工商变更' in text or '经营范围' in text:
+        if not any(k in text for k in ('业绩', '净利', '订单', '中标', '重组')):
+            return None  # 注册类噪音直接丢弃
+    if any(k in text for k in _EV_S_KW):
+        base, level = 10, 'S'
+    elif any(k in text for k in _EV_A_KW):
+        base, level = 7, 'A'
+    elif any(k in text for k in _EV_B_KW):
+        base, level = 4, 'B'
+    else:
+        base, level = 1, 'C'
+    tag, _ = classify_news(text)
+    # 利空否定覆盖（券商级语义修正）：文本出现强利空语义词时，即使命中利好关键词也按利空计
+    # （如「客单价下降/销量下滑」文本含"增长"字样会被 classify_news 误判利好）
+    _EV_NEG_COVER = ['下降', '下滑', '回落', '下跌', '亏损', '处罚', '立案', '调查', '退市',
+                     '暴雷', '违约', '收紧', '下调', '减少', '降价', '承压', '放缓', '都降了']
+    if any(k in text for k in _EV_NEG_COVER):
+        _neg_strength = any(k in text for k in ('大幅', '超预期', '清仓', '顶格', '超50%', '腰斩'))
+        if _neg_strength or tag != '利好':
+            sign = -2 if _neg_strength else -1
+        else:
+            sign = -1  # 文本同时有"增长"和"下降"（如"增速下滑"）→ 按利空处理
+    elif tag == '利好':
+        sign = 2 if any(k in text for k in _EV_SENT_UP) else 1
+    elif tag == '利空':
+        sign = -2 if any(k in text for k in _EV_SENT_DN) else -1
+    else:
+        sign = 0
+    now = now or _bj_now()
+    dt = _ev_ts_min(nw.get('ts'))
+    if dt:
+        age_h = max((now - dt).total_seconds() / 3600.0, 0.0)
+    else:
+        age_h = 0.0
+    w = 2.718281828 ** (-age_h / 6.0)
+    return {'score': round(base * sign * w, 1), 'level': level, 'sent': sign,
+            'sec': _ev_sec(text), 'age_h': round(age_h, 1)}
+
+
+def _event_intel(news, top=5, new_min=60):
+    """时事情报包（紧跟时事核心）：
+      mainlines: 板块事件热度 Top3（事件数/净情绪/最新时间/代表标题/是否已定价）
+      top_events: 全市场事件评分 Top5
+      overnight: 隔夜(昨日15:00后)重大事件标题
+      new_1h: 过去 new_min 分钟新事件标题（盘中跟突发用）
+    """
+    scored = []
+    now = _bj_now()
+    for nw in news:
+        ev = _score_event(nw, now)
+        if ev is None:
+            continue
+        ev['title'] = nw.get('title') or ''
+        ev['ts'] = nw.get('ts') or ''
+        scored.append(ev)
+    scored.sort(key=lambda x: -x['score'])
+    # 板块事件热度聚合（只用 情绪非中性 且 有板块 的事件；C级不计入热度避免噪音）
+    sec_stat = {}
+    for ev in scored:
+        if ev['sent'] == 0 or not ev['sec'] or ev['level'] == 'C':
+            continue
+        st = sec_stat.setdefault(ev['sec'], {'n': 0, 'net': 0.0, 'latest': ev['ts'], 'tops': []})
+        st['n'] += 1
+        st['net'] += ev['score']
+        if ev['ts'] > st['latest']:
+            st['latest'] = ev['ts']
+        if len(st['tops']) < 3:
+            st['tops'].append(ev['title'][:42])
+    mainlines = []
+    for sec, st in sorted(sec_stat.items(), key=lambda kv: (-kv[1]['net'], -kv[1]['n']))[:3]:
+        mainlines.append({'sec': sec, 'n': st['n'], 'net': round(st['net'], 1),
+                          'latest': st['latest'], 'tops': st['tops']})
+    top_events = []
+    for ev in scored[:top]:
+        top_events.append({'title': ev['title'][:60], 'ts': ev['ts'], 'level': ev['level'],
+                           'sec': ev['sec'], 'sent': ev['sent'], 'score': ev['score']})
+    # 隔夜情报：昨日 15:00 之后的 S 级或 |sent|>=2 事件（盘前紧跟隔夜大事）
+    overnight = []
+    for ev in scored:
+        if ev['sent'] == 0:
+            continue
+        dt = _ev_ts_min(ev['ts'])
+        if dt and (dt.hour >= 15 or dt.date() < now.date()):
+            if ev['level'] == 'S' or abs(ev['sent']) >= 2:
+                overnight.append(ev['title'][:50])
+    # 过去 new_min 分钟新事件（盘中跟突发）
+    new_1h = []
+    for ev in scored:
+        if ev['sent'] == 0:
+            continue
+        dt = _ev_ts_min(ev['ts'])
+        if dt and (now - dt).total_seconds() <= new_min * 60:
+            new_1h.append('[' + ev['level'] + '] ' + ev['title'][:48])
+    return {'mainlines': mainlines, 'top_events': top_events,
+            'overnight': overnight[:6], 'new_1h': new_1h[:6]}
+
+
 # ============ 休市日新闻汇总（2026-10-19 新增） ============
 # 关键词 → (板块/题材, 相关个股示例, 大白话一句话)。纯规则匹配，不调 LLM、不编造；
 # 未命中映射表的新闻不标注板块（仅在有可靠依据时标注）。
@@ -3797,19 +3937,28 @@ def _stock_goodbad(news):
     return good[:8], bad[:8]
 
 
-def _pre_ds(news):
-    """盘前 DeepSeek 大白话总结：新闻→AI看多/看空板块 + 点名关注股（催化+新闻匹配）；失败返回 ''。"""
+def _pre_ds(news, intel=None):
+    """盘前 DeepSeek 大白话总结：新闻→AI看多/看空板块 + 点名关注股（催化+新闻匹配）；失败返回 ''。
+    intel=_event_intel 时，用「事件驱动量化评分」喂主线候选（紧跟时事核心）。"""
     if not news:
         return ''
     brief = [{'t': nw['title'], 's': (nw.get('summary') or '')[:60]} for nw in news[:12]]
+    intel = intel or _event_intel(news)
     jc = judgment_context()
+    ev_lines = ''
+    if intel.get('mainlines'):
+        ev_lines += '\n'.join(f"- 板块「{m['sec']}」事件{m['n']}条 净情绪分{m['net']} 最新{m['latest'][11:16] if len(m.get('latest',''))>=16 else m.get('latest','')} 代表：{'；'.join(m['tops'][:2])}" for m in intel['mainlines'])
+    if intel.get('overnight'):
+        ev_lines += '\n隔夜重大：' + '；'.join(intel['overnight'][:3])
     t = ask_deepseek({'task': 'pre_news_summary', 'news': brief, 'judgment': jc,
+                      'events': ev_lines or '（今日暂无高情绪事件）',
                       'format': (_TRADER_RULES + '\n'
                                 + (('昨日判断（开盘前先对照它，别重复昨天的错）：\n{judgment}\n' if jc else '昨日判断：无（今日首卡）\n')
+                                   + '【事件驱动主线·量化评分】（板块事件数/净情绪分/最新时间，权重最高的排前面，这是今日最可能被资金点火的候选）：\n{events}\n'
                                    + '今日新闻（12条）：\n{news}\n'
                                    + '请严格按以下格式输出，不许加其他板块、不许打乱：\n'
                                    + '① 今日一句话总判断（今日情绪：强势/震荡/偏空/冰点 + 建议总仓位：空仓/1成试探/2成/半仓 + 主基调：进攻/防守/观望/做分歧）\n'
-                                   + '② 今日主线预判：只给【1个主攻方向+最多2个备选】，每个=方向名+驱动(用新闻数据)+代表股+为什么现在值得做(禁万能句)+放弃条件；消息面无明确主线就写「今日无明确主线，只做观察」，禁止硬凑、禁止罗列式废话\n'
+                                   + '② 今日主线预判：只给【1个主攻方向+最多2个备选】，优先从「事件驱动主线·量化评分」里选（方向名+驱动(用新闻数据)+代表股+为什么现在值得做(禁万能句)+放弃条件）；评分里没有明确主线就写「今日无明确主线，只做观察」，禁止硬凑、禁止罗列式废话\n'
                                    + '③ 重点标的（最多2只；没有就写「今日无强推」并说明缺哪项共振；昨日涨停/连板票禁止列入）\n'
                                    + '每只格式：名称 代码 | 阶段(启动/中段/高位) | 共振x/4 | 为什么现在值得看(禁万能句) | 关键位置：支撑X/阻力X | 买入条件 | 放弃条件 | 仓位(仅1成试探/2成/半仓) | 唯一主风险\n'
                                    + '④ 今日最大风险（一句话，必须是具体的：哪个板块/哪类票/哪个消息会砸盘）\n'
@@ -4076,6 +4225,12 @@ def _hourly_ds(idx, d, b, zbr):
     """每小时行情 LLM 深度解读（五步大白话）。失败返回 ''（原规则操作建议保留）。"""
     if not (MODELSCOPE_KEY or DEEPSEEK_KEY):
         return ''
+    # 过去1小时新事件（紧跟时事：盘中突发优先纳入整点解读；失败不影响主链路）
+    _ev1h = []
+    try:
+        _ev1h = _event_intel(get_news(20), new_min=70).get('new_1h') or []
+    except Exception:
+        _ev1h = []
     try:
         idx_txt = '、'.join(f"{x['name']}{x['pct']:+.2f}%" for x in idx) or '未取得'
         tops = '、'.join(f"{sec}({len(sts)}只)" for sec, sts in sorted(d['sectors'].items(), key=lambda kv: -len(kv[1]))[:5]) or '无'
@@ -4086,9 +4241,11 @@ def _hourly_ds(idx, d, b, zbr):
                + '【聚焦原则·强制】op 只给「现在最该做的一个动作」，禁止同时罗列多个方向；next_watch 只给下个整点前最该盯的1个点；contagion 只给1个最确定的传染方向。信息再多也只挑最重要的讲，宁缺毋滥。\n'
                + '【传染研判·硬要求】必须单独回答 contagion：今天哪个板块在突发异动（用最强板块/领涨数据），它最可能传染到哪个「还没启动」的题材和个股，讲清传染逻辑、原因、暗线（为什么资金会顺着产业链/比价/情绪扩散过去）以及确认传染的信号（什么时候算真传染）。没有可传染方向就写「暂无明确传染方向」。\n只输出 JSON：\n'
                + '{"overall":"现在盘面真正什么情况(用数据)+主力阶段，一句大白话+能不能做","emotion_score":0-100,"op":"该干什么：具体动作+仓位档(空仓/1成/2成/半仓)，只给最该做的一个动作","risk":"最大风险+什么情况必须撤","next_watch":"下一小时最该盯的1个点","contagion":"突发异动板块→传染方向：板块名→题材+未启动个股（点名具体股票）+传染逻辑与暗线+确认信号，≥40字"}\n'
-               + '数据：指数 ' + idx_txt + '；涨停{d["lu"]}家 炸板{d["zb"]}家(炸板率{zbr*100:.0f}%) 跌停{d["dt"]}家 最高{d["max_lbc"]}板；情绪=' + b + '；最强板块 ' + tops + _g_txt + '\n炸板率>45% 时，op 不得出现「轻仓试」，只能观察或防守。')
+               + '数据：指数 ' + idx_txt + '；涨停{d["lu"]}家 炸板{d["zb"]}家(炸板率{zbr*100:.0f}%) 跌停{d["dt"]}家 最高{d["max_lbc"]}板；情绪=' + b + '；最强板块 ' + tops + _g_txt + '\n'
+               + '【过去1小时新事件】（紧跟时事：只挑真正能改变盘面的，纳入 overall/op/risk 判断；没有就写「无」）：' + ('；'.join(_ev1h) if _ev1h else '无') + '\n炸板率>45% 时，op 不得出现「轻仓试」，只能观察或防守。')
         t = ask_deepseek({'task': 'hourly_ds', 'idx': idx_txt, 'tops': tops, 'b': b,
                           'lu': d['lu'], 'zb': d['zb'], 'dt': d['dt'], 'max_lbc': d['max_lbc'],
+                          'news_1h': ('；'.join(_ev1h) if _ev1h else '无'),
                           'format': fmt}, purpose='hourly_ds')
         if not t:
             return ''
@@ -4538,10 +4695,11 @@ def _focus_stocks(d, news):
 
 
 def build_pre():
-    """盘前速递 08:30：今日操盘地图（外盘一句话→主线方向→板块风向→新闻四类→利好利空精选→操作清单）。"""
+    """盘前速递 08:30：今日操盘地图（外盘一句话→事件驱动主线→主线方向→板块风向→新闻四类→利好利空精选→操作清单）。"""
     gl = get_global()
     gl_avg = sum(p for _, _, p in gl) / max(len(gl), 1) if gl else 0.0
-    news = get_news(20)
+    news = get_news(40)
+    intel = _event_intel(news)
     d = get_pools()
     one = _global_one_line()
     w1, w2, w3 = _mainline_3(gl_avg, news, d)
@@ -4550,8 +4708,18 @@ def build_pre():
     _pre_news_map = _pre_news_deep(news)
     good, bad = _goodbad_action(news)
     watch, avoid, hold_rows = _action_list(news, d, gl_avg)
-    ds_html = _pre_ds(news)
-    # —— 渲染 ——
+    ds_html = _pre_ds(news, intel)
+    # —— 事件驱动主线小节（量化评分 Top3，紧跟时事核心）——
+    _ev_rows = ''
+    for m in intel.get('mainlines') or []:
+        _lt = m['latest'][11:16] if len(m.get('latest', '')) >= 16 else m.get('latest', '')
+        _ev_rows += ('<div style="background:#1f2635;border-left:3px solid ' + GOLD + ';border-radius:6px;padding:6px 8px;margin:5px 0;">'
+                     '<div style="font-size:13px;color:#fff;"><b>' + m['sec'] + '</b> '
+                     '<span style="color:' + GREY + ';font-size:12px;">事件' + str(m['n']) + '条 ｜ 净情绪' + ('+' if m['net'] > 0 else '') + str(m['net']) + ' ｜ 最新' + _lt + '</span></div>'
+                     '<div style="font-size:12px;color:' + TEAL + ';">代表：' + '；'.join(m['tops'][:2]) + '</div></div>')
+    if not _ev_rows:
+        _ev_rows = '<div style="color:' + GREY + ';font-size:13px;">今日暂无明显事件驱动板块（量化评分未达标，多看少动）</div>'
+    _ev_block = ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">📡 事件驱动主线（量化评分·紧跟时事）</div>' + _ev_rows)
     s_strong = ''.join('<div style="margin:4px 0;font-size:13px;">🟢 <b>' + sec + '</b> — ' + why + '</div>' for sec, why in strong)
     s_weak = ''.join('<div style="margin:4px 0;font-size:13px;">🔴 <b>' + sec + '</b> — ' + why + '</div>' for sec, why in weak)
     news_rows = ''
@@ -4608,6 +4776,7 @@ def build_pre():
                 '<div style="font-size:15px;font-weight:800;color:' + GOLD + ';">🤖 DeepSeek 大白话研判</div>' + ds_html + '</div>') if ds_html else ''
     inner = ("""<div style="margin-top:8px;font-size:15px;font-weight:800;color:#ff922b;">🧭 今日操盘地图｜方向 + 买什么 + 避开什么</div>
 <div style="margin-top:8px;font-size:13px;color:#e9ecef;">🌏 隔夜外盘一句话：""" + one + """</div>
+""" + _ev_block + """
 <div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">② 今日主线方向（最重要）</div>
 <div style="font-size:13px;color:#e9ecef;line-height:1.9;">1️⃣ """ + w1 + '<br>2️⃣ ' + w2 + '<br>3️⃣ ' + w3 + """</div>
 <div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">③ 板块风向标</div>
@@ -7432,7 +7601,16 @@ def build_evening():
     else:
         a_sec = '<div style="color:' + GREY + ';font-size:13px;">A股盘面数据未取得</div>'
     markets_txt = '；'.join(f'{nm} {("未取得" if pct is None else "%+.2f%%" % pct)}' for nm, pct, _ in gl)
-    news_brief = [{'t': nw['title'], 's': (nw.get('summary') or '')[:50]} for nw in news[:12]]
+    # 事件驱动量化评分排序（晚间紧跟时事：重要事件优先，避免次要消息淹没重点）
+    _ev_news = []
+    _bj_e = _bj_now()
+    for _nw in news:
+        _e = _score_event(_nw, _bj_e)
+        if _e is not None:
+            _ev_news.append((_nw, _e))
+    _ev_news.sort(key=lambda x: -x[1]['score'])
+    ev_news = [x[0] for x in _ev_news] or news
+    news_brief = [{'t': nw['title'], 's': (nw.get('summary') or '')[:50]} for nw in ev_news[:12]]
     # —— DS 大白话汇总 ——
     ds_html = ''
     if DEEPSEEK_KEY and news:
@@ -7452,12 +7630,12 @@ def build_evening():
     if not ds_html:
         print('[evening] LLM 未返回且已禁规则版兜底，不推晚间汇总')
         return None
-    news_rows, _used_ds = _news_html_lines(news, n=8, purpose_key='eve_news', max_show=12)
+    news_rows, _used_ds = _news_html_lines(ev_news, n=8, purpose_key='eve_news', max_show=12)
     inner = (f'<div style="font-size:15px;font-weight:800;color:#ff922b;">🇨🇳 今日A股全景</div>' + a_sec
              + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🌐 全球晚间行情</div>'
              + _global_markets_html(gl)
              + (f'<div style="margin-top:10px;padding:10px;background:#1c2230;border-left:4px solid {GOLD};border-radius:8px;font-size:13px;line-height:1.8;color:#e2e8f0;">🤖 今日大事 & 明日关注 & 最大风险：{ds_html}</div>' if ds_html else '')
-             + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">📰 今日消息汇总（按时间）</div>'
+             + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">📰 今日消息汇总（按事件强度）</div>'
              + news_rows)
     return _wrap(inner, '🌙', '晚间消息汇总')
 
@@ -10198,14 +10376,14 @@ def _mark_radar_done(d):
 
 # ============ 新闻发酵（11-05 指令⑧）：盘中 10 条消息汇总一起推 ============
 def build_newsfire():
-    """盘中新闻发酵（仅北京盘中 09:30-14:50 实时推送）：取最新 10 条消息一起汇总，
+    """盘中新闻发酵（仅北京盘中 09:30-14:50 实时推送）：取最新消息按「事件驱动量化评分」排序精选 5 条，
     LLM 逐条深挖「带来什么信息→影响哪个行业/题材/个股→操作建议」。LLM 失败降级规则 news_tags。"""
     bj = _bj_now()
     if not FORCE_SLOT and not _in_session(bj):
         print(f'[newsfire] 当前北京时间 {bj.strftime("%H:%M")} 不在盘中窗口(09:30-14:50)，不推新闻发酵')
         return None
     try:
-        news = get_news(20)
+        news = get_news(25)
     except Exception as e:
         print('[newsfire] 新闻源异常:', e)
         news = []
@@ -10214,9 +10392,16 @@ def build_newsfire():
         t = (nw.get('title') or '').strip()
         s = (nw.get('summary') or '').strip()
         if t or s:
-            items.append({'title': t[:80], 'summary': s[:90]})
-        if len(items) >= 5:
-            break
+            items.append({'title': t[:80], 'summary': s[:90], 'ts': nw.get('ts') or ''})
+    # 事件驱动量化评分排序（紧跟时事：重大/产业催化 > 时间新 > 一般消息），取前5
+    _scored = []
+    for _nw in items:
+        _ev = _score_event(_nw, bj)
+        if _ev is None:
+            continue
+        _scored.append((_nw, _ev))
+    _scored.sort(key=lambda x: -x[1]['score'])
+    items = [_nw for _nw, _ev in _scored[:5]]
     if not items:
         print('[newsfire] 无新闻，不推送')
         return None
@@ -10227,15 +10412,19 @@ def build_newsfire():
     except Exception:
         _j = None
     if not (_j or {}).get('news_brief'):
-        # LLM 失败/无 brief：降级标题 + 规则板块
+        # LLM 失败/无 brief：降级标题 + 规则板块（带事件强度标签）
         rows = []
         for nw in items:
             sector, stocks, plain = news_tags(nw.get('title', ''), nw.get('summary', ''))
+            _ev2 = _score_event(nw, bj)
+            _lvl = (_ev2 or {}).get('level') or 'C'
+            _tag = {'S': '重大', 'A': '催化', 'B': '公司', 'C': '一般'}.get(_lvl, '一般')
+            _tcol = {'S': RED, 'A': GOLD, 'B': TEAL, 'C': GREY}.get(_lvl, GREY)
             rows.append(f"""<div style="background:#1f2635;border-left:3px solid {GOLD};border-radius:8px;padding:7px 11px;margin:5px 0;">
-<div style="color:#fff;font-size:13px;">• {nw.get('title','')}</div>
+<div style="color:#fff;font-size:13px;">• {nw.get('title','')} <span style="color:{_tcol};font-size:11px;">⚡{_tag}</span></div>
 <div style="color:{GREY};font-size:12px;margin-top:2px;">影响：{sector or '暂看不出直接关联'}{f'｜相关：{stocks}' if stocks else ''}</div>
 <div style="color:{TEAL};font-size:12px;">🧠 {plain}</div></div>""")
-        inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">📰 {bj.strftime("%H:%M")} 新闻发酵 · 5条精选（规则版，AI未返回）</div>'
+        inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">📰 {bj.strftime("%H:%M")} 新闻发酵 · 5条精选（事件强度排序·规则版）</div>'
                  + ''.join(rows))
     else:
         nb = [str(_n.get('t') or '') for _n in _j['news_brief'][:5]]
@@ -10243,7 +10432,7 @@ def build_newsfire():
         for nw in items:
             if nw.get('title') in nb:
                 _s += 1
-        inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">📰 {bj.strftime("%H:%M")} 新闻发酵 · 5条精选（{len(items)}条 · LLM 深挖）</div>'
+        inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">📰 {bj.strftime("%H:%M")} 新闻发酵 · 5条精选（事件强度排序 · LLM 深挖）</div>'
                  + f'<div style="color:{GREY};font-size:11px;margin:3px 0 0;">每条=带来什么信息 → 影响哪个行业/题材/个股 → 操作建议</div>'
                  + _warn_render_fire({'fire': [], 'news_brief': _j['news_brief'][:5]}))
     return _wrap(inner, '📰', '新闻发酵')
@@ -10296,9 +10485,18 @@ def build_warn():
         t = (nw.get('title') or '').strip()
         s = (nw.get('summary') or '').strip()
         if t or s:
-            items.append({'title': t[:80], 'summary': s[:90]})
-        if len(items) >= 15:
-            break
+            items.append({'title': t[:80], 'summary': s[:90], 'ts': nw.get('ts') or ''})
+    if len(items) >= 6:
+        # 事件驱动量化评分排序：重大/产业催化优先（08:20 点火预判紧跟隔夜+今晨重大事件）
+        _sc = []
+        for _nw in items:
+            _ev = _score_event(_nw, bj)
+            if _ev is not None:
+                _sc.append((_nw, _ev))
+        _sc.sort(key=lambda x: -x[1]['score'])
+        items = [x[0] for x in _sc][:15]
+    else:
+        items = items[:15]
     _warn_src = '新闻'
     if not items:
         print('[warn] 新闻为空，走涨停池降级')
