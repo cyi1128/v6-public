@@ -5650,6 +5650,67 @@ def _tail_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=
     return out
 
 
+def _cycle_ds(stocks, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=None):
+    """多周期视角研判 LLM 深挖（独立语义，purpose='cycle'）：单次调用输出
+    per（每只：dark/reason/logic/why/op/buy/stop/drop）+ cap_advice。
+    语义=收盘周期视角：周期适配（超短/短/中长/长线，系统已按 MA/量能/回撤/5日涨幅预判 cyc 字段）
+    +暗线业务深挖（本质→暗线业务→与主线相关性→为什么买它→风险破灭点）+按周期口径买卖点/止损/仓位档。
+    失败或预算耗尽返回 {}（渲染周期分组数据行兜底，不推空卡、不推假暗线）。"""
+    if not stocks:
+        return {}
+    _zt = (zt_themes or [])[:8]
+    _zt_txt = '、'.join(f'{n}(涨停{int(c)}家)' for n, c in _zt) or '暂无'
+    _heat_txt = '、'.join(f'{k}(热度{v:.0f})' for k, v in sorted(heat.items(), key=lambda kv: -kv[1])[:6]) or '暂无'
+    _mkt = mkt_ctx or ''
+    payload = {
+        'task': 'cycle_top_deep',
+        'stocks': [{'name': s['name'], 'code': s['code'], 'pct': s['pct'], 'lb': s.get('lb', 0),
+                    'turn': s.get('turn', 0), 'mv': round(float(s.get('mv') or 0), 1),
+                    'industry': s['industry'], 'cyc': s.get('_cyc', '')} for s in stocks],
+        'hot_sectors': sorted(heat.items(), key=lambda kv: -kv[1])[:6],
+        'zt_themes': _zt_txt,
+        'mkt_ctx': _mkt,
+        'format': ('你是A股实战交易员，现在是收盘后 15:20 多周期视角研判窗口。系统已按 MA5/10/20/60+量能+距60日高点回撤+5日涨幅'
+                   '预判每只票的适配周期（stocks 的 cyc 字段：超短线1-3日/短线3-10日/中长线1-6月/长线6月+）。'
+                   '对以下每只强势票做多因素深挖（禁止单条件结论）：\n'
+                   '0.【暗线业务深挖·每只必做】先一句话说清公司本质（靠什么赚钱，禁「XX龙头/XX概念」标签）；再挖暗线业务——具体产品/技术/业务是什么、进展到哪个阶段、在产业链哪个环节、有没有卡位壁垒、对业绩是真实贡献还是纯故事/预期；然后判断跟今日最强主线（{hot_sectors}）是【实受益】【沾边】还是【纯蹭】、弹性大不大。挖不出来如实写「未见明确暗线业务」，禁止用「相关」「涉及」「布局」「受益于」等词糊弄。\n'
+                   '1. 周期适配确认：系统预判 cyc 是否合理？与量价/筹码明显不符可微调，buy/stop 必须按最终周期口径给——超短线看分时与MA5、短线看MA10/MA20回踩、中长线看MA20/MA60趋势仓、长线看多头结构与回撤位置；buy 字段开头用【周期：XXX】标注。\n'
+                   '2. 为什么买它：主业匹配/位置/筹码/业绩/催化，用真实数据说清买入逻辑（不能只说周期标签）。\n'
+                   '3. 风险与破灭点：逻辑什么时候会破（放量滞涨/跌破MA20/业绩证伪/题材退潮/主力出货），破了怎么走人；逻辑不硬就明确写「不碰」。\n'
+                   '4. 仓位档：结合档位给该票建议仓位（轻仓1-2成/中仓2-3成/趋势仓3-5成/底仓），写进 op 与 buy 语境。\n'
+                   '5. 市值与风格硬约束：流通市值超800亿、高位连板(>=3板)、今日涨停的票一律「不碰/别追」。\n'
+                   '6. 禁止编新闻猜消息、禁止设问句、禁止万能句（「回踩分时均线可轻仓试」等）及变体、禁止满仓/必涨/稳了。\n'
+                   '7. 只输出 JSON，不要其他文字：\n'
+                   '"cap_advice":"当前档位建议：结合 mkt_ctx（涨停家数/炸板/情绪分/指数涨跌）直接给明日仓位档位建议与一句话理由，禁止万能句，至少20字",'
+                   '"per":[{"name":"股票名称","dark":"一句话暗线（这条票真正炒的是什么，禁标签糊弄，10-30字）","reason":"选中原因：为什么筛出它（主业匹配+位置+筹码+业绩+催化，真实数据，至少20字）","logic":"暗线业务深挖+周期适配+买入逻辑：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与主线相关性(实受益/沾边/纯蹭+弹性)→为什么买它→风险破灭点，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+该不该买，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件（按周期口径：超短看分时MA5、短线看MA10/20回踩、中长看MA20/60）","stop":"具体止损条件","drop":"放弃条件：出现什么情况就不做（跌破MA/放量滞涨/题材退潮等具体条件，10-25字）"}]}，'
+                   'per 必须覆盖我给的每只股票。'),
+    }
+    t = ask_deepseek(payload, purpose='cycle', system_text=_ASK_DS_SYS_AC)
+    if not t:
+        return {}
+    out = {}
+    try:
+        j = json.loads(t[t.find('{'):t.rfind('}') + 1])
+        if isinstance(j, dict):
+            out['cap_advice'] = str(j.get('cap_advice', '') or '')
+            per = {}
+            for it in (j.get('per') or []):
+                nm = str(it.get('name', '')).split('（')[0].split('(')[0].strip()
+                if nm:
+                    per[nm] = {'dark': str(it.get('dark', '') or ''),
+                               'reason': str(it.get('reason', '') or ''),
+                               'logic': str(it.get('logic', '') or ''),
+                               'why': str(it.get('why', '') or ''),
+                               'op': str(it.get('op', '') or ''),
+                               'buy': str(it.get('buy', '') or ''),
+                               'stop': str(it.get('stop', '') or ''),
+                               'drop': str(it.get('drop', '') or '')}
+            out['per'] = per
+    except Exception:
+        return {}
+    return out
+
+
 def build_tail(title='尾盘竞价筛选'):
     """尾盘竞价筛选（14:55-14:58 独立卡，不复用早盘 build_auction 语义）：
     当日实时盘面（新浪 hs_a 涨幅榜+腾讯补量比/换手/总市值）→ 尾盘 v2 硬过滤（涨幅2.5-8.5/量比≥2/换手≥2.5/MA20/近5日约束/量能真实性）→
@@ -5888,13 +5949,33 @@ def build_cycle(title='多周期视角研判'):
         return None
     groups = {}
     order = ['超短线（1-3日）', '短线（3-10日）', '中长线（1-6月）', '长线（6月+）', '短线观察']
-    for s in cands[:12]:
+    deep_stocks = []
+    for s in cands[:10]:
         cyc, reason = _cycle_tag(s.get('code') or '', s.get('industry') or '', heat.get(_sec(s), 0) or 0)
         if not cyc:
             continue
+        s['_cyc'] = cyc
+        s['_cyc_reason'] = reason
+        deep_stocks.append(s)
         groups.setdefault(cyc, []).append((s, reason))
     if not groups:
         return None
+    # LLM 暗线深挖（收盘周期视角语义；失败/预算尽 → {} → 仍推周期分组数据行，不推假暗线）
+    ds = {}
+    try:
+        _idx = get_indices()
+        _mscore, _mlabel, _ = market_score(_idx, d)
+    except Exception:
+        _mscore, _mlabel = 50, '—'
+    _lu = int(d.get('lu') or 0)
+    _zb = int(d.get('zb') or 0)
+    _zbr = (_zb / (_lu + _zb) * 100) if (_lu + _zb) else 0.0
+    _mkt_ctx = (f'大盘：涨停{_lu}家/炸板{_zb}家({_zbr:.0f}%) 情绪分{int(_mscore)}({_mlabel}) '
+                f'最强板块{(_zt_list[0][0] if _zt_list else "—")}')
+    if deep_stocks:
+        ds = _cycle_ds(deep_stocks, heat, _zt_list, _mkt_ctx, _mscore, _lu, _zb)
+    per = (ds or {}).get('per') or {}
+    cap_advice = str((ds or {}).get('cap_advice', '') or '')
     cap = {'超短线（1-3日）': '仓位1-2成试错，次日竞价/分时博弈，快进快出',
            '短线（3-10日）': '仓位2-3成，回踩MA10/MA20低吸，趋势持有',
            '中长线（1-6月）': '仓位3-5成，趋势仓波段参与，跌破MA20减仓',
@@ -5910,13 +5991,24 @@ def build_cycle(title='多周期视角研判'):
         _gc = _gcol.get(g, GREY)
         rows += f'<div style="color:{_gc};font-size:14px;font-weight:800;margin:10px 0 4px;">{g}（{len(items)}）</div>'
         for s, reason in items:
+            d_i = per.get(s['name'])
+            deep_html = ''
+            if d_i and d_i.get('logic'):
+                _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(d_i.get('op', ''), GOLD)
+                deep_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线：{d_i.get('dark','')}（{d_i.get('reason','')}）</div>
+<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🧠 深挖：{d_i.get('logic','')}</div>
+<div style="color:#e9ecef;font-size:12px;margin-top:2px;">👉 大白话：{d_i.get('why','')}</div>
+<div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 建议：<b style="color:{_opcol};">{d_i.get('op','')}</b> ｜ 买点：{d_i.get('buy','')} ｜ 止损：{d_i.get('stop','')} ｜ 放弃：{d_i.get('drop','')}</div>""")
             rows += (f'<div style="background:#1f2635;border-left:3px solid {_gc};border-radius:8px;padding:8px 11px;margin:5px 0;">'
                      f'<div style="font-size:13px;font-weight:700;color:#fff;">{s["name"]} <span style="color:{GREY};font-size:11px;">{s.get("code","")}</span> <span style="color:{_c(s["pct"])};font-size:12px;">{s["pct"]:+.2f}%</span></div>'
                      f'<div style="color:{GREY};font-size:11px;">量比{s["lb"]:.1f} ｜ 换手{s.get("turn",0):.1f}% ｜ 市值{s.get("mv",0):.0f}亿 ｜ 题材:{s.get("industry","")}</div>'
                      f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">⏱ {reason}</div>'
-                     f'<div style="color:#e6a23c;font-size:11px;margin-top:2px;">仓位：{cap.get(g,"")}</div></div>')
-    _lu = int(d.get('lu') or 0)
-    _zb = int(d.get('zb') or 0)
+                     f'<div style="color:#e6a23c;font-size:11px;margin-top:2px;">仓位：{cap.get(g,"")}</div>'
+                     f'{deep_html}</div>')
+    if cap_advice:
+        rows = (f'<div style="background:#1f2635;border-left:3px solid {GOLD};border-radius:8px;padding:8px 11px;margin:6px 0;">'
+                f'<div style="font-size:13px;font-weight:800;color:{GOLD};">💼 档位建议</div>'
+                f'<div style="color:#e9ecef;font-size:12px;margin-top:2px;">{cap_advice}</div></div>') + rows
     _mkt = f'涨停{_lu}家/炸板{_zb}家' if (_lu or _zb) else '情绪—'
     head = (f'<div style="font-size:12px;color:#8490a3;margin-bottom:6px;">'
             f'周期依据：MA5/10/20/60 + 量能比 + 距60日高点回撤 + 5日涨幅（收盘日K实算）｜ {_mkt}</div>')
