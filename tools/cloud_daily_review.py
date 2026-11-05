@@ -660,9 +660,12 @@ def signals_review_html():
 
 
 def get_klines(code, n=20):
-    url = f'http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={code},day,,,{n},qfq'
+    url = f'https://ifzq.gtimg.cn/appstock/app/fqkline/get?param={code},day,,,{n},qfq'
     d = json.loads(_get(url))
-    node = d.get('data', {}).get(code, {}) or {}
+    _data = d.get('data') or {}
+    if not isinstance(_data, dict):
+        return []
+    node = _data.get(code, {}) or {}
     return node.get('qfqday') or node.get('day') or []
 
 
@@ -679,7 +682,8 @@ def _cycle_tag(code, industry='', heat=0):
         return _CYCLE_CACHE[code]
     out = ('', '')
     try:
-        ks = get_klines(code, 70)
+        sym = ('sh' if code.startswith('6') else ('bj' if code.startswith(('4', '8')) else 'sz')) + code
+        ks = get_klines(sym, 70)
         if not ks or len(ks) < 25:
             return '', ''
         closes = [float(k[2]) for k in ks]
