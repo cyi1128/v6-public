@@ -1372,5 +1372,29 @@
   "concept": "10.99",
   "from_stock": "688275",
   "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-05 09:42:01",
+  "concept": "10.47",
+  "from_stock": "300201",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-05 09:42:01",
+  "concept": "10.47",
+  "from_stock": "601058",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-05 09:42:01",
+  "concept": "10.47",
+  "from_stock": "601865",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-05 09:42:01",
+  "concept": "10.47",
+  "from_stock": "603396",
+  "reason": "score=10"
  }
 ]
