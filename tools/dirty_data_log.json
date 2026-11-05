@@ -1480,5 +1480,23 @@
   "concept": "13.17",
   "from_stock": "002897",
   "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-05 11:10:47",
+  "concept": "13.64",
+  "from_stock": "603628",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-05 11:10:47",
+  "concept": "13.64",
+  "from_stock": "688200",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-05 11:10:47",
+  "concept": "13.64",
+  "from_stock": "301155",
+  "reason": "score=10"
  }
 ]
