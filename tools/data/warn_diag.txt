@@ -255,3 +255,6 @@
 >>>>>>> Stashed changes
 14:58:30 [反模板命中:eve_news] 半山腰 (try1)
 14:59:55 [反模板命中:eve_news] 半山腰 (try2)
+00:20:13 [build_warn] 进入；新闻条数=20
+00:20:13 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+00:25:40 [build_warn] LLM 返回长度=2668
