@@ -258,3 +258,6 @@
 00:20:13 [build_warn] 进入；新闻条数=20
 00:20:13 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
 00:25:40 [build_warn] LLM 返回长度=2668
+01:35:08 [反模板命中:board_watch] 资金认可/半山腰/管住手 (try1)
+01:36:23 [反模板命中:board_watch] 管住手 (try2)
+01:36:23 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在是今日盘中时段，所有数据基于交易所实时行情快照，截止点为当前最新报价。桂林三金封死涨停板，海安集团跟涨乏力，晓程科技等三只候选股涨
