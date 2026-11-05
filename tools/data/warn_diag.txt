@@ -266,3 +266,4 @@
 02:25:43 [反模板命中:board_watch] 管住手 (try1)
 02:26:54 [反模板命中:board_watch] 管住手 (try2)
 02:26:55 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在是上午 10 点 30 分刚过，盘面数据来自交易所实时 Level-2 行情，市场情绪分 87.1 分是客观统计出来的，不是拍脑袋
+03:23:31 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在是盘中实时状态，数据基于你提供的最新快照。聚和材料涨幅 12.8%，移远通信 6.0%，候选池里万润新能、雅克科技、锦浪科技都是 
