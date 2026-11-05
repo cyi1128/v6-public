@@ -277,3 +277,6 @@
 05:53:23 [反模板命中:board_watch] 管住手 (try1)
 05:54:23 [反模板命中:board_watch] 管住手 (try2)
 05:54:24 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在是盘中实时数据节点，所有涨跌幅、量比、换手率均基于此刻最新成交统计。市场情绪分定格在 65.0 分，标签显示震荡分化，这个分数处于
+05:58:04 [反模板命中:board_why] 管住手 (try1)
+06:00:37 [反模板命中:board_watch] 管住手 (try1)
+06:01:29 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 现在是上午 10 点 30 分，刚好卡在验证节点上，手里的数据来自实时盘面，品高股份涨 14.9%，没封板但强度够，中军泉为涨 6
