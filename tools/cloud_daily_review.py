@@ -7263,6 +7263,55 @@ def _factor_signal_write(slot, rows):
         return 0
 
 
+def _sig_csv_stats():
+    """CSV 账本体检（只读）：回填进度，供 11-09 起 T+1 落笔监控。"""
+    try:
+        with open(_SIG_CSV, 'r', encoding='utf-8') as f:
+            raw = f.read().rstrip('\n')
+    except Exception:
+        return None
+    lines = raw.split('\n') if raw else []
+    if len(lines) < 2:
+        return {'rows': 0, 'dates': [], 't1_filled': 0, 't5_filled': 0, 'first10_t1': 0}
+    hdr = lines[0].split(',')
+    idx = {n: i for i, n in enumerate(hdr)}
+    rows = [ln.split(',') for ln in lines[1:] if ln.strip()]
+    dates = sorted({r[idx['date']] for r in rows if len(r) > idx['date']})
+    def _filled(name, rows_):
+        i = idx.get(name)
+        if i is None:
+            return 0
+        return sum(1 for r in rows_ if len(r) > i and r[i])
+    return {'rows': len(rows), 'dates': dates,
+            't1_filled': _filled('close_t1', rows),
+            't5_filled': _filled('close_t5', rows),
+            'first10_t1': _filled('close_t1', rows[:10])}
+
+
+def _sig_settle_monitor():
+    """11-09 起的账本监控点：eod 回填后打印一行体检结果 + 落盘状态并写回仓库。
+
+    验收口径（用户指定）：首批 10 行 close_t1 有值即通过。
+    只读账本、只写状态文件，绝不改用例数据。
+    """
+    st = _sig_csv_stats()
+    if st is None:
+        print('[sigcsv][monitor] 账本不可读，跳过')
+        return
+    st['checked_at'] = _bj_now().strftime('%Y-%m-%d %H:%M')
+    st['pass_first10'] = st['first10_t1'] > 0
+    print('[sigcsv][monitor] rows=%s t1=%s t5=%s first10_t1=%s dates=%s' % (
+        st['rows'], st['t1_filled'], st['t5_filled'], st['first10_t1'],
+        (','.join(st['dates'][-3:]) if st['dates'] else 'none')))
+    print('[sigcsv][monitor] 首批10行T+1回填 %s' % ('PASS' if st['pass_first10'] else 'PENDING'))
+    try:
+        with open('data/csv_settle_status.json', 'w', encoding='utf-8') as f:
+            json.dump(st, f, ensure_ascii=False, indent=2)
+        _git_commit_push('data/csv_settle_status.json', 'update csv settle status')
+    except Exception as e:
+        print('[sigcsv][monitor] 状态落盘失败 %s' % e)
+
+
 def _factor_signal_settle():
     """T+1 / T+5 回填：按 date 之后的日K回填 close_t1 / close_t5 / ret5 / win。
     口径：close_t1 = 推送次日收盘；close_t5 = 推送后第 5 个交易日收盘；
@@ -12454,6 +12503,10 @@ if __name__ == '__main__':
             _factor_signal_settle()  # 收盘后回填 T+1/T+5（幂等）
         except Exception as _se:
             print(f'[sigcsv] eod 回填异常 {_se}')
+        try:
+            _sig_settle_monitor()  # 11-09 起 T+1 落笔监控（只读账本+落盘状态）
+        except Exception as _me:
+            print(f'[sigcsv] monitor 异常 {_me}')
         today = _bj_now().strftime('%Y-%m-%d')
         if eod_push_done(today):
             print(f'SLOT eod 今日已推送（eod_status.json 去重），跳过')
