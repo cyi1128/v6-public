@@ -42,5 +42,6 @@
  "hourly|2026-11-06|11": true,
  "noon|2026-11-06": true,
  "news2h|2026-11-06|1212": true,
- "auction|2026-11-06": true
+ "auction|2026-11-06": true,
+ "hourly|2026-11-06|13": true
 }
