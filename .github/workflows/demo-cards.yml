@@ -2,9 +2,13 @@ name: demo-cards
 
 # 样卡演示专用：只做 workflow_dispatch（无 schedule），构建 11-06 真实数据样卡并经 PushPlus 推送。
 # 与 daily-review 完全隔离，不参与任何定时推送，不影响 slot 闸门。
+# 构建日志回写 demo/run.log（便于无令牌时排障）。
 
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   demo:
@@ -24,7 +28,19 @@ jobs:
         env:
           MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
-        run: python -u tools/demo_cards.py --push
+        run: |
+          mkdir -p demo
+          python -u tools/demo_cards.py --push > demo/run.log 2>&1 || echo "EXIT=$?" >> demo/run.log
+          cat demo/run.log
+
+      - name: 回写日志
+        if: always()
+        run: |
+          git config user.name cyi1128
+          git config user.email cyi1128@users.noreply.github.com
+          git add demo/run.log demo/*.html || true
+          git commit -m "demo: 样卡演示运行日志 $(date -u +%H:%M)" || true
+          git push || true
 
       - name: 上传样卡 HTML
         if: always()
