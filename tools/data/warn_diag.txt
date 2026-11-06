@@ -315,3 +315,6 @@
 06:34:27 [反模板命中:board_watch] 当前市场情绪 (try1)
 06:39:33 [反模板命中:board_watch] 管住手 (try2)
 06:39:34 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 现在是上午 10:30 左右的数据快照，盘口实时刷新，300123 亚光科技涨跌幅 13.4%，002903 宇环数控涨 7.0%
+07:01:30 [反模板命中:sec2_deep] 情绪回暖 (try1)
+07:02:39 [反模板命中:sec2_deep] 资金认可 (try2)
+07:10:22 [反模板命中:resonance_verdict] 管住手 (try1)
