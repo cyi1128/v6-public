@@ -32,6 +32,12 @@ on:
     - cron: '30-34 2,5 * * 1-5'    # 北京 10:30-34/13:30-34 盘中新闻发酵(newsfire·10条汇总)
     - cron: '35-39 2,5 * * 1-5'    # 北京 10:35-39/13:35-39 盘中风险体检(risk·红橙黄才推，绿静默)
     - cron: '20-24 7 * * 1-5'      # 北京 15:20-24 多周期视角研判(cycle·新增独立推送项目)
+    # —— 云端自驱调度起跑点（2026-11-06）——
+    # GitHub 对 schedule 触发有系统性配额（本仓库实测每天约 17 次，理论应约 95 次，
+    # 早盘 08:20-09:30 连续多日整段被吞）。下面两条把"起跑机会"集中到早盘与午后：
+    # 任意一次命中即启动 scheduler job，由它在单次 run 内按分钟时刻表驱动全天推送。
+    - cron: '*/5 0 * * 1-5'        # 北京 08:00-08:59 每5分钟一次起跑机会
+    - cron: '*/5 5 * * 1-5'        # 北京 13:00-13:59 每5分钟一次起跑机会
 
 concurrency:
   # 双推修复②（2026-11-04）：schedule 与 dispatch 原共用一组防双推；
@@ -44,6 +50,10 @@ concurrency:
 
 jobs:
   push:
+    # 2026-11-06：定时触发一律交给下面的 scheduler job（单 run 内自驱，按分钟时刻表驱动全天），
+    # 避免 push 与 scheduler 在同一分钟同时命中造成双推（用户红线）。
+    # 手动 / 外部 workflow_dispatch 仍走这里，用于补推与单槽实测。
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -102,3 +112,23 @@ jobs:
             git pull --rebase --autostash || { git rebase --abort 2>/dev/null; git reset --hard origin/main 2>/dev/null; git add tools/data/ 2>/dev/null; git commit -m "chore: 状态持久化(冲突自愈) $(date -u +%Y-%m-%dT%H:%M:%SZ)" 2>/dev/null || true; }
             git push || true
           fi
+
+  scheduler:
+    # 云端自驱调度器（2026-11-06 上线）
+    # 解决的问题：GitHub 对本仓库的 schedule 有系统性配额节流（实测每天约 17 次，理论应约 95 次），
+    # 且早盘 08:20-09:30 连续多日整段被吞，"定时器配好了但早上就是没推送"。
+    # 做法：任意一次 schedule 命中 → 本 job 在单次 run 内按分钟时刻表驱动各槽位推送，
+    # 早盘跑 08:00-11:45、午后跑 13:00-15:48，无需外部 PAT、无需外部定时服务。
+    # 重复推送由主程序内部 slot_done 去重兜住；同一日同一段重复起跑由 sched_active.json 标记拦截。
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 260
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: 云端自驱调度
+        env:
+          MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        run: python3 -u tools/cloud_slot_scheduler.py
