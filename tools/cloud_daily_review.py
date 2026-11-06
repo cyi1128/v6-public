@@ -5228,6 +5228,7 @@ def build_auction(title='竞价观察'):
         if _FACTOR_OK and _jq_res is not None:
             _fres = _factor_for_auction(s, heat, cnt, _jq_res)
             if _fres:
+                s['_factor'] = _fres  # 供 signal_log.csv 落库（不改变卡片渲染）
                 _fcol = '#ff6b6b' if _fres.get('vetoed') else '#8ce99a'
                 _fwt = '700' if _fres.get('vetoed') else '400'
                 _fl_line = (f'<div style="color:{_fcol};font-size:12px;margin-top:4px;font-weight:{_fwt};">'
@@ -5236,6 +5237,21 @@ def build_auction(title='竞价观察'):
 <div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分 ｜ 共振 {s.get('_reson', 0)}</span></div>
 <div style="color:{GREY};font-size:12px;">竞价高开 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 竞价量比(归一) {s.get('_vr', 0):.2f} ｜ 共振 <b style="color:{GOLD if (s.get('_reson') or 0) >= 60 else TEAL}">{s.get('_reson', 0)}</b>（{s.get('_reson_det', '—')}）｜ 题材：{s['industry']}{f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else ''}</div>
 {_deep_html}{_fl_line}</div>"""
+    try:
+        _sig_rows = []
+        for _s2 in tops:
+            _f2 = _s2.get('_factor')
+            if not _f2:
+                continue
+            _sig_rows.append({'code': _s2.get('code'), 'name': _s2.get('name'),
+                              'price': _s2.get('price'), 'jq': _f2.get('jq'),
+                              'lj': _f2.get('lj'), 'zj': _f2.get('zj'),
+                              'tc': _f2.get('tc'), 'dl': _f2.get('dl'),
+                              'total': _f2.get('total'), 'combined': _f2.get('combined'),
+                              'vetoed': _f2.get('vetoed')})
+        _factor_signal_write('auction', _sig_rows)
+    except Exception as _sig_e:
+        print(f'[sigcsv] auction 接入异常 {_sig_e}')
     # —— Top3 重点点评（v3）——
     top3_txt = ''
     if tops:
@@ -7179,6 +7195,151 @@ def signal_stats():
     return ('📈 信号次日胜率（signal_log 实测，次日开→收）：' + ' ｜ '.join(parts)), today
 
 
+# ============ 模块7B：因子信号闭环（data/signal_log.csv） ============
+_SIG_CSV = 'data/signal_log.csv'
+_SIG_HEAD = ['date', 'slot', 'code', 'name', 'push_price', 'jq', 'lj', 'zj', 'tc', 'dl',
+             'total', 'combined', 'vetoed', 'close_t1', 'close_t5', 'ret5', 'win']
+
+
+def _sig_fmt(v, nd=1):
+    """数值格式化；None/''/无法转换一律返回空串，绝不填 0 冒充真实数据。"""
+    if v is None or v == '':
+        return ''
+    try:
+        return f'{float(v):.{nd}f}'
+    except Exception:
+        return ''
+
+
+def _factor_signal_write(slot, rows):
+    """推送时写前半段：date/slot/code/name/push_price/各因子分/total/combined/vetoed。
+    rows: [{'code','name','price','jq','lj','zj','tc','dl','total','combined','vetoed'}]
+    同 date+slot+code 已存在则跳过（同槽重跑不重复记）。写回仓库失败只告警，不阻断推送。
+    """
+    if not rows:
+        return 0
+    try:
+        os.makedirs('data', exist_ok=True)
+        today = _bj_now().strftime('%Y-%m-%d')
+        exists = os.path.exists(_SIG_CSV)
+        done = set()
+        if exists:
+            try:
+                with open(_SIG_CSV, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        p = line.rstrip('\n').split(',')
+                        if len(p) >= 3 and p[0] == today and p[1] == slot:
+                            done.add(p[2])
+            except Exception:
+                pass
+        new_lines = []
+        for r in rows:
+            code = str(r.get('code') or '').strip()
+            if not code or code in done:
+                continue
+            done.add(code)
+            new_lines.append(','.join([
+                today, slot, code, str(r.get('name') or '').replace(',', ' ').replace('\n', ' '),
+                _sig_fmt(r.get('price'), 2), _sig_fmt(r.get('jq'), 1), _sig_fmt(r.get('lj'), 1),
+                _sig_fmt(r.get('zj'), 1), _sig_fmt(r.get('tc'), 1), _sig_fmt(r.get('dl'), 1),
+                _sig_fmt(r.get('total'), 1), _sig_fmt(r.get('combined'), 1),
+                '1' if r.get('vetoed') else '0', '', '', '', '',
+            ]))
+        if not new_lines:
+            return 0
+        with open(_SIG_CSV, 'a', encoding='utf-8') as f:
+            if not exists:
+                f.write(','.join(_SIG_HEAD) + '\n')
+            for ln in new_lines:
+                f.write(ln + '\n')
+        print(f'[sigcsv] {slot} 写入 {len(new_lines)} 条 → {_SIG_CSV}')
+        try:
+            _git_commit_push(_SIG_CSV, f'chore: signal_log 追加 {slot} {len(new_lines)} 条')
+        except Exception:
+            print('[sigcsv] 写回仓库失败（记录已落盘，随下次提交带出）')
+        return len(new_lines)
+    except Exception as e:
+        print(f'[sigcsv] 写入异常 {e}')
+        return 0
+
+
+def _factor_signal_settle():
+    """T+1 / T+5 回填：按 date 之后的日K回填 close_t1 / close_t5 / ret5 / win。
+    口径：close_t1 = 推送次日收盘；close_t5 = 推送后第 5 个交易日收盘；
+    ret5 = (close_t5 / push_price - 1) * 100；win = ret5 > 0。
+    绝不伪造：K 线不够就留空，不估算。
+    """
+    try:
+        with open(_SIG_CSV, 'r', encoding='utf-8') as f:
+            raw = f.read().rstrip('\n')
+    except Exception:
+        return 0
+    lines = raw.split('\n') if raw else []
+    if len(lines) < 2:
+        return 0
+    hdr = lines[0].split(',')
+    idx = {n: i for i, n in enumerate(hdr)}
+    rows = [ln.split(',') for ln in lines[1:] if ln.strip()]
+    changed = 0
+    for r in rows:
+        if len(r) < len(hdr):
+            r += [''] * (len(hdr) - len(r))
+        try:
+            if r[idx['close_t5']]:
+                continue
+            code = r[idx['code']]
+            if not code:
+                continue
+            sym = ('sh' if code.startswith('6') else 'sz') + code
+            arr = get_klines(sym, 60)
+            if not arr:
+                continue
+            d0 = r[idx['date']]
+            after = [k for k in arr if str(k[0])[:10] > d0]
+            if not after:
+                continue
+            if not r[idx['close_t1']]:
+                try:
+                    r[idx['close_t1']] = f'{float(after[0][2]):.2f}'
+                    changed += 1
+                except Exception:
+                    pass
+            if len(after) >= 5:
+                try:
+                    c5 = float(after[4][2])
+                    r[idx['close_t5']] = f'{c5:.2f}'
+                    # 基准必须与 close_t5 同口径：日K是前复权序列，push_price 是不复权实时价，
+                    # 两者直接相除会把复权差异算成暴涨暴跌（002578 实测 -72.86% 假数据）。
+                    # 改用推送日（或之前最近交易日）的复权收盘做基准。
+                    base_rows = [k for k in arr if str(k[0])[:10] <= d0]
+                    if base_rows:
+                        base_c = float(base_rows[-1][2])
+                        if base_c > 0:
+                            ret = (c5 / base_c - 1) * 100
+                            r[idx['ret5']] = f'{ret:.2f}'
+                            r[idx['win']] = '1' if ret > 0 else '0'
+                    changed += 1
+                except Exception:
+                    pass
+        except Exception:
+            continue
+    if not changed:
+        return 0
+    try:
+        with open(_SIG_CSV, 'w', encoding='utf-8') as f:
+            f.write(','.join(hdr) + '\n')
+            for r in rows:
+                f.write(','.join(r) + '\n')
+        print(f'[sigcsv] 回填 {changed} 处')
+        try:
+            _git_commit_push(_SIG_CSV, f'chore: signal_log 回填 {changed} 处')
+        except Exception:
+            print('[sigcsv] 回填写回失败')
+    except Exception as e:
+        print(f'[sigcsv] 回写异常 {e}')
+    return changed
+
+
 # ============ 模块8/9/10：主线生命周期 + 龙头拐点 + 错过信号复盘 ============
 def life_cycle(sec, d, mem, days):
     """主线生命周期（模块8）：启动期/加速期/分化期/退潮期。
@@ -8360,12 +8521,33 @@ def _factor_for_spot(sg, d):
                             lbc=_lbc, turnover_pct=sg.get('turn') or q.get('turn'),
                             list_days=None, bars=bars_ex,
                             price=sg.get('cur') or sg.get('price'))
-        comb = _fe.combine(auction_score=None,
-                           factor_scores={'jq': emo.get('score'), 'lj': pv.get('score')},
-                           weights={'jq': 0.5, 'lj': 0.5})
-        return {'jq': emo.get('score'), 'lj': pv.get('score'), 'total': comb.get('factor_total'),
+        # 第3步补齐：资金/题材/动量（与竞价卡、收盘因子榜同口径）
+        _pct = float(q.get('pct') or 0)
+        _is_lu = (_pct >= 9.5) if code.startswith(('60', '00')) else (_pct >= 19.5)
+        zj = _fe.score_fund(out_vol=q.get('out'), in_vol=q.get('in'),
+                            bars=bars_ex, is_limit_up=_is_lu)
+        dl = _fe.score_momentum(bars=bars_ex)
+        _sec = _sec_clean(sg.get('sec') or sg.get('sec_clean') or '') or '其他'
+        _heat = {}
+        for _hn, _hsl in ((d or {}).get('tops') or []):
+            try:
+                _heat[_hn] = min(100, len(_hsl) * 20)
+            except TypeError:
+                continue
+        tc = _fe.score_theme(theme_heat=_heat.get(_sec), relation='实受益')
+        fs = {'jq': emo.get('score'), 'lj': pv.get('score'), 'zj': zj.get('score'),
+              'tc': tc.get('score'), 'dl': dl.get('score')}
+        comb = _fe.combine(auction_score=None, factor_scores=fs,
+                           weights=_fe.WEIGHTS_SHORT)
+        line = _fe.fmt_full_line(auction_score=None, jq=fs['jq'], lj=fs['lj'],
+                                 zj=fs['zj'], tc=fs['tc'], dl=fs['dl'],
+                                 factor_total=comb.get('factor_total'),
+                                 combined=comb.get('combined'),
+                                 veto=vt.get('reasons'))
+        return {'jq': fs['jq'], 'lj': fs['lj'], 'zj': fs['zj'], 'tc': fs['tc'], 'dl': fs['dl'],
+                'total': comb.get('factor_total'), 'combined': comb.get('combined'),
                 'vetoed': bool(vt.get('vetoed')), 'reasons': vt.get('reasons') or [],
-                'unknown': vt.get('unknown') or []}
+                'unknown': vt.get('unknown') or [], 'line': line}
     except Exception as e:
         print(f'[factor] {code} 计算失败: {str(e)[:60]}')
         return None
@@ -8494,13 +8676,26 @@ def _factor_board_top(d, topn=10, pool=15):
                 out.append({'name': c0['name'], 'code': c0['code'], 'lbc': c0['lbc'],
                             'sec': c0['sec'], 'total': comb.get('factor_total') or 0,
                             'fs': fs, 'vetoed': bool(vt.get('vetoed')),
-                            'reasons': vt.get('reasons') or []})
+                            'reasons': vt.get('reasons') or [],
+                            'price': q.get('price'), 'combined': comb.get('combined')})
             except Exception as _ce:
                 print('[factor-board] %s %s' % (c0.get('code'), str(_ce)[:40]))
                 continue
         if not out:
             return ''
         out.sort(key=lambda x: -x['total'])
+        try:
+            _sig_rows = []
+            for _o in out[:topn]:
+                _sig_rows.append({'code': _o['code'], 'name': _o['name'],
+                                  'price': _o.get('price'),
+                                  'jq': _o['fs'].get('jq'), 'lj': _o['fs'].get('lj'),
+                                  'zj': _o['fs'].get('zj'), 'tc': _o['fs'].get('tc'),
+                                  'dl': _o['fs'].get('dl'), 'total': _o['total'],
+                                  'combined': _o.get('combined'), 'vetoed': _o['vetoed']})
+            _factor_signal_write('eod', _sig_rows)
+        except Exception as _sig_e:
+            print(f'[sigcsv] eod 接入异常 {_sig_e}')
         rr = ''
         for i, o in enumerate(out[:topn], 1):
             _col = '#ff6b6b' if o['vetoed'] else '#8ce99a'
@@ -8528,18 +8723,18 @@ def _watch_card(sg, mscore, ds_plain=None):
     _f = sg.get('_factor')
     if isinstance(_f, dict):
         _segs = []
-        if _f.get('jq') is not None:
-            _segs.append('情绪%.0f' % _f['jq'])
-        if _f.get('lj') is not None:
-            _segs.append('量价%.0f' % _f['lj'])
-        _tot = ('｜综合%.0f' % _f['total']) if _f.get('total') is not None else ''
+        for _fk, _flab in (('jq', '情绪'), ('lj', '量价'), ('zj', '资金'),
+                           ('tc', '题材'), ('dl', '动量')):
+            if _f.get(_fk) is not None:
+                _segs.append('%s%.0f' % (_flab, _f[_fk]))
+        _tot = ('|综合%.0f' % _f['total']) if _f.get('total') is not None else ''
         if _f.get('vetoed'):
             _factor_line = ('<div style="color:#ff6b6b;font-size:12px;margin-top:4px;font-weight:700;">'
-                            '⛔ 因子体检：%s%s｜已否决：%s</div>'
-                            % ('/'.join(_segs), _tot, '、'.join(_f.get('reasons') or []) or '见原因'))
+                            '⛔ 因子体检：%s%s ｜已否决：%s</div>'
+                            % ('|'.join(_segs), _tot, '、'.join(_f.get('reasons') or []) or '见原因'))
         else:
             _factor_line = ('<div style="color:#8ce99a;font-size:12px;margin-top:4px;">'
-                            '🔬 因子体检：%s%s ✓无否决</div>' % ('/'.join(_segs), _tot))
+                            '🔬 因子体检：%s%s ✓无否决</div>' % ('|'.join(_segs), _tot))
     else:
         _factor_line = ''
     fit = ('情绪偏多/中性，可积极' if mscore >= 55 else '情绪偏弱，谨慎、仓位减半')
@@ -10069,7 +10264,22 @@ def build_watch():
     sel = _cards_tmp
     for _, sg in sel:
         sg['life'] = life_badge(sg.get('sec', ''), d, mem, days)  # 模块8 生命周期徽标
-        sg['_factor'] = _factor_for_spot(sg, d)  # 因子体检（情绪/量价+硬闸），失败为 None 不影响卡片
+        sg['_factor'] = _factor_for_spot(sg, d)  # 因子体检（情绪/量价/资金/题材/动量+硬闸），失败为 None 不影响卡片
+    try:
+        _sig_rows = []
+        for _, sg in sel:
+            _f4 = sg.get('_factor')
+            if not _f4:
+                continue
+            _sig_rows.append({'code': sg.get('code'), 'name': sg.get('n') or sg.get('name'),
+                              'price': sg.get('cur') or sg.get('price'),
+                              'jq': _f4.get('jq'), 'lj': _f4.get('lj'), 'zj': _f4.get('zj'),
+                              'tc': _f4.get('tc'), 'dl': _f4.get('dl'),
+                              'total': _f4.get('total'), 'combined': _f4.get('combined'),
+                              'vetoed': _f4.get('vetoed')})
+        _factor_signal_write('watch', _sig_rows)
+    except Exception as _sig_e:
+        print(f'[sigcsv] watch 接入异常 {_sig_e}')
     ds_plain = _spot_ds([sg for _, sg in sel], mem, days, today_top=_today_top(d)) if sel else {}
     _spot_gl = ''
     if isinstance(ds_plain, dict):
@@ -11680,6 +11890,10 @@ if __name__ == '__main__':
     # 09:15-15:05 + 每2小时 cron 兜底控制；如需更强去重可在 build_watch 内按分钟做增量阈值）
     if slot == 'watch':
         try:
+            _factor_signal_settle()  # T+1/T+5 回填（幂等，已回填的记录跳过）
+        except Exception as _se:
+            print(f'[sigcsv] watch 回填异常 {_se}')
+        try:
             html = build_watch()
         except Exception as e:
             print('[watch] build exception:', e)
@@ -11887,6 +12101,10 @@ if __name__ == '__main__':
         print('SLOT news2h PUSH', ok, msg)
         sys.exit(0)
     if slot == 'eod':
+        try:
+            _factor_signal_settle()  # 收盘后回填 T+1/T+5（幂等）
+        except Exception as _se:
+            print(f'[sigcsv] eod 回填异常 {_se}')
         today = _bj_now().strftime('%Y-%m-%d')
         if eod_push_done(today):
             print(f'SLOT eod 今日已推送（eod_status.json 去重），跳过')
