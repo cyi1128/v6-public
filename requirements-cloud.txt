@@ -1,0 +1,5 @@
+# 云端 Actions 运行时依赖（与桌面端 requirements.txt 分离）
+# 用途：解锁 nine_score(0.10) / multi_factor 两个评分引擎
+# 版本与 Python 3.11 (ubuntu-latest) 对齐
+numpy==1.26.4
+requests==2.32.3

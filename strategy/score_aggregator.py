@@ -20,12 +20,14 @@ from datetime import datetime, timedelta, timezone
 WEIGHT_FILE = 'config/aggregator_weights.json'
 LOG_FILE = 'data/aggregator_log.jsonl'
 
-# 工单1 指定的初始权重（5 组），总和 1.00
+# 工单1 权重（2026-11-06 调整后）：ai_composite 三个子分缺失 → 0.10 降级合成
+# main_force 桌面端独有，配置里 enabled=false，云端永久摊空
 DEFAULT_WEIGHTS = {
-    'ai_composite': 0.30,
-    'auction_v3': 0.25,
-    'factor_engine': 0.25,
+    'auction_v3': 0.35,
+    'factor_engine': 0.35,
     'nine_score': 0.10,
+    'multi_factor': 0.10,
+    'ai_composite': 0.10,
     'main_force': 0.10,
 }
 
@@ -65,36 +67,59 @@ def _valid_score(v):
     return round(f, 2)
 
 
-def load_weights(path=WEIGHT_FILE, base_dir='.'):
-    """读权重文件；缺文件/坏文件回退默认。返回 (weights, note)。"""
+def load_config(path=WEIGHT_FILE, base_dir='.'):
+    """读权重配置，支持两种写法：
+
+      平铺：{"factor_engine": 0.25, "auction_v3": 0.25}
+      分组：{"weights": {...}, "engines": {"main_force": {"enabled": false, "reason": "..."}}}
+
+    引擎值为对象时可用 {"weight": 0.25, "enabled": false} 标禁用。
+    返回 {'weights':{...}, 'disabled':{引擎:原因}, 'note':str}
+    """
     full = path if os.path.isabs(path) else os.path.join(base_dir, path)
     if not os.path.exists(full):
-        return dict(DEFAULT_WEIGHTS), 'default(no file)'
+        return {'weights': dict(DEFAULT_WEIGHTS), 'disabled': {}, 'note': 'default(no file)'}
     try:
         with open(full, encoding='utf-8') as f:
             raw = json.load(f)
     except Exception as e:
-        return dict(DEFAULT_WEIGHTS), 'default(bad file: %s)' % str(e)[:40]
-    if isinstance(raw, dict) and isinstance(raw.get('weights'), dict):
-        raw = raw['weights']
-    if not isinstance(raw, dict) or not raw:
-        return dict(DEFAULT_WEIGHTS), 'default(empty)'
+        return {'weights': dict(DEFAULT_WEIGHTS), 'disabled': {},
+                'note': 'default(bad file: %s)' % str(e)[:40]}
+    disabled = {}
+    if isinstance(raw, dict) and isinstance(raw.get('engines'), dict):
+        for k, v in raw['engines'].items():
+            if isinstance(v, dict) and v.get('enabled') is False:
+                disabled[k] = v.get('reason') or 'disabled'
+    items = raw.get('weights') if isinstance(raw, dict) and isinstance(raw.get('weights'), dict) else raw
+    if not isinstance(items, dict):
+        return {'weights': dict(DEFAULT_WEIGHTS), 'disabled': disabled, 'note': 'default(empty)'}
     w = {}
-    for k, v in raw.items():
-        s = _valid_score(v if not isinstance(v, float) else v * ((v <= 1.0) and 100 or 1))
-        # 允许 0-1 小数或 0-100 百分数两种写法
+    for k, v in items.items():
+        if isinstance(v, dict):
+            if v.get('enabled') is False:
+                disabled[k] = v.get('reason') or 'disabled'
+                continue
+            v = v.get('weight')
         try:
-            f = float(v)
+            fv = float(v)
         except (TypeError, ValueError):
             continue
-        if f < 0:
+        if fv < 0:
             continue
-        w[k] = round(f / 100.0 if f > 1.0 else f, 6)
+        w[k] = fv / 100.0 if fv > 1.0 else fv
+    w = {k: v for k, v in w.items() if k not in disabled}  # 禁用引擎的权重不计入归一化
     total = sum(w.values())
     if total <= 0:
-        return dict(DEFAULT_WEIGHTS), 'default(non-positive)'
+        return {'weights': dict(DEFAULT_WEIGHTS), 'disabled': disabled, 'note': 'default(non-positive)'}
     norm = {k: round(v / total, 6) for k, v in w.items()}
-    return norm, ('normalized from %.4f' % total if abs(total - 1.0) > 1e-6 else 'ok')
+    return {'weights': norm, 'disabled': disabled,
+            'note': ('normalized from %.4f' % total) if abs(total - 1.0) > 1e-6 else 'ok'}
+
+
+def load_weights(path=WEIGHT_FILE, base_dir='.'):
+    """兼容旧调用：只取权重表。"""
+    c = load_config(path, base_dir)
+    return c['weights'], c['note']
 
 
 def aggregate(scores, weights=None, base_dir='.'):
@@ -104,8 +129,10 @@ def aggregate(scores, weights=None, base_dir='.'):
     返回：{'final_score','ok','engines':[{name,name_cn,score,weight,status}],
             'missing':[...],'weights':{...},'note':str}
     """
+    disabled = {}
     if weights is None:
-        weights, note = load_weights(base_dir=base_dir)
+        cfg = load_config(base_dir=base_dir)
+        weights, note, disabled = cfg['weights'], cfg['note'], cfg['disabled']
     else:
         total = sum(weights.values())
         weights = {k: round(v / total, 6) for k, v in weights.items()} if total > 0 else {}
@@ -113,6 +140,8 @@ def aggregate(scores, weights=None, base_dir='.'):
     scores = scores or {}
     present, missing = {}, []
     for name in set(list(weights.keys()) + list(scores.keys())):
+        if name in disabled:
+            continue  # 显式禁用的引擎：不参与、不摊权、不显示（不出幽灵条目）
         w = weights.get(name, 0.0)
         s = _valid_score(scores.get(name))
         if s is None:
@@ -122,7 +151,7 @@ def aggregate(scores, weights=None, base_dir='.'):
         present[name] = (s, w)
     if not present:
         return {'final_score': None, 'ok': False, 'engines': [],
-                'missing': missing, 'weights': weights,
+                'missing': missing, 'weights': weights, 'disabled': disabled,
                 'note': 'no valid engine score', 'reason': note}
 
     # 缺分引擎的权重按比例摊给其余引擎（按各自权重占比）
@@ -143,7 +172,7 @@ def aggregate(scores, weights=None, base_dir='.'):
         engines.append({'name': name, 'name_cn': engine_cn(name), 'score': None,
                         'weight': 0.0, 'status': 'missing'})
     return {'final_score': round(final, 1), 'ok': True, 'engines': engines,
-            'missing': missing, 'weights': weights, 'note': note2}
+            'missing': missing, 'weights': weights, 'disabled': disabled, 'note': note2}
 
 
 def fmt_final(result, top=3):
@@ -153,6 +182,20 @@ def fmt_final(result, top=3):
     ok = [e for e in result['engines'] if e['status'] == 'ok' and e['weight'] > 0]
     subs = '|'.join('%s%.0f' % (e['name_cn'], e['score']) for e in ok[:top])
     return '综合分%.1f（%s）' % (result['final_score'], subs)
+
+
+def upgrade_hints(weights=None, base_dir='.'):
+    """升级钩子：只提示、不改权重。
+
+    月度进化报告（工单4）调用本函数，把"条件已满足但权重仍降级"的引擎列出来。
+    当前规则：ai_composite 三个子分齐全后，建议由 0.10 升回 0.30。
+    """
+    w = weights if weights is not None else load_config(base_dir=base_dir)['weights']
+    hints = []
+    if 'ai_composite' in w and w['ai_composite'] < 0.299:
+        hints.append('ai_composite 当前 %.2f，低于降级前 0.30：若 force/九重/六维 三子分已齐全，'
+                     '建议升回 0.30（需人工确认，脚本不自动改）' % w['ai_composite'])
+    return hints
 
 
 def log_append(result, code='', name='', slot='', base_dir='.'):

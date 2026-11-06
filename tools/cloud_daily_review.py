@@ -8753,6 +8753,46 @@ def _quote_card(sg):
     return sg
 
 
+_FINAL_BRIDGE = None
+_FINAL_BRIDGE_TRIED = False
+
+
+def _final_pair(code, name, bars, q, ctx, auction_score=None):
+    """统一评分仲裁（工单1）：返回 (final_score, 子分串)。
+
+    桥或聚合层任何异常都返回 (None, '')，卡片退回原有格式，绝不阻断推送。
+    只做计算，不推送、不写账本。
+    """
+    global _FINAL_BRIDGE, _FINAL_BRIDGE_TRIED
+    if not _FINAL_BRIDGE_TRIED:
+        _FINAL_BRIDGE_TRIED = True
+        try:
+            import importlib.util as _iu
+            _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            _p = os.path.join(_root, 'tools', 'cloud_score_bridge.py')
+            _sp = _iu.spec_from_file_location('qm_score_bridge', _p)
+            _md = _iu.module_from_spec(_sp)
+            _sp.loader.exec_module(_md)
+            _FINAL_BRIDGE = _md
+        except Exception as e:
+            print('[final] 评分桥加载失败: %s' % str(e)[:70])
+    if _FINAL_BRIDGE is None:
+        return None, ''
+    try:
+        out = _FINAL_BRIDGE.score_all(
+            code, name or '', bars=bars, quote=q, ctx=ctx,
+            auction_score=auction_score,
+            base_dir=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        agg = out.get('agg') or {}
+        subs = '|'.join('%s%.0f' % (e['name_cn'], e['score'])
+                        for e in (agg.get('engines') or [])
+                        if e.get('status') == 'ok' and e.get('weight', 0) > 0)
+        return agg.get('final_score'), subs
+    except Exception as e:
+        print('[final] %s 合成失败: %s' % (code, str(e)[:70]))
+        return None, ''
+
+
 def _factor_for_spot(sg, d):
     """盘中异动票的因子体检（情绪/量价 + 硬闸）。任何异常返回 None，卡片退回原样。
     K线走 get_klines（已带东财 fallback），量比在腾讯 f43 为 0（涨停封板）时用 当日量/5日均量 自算。"""
@@ -8817,13 +8857,19 @@ def _factor_for_spot(sg, d):
               'tc': tc.get('score'), 'dl': dl.get('score')}
         comb = _fe.combine(auction_score=None, factor_scores=fs,
                    weights=_factor_weights())
+        fin, subs = _final_pair(code, sg.get('n') or sg.get('name') or '', bars, q,
+                                {'today': _today, 'lu': dd.get('lu'), 'zb': dd.get('zb'),
+                                 'max_lbc': dd.get('max_lbc'), 'sec': _sec,
+                                 'theme_heat': _heat}, auction_score=None)
         line = _fe.fmt_full_line(auction_score=None, jq=fs['jq'], lj=fs['lj'],
                                  zj=fs['zj'], tc=fs['tc'], dl=fs['dl'],
                                  factor_total=comb.get('factor_total'),
                                  combined=comb.get('combined'),
-                                 veto=vt.get('reasons'))
+                                 veto=vt.get('reasons'),
+                                 final=fin, final_subs=subs)
         return {'jq': fs['jq'], 'lj': fs['lj'], 'zj': fs['zj'], 'tc': fs['tc'], 'dl': fs['dl'],
                 'total': comb.get('factor_total'), 'combined': comb.get('combined'),
+                'final': fin, 'final_subs': subs,
                 'vetoed': bool(vt.get('vetoed')), 'reasons': vt.get('reasons') or [],
                 'unknown': vt.get('unknown') or [], 'line': line}
     except Exception as e:
@@ -8878,18 +8924,23 @@ def _factor_for_auction(s, heat, cnt, jq_res=None):
               'zj': zj.get('score'), 'tc': tc.get('score'), 'dl': dl.get('score')}
         comb = _fe.combine(auction_score=s.get('score'), factor_scores=fs,
                    weights=_factor_weights())
+        fin, subs = _final_pair(code, s.get('name') or '', bars, q,
+                                {'today': _today, 'sec': _sec, 'theme_heat': heat,
+                                 'max_lbc': s.get('lbc')}, auction_score=s.get('score'))
         line = _fe.fmt_full_line(auction_score=s.get('score'),
                                  jq=fs['jq'], lj=fs['lj'], zj=fs['zj'],
                                  tc=fs['tc'], dl=fs['dl'],
                                  factor_total=comb.get('factor_total'),
                                  combined=comb.get('combined'),
-                                 veto=vt.get('reasons'))
+                                 veto=vt.get('reasons'),
+                                 final=fin, final_subs=subs)
         miss = []
         for _nm, _r in (('情绪', jq_res), ('量价', lj), ('资金', zj), ('题材', tc), ('动量', dl)):
             if _r and _r.get('missing'):
                 miss.append('%s:%s' % (_nm, ','.join(_r['missing'])))
         return {'jq': fs['jq'], 'lj': fs['lj'], 'zj': fs['zj'], 'tc': fs['tc'], 'dl': fs['dl'],
                 'total': comb.get('factor_total'), 'combined': comb.get('combined'),
+                'final': fin, 'final_subs': subs,
                 'vetoed': bool(vt.get('vetoed')), 'reasons': vt.get('reasons') or [],
                 'unknown': vt.get('unknown') or [], 'missing': miss, 'line': line}
     except Exception as e:

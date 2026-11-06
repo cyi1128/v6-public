@@ -119,12 +119,50 @@ def _score_ai_520(code, name, bars, quote, ctx, base_dir):
 
 
 def _score_nine(code, name, bars, quote, ctx, base_dir):
-    """九重评分：依赖 numpy；云端未装则如实报 unavailable。"""
-    try:
-        import numpy  # noqa: F401
-    except Exception:
-        return None, '需要 numpy（云端运行时未安装第三方包）'
-    return None, '九重参数映射未接（score_fund/trend/sentiment 入参需按云端数据重构）'
+    """九重评分：numpy 已装后真跑；入参由日K + 快照 + 市场上下文推出。"""
+    mod = _load('strategy/nine_score_engine.py', 'qm_nine')
+    if mod is None:
+        return None, 'nine_score 文件缺失'
+    k = _bars_to_dicts(bars)
+    if len(k) < 20:
+        return None, 'K线不足20根'
+    closes = [x['close'] for x in k]
+    vols = [x['volume'] for x in k]
+    ma5 = sum(closes[-5:]) / 5
+    ma10 = sum(closes[-10:]) / 10
+    ma20 = sum(closes[-20:]) / 20
+    avg5 = sum(vols[-6:-1]) / 5
+    vr = (vols[-1] / avg5) if avg5 > 0 else 1.0
+    c = ctx or {}
+    fund = {'volume_ratio': round(vr, 2),
+            'turnover_rate': _num((quote or {}).get('turn')) or 0.0}
+    trend = {'ma_alignment': bool(closes[-1] > ma5 > ma10 > ma20),
+             'ma5_above_ma10': bool(ma5 > ma10),
+             'price_above_ma20': bool(closes[-1] > ma20)}
+    sent = {'market_cycle': c.get('market_cycle') or '混沌期',
+            'consecutive_board_height': int(c.get('max_lbc') or 0),
+            'limit_up_gene': bool(c.get('limit_up_gene')),
+            'stock_in_hot_sector': bool(c.get('sec') and (c.get('theme_heat') or {}).get(c.get('sec'))),
+            'sentiment_temperature': _num(c.get('sentiment_temperature')) or 50.0}
+    r = mod.get_nine_score_engine().calculate(fund_params=fund, trend_params=trend,
+                                             sentiment_params=sent)
+    v = _num(getattr(r, 'total', None))
+    return (round(v, 2) if v is not None else None), (None if v is not None else '九重未返回总分')
+
+
+def _score_multi(code, name, bars, quote, ctx, base_dir):
+    """多因子评分：numpy+requests 已装后真跑；市场数据用引擎自带静态实现（不联网）。"""
+    mod = _load('strategy/multi_factor_scoring.py', 'qm_multi')
+    if mod is None:
+        return None, 'multi_factor 文件缺失'
+    k = _bars_to_dicts(bars)
+    if len(k) < 20:
+        return None, 'K线不足20根'
+    sc = mod.MultiFactorScorer()
+    r = sc.score({'code': str(code), 'close': k[-1]['close'], 'volume': k[-1]['volume']},
+                 k, {'code': str(code), 'name': name or ''}, [], None)
+    v = _num(r.get('total_score'))
+    return (round(v, 2) if v is not None else None), (None if v is not None else '多因子未返回总分')
 
 
 def _unavailable(reason):
@@ -137,9 +175,9 @@ _ADAPTERS = {
     'factor_engine': _score_factor_engine,
     'ai_520': _score_ai_520,
     'nine_score': _score_nine,
+    'multi_factor': _score_multi,
     'factor_score': _unavailable('依赖 data.duckdb_adapter（本地 DuckDB 库）'),
-    'multi_factor': _unavailable('依赖 numpy+requests（云端运行时未安装第三方包）'),
-    'main_force': _unavailable('依赖 jqdata_provider/tdx_data_engine（需桌面端行情源）'),
+    'main_force': _unavailable('桌面端独有（jq/tdx 行情源），云端永久摊空'),
 }
 
 

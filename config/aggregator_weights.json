@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "updated": "2026-11-06",
+  "note": "工单1 权重（2026-11-06 调整）。ai_composite 因三个子分缺失降级至 0.10；main_force 桌面端独有，云端永久摊空。",
+  "weights": {
+    "auction_v3": 0.35,
+    "factor_engine": 0.35,
+    "nine_score": 0.10,
+    "multi_factor": 0.10,
+    "ai_composite": 0.10,
+    "main_force": 0.10
+  },
+  "engines": {
+    "main_force": {
+      "enabled": false,
+      "reason": "桌面端独有, 云端永久摊空"
+    },
+    "ai_composite": {
+      "enabled": true,
+      "note": "降级合成中——六维云端版上线后升回0.30"
+    },
+    "multi_factor": {
+      "enabled": true
+    }
+  }
+}

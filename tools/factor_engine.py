@@ -548,17 +548,24 @@ def fmt_short_line(jq=None, lj=None, zj=None, tc=None, total=None, veto=None):
 
 
 def fmt_full_line(auction_score=None, jq=None, lj=None, zj=None, tc=None, dl=None,
-                  factor_total=None, combined=None, veto=None):
+                  factor_total=None, combined=None, veto=None,
+                  final=None, final_subs=None):
     """用户锁定规格的完整卡格式：
         竞价分67 | 因子分72(情绪85/量价68/资金55/题材80) | 综合69
         veto 非空时追加：| ⛔已否决：原因
     缺项自动省略，不会出现空括号。
+
+    工单1（2026-11-06）：卡顶部唯一最终分 final（评分仲裁层合成），
+    此时不再输出旧的「综合XX」，避免多个总分各说各话。
     """
     inner = []
     for label, v in (('情绪', jq), ('量价', lj), ('资金', zj), ('题材', tc), ('动量', dl)):
         if v is not None:
             inner.append('%s%.0f' % (label, v))
     segs = []
+    fn = _f(final)
+    if fn is not None:
+        segs.append('综合分%.1f%s' % (fn, ('（%s）' % final_subs) if final_subs else ''))
     a = _f(auction_score)
     if a is not None:
         segs.append('竞价分%.0f' % a)
@@ -569,7 +576,7 @@ def fmt_full_line(auction_score=None, jq=None, lj=None, zj=None, tc=None, dl=Non
         else:
             segs.append('因子分%.0f' % ft)
     cb = _f(combined)
-    if cb is not None:
+    if cb is not None and fn is None:
         segs.append('综合%.0f' % cb)
     line = ' | '.join(segs)
     if veto:
