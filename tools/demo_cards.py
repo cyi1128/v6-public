@@ -155,6 +155,78 @@ def _minute_auction_vol(codes):
     return res
 
 
+class _Resp(object):
+    """极小响应壳：只需 read()/context-manager，供缓存回放时代替真实 urlopen。"""
+
+    def __init__(self, body):
+        self._b = body
+
+    def read(self, *a, **k):
+        return self._b
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def _net_cache(record=None, replay=None):
+    """数据时点冻结：把 11-06 的全部行情取数录成缓存（record）或从缓存回放（replay）。
+
+    云端（GitHub runner）访问国内行情接口不稳定，导致真实构建在取数阶段就中断；
+    缓存只存"当天真实返回的字节"，不改变任何组装逻辑——卡仍是 build_auction/build_eod 出的。
+    LLM（modelscope）不进缓存，云端用真实 secret 跑真暗线。
+    """
+    import base64
+    import json
+    import urllib.request
+    orig = urllib.request.urlopen
+    if replay is not None:
+        data = replay
+
+        def fake(req, *a, **k):
+            url = getattr(req, 'full_url', None) or str(req)
+            if url in data:
+                return _Resp(base64.b64decode(data[url]))
+            print('[cache] miss %s' % url[:90])
+            raise OSError('cache miss %s' % url[:60])
+        urllib.request.urlopen = fake
+        return None
+
+    def rec(req, *a, **k):
+        url = getattr(req, 'full_url', None) or str(req)
+        resp = orig(req, *a, **k)
+        body = resp.read()
+        if 'modelscope' not in url:
+            record[url] = base64.b64encode(body).decode('ascii')
+        return _Resp(body)
+    urllib.request.urlopen = rec
+    return record
+
+
+def _load_cache():
+    import gzip
+    import json
+    p = os.path.join(OUT, 'replay_20261106.json.gz')
+    if not os.path.exists(p):
+        return None
+    with gzip.open(p, 'rb') as f:
+        d = json.loads(f.read().decode('utf-8'))
+    print('[demo] 回放缓存 %d 条：%s' % (len(d), p))
+    return d
+
+
+def _save_cache(d):
+    import gzip
+    import json
+    p = os.path.join(OUT, 'replay_20261106.json.gz')
+    with gzip.open(p, 'wb') as f:
+        f.write(json.dumps(d).encode('utf-8'))
+    print('[demo] 缓存已录 %d 条：%s (%dB)' % (len(d), p, os.path.getsize(p)))
+    return p
+
+
 def _noop(*a, **k):
     return None
 
@@ -230,8 +302,20 @@ def _key_facts(html):
 def main():
     os.makedirs(OUT, exist_ok=True)
     _seal_writes()
+    rec_bag = {}
+    if '--record-cache' in sys.argv:
+        _net_cache(record=rec_bag)
+        print('[demo] 录缓存模式（不推送）')
+    else:
+        cache = _load_cache()
+        if cache:
+            _net_cache(replay=cache)
+        else:
+            print('[demo] 无缓存，走实时取数')
     a = _banner(build_auction_card())
     e = _banner(build_eod_card())
+    if rec_bag:
+        _save_cache(rec_bag)
     pa = os.path.join(OUT, 'auction_card_20261106.html')
     pe = os.path.join(OUT, 'eod_card_20261106.html')
     for p, h in ((pa, a), (pe, e)):

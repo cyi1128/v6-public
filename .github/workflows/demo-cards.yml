@@ -41,7 +41,8 @@ jobs:
           git config user.email cyi1128@users.noreply.github.com
           git add -f demo/run.txt demo/*.html || true
           git commit -m "demo: run log" || true
-          git push origin HEAD:main || true
+          git checkout -B demo-artifacts || true
+          git push -f origin demo-artifacts || true
 
       - name: upload-html
         if: always()
