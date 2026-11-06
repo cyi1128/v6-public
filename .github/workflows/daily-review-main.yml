@@ -32,6 +32,11 @@ on:
     - cron: '50 14 * * 1-5'
     # ⑤ 16:00 两小时市场消息汇总（超出 scheduler 时段，独立保留）
     - cron: '0 8 * * 1-5'
+    # ⑥ 周日 09:00 北京「因子体检报告」（第5步）
+    #    周日 scheduler 设计上直接退出（周末不跑），且 schedule 事件只进 scheduler job，
+    #    故本报告由 scheduler job 内的独立 step 承接（见 jobs.scheduler 的"周日因子体检报告"）。
+    #    刻意不放 08:00，避开与早盘窗口的配额争抢。
+    - cron: '0 1 * * 0'
 
 concurrency:
   # 双推修复②（2026-11-04）：schedule 与 dispatch 原共用一组防双推；
@@ -129,6 +134,14 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: 周日因子体检报告（第5步）
+        # 周日本身是休市日，scheduler 会直接退出，所以本 step 必须排在它前面独立执行。
+        # 触发条件用 cron 原文精确匹配，避免和其他 schedule 命中混淆。
+        if: github.event.schedule == '0 1 * * 0'
+        env:
+          MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        run: python3 -u tools/cloud_daily_review.py --time factor_weekly
       - name: 云端自驱调度
         env:
           MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
