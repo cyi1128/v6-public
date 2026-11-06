@@ -35,6 +35,12 @@ try:
     _RESON_OK = True
 except Exception as _re:
     _RESON_OK = False  # 共振引擎缺失/异常时全部降级，不阻断推送
+try:
+    import factor_engine as _fe
+    _FACTOR_OK = True
+except Exception as _fe_err:
+    _fe = None
+    _FACTOR_OK = False   # 因子引擎缺失时因子行静默不显示，不阻断推送
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -252,13 +258,21 @@ def _qt(code):
                     avg = None
                 if avg:
                     break
+        def _fv(i):
+            try:
+                return float(f[i] or 0) if len(f) > i else 0.0
+            except ValueError:
+                return 0.0
+        # f[7]外盘 / f[8]内盘 / f[44]流通市值(亿) / f[38]换手率%：只增字段不改旧键，不影响既有调用方
+        _o, _i2, _cp, _tn = _fv(7), _fv(8), _fv(44), _fv(38)
         try:
             return {'price': float(f[3]), 'pct': float(f[32]), 'open': float(f[5]),
                     'prev': float(f[4]), 'lb': float(f[43] or 0), 'vol': float(f[6] or 0),
-                    'avg': avg}
+                    'avg': avg, 'out': _o, 'in': _i2, 'cap': _cp, 'turn': _tn}
         except ValueError:
             return {'price': float(f[3]), 'pct': float(f[32]), 'open': float(f[5]),
-                    'prev': float(f[4]), 'lb': 0.0, 'vol': float(f[6] or 0), 'avg': avg}
+                    'prev': float(f[4]), 'lb': 0.0, 'vol': float(f[6] or 0), 'avg': avg,
+                    'out': _o, 'in': _i2, 'cap': _cp, 'turn': _tn}
     return None
 
 
@@ -5185,6 +5199,15 @@ def build_auction(title='竞价观察'):
     wind_weak = _ds_res.get('wind_weak') or ''
     emotion = _emotion_from_pools(d)
     # （用户指令：已删除「🤖 竞价深挖总结」ds_block 与「🧭 今日整体」overall 两段；卡面改为模板型速判结构）
+    # —— 因子引擎（第3步）：情绪分是市场级指标，全票相同，算一次复用 ——
+    _jq_res = None
+    if _FACTOR_OK:
+        try:
+            _jq_res = _fe.score_emotion(lu=_lu, zb=_zb,
+                                        max_lbc=(d or {}).get('max_lbc'),
+                                        yest_premium_pct=None)
+        except Exception as _je:
+            print(f'[factor-auction] 情绪分异常 {str(_je)[:60]}')
     rows = ''
     for i, s in enumerate(tops, 1):
         buy_low = round(max(0.0, s['price'] * 0.995), 2)
@@ -5201,10 +5224,18 @@ def build_auction(title='竞价观察'):
         else:
             # LLM 未返回时只给数据事实行，绝不落回规则模板句（8项强制修复④）
             _deep_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 数据事实：{s['industry']}竞价高开{s['pct']:+.1f}%、量比{s['lb']:.1f}、{brk_txt}、得分{s['score']:.0f}、共振{s.get('_reson', 0)}。AI 深挖未返回，未给建议，等盘中解读。</div>""")
+        _fl_line = ''
+        if _FACTOR_OK and _jq_res is not None:
+            _fres = _factor_for_auction(s, heat, cnt, _jq_res)
+            if _fres:
+                _fcol = '#ff6b6b' if _fres.get('vetoed') else '#8ce99a'
+                _fwt = '700' if _fres.get('vetoed') else '400'
+                _fl_line = (f'<div style="color:{_fcol};font-size:12px;margin-top:4px;font-weight:{_fwt};">'
+                            f'🔬 因子：{_fres["line"]}</div>')
         rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD if s['score'] >= 70 else TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
 <div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分 ｜ 共振 {s.get('_reson', 0)}</span></div>
 <div style="color:{GREY};font-size:12px;">竞价高开 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 竞价量比(归一) {s.get('_vr', 0):.2f} ｜ 共振 <b style="color:{GOLD if (s.get('_reson') or 0) >= 60 else TEAL}">{s.get('_reson', 0)}</b>（{s.get('_reson_det', '—')}）｜ 题材：{s['industry']}{f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else ''}</div>
-{_deep_html}</div>"""
+{_deep_html}{_fl_line}</div>"""
     # —— Top3 重点点评（v3）——
     top3_txt = ''
     if tops:
@@ -6879,7 +6910,7 @@ def build_eod():
              + build_events('eod') + sec6 + _pool_today
              + pos_cap_line(sentiment(idx, d)[0], hl)
              + (f'<div style="margin-top:6px;font-size:12px;color:{GREY};">{_st_line}</div>' if _st_line else '')
-             + _reson_sec + _miss_block)
+             + _factor_board_top(d) + _reson_sec + _miss_block)
     return _wrap(inner, '🌆', '收盘复盘')
 
 
@@ -8283,11 +8314,234 @@ def _quote_card(sg):
     return sg
 
 
+def _factor_for_spot(sg, d):
+    """盘中异动票的因子体检（情绪/量价 + 硬闸）。任何异常返回 None，卡片退回原样。
+    K线走 get_klines（已带东财 fallback），量比在腾讯 f43 为 0（涨停封板）时用 当日量/5日均量 自算。"""
+    if not _FACTOR_OK or not isinstance(sg, dict):
+        return None
+    code = str(sg.get('code') or '')
+    if len(code) != 6:
+        return None
+    try:
+        sym = ('sh' if code.startswith('6') else ('bj' if code.startswith(('4', '8')) else 'sz')) + code
+        bars = get_klines(sym, 130)
+        _today = _bj_now().strftime('%Y-%m-%d')
+        bars_ex = [r for r in (bars or []) if str(r[0]) != _today]
+        vol_avg5 = None
+        if len(bars_ex) >= 5:
+            vs = [float(r[5]) for r in bars_ex[-5:] if float(r[5]) > 0]
+            vol_avg5 = sum(vs) / len(vs) if len(vs) == 5 else None
+        q = _qt(sym) or {}
+        _lb = q.get('lb') if q.get('lb') else sg.get('lb')
+        _vol = q.get('vol') if q.get('vol') else sg.get('vol')
+        pv = _fe.score_price_volume(bars=bars, lb=_lb,
+                                    vol_today=_vol, vol_avg5=vol_avg5)
+        dd = d or {}
+        emo = _fe.score_emotion(lu=dd.get('lu'), zb=dd.get('zb'),
+                                max_lbc=dd.get('max_lbc'), yest_premium_pct=None)
+        _lbc = sg.get('lbc')
+        if not _lbc and bars_ex:
+            # 盘中卡拿不到连板数时，从日K推连续涨停天数（主板≥9.5%，创业板/科创≥19.5%）
+            _thr = 9.5 if code.startswith(('60', '00')) else 19.5
+            _n = 0
+            for _i in range(len(bars_ex) - 1, 0, -1):
+                try:
+                    _p0 = float(bars_ex[_i - 1][2])
+                    _p1 = float(bars_ex[_i][2])
+                except (TypeError, ValueError):
+                    break
+                if _p0 > 0 and (_p1 / _p0 - 1) * 100 >= _thr:
+                    _n += 1
+                else:
+                    break
+            _lbc = _n or None
+        vt = _fe.veto_check(name=sg.get('n') or sg.get('name'), code=code,
+                            float_cap_yi=sg.get('float_cap') or sg.get('cap') or q.get('cap'),
+                            lbc=_lbc, turnover_pct=sg.get('turn') or q.get('turn'),
+                            list_days=None, bars=bars_ex,
+                            price=sg.get('cur') or sg.get('price'))
+        comb = _fe.combine(auction_score=None,
+                           factor_scores={'jq': emo.get('score'), 'lj': pv.get('score')},
+                           weights={'jq': 0.5, 'lj': 0.5})
+        return {'jq': emo.get('score'), 'lj': pv.get('score'), 'total': comb.get('factor_total'),
+                'vetoed': bool(vt.get('vetoed')), 'reasons': vt.get('reasons') or [],
+                'unknown': vt.get('unknown') or []}
+    except Exception as e:
+        print(f'[factor] {code} 计算失败: {str(e)[:60]}')
+        return None
+
+
+def _factor_for_auction(s, heat, cnt, jq_res=None):
+    """竞价观察卡的因子摘要。复用 _calc_resonance 已缓存的 s['_bars']（零成本，不重复拉 K 线）。
+
+    情绪分是市场级指标，所有票相同 → 由调用方算一次传入 jq_res 复用。
+    涨停票自动置 is_limit_up：腾讯快照封板时 f[7]外盘归零，内外盘差会假跌到 -1.0，
+    该函数据此把内外盘项标「缺」按中性，避免最强连板票被判成最差资金流。
+    返回 {'jq','lj','zj','tc','dl','total','combined','vetoed','reasons','unknown','line'}；异常返回 None。
+    """
+    if not _FACTOR_OK or not isinstance(s, dict):
+        return None
+    try:
+        code = str(s.get('code') or '')
+        if len(code) != 6:
+            return None
+        bars = list(s.get('_bars') or [])
+        if len(bars) < 20:
+            return None
+        _today = _bj_now().strftime('%Y-%m-%d')
+        bars_ex = [r for r in bars if str(r[0]) != _today] or bars
+        vol_avg5 = None
+        if len(bars_ex) >= 5:
+            try:
+                vs = [float(x[5]) for x in bars_ex[-5:]]
+                vol_avg5 = sum(vs) / len(vs) if len(vs) == 5 else None
+            except (TypeError, ValueError):
+                vol_avg5 = None
+        q = s.get('_q') or _qt(('sh' if code.startswith('6') else
+                                ('bj' if code.startswith(('4', '8')) else 'sz')) + code) or {}
+        _lb = q.get('lb') if q.get('lb') else s.get('lb')
+        _vol = q.get('vol') if q.get('vol') else None
+        lj = _fe.score_price_volume(bars=bars_ex, lb=_lb, vol_today=_vol, vol_avg5=vol_avg5)
+        # 涨停判定：用当日涨幅（含竞价高开）判断是否封板
+        _pct = float(s.get('pct') or 0)
+        _is_lu = (_pct >= 9.5) if code.startswith(('60', '00')) else (_pct >= 19.5)
+        zj = _fe.score_fund(out_vol=q.get('out'), in_vol=q.get('in'),
+                            bars=bars_ex, is_limit_up=_is_lu)
+        dl = _fe.score_momentum(bars=bars_ex)
+        _sec = _sec_clean(s.get('industry') or '') or '其他'
+        tc = _fe.score_theme(theme_heat=(heat or {}).get(_sec), relation='实受益')
+        vt = _fe.veto_check(name=s.get('name'), code=code,
+                            float_cap_yi=s.get('cap') or q.get('cap'),
+                            lbc=s.get('lbc'), turnover_pct=s.get('turn') or q.get('turn'),
+                            list_days=None, bars=bars_ex, price=s.get('price'))
+        fs = {'jq': (jq_res or {}).get('score'), 'lj': lj.get('score'),
+              'zj': zj.get('score'), 'tc': tc.get('score'), 'dl': dl.get('score')}
+        comb = _fe.combine(auction_score=s.get('score'), factor_scores=fs,
+                           weights=_fe.WEIGHTS_SHORT)
+        line = _fe.fmt_full_line(auction_score=s.get('score'),
+                                 jq=fs['jq'], lj=fs['lj'], zj=fs['zj'],
+                                 tc=fs['tc'], dl=fs['dl'],
+                                 factor_total=comb.get('factor_total'),
+                                 combined=comb.get('combined'),
+                                 veto=vt.get('reasons'))
+        miss = []
+        for _nm, _r in (('情绪', jq_res), ('量价', lj), ('资金', zj), ('题材', tc), ('动量', dl)):
+            if _r and _r.get('missing'):
+                miss.append('%s:%s' % (_nm, ','.join(_r['missing'])))
+        return {'jq': fs['jq'], 'lj': fs['lj'], 'zj': fs['zj'], 'tc': fs['tc'], 'dl': fs['dl'],
+                'total': comb.get('factor_total'), 'combined': comb.get('combined'),
+                'vetoed': bool(vt.get('vetoed')), 'reasons': vt.get('reasons') or [],
+                'unknown': vt.get('unknown') or [], 'missing': miss, 'line': line}
+    except Exception as e:
+        print(f'[factor-auction] {s.get("code")} 计算失败: {str(e)[:60]}')
+        return None
+
+
+def _factor_board_top(d, topn=10, pool=15):
+    """收盘复盘「当日因子榜 TOP10」：当日涨停池按连板数降序取前 pool 只算因子，按因子总分排序取 topn。
+
+    规格要求「被否决票不得悄悄过滤」→ 被否决的照样入榜，用红色左边框 + ⛔原因标出。
+    任何异常返回 ''，绝不阻断收盘复盘推送。
+    """
+    if not _FACTOR_OK or not isinstance(d, dict):
+        return ''
+    try:
+        cand = []
+        for _sec, _sts in (d.get('sectors') or {}).items():
+            for st in (_sts or []):
+                _c = str(st.get('c') or '')
+                if len(_c) != 6:
+                    continue
+                cand.append({'code': _c, 'name': st.get('n') or st.get('name') or _c,
+                             'lbc': int(st.get('lbc') or 0), 'sec': _sec})
+        cand.sort(key=lambda x: -x['lbc'])
+        cand = cand[:pool]
+        if not cand:
+            print('[factor-board] 涨停池为空，跳过因子榜')
+            return ''
+        heat = {}
+        for _n, _s in (d.get('tops') or []):
+            try:
+                heat[_n] = min(100, len(_s) * 20)
+            except TypeError:
+                continue
+        jq = _fe.score_emotion(lu=d.get('lu'), zb=d.get('zb'),
+                               max_lbc=d.get('max_lbc'), yest_premium_pct=None)
+        out = []
+        _today = _bj_now().strftime('%Y-%m-%d')
+        for c0 in cand:
+            try:
+                sym = ('sh' if c0['code'].startswith('6') else
+                       ('bj' if c0['code'].startswith(('4', '8')) else 'sz')) + c0['code']
+                bars = get_klines(sym, 40)
+                if not bars or len(bars) < 20:
+                    continue
+                bars_ex = [x for x in bars if str(x[0]) != _today] or bars
+                q = _qt(sym) or {}
+                lj = _fe.score_price_volume(bars=bars_ex, lb=q.get('lb'))
+                # 涨停池里的票必然封板：外盘 f[7] 归零，置 is_limit_up 让内外盘项标缺按中性
+                zj = _fe.score_fund(out_vol=q.get('out'), in_vol=q.get('in'),
+                                    bars=bars_ex, is_limit_up=True)
+                dl = _fe.score_momentum(bars=bars_ex)
+                tc = _fe.score_theme(theme_heat=heat.get(c0['sec']), relation='实受益')
+                vt = _fe.veto_check(name=c0['name'], code=c0['code'],
+                                    float_cap_yi=q.get('cap'), lbc=c0['lbc'],
+                                    turnover_pct=q.get('turn'), bars=bars_ex)
+                fs = {'jq': jq.get('score'), 'lj': lj.get('score'), 'zj': zj.get('score'),
+                      'tc': tc.get('score'), 'dl': dl.get('score')}
+                comb = _fe.combine(auction_score=None, factor_scores=fs,
+                                   weights=_fe.WEIGHTS_SHORT)
+                out.append({'name': c0['name'], 'code': c0['code'], 'lbc': c0['lbc'],
+                            'sec': c0['sec'], 'total': comb.get('factor_total') or 0,
+                            'fs': fs, 'vetoed': bool(vt.get('vetoed')),
+                            'reasons': vt.get('reasons') or []})
+            except Exception as _ce:
+                print('[factor-board] %s %s' % (c0.get('code'), str(_ce)[:40]))
+                continue
+        if not out:
+            return ''
+        out.sort(key=lambda x: -x['total'])
+        rr = ''
+        for i, o in enumerate(out[:topn], 1):
+            _col = '#ff6b6b' if o['vetoed'] else '#8ce99a'
+            _vt = ('｜⛔%s' % '、'.join(o['reasons'])) if o['vetoed'] else ''
+            rr += (f'<div style="background:#1f2635;border-left:3px solid {_col};border-radius:8px;'
+                   f'padding:8px 11px;margin:5px 0;">'
+                   f'<div style="font-size:13px;font-weight:700;color:#fff;">{i}. {o["name"]} '
+                   f'<span style="color:{GREY};font-size:11px;">{o["code"]}</span>'
+                   f'<span style="color:{GOLD};float:right;">{o["total"]:.0f}分</span></div>'
+                   f'<div style="color:{GREY};font-size:11px;">{o["lbc"]}板｜{o["sec"]}｜'
+                   f'情绪{o["fs"]["jq"]:.0f} 量价{o["fs"]["lj"]:.0f} 资金{o["fs"]["zj"]:.0f} '
+                   f'题材{o["fs"]["tc"]:.0f} 动量{o["fs"]["dl"]:.0f}{_vt}</div></div>')
+        return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">'
+                '🏆 当日因子榜 TOP%d（按因子总分排序，被否决票照样入榜并标原因）</div>%s' % (topn, rr))
+    except Exception as e:
+        print('[factor-board] %s' % str(e)[:60])
+        return ''
+
+
 def _watch_card(sg, mscore, ds_plain=None):
     """可操作信号卡（小白友好版）：强度等级 + 大白话理由 + 当前价/买入区间/止损 + 仓位 + 做T思路 + 风险提示。
     大白话优先 DS 动态生成（ds_plain），回退 sg['why'] 规则模板。"""
     st_lv, st_txt = _strength(sg)
     st_color = {'S': RED, 'A': GOLD, 'B': GREY}[st_lv]
+    _f = sg.get('_factor')
+    if isinstance(_f, dict):
+        _segs = []
+        if _f.get('jq') is not None:
+            _segs.append('情绪%.0f' % _f['jq'])
+        if _f.get('lj') is not None:
+            _segs.append('量价%.0f' % _f['lj'])
+        _tot = ('｜综合%.0f' % _f['total']) if _f.get('total') is not None else ''
+        if _f.get('vetoed'):
+            _factor_line = ('<div style="color:#ff6b6b;font-size:12px;margin-top:4px;font-weight:700;">'
+                            '⛔ 因子体检：%s%s｜已否决：%s</div>'
+                            % ('/'.join(_segs), _tot, '、'.join(_f.get('reasons') or []) or '见原因'))
+        else:
+            _factor_line = ('<div style="color:#8ce99a;font-size:12px;margin-top:4px;">'
+                            '🔬 因子体检：%s%s ✓无否决</div>' % ('/'.join(_segs), _tot))
+    else:
+        _factor_line = ''
     fit = ('情绪偏多/中性，可积极' if mscore >= 55 else '情绪偏弱，谨慎、仓位减半')
     t_tgt = sg.get('t_target', '冲高+3%~+5%')          # 做T目标（可配置常量 WATCH_T_TARGET）
     risk = sg.get('risk', '破位-3%无条件止损，不补仓。')
@@ -8327,6 +8581,7 @@ def _watch_card(sg, mscore, ds_plain=None):
     return f"""<div style="background:#2a1518;border:2px solid {RED};border-radius:12px;padding:12px 14px;margin:10px 0;">
 <div style="font-size:17px;font-weight:900;color:{RED};">⚡ {sg['n']}（{sg['code']}）· {sg['type']} <span style="background:{st_color};color:#161b26;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:700;">{_head_txt}</span></div>
 <div style="color:#fff;font-size:13px;margin-top:6px;">所属题材：{(_dsp.get('theme') if _llm_ok and _dsp.get('theme') else sg['sec'])}｜得分 <b style="color:{GOLD}">{sg['score']}/10</b>{sg.get('life', '')}</div>
+{_factor_line}
 {_ai_block}
 <div style="color:{TEAL};font-size:13px;margin-top:6px;">💰 当前价 <b>{sg.get('cur', '—')}</b> ｜ 建议买入区间 <b style="color:{GOLD}">{_buy_txt}</b></div>
 <div style="color:{GREEN};font-size:13px;margin-top:3px;">🛑 止损 <b>{_stop_txt}</b></div>
@@ -9814,6 +10069,7 @@ def build_watch():
     sel = _cards_tmp
     for _, sg in sel:
         sg['life'] = life_badge(sg.get('sec', ''), d, mem, days)  # 模块8 生命周期徽标
+        sg['_factor'] = _factor_for_spot(sg, d)  # 因子体检（情绪/量价+硬闸），失败为 None 不影响卡片
     ds_plain = _spot_ds([sg for _, sg in sel], mem, days, today_top=_today_top(d)) if sel else {}
     _spot_gl = ''
     if isinstance(ds_plain, dict):
