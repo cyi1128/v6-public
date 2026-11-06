@@ -7346,6 +7346,7 @@ _FW_WIN_HI = 0.60     # 胜率 >60% 视为该因子能打
 _FW_WIN_LO = 0.45     # 胜率 <45% 视为该因子不灵
 _FW_STEP = 0.05       # 每次调 5 个点
 _FW_MIN, _FW_MAX = 0.10, 0.40
+_FW_MIN_SAMPLES = 30   # 样本硬门槛：已回填 <30 笔只报「数据不足」，不出胜率、不累计调权
 _FW_FACTORS = ('jq', 'lj', 'zj', 'tc', 'dl')
 _FW_LABEL = {'jq': '情绪', 'lj': '量价', 'zj': '资金', 'tc': '题材', 'dl': '动量'}
 
@@ -7462,6 +7463,11 @@ def _fw_apply(days=7, thresh=70):
     low = dict(st.get('low_streak') or {})
     high = dict(st.get('high_streak') or {})
     s = _fw_stats(days, thresh)
+    if (s.get('n') or 0) < _FW_MIN_SAMPLES:
+        return w, [], s   # 样本不足：原权重原样返回，不累计 streak、不动权重
+    wk = _bj_now().strftime('%Y-%W')
+    if st.get('last_week') == wk:
+        return w, [], s   # 本周已结算过：同日/同周重复运行不再累计 streak（否则"连续2周"被重跑凑满）
     changes = []
     for k in _FW_FACTORS:
         wr = (s.get('factors', {}).get(k) or {}).get('hi_win')
@@ -7505,6 +7511,7 @@ def _fw_apply(days=7, thresh=70):
                  'win_rate': s.get('win_rate'),
                  'factors': {k: (s.get('factors', {}).get(k) or {}).get('hi_win') for k in _FW_FACTORS}})
     st['history'] = hist
+    st['last_week'] = wk
     # 必须每周都落盘：连续计数（streak）靠它跨周累积。
     # 只在「有变更」时才写会导致 streak 永远到不了 2，"连续2周"规则形同虚设（实测暴露）。
     _fw_save(st)
@@ -7529,17 +7536,25 @@ def build_factor_weekly():
     if not _FACTOR_OK:
         return ''
     try:
+        s = _fw_stats(7)
+    except Exception as e:
+        print(f'[fw] 统计异常 {e}')
+        return ''
+    n = s.get('n') or 0
+    if n < _FW_MIN_SAMPLES:
+        note = ('本周还没有「已回填」的信号。' if n == 0
+                else f'本周「已回填」样本只有 {n} 笔。')
+        inner = (f'<div style="color:{GREY};font-size:14px;line-height:1.7;">'
+                 f'{note}<br>样本未达 <b style="color:#ffb020;">{_FW_MIN_SAMPLES} 笔</b> 门槛 → '
+                 f'只报数据不足，不出胜率结论、也不动权重（样本太少会被噪声带偏）。<br>'
+                 f'signal_log 要等推送后第 5 个交易日收盘才算得出胜负，第一份成绩单需跑满 5 个交易日。<br>'
+                 f'全部记录见 data/signal_log.csv。</div>')
+        return _wrap(inner, '📊', '因子体检报告')
+    try:
         w, changes, s = _fw_apply(7)
     except Exception as e:
         print(f'[fw] 调权异常 {e}')
         return ''
-    n = s.get('n') or 0
-    if n == 0:
-        inner = (f'<div style="color:{GREY};font-size:14px;line-height:1.7;">'
-                 f'本周还没有「已回填」的信号。<br>signal_log 需要推送后第 5 个交易日收盘才能算出胜负，'
-                 f'所以第一份成绩单要等记录跑满 5 个交易日。<br>'
-                 f'当前已落库记录：{len(_fw_week_rows(7)[0])} 条已回填 / 全部记录见 data/signal_log.csv。</div>')
-        return _wrap(inner, '📊', '因子体检报告')
     wr = s.get('win_rate') or 0
     av = s.get('avg_ret')
     _wcol = '#52c41a' if wr >= _FW_WIN_HI else ('#ffb020' if wr >= _FW_WIN_LO else '#ff6b6b')
