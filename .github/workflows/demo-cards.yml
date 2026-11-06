@@ -30,15 +30,15 @@ jobs:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
           mkdir -p demo
-          python -u tools/demo_cards.py --push > demo/run.log 2>&1 || echo "EXIT=$?" >> demo/run.log
-          cat demo/run.log
+          python -u tools/demo_cards.py --push > demo/run.txt 2>&1 || echo "EXIT=$?" >> demo/run.txt
+          cat demo/run.txt
 
       - name: 回写日志
         if: always()
         run: |
           git config user.name cyi1128
           git config user.email cyi1128@users.noreply.github.com
-          git add demo/run.log demo/*.html || true
+          git add -f demo/run.txt demo/*.html || true
           git commit -m "demo: 样卡演示运行日志 $(date -u +%H:%M)" || true
           git push || true
 
