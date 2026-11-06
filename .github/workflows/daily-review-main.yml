@@ -9,10 +9,10 @@ on:
         required: false
         type: string
       slot:
-        description: '强制时段（演示/手动）：pre/auction/tail/hourly/noon/eod/watch/warn/ext/news/news2h/evening/follow/deep6/zscan/radar/newsfire/risk/cycle，留空=按当前时刻'
+        description: '强制时段（演示/手动）：pre/auction/tail/hourly/noon/eod/watch/warn/ext/news/news2h/evening/follow/deep6/zscan/radar/newsfire/risk/cycle，留空=按当前时刻；填 scheduler=手动启动云端自驱调度器（覆盖整段）'
         required: false
         type: choice
-        options: ['pre', 'auction', 'tail', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'news', 'news2h', 'evening', 'follow', 'deep6', 'zscan', 'radar', 'newsfire', 'risk', 'cycle', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3']
+        options: ['scheduler', 'pre', 'auction', 'tail', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'news', 'news2h', 'evening', 'follow', 'deep6', 'zscan', 'radar', 'newsfire', 'risk', 'cycle', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3']
   schedule:
     - cron: '20-24 0 * * 1-5'      # 08:20-08:24 北京 板块启动预警
     - cron: '30-34 0 * * 1-5'      # 08:30-08:34 北京 盘前速递
@@ -53,7 +53,11 @@ jobs:
     # 2026-11-06：定时触发一律交给下面的 scheduler job（单 run 内自驱，按分钟时刻表驱动全天），
     # 避免 push 与 scheduler 在同一分钟同时命中造成双推（用户红线）。
     # 手动 / 外部 workflow_dispatch 仍走这里，用于补推与单槽实测。
-    if: github.event_name != 'schedule'
+    # 2026-11-06 二次改造：slot=scheduler 的手动触发只跑下面的 scheduler job，
+    # 不进本 job（否则会当成一个未知槽位空跑，且与调度器抢 slot_done）。
+    if: >
+      github.event_name != 'schedule' &&
+      !(github.event_name == 'workflow_dispatch' && github.event.inputs.slot == 'scheduler')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -120,7 +124,11 @@ jobs:
     # 做法：任意一次 schedule 命中 → 本 job 在单次 run 内按分钟时刻表驱动各槽位推送，
     # 早盘跑 08:00-11:45、午后跑 13:00-15:48，无需外部 PAT、无需外部定时服务。
     # 重复推送由主程序内部 slot_done 去重兜住；同一日同一段重复起跑由 sched_active.json 标记拦截。
-    if: github.event_name == 'schedule'
+    # 2026-11-06 二次改造：除了 schedule 命中，也允许手动 slot=scheduler 直接拉起，
+    # 用于 cron 被平台吞掉时强制接管当日剩余时段（不再依赖触发层运气）。
+    if: >
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.slot == 'scheduler')
     runs-on: ubuntu-latest
     timeout-minutes: 260
     permissions:
