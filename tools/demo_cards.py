@@ -135,17 +135,20 @@ def _minute_auction_vol(codes):
         if not code:
             return code, 0
         sym = ('sh' if code.startswith('6') else 'sz') + code
-        url = 'https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=' + sym
-        try:
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            d = json.loads(urllib.request.urlopen(req, timeout=8).read().decode('utf-8'))
-            arr = (((d.get('data') or {}).get(sym) or {}).get('data') or {}).get('data') or []
-            if not arr:
-                return code, 0
-            f = str(arr[0]).split()
-            return code, int(float(f[2])) if len(f) >= 3 else 0
-        except Exception:
-            return code, 0
+        for host in ('https://ifzq.gtimg.cn', 'https://web.ifzq.gtimg.cn'):
+            url = host + '/appstock/app/minute/query?code=' + sym
+            try:
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0',
+                                                           'Referer': 'https://gu.qq.com/'})
+                d = json.loads(urllib.request.urlopen(req, timeout=8).read().decode('utf-8'))
+                arr = (((d.get('data') or {}).get(sym) or {}).get('data') or {}).get('data') or []
+                if not arr:
+                    continue
+                f = str(arr[0]).split()
+                return code, int(float(f[2])) if len(f) >= 3 else 0
+            except Exception:
+                continue
+        return code, 0
 
     res = {}
     with ThreadPoolExecutor(max_workers=8) as ex:
