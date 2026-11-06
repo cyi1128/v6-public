@@ -299,3 +299,8 @@
 02:06:25 [反模板命中:board_watch] 情绪回暖/管住手 (try1)
 02:07:49 [反模板命中:board_watch] 资金认可/情绪回暖/管住手 (try2)
 02:07:50 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 现在是上午盘中阶段，依据你给的实时行情数据，情绪分定格在 40.0 分，明确标记为“情绪退潮”，这个分数值直接决定了今天大部分资金
+02:57:47 [反模板命中:hourly_ds] 管住手 (try1)
+02:58:47 [反模板命中:hourly_ds] 管住手 (try2)
+03:02:02 [反模板命中:batch_deep] 资金认可/管住手 (try1)
+03:10:08 [ask_deepseek] ModelScope 两次尝试均失败，purpose=batch_deep
+03:14:59 [反模板命中:brief_summary_v3] 管住手 (try1)
