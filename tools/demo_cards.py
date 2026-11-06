@@ -36,9 +36,71 @@ BANNER = ('<div style="background:#2a2438;border:1px solid #a78bfa;border-radius
           '情绪周期行空缺：11-05 收盘状态文件未留存，真实 09:25 卡会展示前一日定档。</span></div>')
 
 
+CLIST = ('https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=120&po=1&np=1&fltt=2&invt=2'
+         '&fid=f3&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048'
+         '&fields=f2,f3,f5,f6,f8,f12,f14,f15,f16,f17,f18,f10')
+
+
+def _fetch_clist():
+    """自己抓东财涨幅榜（不依赖模块内备用源，避免云端备用源被拦时整卡空转）。"""
+    import json
+    import urllib.request
+    try:
+        req = urllib.request.Request(CLIST, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+            'Referer': 'https://quote.eastmoney.com/'})
+        d = json.loads(urllib.request.urlopen(req, timeout=10).read().decode('utf-8'))
+        lst = ((d.get('data') or {}).get('diff') or [])
+    except Exception as e:
+        print('[demo] 涨幅榜取数失败 %s' % str(e)[:80])
+        return []
+    rows = []
+    for x in lst:
+        code = str(x.get('f12') or '')
+        name = str(x.get('f14') or '')
+        if not code or not name:
+            continue
+        rows.append({'code': code, 'name': name,
+                     'price': float(x.get('f2') or 0) if str(x.get('f2')) not in ('-', '') else 0.0,
+                     'pct': 0.0, 'vol': int(float(x.get('f5') or 0) / 100.0),
+                     'amount': float(x.get('f6') or 0),
+                     'turn': float(x.get('f8') or 0) if str(x.get('f8')) not in ('-', '') else 0.0,
+                     'lb': 0.0,
+                     'high': float(x.get('f15') or 0), 'low': float(x.get('f16') or 0),
+                     'prev': float(x.get('f18') or 0), 'list_date': '',
+                     'industry': c._IND_CACHE.get(code, '其他')})
+    return rows
+
+
+def _pool_rows():
+    """兜底全集：当日涨停池 + 炸板池（带真实行业 hybk，云端被拦涨幅榜时仍能出卡）。"""
+    rows = []
+    try:
+        import sentiment_cycle as sc
+        for fn in ('fetch_pool', 'fetch_zb'):
+            for x in (getattr(sc, fn)(DEMO_DAY) or []):
+                code = str(x.get('c') or '')
+                name = str(x.get('n') or '')
+                if not code or not name:
+                    continue
+                rows.append({'code': code, 'name': name, 'price': 0.0, 'pct': 0.0,
+                             'vol': 0, 'amount': float(x.get('amount') or 0), 'turn': 0.0,
+                             'lb': 0.0, 'high': 0.0, 'low': 0.0, 'prev': 0.0,
+                             'list_date': '', 'industry': c._IND_CACHE.get(code, x.get('hybk') or '其他')})
+    except Exception as e:
+        print('[demo] 涨停/炸板池兜底失败 %s' % str(e)[:80])
+    return rows
+
+
 def _auction_rows():
     """11-06 全市场盘面 → 还原成竞价口径的行（pct=开盘/前收-1，price=开盘价，vol≈09:30首根累计量）。"""
     rows = c._clist_gainers_alt() or []
+    if len(rows) < 5:
+        rows = _fetch_clist()
+        print('[demo] 备用源不足，改用东财涨幅榜 %d 行' % len(rows))
+    if len(rows) < 5:
+        rows = _pool_rows()
+        print('[demo] 涨幅榜不可用，改用涨停/炸板池兜底 %d 行' % len(rows))
     if not rows:
         print('[demo] 当日盘面未取到，无法还原竞价口径')
         return []
@@ -192,4 +254,13 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    try:
+        print('[demo] key=%s token=%s python=%s'
+              % (bool(c.MODELSCOPE_KEY), bool(c.PUSHPLUS_TOKEN), sys.version.split()[0]))
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        sys.exit(3)
