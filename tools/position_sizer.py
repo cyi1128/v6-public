@@ -29,9 +29,10 @@ STATE_PATH = os.path.join(ROOT, 'data', 'sentiment_state.json')
 LOG_PATH = os.path.join(ROOT, 'data', 'position_log.json')
 
 MIN_SAMPLES = 30
-KELLY_FACTOR = 0.5
+KELLY_FACTOR = 1.0            # 2026-11-07 定案：全 Kelly（半Kelly 在60%胜率下长期只得1.7成，无表达力）
 MAX_SINGLE = 0.20
-ICE_TOTAL_CAP = 0.20          # 冰点期总仓上限 2成
+ICE_TOTAL_CAP = 0.20          # 冰点期总仓上限 2成（硬保险②）
+EMOTION_CAPS = {'高潮期': 1.0, '回暖期': 0.6, '退潮期': 0.3, '冰点期': 0.2}   # 第四层：档位上限
 WIN_THRESHOLD = 0.01          # 与账本 win 口径一致：T+5 涨>1%
 
 
@@ -128,16 +129,27 @@ def evaluate(valid, state_path=STATE_PATH):
         res['line'] = '💰 仓位公式：数据积累中 %d/%d（样本不足不出建议）' % (len(valid), MIN_SAMPLES)
         return res
     s, flags = kelly_half(st)
+    kelly_raw = s
     cap, level = sentiment_cap(state_path)
+    after_pos = s
     if cap is not None:
         if s > cap:
             flags.append('%s总仓上限2成生效（原建议%.1f成）' % (level, s * 10))
-        s = min(s, cap)
+        after_pos = min(s, cap)
+    emo_cap = EMOTION_CAPS.get(level) if level else None
+    after_emo = after_pos
+    if emo_cap is not None:
+        if after_pos > emo_cap:
+            flags.append('%s档位上限%.1f成生效（原建议%.1f成）' % (level, emo_cap * 10, after_pos * 10))
+        after_emo = min(after_pos, emo_cap)
     res.update({'status': 'ok', 'win_rate': st['win_rate'], 'avg_win': st['avg_win'],
-                'avg_loss': st['avg_loss'], 'suggest': round(s, 4),
-                'kelly_raw': round(raw_of(st), 4), 'level': level, 'flags': flags})
+                'avg_loss': st['avg_loss'], 'suggest': round(after_emo, 4),
+                'kelly_raw': round(kelly_raw, 4),
+                'after_position_cap': round(after_pos, 4),
+                'after_emotion_cap': round(after_emo, 4),
+                'level': level, 'emotion_cap': emo_cap, 'flags': flags})
     res['line'] = ('💰 仓位公式：%d笔 | 胜率%.0f%% | 建议总仓%.1f成 | 情绪修正后%.1f成'
-                   % (st['n'], st['win_rate'] * 100, raw_of(st) * 10, s * 10))
+                   % (st['n'], st['win_rate'] * 100, kelly_raw * 10, after_emo * 10))
     return res
 
 
@@ -190,29 +202,46 @@ def _selftest():
     st = stats(valid)
     print('  n=%d p=%.3f avg_win=%.6f avg_loss=%.6f' % (st['n'], st['win_rate'], st['avg_win'], st['avg_loss']))
     s, flags = kelly_half(st)
-    hand = (0.6 * 0.05 - 0.4 * (0.05 / 1.5)) / 0.05 * 0.5
-    print('  半Kelly手算=%.6f (含×0.5)；不乘以0.5则=%.6f' % (hand, hand * 2))
-    ck('半Kelly=0.1667（含×0.5）', abs(s - hand) < 1e-9, s)
-    ck('与"≈0.30"的差异来自0.5系数', abs(hand * 2 - 0.3333) < 0.001, hand * 2)
+    hand = (0.6 * 0.05 - 0.4 * (0.05 / 1.5)) / 0.05 * KELLY_FACTOR
+    print('  全Kelly手算=%.6f (KELLY_FACTOR=%.1f)' % (hand, KELLY_FACTOR))
+    ck('全Kelly=0.333（3.3成）', abs(s - 0.3333) < 0.0005, s)
+    ck('与验收期望0.334一致', abs(s - 0.334) < 0.001, s)
     # 2. 有效样本<30 → 积累提示，不出建议
     res = evaluate(valid[:10], state_path='__none__')
     print('  ', res['line'])
     ck('不足30笔走积累分支', res['status'] == 'accumulating' and '积累中 10/30' in res['line'], res['line'])
     ck('积累期无建议值', res.get('suggest') is None, res.get('suggest'))
-    # 3. 冰点期封顶 2成：拿 40 笔高胜率构造 >0.2 的建议
+    # 3. 四档情绪上限各断言一例（第四层保险）：raw=0.3333 分别被 1.0/0.6/0.3/0.2 约束
+    exp = {'高潮期': 0.3333, '回暖期': 0.3333, '退潮期': 0.30, '冰点期': 0.20}
+    for lvl, want in exp.items():
+        with open('__tmp_state.json', 'w', encoding='utf-8') as f:
+            json.dump({'level': lvl, 'S': 34.0}, f, ensure_ascii=False)
+        r = evaluate(valid, state_path='__tmp_state.json')
+        print('  %s → after_emotion=%.4f（%s）' % (lvl, r['suggest'], r['line']))
+        ck('%s 上限生效' % lvl, abs(r['suggest'] - want) < 0.002, r['suggest'])
+        ck('%s 三段值可追溯' % lvl,
+           r.get('kelly_raw') is not None and r.get('after_position_cap') is not None
+           and r.get('after_emotion_cap') is not None, (r.get('kelly_raw'), r.get('after_position_cap'), r.get('after_emotion_cap')))
+    os.remove('__tmp_state.json')
+    # 4. 高胜率样本被冰点两层同时拦：raw 8.67成 → 位置 2成 → 情绪 2成
     hi = [{'code': str(i), 'ret5': 0.06, 'win': True} for i in range(36)] + \
          [{'code': str(i), 'ret5': -0.02, 'win': False} for i in range(4)]
     st_hi = stats(hi)
     s_hi, _ = kelly_half(st_hi)
-    print('  高胜率样本 半Kelly=%.4f（%.1f成）' % (s_hi, s_hi * 10))
-    ck('高胜率半Kelly>2成', s_hi > ICE_TOTAL_CAP, s_hi)
+    print('  高胜率样本 全Kelly=%.4f（%.1f成）' % (s_hi, s_hi * 10))
+    ck('高胜率全Kelly>2成', s_hi > ICE_TOTAL_CAP, s_hi)
     with open('__tmp_state.json', 'w', encoding='utf-8') as f:
         json.dump({'level': '冰点期', 'S': 34.0}, f, ensure_ascii=False)
     r3 = evaluate(hi, state_path='__tmp_state.json')
     print('  ', r3['line'], r3['flags'])
     ck('冰点期clamp到2成', abs(r3['suggest'] - ICE_TOTAL_CAP) < 1e-9, r3['suggest'])
     ck('clamp有标注', any('上限2成生效' in x for x in r3['flags']), r3['flags'])
+    ck('三段值 raw>位置>情绪', r3['kelly_raw'] > r3['after_position_cap'] >= r3['after_emotion_cap'],
+       (r3['kelly_raw'], r3['after_position_cap'], r3['after_emotion_cap']))
     os.remove('__tmp_state.json')
+    # 3b. 无情绪状态文件 → 不额外拦，仍出建议
+    r_no = evaluate(valid, state_path='__none__')
+    ck('无情绪文件不拦', abs(r_no['suggest'] - 0.3333) < 0.002, r_no['suggest'])
     # 4. 平均亏=0（全胜）→ 不除零、封顶且标不可靠
     allwin = [{'code': str(i), 'ret5': 0.03, 'win': True} for i in range(30)]
     st4 = stats(allwin)
