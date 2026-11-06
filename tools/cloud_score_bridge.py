@@ -214,3 +214,48 @@ def score_all(code, name='', bars=None, quote=None, ctx=None,
         aggregate, fmt_final = _m.aggregate, _m.fmt_final
     agg = aggregate(scores, base_dir=bd)
     return {'scores': scores, 'reasons': reasons, 'agg': agg, 'line': fmt_final(agg)}
+
+
+def _selftest():
+    """云端运行时自检：合成K线、不联网、不推送，只证明依赖与两个重型引擎真跑起来。
+
+    yml 里紧跟 pip install 执行；返回值 0=PASS，3=numpy 装上了但引擎没出分。
+    绝不因此阻断推送（yml 用 `|| true` 兜底），只为留证据。
+    """
+    import sys
+    import random
+    print('[selftest] python=%s' % sys.version.split()[0])
+    for m in ('numpy', 'requests'):
+        try:
+            mod = __import__(m)
+            print('[selftest] %s=%s OK' % (m, getattr(mod, '__version__', '?')))
+        except Exception as e:
+            print('[selftest] %s MISSING (%s)' % (m, e))
+    random.seed(11)
+    bars, px = [], 10.0
+    for i in range(130):
+        chg = random.uniform(-0.03, 0.035)
+        o = px
+        px = round(px * (1 + chg), 2)
+        bars.append(['2026-05-%02d' % (i % 28 + 1), o, px, round(max(o, px) * 1.01, 2),
+                     round(min(o, px) * 0.99, 2), float(random.randint(20000, 90000))])
+    out = score_all('600000', '自检样本', bars=bars,
+                    quote={'cur': px, 'pct': 3.2, 'vol': 80000, 'lb': 1.4,
+                           'out': 30000, 'in': 50000, 'turn': 6.5},
+                    ctx={'today': '2026-11-06', 'lu': 60, 'zb': 15, 'max_lbc': 5,
+                         'sec': '光伏', 'theme_heat': {'光伏': 80}})
+    print('[selftest] scores=%s' % out['scores'])
+    print('[selftest] reasons=%s' % out['reasons'])
+    print('[selftest] nine_score=%s multi_factor=%s' % (
+        out['scores'].get('nine_score'), out['scores'].get('multi_factor')))
+    print('[selftest] line=%s' % out['line'])
+    ok = out['scores'].get('nine_score') is not None and out['scores'].get('multi_factor') is not None
+    print('[selftest] RESULT %s' % ('PASS' if ok else 'FAIL'))
+    return 0 if ok else 3
+
+
+if __name__ == '__main__':
+    import sys
+    if '--selftest' in sys.argv:
+        sys.exit(_selftest())
+    print('cloud_score_bridge: 用 --selftest 运行自检')
