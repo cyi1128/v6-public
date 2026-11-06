@@ -41,7 +41,7 @@ PY = sys.executable or 'python3'
 FIXED_SLOTS = [
     (8, 20, 'warn', 20),       # 板块启动预警
     (8, 30, 'pre', 20),        # 盘前速递
-    (9, 25, 'auction', 20),    # 竞价观察
+    (9, 25, 'auction', 3),     # 竞价观察（严格 09:25-09:27，窗口只留 3 分钟）
     (10, 0, 'hourly', 20),     # 盘中解读
     (10, 30, 'newsfire', 20),  # 新闻发酵
     (10, 35, 'risk', 20),      # 风险体检
@@ -61,8 +61,7 @@ FIXED_SLOTS = [
     (15, 35, 'news', 20),
 ]
 
-WATCH_START = 9 * 60 + 15   # 09:15
-WATCH_END = 15 * 60 + 5     # 15:05
+WATCH_WINDOWS = ((9 * 60 + 15, 11 * 60 + 30), (13 * 60, 15 * 60 + 5))  # 09:15-11:30 / 13:00-15:05，午休不扫
 WATCH_STEP = 15             # 每 15 分钟一次异动扫描
 
 
@@ -182,7 +181,8 @@ def pick_slot(now: datetime.datetime, executed: set) -> str | None:
         executed.add(best[2])
         return best[1]
 
-    if WATCH_START <= minutes <= WATCH_END and now.minute % WATCH_STEP == 0:
+    in_watch = any(a <= minutes <= b for a, b in WATCH_WINDOWS)
+    if in_watch and now.minute % WATCH_STEP == 0:
         token = f'{day}|watch|{minutes}'
         if token in executed:
             return None
