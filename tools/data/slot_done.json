@@ -49,5 +49,6 @@
  "hourly|2026-11-06|14": true,
  "tail|2026-11-06": true,
  "news|2026-11-06|1516": true,
- "follow|2026-11-06|1529": true
+ "follow|2026-11-06|1529": true,
+ "cycle|2026-11-06": true
 }
