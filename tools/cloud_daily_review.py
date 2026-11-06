@@ -43,7 +43,7 @@ except Exception as _fe_err:
     _FACTOR_OK = False   # 因子引擎缺失时因子行静默不显示，不阻断推送
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timedelta
 
 MEM_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'theme_memory.json')
 ALERT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'last_alerts.json')
@@ -7340,6 +7340,269 @@ def _factor_signal_settle():
     return changed
 
 
+# ============ 模块 7C：周日「因子体检报告」+ 机械调权（第5步） ============
+_FW_JSON = 'data/factor_weights.json'
+_FW_WIN_HI = 0.60     # 胜率 >60% 视为该因子能打
+_FW_WIN_LO = 0.45     # 胜率 <45% 视为该因子不灵
+_FW_STEP = 0.05       # 每次调 5 个点
+_FW_MIN, _FW_MAX = 0.10, 0.40
+_FW_FACTORS = ('jq', 'lj', 'zj', 'tc', 'dl')
+_FW_LABEL = {'jq': '情绪', 'lj': '量价', 'zj': '资金', 'tc': '题材', 'dl': '动量'}
+
+
+def _fw_load():
+    """读权重状态；文件不存在/坏掉都回退引擎默认，绝不阻断。"""
+    try:
+        with open(_FW_JSON, 'r', encoding='utf-8') as f:
+            st = json.load(f)
+        return st if isinstance(st, dict) else {}
+    except Exception:
+        return {}
+
+
+def _fw_save(st):
+    try:
+        os.makedirs('data', exist_ok=True)
+        with open(_FW_JSON, 'w', encoding='utf-8') as f:
+            json.dump(st, f, ensure_ascii=False, indent=2)
+        _git_commit_push(_FW_JSON, 'chore: 因子权重更新')
+        return True
+    except Exception as e:
+        print(f'[fw] 权重重写失败 {e}')
+        return False
+
+
+def _factor_weights():
+    """运行时权重：有 data/factor_weights.json 就用它，否则回退引擎默认 WEIGHTS_SHORT。
+    强制归一（总和=1），防止手工改坏。任何异常都回退默认，绝不阻断打分。"""
+    if not _FACTOR_OK:
+        return {}
+    try:
+        w = (_fw_load().get('weights') or {})
+        if not w:
+            return dict(_fe.WEIGHTS_SHORT)
+        v = {k: float(w.get(k) or 0) for k in _FW_FACTORS}
+        s = sum(v.values())
+        if s <= 0:
+            return dict(_fe.WEIGHTS_SHORT)
+        return {k: x / s for k, x in v.items()}
+    except Exception:
+        return dict(_fe.WEIGHTS_SHORT)
+
+
+def _fw_week_rows(days=7):
+    """取最近 days 天、且已回填 win 的 signal_log 记录。没回填的不进统计（不拿半成品算胜率）。"""
+    try:
+        with open(_SIG_CSV, 'r', encoding='utf-8') as f:
+            lines = f.read().rstrip('\n').split('\n')
+    except Exception:
+        return [], {}
+    if len(lines) < 2:
+        return [], {}
+    hdr = lines[0].split(',')
+    idx = {n: i for i, n in enumerate(hdr)}
+    cutoff = (_bj_now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    out = []
+    for ln in lines[1:]:
+        if not ln.strip():
+            continue
+        r = ln.split(',')
+        if len(r) < len(hdr):
+            r += [''] * (len(hdr) - len(r))
+        if r[idx['date']] < cutoff:
+            continue
+        if r[idx['win']] not in ('0', '1'):
+            continue
+        out.append(r)
+    return out, idx
+
+
+def _fw_stats(days=7, thresh=70):
+    """本周因子体检：总笔数 / 总胜率 / 每因子「看多档胜率 vs 其余档胜率」。
+    口径写死：某因子分 >= thresh 视为该因子当时看多；看多那批的实际 5 日胜率 = 该因子胜率。
+    某档样本 <3 记 None，不硬算。"""
+    rows, idx = _fw_week_rows(days)
+    n = len(rows)
+    if n == 0:
+        return {'n': 0, 'win_rate': None, 'factors': {}, 'avg_ret': None}
+    wins = sum(1 for r in rows if r[idx['win']] == '1')
+    rets = []
+    for r in rows:
+        try:
+            rets.append(float(r[idx['ret5']]))
+        except Exception:
+            pass
+    fac = {}
+    for k in _FW_FACTORS:
+        hi = hi_w = lo = lo_w = 0
+        for r in rows:
+            try:
+                v = float(r[idx[k]] or '')
+            except Exception:
+                continue
+            if v >= thresh:
+                hi += 1
+                hi_w += 1 if r[idx['win']] == '1' else 0
+            else:
+                lo += 1
+                lo_w += 1 if r[idx['win']] == '1' else 0
+        fac[k] = {'hi_n': hi, 'hi_win': (hi_w / hi) if hi >= 3 else None,
+                  'lo_n': lo, 'lo_win': (lo_w / lo) if lo >= 3 else None}
+    return {'n': n, 'win_rate': wins / n, 'factors': fac,
+            'avg_ret': (sum(rets) / len(rets)) if rets else None}
+
+
+def _fw_apply(days=7, thresh=70):
+    """机械调权（规格写死，不许人工拍脑袋）：
+    连续 2 周胜率 <45% → 权重 -5 点（下限 10%）；连续 2 周 >60% → +5 点（上限 40%）。
+    连续计数持久化在 data/factor_weights.json。返回 (新权重, 调整明细, 统计快照)。"""
+    st = _fw_load()
+    base = dict(_fe.WEIGHTS_SHORT) if _FACTOR_OK else {'jq': .3, 'lj': .3, 'zj': .2, 'tc': .1, 'dl': .1}
+    w = {k: float((st.get('weights') or {}).get(k) or base.get(k) or 0) for k in _FW_FACTORS}
+    low = dict(st.get('low_streak') or {})
+    high = dict(st.get('high_streak') or {})
+    s = _fw_stats(days, thresh)
+    changes = []
+    for k in _FW_FACTORS:
+        wr = (s.get('factors', {}).get(k) or {}).get('hi_win')
+        if wr is None:
+            low[k] = 0
+            high[k] = 0
+            continue
+        if wr < _FW_WIN_LO:
+            low[k] = int(low.get(k) or 0) + 1
+            high[k] = 0
+        elif wr > _FW_WIN_HI:
+            high[k] = int(high.get(k) or 0) + 1
+            low[k] = 0
+        else:
+            low[k] = 0
+            high[k] = 0
+        if int(low.get(k) or 0) >= 2:
+            new = max(_FW_MIN, w[k] - _FW_STEP)
+            if abs(new - w[k]) > 1e-9:
+                changes.append({'k': k, 'from': w[k], 'to': new,
+                                'why': '%s连续2周胜率%.0f%%<45%%，减重5点'
+                                       % (_FW_LABEL[k], wr * 100)})
+            w[k] = new
+            low[k] = 0
+        elif int(high.get(k) or 0) >= 2:
+            new = min(_FW_MAX, w[k] + _FW_STEP)
+            if abs(new - w[k]) > 1e-9:
+                changes.append({'k': k, 'from': w[k], 'to': new,
+                                'why': '%s连续2周胜率%.0f%%>60%%，加重5点'
+                                       % (_FW_LABEL[k], wr * 100)})
+            w[k] = new
+            high[k] = 0
+    tot = sum(w.values())
+    if tot > 0:
+        w = {k: v / tot for k, v in w.items()}
+    st['weights'] = w
+    st['low_streak'] = low
+    st['high_streak'] = high
+    hist = (st.get('history') or [])[-51:]
+    hist.append({'week': _bj_now().strftime('%Y-%m-%d'), 'n': s.get('n'),
+                 'win_rate': s.get('win_rate'),
+                 'factors': {k: (s.get('factors', {}).get(k) or {}).get('hi_win') for k in _FW_FACTORS}})
+    st['history'] = hist
+    # 必须每周都落盘：连续计数（streak）靠它跨周累积。
+    # 只在「有变更」时才写会导致 streak 永远到不了 2，"连续2周"规则形同虚设（实测暴露）。
+    _fw_save(st)
+    return w, changes, s
+
+
+def _fw_bar(v):
+    """胜率进度条（纯 CSS，深色卡内可读）。"""
+    try:
+        p = max(0.0, min(1.0, float(v)))
+    except Exception:
+        return ''
+    col = '#52c41a' if p >= _FW_WIN_HI else ('#ffb020' if p >= _FW_WIN_LO else '#ff6b6b')
+    return (f'<div style="display:inline-block;width:64px;height:7px;background:#2b3345;'
+            f'border-radius:4px;vertical-align:middle;margin:0 6px;">'
+            f'<div style="width:{p * 100:.0f}%;height:100%;background:{col};border-radius:4px;"></div></div>')
+
+
+def build_factor_weekly():
+    """周日「因子体检报告」：本周 N 笔 / 5日胜率 / 分因子胜率对比 / 机械调权结果。
+    没有已回填样本时给明确空态，绝不编数。"""
+    if not _FACTOR_OK:
+        return ''
+    try:
+        w, changes, s = _fw_apply(7)
+    except Exception as e:
+        print(f'[fw] 调权异常 {e}')
+        return ''
+    n = s.get('n') or 0
+    if n == 0:
+        inner = (f'<div style="color:{GREY};font-size:14px;line-height:1.7;">'
+                 f'本周还没有「已回填」的信号。<br>signal_log 需要推送后第 5 个交易日收盘才能算出胜负，'
+                 f'所以第一份成绩单要等记录跑满 5 个交易日。<br>'
+                 f'当前已落库记录：{len(_fw_week_rows(7)[0])} 条已回填 / 全部记录见 data/signal_log.csv。</div>')
+        return _wrap(inner, '📊', '因子体检报告')
+    wr = s.get('win_rate') or 0
+    av = s.get('avg_ret')
+    _wcol = '#52c41a' if wr >= _FW_WIN_HI else ('#ffb020' if wr >= _FW_WIN_LO else '#ff6b6b')
+    inner = (f'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">'
+             f'<div style="flex:1 1 100px;background:#1f2635;border-radius:8px;padding:9px 11px;">'
+             f'<div style="color:{GREY};font-size:11px;">本周样本</div>'
+             f'<div style="color:#fff;font-size:21px;font-weight:800;">{n}<span style="font-size:11px;'
+             f'color:{GREY};font-weight:400;"> 笔</span></div></div>'
+             f'<div style="flex:1 1 100px;background:#1f2635;border-radius:8px;padding:9px 11px;">'
+             f'<div style="color:{GREY};font-size:11px;">5日胜率</div>'
+             f'<div style="color:{_wcol};font-size:21px;font-weight:800;">{wr * 100:.0f}%</div></div>'
+             f'<div style="flex:1 1 100px;background:#1f2635;border-radius:8px;padding:9px 11px;">'
+             f'<div style="color:{GREY};font-size:11px;">平均5日收益</div>'
+             f'<div style="color:{_c(av or 0)};font-size:21px;font-weight:800;">'
+             f'{(f"{av:+.2f}%" if av is not None else "—")}</div></div></div>')
+    # —— 分因子胜率对照 ——
+    inner += (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">'
+              f'🔍 分因子胜率（因子分≥70 那批的实际 5 日胜率）</div>'
+              f'<div style="color:{GREY};font-size:11px;margin:3px 0 7px;">'
+              f'这一列越高说明「这个因子给高分时，票后来真的涨」，越低说明它只会虚高</div>')
+    for k in _FW_FACTORS:
+        f = s['factors'].get(k) or {}
+        hi_w = f.get('hi_win')
+        lo_w = f.get('lo_win')
+        if hi_w is None and lo_w is None:
+            judge, jcol = '样本不足', GREY
+        elif hi_w is None:
+            judge, jcol = '看多样本不足', GREY
+        elif hi_w >= _FW_WIN_HI:
+            judge, jcol = '能打', '#52c41a'
+        elif hi_w < _FW_WIN_LO:
+            judge, jcol = '不灵', '#ff6b6b'
+        else:
+            judge, jcol = '中性', '#ffb020'
+        if lo_w is not None and hi_w is not None and hi_w - lo_w < -0.05:
+            judge, jcol = '反向', '#ff6b6b'
+        inner += (f'<div style="background:#1f2635;border-radius:8px;padding:8px 11px;margin:5px 0;">'
+                  f'<div style="font-size:13px;font-weight:700;color:#fff;">{_FW_LABEL[k]}'
+                  f'<span style="float:right;color:{jcol};">{judge}</span></div>'
+                  f'<div style="font-size:11px;color:{GREY};margin-top:2px;">'
+                  f'看多 {f.get("hi_n", 0)} 笔：{"—" if hi_w is None else f"{hi_w * 100:.0f}%"}'
+                  f'{_fw_bar(hi_w) if hi_w is not None else ""}'
+                  f'｜其余 {f.get("lo_n", 0)} 笔：{"—" if lo_w is None else f"{lo_w * 100:.0f}%"}</div></div>')
+    # —— 机械调权结果 ——
+    inner += (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">'
+              f'⚙️ 机械调权（连续2周<45%减5点／>60%加5点，下限10%上限40%）</div>')
+    if changes:
+        for c0 in changes:
+            inner += (f'<div style="background:#2a1f1f;border-left:3px solid #ff6b6b;border-radius:8px;'
+                      f'padding:8px 11px;margin:5px 0;color:#e9ecef;font-size:12px;">'
+                      f'<b>{_FW_LABEL[c0["k"]]}</b>：{c0["why"]}（{c0["from"] * 100:.0f}% → '
+                      f'{c0["to"] * 100:.0f}%）</div>')
+    else:
+        inner += (f'<div style="color:{GREY};font-size:12px;">本周没有触发调权的因子'
+                  f'（需连续 2 周才动，避免被单周噪声带偏）。</div>')
+    cur = ' / '.join(f'{_FW_LABEL[k]}{w.get(k, 0) * 100:.0f}%' for k in _FW_FACTORS)
+    inner += (f'<div style="margin-top:8px;color:#8ce99a;font-size:12px;">当前生效权重：{cur}</div>')
+    # —— 明细口径说明 ——
+    inner += (f'<div style="margin-top:10px;color:{GREY};font-size:11px;">'
+              f'口径：只看已回填的记录；胜 = 5 日复权收益 > 0；数据缺失不参与统计，绝不编数。</div>')
+    return _wrap(inner, '📊', '因子体检报告')
+
+
 # ============ 模块8/9/10：主线生命周期 + 龙头拐点 + 错过信号复盘 ============
 def life_cycle(sec, d, mem, days):
     """主线生命周期（模块8）：启动期/加速期/分化期/退潮期。
@@ -8538,7 +8801,7 @@ def _factor_for_spot(sg, d):
         fs = {'jq': emo.get('score'), 'lj': pv.get('score'), 'zj': zj.get('score'),
               'tc': tc.get('score'), 'dl': dl.get('score')}
         comb = _fe.combine(auction_score=None, factor_scores=fs,
-                           weights=_fe.WEIGHTS_SHORT)
+                   weights=_factor_weights())
         line = _fe.fmt_full_line(auction_score=None, jq=fs['jq'], lj=fs['lj'],
                                  zj=fs['zj'], tc=fs['tc'], dl=fs['dl'],
                                  factor_total=comb.get('factor_total'),
@@ -8599,7 +8862,7 @@ def _factor_for_auction(s, heat, cnt, jq_res=None):
         fs = {'jq': (jq_res or {}).get('score'), 'lj': lj.get('score'),
               'zj': zj.get('score'), 'tc': tc.get('score'), 'dl': dl.get('score')}
         comb = _fe.combine(auction_score=s.get('score'), factor_scores=fs,
-                           weights=_fe.WEIGHTS_SHORT)
+                   weights=_factor_weights())
         line = _fe.fmt_full_line(auction_score=s.get('score'),
                                  jq=fs['jq'], lj=fs['lj'], zj=fs['zj'],
                                  tc=fs['tc'], dl=fs['dl'],
@@ -8672,7 +8935,7 @@ def _factor_board_top(d, topn=10, pool=15):
                 fs = {'jq': jq.get('score'), 'lj': lj.get('score'), 'zj': zj.get('score'),
                       'tc': tc.get('score'), 'dl': dl.get('score')}
                 comb = _fe.combine(auction_score=None, factor_scores=fs,
-                                   weights=_fe.WEIGHTS_SHORT)
+                           weights=_factor_weights())
                 out.append({'name': c0['name'], 'code': c0['code'], 'lbc': c0['lbc'],
                             'sec': c0['sec'], 'total': comb.get('factor_total') or 0,
                             'fs': fs, 'vetoed': bool(vt.get('vetoed')),
@@ -11875,6 +12138,26 @@ if __name__ == '__main__':
         sys.exit(0)
 
     # （用户指令 2026-11-04：突破回踩·主力成本锚 anchor/review/evaluate 三档已删除，不再有对应推送分支）
+
+    # 周日「因子体检报告」（第5步）：周日是休市日，必须放在交易日闸门之前，否则会被 holiday_slot 吃掉
+    if slot == 'factor_weekly':
+        _fwk = _slot_window_key('factor_weekly')
+        if not force and _slot_done(_fwk):
+            print('SLOT factor_weekly 本期已推送，跳过')
+            sys.exit(0)
+        try:
+            html = build_factor_weekly()
+        except Exception as e:
+            print('[fw] build exception:', e)
+            html = None
+        if not html:
+            print('SLOT factor_weekly: 构建失败或无数据，不推送')
+            sys.exit(0)
+        ok, msg = push(html, f'因子体检报告 {_bj_now().strftime("%m/%d")}')
+        print('SLOT factor_weekly PUSH', ok, msg)
+        if ok:
+            _mark_slot_done(_fwk)
+        sys.exit(0)
 
     # 休市日（周末/法定节假日/调休休市）：只发当天新闻汇总（每2小时窗口去重），不推任何股票分析、不调 DeepSeek
     if not is_trading_day():
