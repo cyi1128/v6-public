@@ -6741,6 +6741,8 @@ def build_eod():
         sec2 += '<div style="color:' + GREY + ';font-size:13px;margin-top:4px;">今日强势题材数据未取得（涨停池缺源），明日以竞价/开盘验证为准</div>'
     sec2 += ''.join(f'<div style="margin:3px 0;font-size:12px;color:{GREY};">{life_badge(n, d, mem, days)} {n}（{life_cycle(n, d, mem, days)[1]}）</div>'
                     for n, s in d['tops'][:3] if len(s) >= 1)
+    # 工单3：主线体检（梯队健康分）。数据缺就标"数据未接入"，不编分。
+    sec2b = build_theme_health(d)
 
     # 3. 可跟踪池（明日操作，禁止已涨停：只保留 未涨停量能放大+题材共振 / 大涨未封板分时强势）
     tpool = _track_pool(d)
@@ -6922,7 +6924,7 @@ def build_eod():
     except Exception:
         _reson_sec = ''
 
-    inner = (_overall + health_bar(idx, d, fin, fout) + sec1 + sec2 + sec8 + sec4 + sec45 + sec5 + sec_ds + sec_sell + sec7
+    inner = (_overall + health_bar(idx, d, fin, fout) + sec1 + sec2 + sec8 + sec2b + sec4 + sec45 + sec5 + sec_ds + sec_sell + sec7
              + build_events('eod') + sec6 + _pool_today
              + pos_cap_line(sentiment(idx, d)[0], hl)
              + (f'<div style="margin-top:6px;font-size:12px;color:{GREY};">{_st_line}</div>' if _st_line else '')
@@ -7982,6 +7984,121 @@ def _follow_pool(day):
     except Exception as e:
         print('[follow] 涨停池异常:', e)
     return []
+
+
+# ============ 工单3：涨停梯队健康分（主线体检 / 晋级率数据底座） ============
+_ZT_HIST_DIR = 'data/zt_pool_history'
+
+
+def _prev_trade_day(day=None):
+    """上一个工作日（YYYYMMDD）。只跳周末，不处理法定节假日——拉不到池子就按"数据未接入"走。"""
+    d0 = datetime.strptime(day, '%Y%m%d') if day else _bj_now()
+    for i in range(1, 8):
+        d1 = d0 - timedelta(days=i)
+        if d1.weekday() < 5:
+            return d1.strftime('%Y%m%d')
+    return (d0 - timedelta(days=1)).strftime('%Y%m%d')
+
+
+def _theme_health_mod():
+    """按路径加载 strategy/theme_health.py（纯 stdlib，云端可直接跑）。"""
+    try:
+        import importlib.util as _iu
+        p = os.path.join('strategy', 'theme_health.py')
+        s = _iu.spec_from_file_location('qm_theme_health', p)
+        m = _iu.module_from_spec(s)
+        s.loader.exec_module(m)
+        return m
+    except Exception as e:
+        print('[theme_health] 加载失败:', e)
+        return None
+
+
+def _zt_pool_history_save(raw_pool, day):
+    """当日涨停池落盘 data/zt_pool_history/YYYY-MM-DD.json 并写回仓库（晋级率的持久底座）。"""
+    if not raw_pool:
+        return
+    try:
+        os.makedirs(_ZT_HIST_DIR, exist_ok=True)
+        path = os.path.join(_ZT_HIST_DIR,
+                            '%s-%s-%s.json' % (day[:4], day[4:6], day[6:8]))
+        keep = [{'code': str(x.get('c') or x.get('code') or ''),
+                 'name': x.get('n') or x.get('name') or '',
+                 'lbc': int(x.get('lbc') or 0),
+                 'theme': _sec_clean(x.get('hybk') or x.get('theme') or '') or '其他',
+                 'fund': x.get('fund')} for x in raw_pool]
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump({'date': day, 'count': len(keep), 'pool': keep}, f, ensure_ascii=False)
+        print('[zt_hist] 已存 %s（%d 家）' % (path, len(keep)))
+        _git_commit_push(path, 'update zt pool history %s' % day)
+    except Exception as e:
+        print('[zt_hist] 落盘失败:', e)
+
+
+def _theme_health_rows(raw_pool):
+    """东财涨停池原始行 → theme_health 入参行（纯映射，不改数）。"""
+    rows = []
+    for x in raw_pool or []:
+        rows.append({'code': str(x.get('c') or x.get('code') or ''),
+                     'name': x.get('n') or x.get('name') or '',
+                     'lbc': int(x.get('lbc') or x.get('lianchi') or 0),
+                     'theme': _sec_clean(x.get('hybk') or x.get('theme') or '') or '其他'})
+    return rows
+
+
+def build_theme_health(d, top_n=5):
+    """【主线体检】段落：健康分/档位/梯队/一句大白话。缺数据如实标注，绝不编分。"""
+    mod = _theme_health_mod()
+    if mod is None or not d:
+        return ''
+    raw = []
+    for _theme, lst in (d.get('sectors') or {}).items():
+        raw.extend(lst or [])
+    if not raw:
+        print('[theme_health] 涨停池为空，主线体检跳过')
+        return ''
+    today = _bj_now().strftime('%Y%m%d')
+    prev_day = _prev_trade_day(today)
+    try:
+        pool_now = _follow_pool(today)
+        _zt_pool_history_save(pool_now or raw, today)
+    except Exception as e:
+        print('[theme_health] 今日涨停池历史保存异常:', e)
+    # 优先用仓库里的昨日快照（自己攒的数据比接口稳），没有再退回接口按日拉
+    prev_rows = None
+    try:
+        _pd = '%s-%s-%s' % (prev_day[:4], prev_day[4:6], prev_day[6:8])
+        _pf = os.path.join(_ZT_HIST_DIR, _pd + '.json')
+        if os.path.exists(_pf):
+            with open(_pf, encoding='utf-8') as f:
+                prev_rows = _theme_health_rows((json.load(f) or {}).get('pool'))
+            print('[theme_health] 昨日池取自仓库快照 %s' % _pf)
+        else:
+            _pp = _follow_pool(prev_day)
+            prev_rows = _theme_health_rows(_pp) if _pp else None
+            if prev_rows:
+                print('[theme_health] 昨日池取自接口 %s（%d 家）' % (prev_day, len(prev_rows)))
+    except Exception as e:
+        print('[theme_health] 昨日池读取异常:', e)
+        prev_rows = None
+    if not prev_rows:
+        print('[theme_health] 昨日(%s)涨停池不可得，晋级率标"数据未接入"' % prev_day)
+    res = mod.theme_health(_theme_health_rows(raw), prev_rows=prev_rows, top_n=top_n)
+    if not res:
+        return ''
+    blocks = []
+    for h in res:
+        col = RED if h['level'] == '加速期' else (GOLD if h['level'] == '分歧期' else GREY)
+        pn = (' <span style="color:%s;font-size:11px;">（%s）</span>' % (GREY, h['promote_note'])) if h['promote_note'] else ''
+        blocks.append(
+            '<div style="background:#1f2635;border-left:4px solid %s;border-radius:8px;padding:8px 10px;margin:6px 0;">'
+            '<div style="font-weight:700;color:#fff;">%s <span style="color:%s;">%s/100</span>'
+            '<span style="color:%s;"> → %s</span>%s</div>'
+            '<div style="color:#ced4da;font-size:12px;margin-top:3px;">梯队 %s</div>'
+            '<div style="color:%s;font-size:12px;margin-top:3px;">%s</div></div>'
+            % (col, h['theme'], col, h['score'], col, h['level'], pn, h['ladder'], TEAL, h['note']))
+    return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">【主线体检】</div>'
+            + ''.join(blocks))
 
 
 def _follow_leaders(pool):

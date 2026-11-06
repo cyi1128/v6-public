@@ -17,6 +17,15 @@ from typing import List, Dict, Optional, Tuple
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.indicators import calc_ma_series, is_price_above_ma
 
+# 工单3：梯队健康分，与云端 eod 共用同一份纯 stdlib 算法（两端各自喂涨停池，互不依赖）
+try:
+    from strategy.theme_health import theme_health, health_one  # noqa: F401
+except Exception:  # 兼容以 strategy/ 为工作目录直接运行
+    try:
+        from theme_health import theme_health, health_one  # noqa: F401
+    except Exception:
+        theme_health = health_one = None
+
 
 # ============================================================
 # 基础工具函数
