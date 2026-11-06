@@ -78,6 +78,7 @@ jobs:
           python -u tools/cloud_score_bridge.py --selftest || true
           python -u strategy/theme_health.py --selftest || true
           python -u tools/strategy_tournament.py --selftest || true
+          python -u tools/sentiment_cycle.py --selftest || true
       # 双推修复③（2026-11-04）：云端每次全新 checkout，去重状态来自仓库内 tools/data/；
       # 并发 run 写回 slot_done 前先拉一次远端最新（rebase 自愈），降低旧状态覆盖/丢更新概率
       - name: 同步去重状态到最新
@@ -164,6 +165,7 @@ jobs:
           python -u tools/cloud_score_bridge.py --selftest || true
           python -u strategy/theme_health.py --selftest || true
           python -u tools/strategy_tournament.py --selftest || true
+          python -u tools/sentiment_cycle.py --selftest || true
       - name: 周日因子体检报告（第5步）
         # 周日本身是休市日，scheduler 会直接退出，所以本 step 必须排在它前面独立执行。
         # 触发条件用 cron 原文精确匹配，避免和其他 schedule 命中混淆。

@@ -5343,7 +5343,10 @@ def build_auction(title='竞价观察'):
     _cap_advice_row = (f'<div style="margin-top:8px;padding:7px 10px;background:#1c2230;border-left:4px solid {GOLD};'
                        f'border-radius:8px;font-size:13px;color:#e9ecef;">📊 当前档位建议（按盘面）：{cap_advice}</div>') if cap_advice else ''
     # （用户指令：已删除「🎚 共振原因」_reson_reason_row 段）
-    inner = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔔 持仓竞价诊断（先看自己的）</div>'
+    sec_sent = _sentiment_line_for_auction()
+    sec_sent_html = ('<div style="background:#1f2635;border-radius:8px;padding:8px 10px;'
+                     'margin-bottom:8px;font-size:14px;font-weight:700;color:#ffd43b;">%s</div>' % sec_sent) if sec_sent else ''
+    inner = (sec_sent_html + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔔 持仓竞价诊断（先看自己的）</div>'
              + (''.join(own) or '<div style="color:' + GREY + ';font-size:13px;">无持仓</div>')
              + pick + wind + _cap_advice_row + pos_cap_line(emotion, None) + _confirm_block + _alt_note)
     _ex.shutdown(wait=False)
@@ -6743,6 +6746,8 @@ def build_eod():
                     for n, s in d['tops'][:3] if len(s) >= 1)
     # 工单3：主线体检（梯队健康分）。数据缺就标"数据未接入"，不编分。
     sec2b = build_theme_health(d)
+    # 工单7：当日情绪周期算完落盘，供次日竞价卡顶部展示
+    _sentiment_refresh()
 
     # 3. 可跟踪池（明日操作，禁止已涨停：只保留 未涨停量能放大+题材共振 / 大涨未封板分时强势）
     tpool = _track_pool(d)
@@ -8099,6 +8104,67 @@ def build_theme_health(d, top_n=5):
             % (col, h['theme'], col, h['score'], col, h['level'], pn, h['ladder'], TEAL, h['note']))
     return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">【主线体检】</div>'
             + ''.join(blocks))
+
+
+# ============ 工单7：情绪周期（eod 算并落盘，次日竞价卡顶部展示） ============
+_SENT_PATH = 'data/sentiment_state.json'
+
+
+def _sc_mod():
+    try:
+        import importlib.util as _iu
+        p = os.path.join('tools', 'sentiment_cycle.py')
+        s = _iu.spec_from_file_location('qm_sentiment_cycle', p)
+        m = _iu.module_from_spec(s)
+        s.loader.exec_module(m)
+        return m
+    except Exception as e:
+        print('[sentiment] 加载失败:', e)
+        return None
+
+
+def _sentiment_refresh(day=None):
+    """eod 用当日真实涨停池/炸板池/昨涨停溢价算 S 并落盘。失败不阻断推送。"""
+    mod = _sc_mod()
+    if mod is None:
+        return None
+    today = day or _bj_now().strftime('%Y%m%d')
+    prev = _prev_trade_day(today)
+    try:
+        res = mod.run_day(today, prev, workers=8)
+    except Exception as e:
+        print('[sentiment] 计算异常:', e)
+        return None
+    if not res or res.get('S') is None:
+        print('[sentiment] 数据不足，不落盘（避免次日卡面拿旧值冒充）')
+        return None
+    line = mod.card_line(res)
+    try:
+        with open(_SENT_PATH, 'w', encoding='utf-8') as f:
+            json.dump({'date': today, 'S': res['S'], 'level': res['level'],
+                       'position': res['position'], 'guard': res.get('guard', False),
+                       'line': line, 'detail': res.get('detail')}, f, ensure_ascii=False)
+        print('[sentiment] 已落盘 %s S=%s %s' % (_SENT_PATH, res['S'], res['level']))
+        _git_commit_push(_SENT_PATH, 'update sentiment state %s' % today)
+    except Exception as e:
+        print('[sentiment] 落盘失败:', e)
+    return res
+
+
+def _sentiment_line_for_auction():
+    """竞价卡顶行：只认"上一个交易日"的状态，跨日/跨周末不冒充当日。"""
+    try:
+        with open(_SENT_PATH, encoding='utf-8') as f:
+            st = json.load(f) or {}
+    except Exception:
+        return ''
+    d = str(st.get('date') or '')
+    if not d:
+        return ''
+    if d != _prev_trade_day(_bj_now().strftime('%Y%m%d')):
+        print('[sentiment] 落盘状态 %s 非上一交易日，竞价卡不展示' % d)
+        return ''
+    return st.get('line') or ''
 
 
 def _follow_leaders(pool):

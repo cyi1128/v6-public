@@ -171,12 +171,19 @@ def compute(pool, zb_pool, premium=None, prev_pool=None):
 
     raw = sum(parts[k] for k in ('zt', 'zb', 'pm', 'h') if k in parts)
     s = 100.0 * raw / wsum if wsum > 0 else None
+    prev_zt = len(prev_pool or [])
+    guard = False
+    if (s is not None and zt <= 40 and prev_zt > 0 and zt <= prev_zt * 0.5
+            and premium is not None and premium < 0):
+        guard = True
+        s = min(s, 34.0)
     name, pos = level_of(s) if s is not None else ('数据不足', '—')
     detail = {'zt': zt, 'zb': zb, 'max_lb': max_lb, 'premium': premium,
               'parts': {k: round(v, 1) for k, v in parts.items()},
-              'weight_used': wsum, 'missing': missing}
+              'weight_used': wsum, 'missing': missing, 'prev_zt': prev_zt,
+              'guard': guard}
     return {'S': None if s is None else round(s, 1), 'level': name, 'position': pos,
-            'detail': detail, 'missing': missing}
+            'detail': detail, 'missing': missing, 'guard': guard}
 
 
 def turning_signals(today, prev_day_result=None):
@@ -194,10 +201,12 @@ def turning_signals(today, prev_day_result=None):
 
 
 def card_line(res):
-    """竞价卡顶部一行。"""
+    """竞价卡顶部一行。护栏触发时加注明。"""
     if not res or res.get('S') is None:
         return ''
-    return '🌡️ 情绪周期：%s(S=%.0f) → 建议档位：%s' % (res['level'], res['S'], res['position'])
+    note = '（护栏触发：涨停腰斩+溢价转负）' if res.get('guard') else ''
+    return '🌡️ 情绪周期：%s(S=%.0f) → 建议档位：%s%s' % (
+        res['level'], res['S'], res['position'], note)
 
 
 def run_day(day, prev_day, workers=8):
@@ -265,6 +274,26 @@ def _selftest():
     print('signals=', sig)
     ck('涨停腰斩+高度断档识别', len(sig) == 2, sig)
     ck('无数据不写信号', turning_signals({'detail': {}}, None) == [], '')
+
+    # 护栏：三条件同时中才压冰点（防误伤"涨停腰斩但龙头未倒"的分歧日）
+    pool32 = [{'c': str(600000 + i), 'lbc': 5 if i == 0 else 1} for i in range(32)]
+    prev84 = [{'c': str(600100 + i), 'lbc': 1} for i in range(84)]
+    r = compute(pool32, [{'c': 'z'}] * 14, -0.15, prev84)
+    print('guard hit=', r['S'], r['level'], r['position'], 'guard=', r['guard'])
+    ck('11/6结构→护栏压冰点', r['S'] == 34.0 and r['level'] == '冰点期' and r['guard'] is True,
+       (r['S'], r['level'], r['guard']))
+    line = card_line(r)
+    print('guard card=', line)
+    ck('护栏卡面注明原因', '护栏触发：涨停腰斩+溢价转负' in line, line)
+    # 反例：腰斩但昨涨停溢价为正 → 不触发，留在回暖/分歧
+    r2 = compute(pool32, [{'c': 'z'}] * 14, 2.0, prev84)
+    print('guard miss=', r2['S'], r2['level'], 'guard=', r2['guard'])
+    ck('腰斩但溢价为正→不压冰点', r2['guard'] is False and r2['level'] == '回暖期',
+       (r2['S'], r2['level']))
+    # 反例：溢价为负但涨停未腰斩（>=前日50%）→ 不触发
+    pool60 = [{'c': str(600200 + i), 'lbc': 1} for i in range(60)]
+    r3 = compute(pool60, [{'c': 'z'}] * 10, -1.0, prev84)
+    ck('未腰斩→不触发护栏', r3['guard'] is False, (r3['S'], r3['level']))
 
     print('[selftest] sentiment_cycle RESULT %s' % ('PASS' if ok else 'FAIL'))
     return 0 if ok else 4
