@@ -43,6 +43,7 @@ _ENGINE_CN = {
     'ai_520': 'AI520买点',
     'factor_score': '因子评分',
     'multi_factor': '多因子',
+    'money_flow': '资金流',
 }
 
 

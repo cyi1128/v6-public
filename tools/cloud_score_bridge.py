@@ -165,6 +165,30 @@ def _score_multi(code, name, bars, quote, ctx, base_dir):
     return (round(v, 2) if v is not None else None), (None if v is not None else '多因子未返回总分')
 
 
+def _score_money(code, name, bars, quote, ctx, base_dir):
+    """工单6 资金流：纯 stdlib，入参走 quote(腾讯快照字段) + bars(日K)，不重复联网。"""
+    mod = _load('tools/cloud_money_flow.py', 'qm_money_flow')
+    if mod is None:
+        return None, 'money_flow 文件缺失'
+    k = _bars_to_dicts(bars)
+    q = quote or {}
+    try:
+        qs = {
+            'code': str(code),
+            'outer': float(q.get('outer') or 0),
+            'inner': float(q.get('inner') or 0),
+            'vol_ratio': (float(q['vol_ratio']) if q.get('vol_ratio') not in (None, '') else None),
+            'turnover': q.get('turnover'),
+            'pct': q.get('pct'),
+        }
+    except Exception:
+        qs = {'code': str(code), 'outer': 0, 'inner': 0, 'vol_ratio': None}
+    bars_k = [{'close': x['close'], 'vol': x.get('volume') or x.get('vol') or 0} for x in k]
+    r = mod.score_one(qs, bars_k)
+    v = _num(r.get('money_score'))
+    return (round(v, 2) if v is not None else None), (None if v is not None else (r.get('note') or '资金流未出分'))
+
+
 def _unavailable(reason):
     def _f(*a, **k):
         return None, reason
@@ -176,6 +200,7 @@ _ADAPTERS = {
     'ai_520': _score_ai_520,
     'nine_score': _score_nine,
     'multi_factor': _score_multi,
+    'money_flow': _score_money,
     'factor_score': _unavailable('依赖 data.duckdb_adapter（本地 DuckDB 库）'),
     'main_force': _unavailable('桌面端独有（jq/tdx 行情源），云端永久摊空'),
 }

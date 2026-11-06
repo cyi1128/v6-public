@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "updated": "2026-11-06",
+  "updated": "2026-11-07",
   "note": "权重变动全量留痕。工单2 的机械调权与工单1 的人工降权都写这里，禁止只改文件不记账。",
   "entries": [
     {
       "date": "2026-11-06",
       "engine": "ai_composite",
-      "old": 0.30,
-      "new": 0.10,
+      "old": 0.3,
+      "new": 0.1,
       "reason": "子分缺失降权（非战绩淘汰）：需要 force_behavior_score/nine_filter_score/ai_six_dim_score 三个子分，main_force 已禁用、六维云端版未上线，只剩九重一个子分算不出",
       "by": "工单1-人工决策"
     },
@@ -30,24 +30,42 @@
     {
       "date": "2026-11-06",
       "engine": "multi_factor",
-      "old": 0.00,
-      "new": 0.10,
+      "old": 0.0,
+      "new": 0.1,
       "reason": "numpy/requests 上云后真出分，由可选引擎转为参与加权",
       "by": "工单1-人工决策"
     },
     {
       "date": "2026-11-06",
       "engine": "main_force",
-      "old": 0.10,
-      "new": 0.10,
+      "old": 0.1,
+      "new": 0.1,
       "reason": "enabled=false：桌面端独有（jq/tdx 行情源），云端永久摊空，数值保留仅作标注",
       "by": "工单1-人工决策"
+    },
+    {
+      "date": "2026-11-07",
+      "engine": "money_flow",
+      "old": null,
+      "new": 0.15,
+      "week_samples": 0,
+      "reason": "资金维度上云，非战绩调整；前两周为新生因子观察期，锦标赛只统计不调权，第三周起纳入末位降权",
+      "by": "工单6"
+    },
+    {
+      "date": "2026-11-07",
+      "engine": "auction_v3",
+      "old": 0.35,
+      "new": 0.3,
+      "week_samples": 0,
+      "reason": "资金维度上云后重新分配：竞价0.35→0.30，因子0.35→0.30，ai0.10→0.05",
+      "by": "工单6"
     }
   ],
   "upgrade_hooks": [
     {
       "engine": "ai_composite",
-      "target_weight": 0.30,
+      "target_weight": 0.3,
       "condition": "ai_six_dim_score 云端版上线且 force/nine/六维 三子分齐全",
       "action": "月度进化报告提示建议升回 0.30，不自动改权重"
     }

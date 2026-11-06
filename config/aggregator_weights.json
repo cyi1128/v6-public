@@ -1,13 +1,14 @@
 {
-  "version": 2,
-  "updated": "2026-11-06",
-  "note": "工单1 权重（2026-11-06 调整）。ai_composite 因三个子分缺失降级至 0.10；main_force 桌面端独有，云端永久摊空。",
+  "version": 3,
+  "updated": "2026-11-07",
+  "note": "工单6 资金维度上云。权重：竞价0.30/因子0.30/资金流0.15/九重0.10/多因子0.10/ai 0.05；main_force 桌面端独有，云端永久摊空。money_flow 前两周观察期只统计不调权。",
   "weights": {
-    "auction_v3": 0.35,
-    "factor_engine": 0.35,
+    "auction_v3": 0.30,
+    "factor_engine": 0.30,
+    "money_flow": 0.15,
     "nine_score": 0.10,
     "multi_factor": 0.10,
-    "ai_composite": 0.10,
+    "ai_composite": 0.05,
     "main_force": 0.10
   },
   "engines": {
@@ -21,6 +22,10 @@
     },
     "multi_factor": {
       "enabled": true
+    },
+    "money_flow": {
+      "enabled": true,
+      "note": "资金维度上云（内外盘差/量比/3日放量上涨）；前两周观察期只统计不调权，第三周起纳入锦标赛末位降权"
     }
   }
 }
