@@ -5346,7 +5346,11 @@ def build_auction(title='竞价观察'):
     sec_sent = _sentiment_line_for_auction()
     sec_sent_html = ('<div style="background:#1f2635;border-radius:8px;padding:8px 10px;'
                      'margin-bottom:8px;font-size:14px;font-weight:700;color:#ffd43b;">%s</div>' % sec_sent) if sec_sent else ''
-    inner = (sec_sent_html + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔔 持仓竞价诊断（先看自己的）</div>'
+    # 工单10：隔夜外盘定量参考行（只作开盘情绪偏移，不进 aggregator、不单独成 engine）
+    _ov_line = _overnight_line_for_auction()
+    sec_ov_html = ('<div style="background:#1f2635;border-radius:8px;padding:8px 10px;'
+                   'margin-bottom:8px;font-size:13px;color:#91a7ff;">%s</div>' % _ov_line) if _ov_line else ''
+    inner = (sec_sent_html + sec_ov_html + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔔 持仓竞价诊断（先看自己的）</div>'
              + (''.join(own) or '<div style="color:' + GREY + ';font-size:13px;">无持仓</div>')
              + pick + wind + _cap_advice_row + pos_cap_line(emotion, None) + _confirm_block + _alt_note)
     _ex.shutdown(wait=False)
@@ -8165,6 +8169,20 @@ def _sentiment_line_for_auction():
         print('[sentiment] 落盘状态 %s 非上一交易日，竞价卡不展示' % d)
         return ''
     return st.get('line') or ''
+
+
+def _overnight_line_for_auction():
+    """竞价卡「隔夜外盘一句话」定量行（工单10）。
+
+    边界：只作开盘情绪偏移参考，不进 aggregator、不单独成 engine；
+    与已有 LLM 文字并存不互斥。数据源全挂 → 「外盘未接入」，绝不编数。
+    """
+    try:
+        from overnight_map import compute, card_line
+        return card_line(compute())
+    except Exception as e:
+        print('[overnight] 参考行生成失败（不影响主卡）:', e)
+        return ''
 
 
 def _follow_leaders(pool):

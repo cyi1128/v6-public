@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "updated": "2026-11-07",
+  "note": "隔夜外盘→A股题材的参考偏移分映射。只做开盘情绪参考，不进 aggregator、不单独成 engine。首版线性，观察期后按实际传导吻合度调 factor。",
+  "score_range": [-40, 40],
+  "rules": [
+    {
+      "sector": "半导体/存储",
+      "label": "费半(SOXX代理)",
+      "symbols": ["usSOXX"],
+      "factor": 5.0,
+      "note": "费半指数无公开代码（usSOX 返回 pv_none_match），用费城半导体ETF SOXX 代理，持仓基本即费半成分股"
+    },
+    {
+      "sector": "算力/CPO",
+      "label": "纳指100",
+      "symbols": ["usNDX"],
+      "factor": 3.5,
+      "note": "纳指科技权重高，映射算力/CPO链"
+    },
+    {
+      "sector": "油气",
+      "label": "纽约原油",
+      "symbols": ["hf_CL"],
+      "factor": 2.0,
+      "note": "原油涨→油气开采/油服偏强"
+    },
+    {
+      "sector": "贵金属",
+      "label": "纽约黄金",
+      "symbols": ["hf_GC"],
+      "factor": 2.0,
+      "note": "金价涨→贵金属偏强"
+    },
+    {
+      "sector": "AI应用/传媒",
+      "label": "美股科技",
+      "symbols": ["usAAPL", "usNVDA", "usTSLA"],
+      "agg": "mean",
+      "factor": 2.0,
+      "note": "三大科技均值，软映射AI应用与传媒"
+    }
+  ]
+}
