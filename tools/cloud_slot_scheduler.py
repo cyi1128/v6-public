@@ -207,7 +207,7 @@ def main() -> int:
         return 0
 
     in_am = 8 <= bj.hour < 12
-    in_pm = 13 <= bj.hour < 16
+    in_pm = 12 <= bj.hour < 16   # 12:00 起就允许起跑，空转到 13:00 自然开始跑槽
     if not (in_am or in_pm):
         log('当前不在调度时段（08:00-11:45 / 13:00-15:45），本 run 直接退出')
         return 0
