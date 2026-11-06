@@ -1,0 +1,35 @@
+name: demo-cards
+
+# 样卡演示专用：只做 workflow_dispatch（无 schedule），构建 11-06 真实数据样卡并经 PushPlus 推送。
+# 与 daily-review 完全隔离，不参与任何定时推送，不影响 slot 闸门。
+
+on:
+  workflow_dispatch:
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 依赖
+        run: pip install -q -r requirements-cloud.txt || true
+
+      - name: 构建样卡并推送
+        env:
+          MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        run: python -u tools/demo_cards.py --push
+
+      - name: 上传样卡 HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-cards
+          path: demo/*.html
+          if-no-files-found: warn
