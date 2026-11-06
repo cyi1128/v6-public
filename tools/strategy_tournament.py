@@ -15,6 +15,7 @@
 import json
 import os
 import sys
+import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSV_PATH = os.path.join(ROOT, 'data', 'signal_log.csv')
@@ -108,21 +109,49 @@ def dim_stats(rows, dim):
     return out
 
 
-def weekly_report(rows, min_samples=MIN_SAMPLES):
+def load_observation(path=None):
+    """从权重文件读各引擎观察期 {dim: 'YYYY-MM-DD'}（新生因子只统计不调权）。"""
+    p = path or os.path.join(ROOT, 'config', 'aggregator_weights.json')
+    try:
+        with open(p, encoding='utf-8') as f:
+            raw = json.load(f) or {}
+    except Exception:
+        return {}
+    obs = raw.get('observation_until') or {}
+    eng = raw.get('engines') or {}
+    for k, v in eng.items():
+        if isinstance(v, dict) and v.get('observation_until'):
+            obs.setdefault(k, v['observation_until'])
+    return {k: str(v) for k, v in obs.items() if v}
+
+
+def _in_observation(dim, observation, today):
+    """观察期内 → True（只统计、不参与末位降权）。"""
+    until = (observation or {}).get(dim)
+    if not until:
+        return False
+    t = today or time.strftime('%Y-%m-%d')
+    return t <= until
+
+
+def weekly_report(rows, min_samples=MIN_SAMPLES, observation=None, today=None):
     st = [dim_stats(rows, d) for d, _ in DIMS]
     total = max((x['n'] for x in st), default=0)
+    for x in st:
+        x['observation'] = _in_observation(x['dim'], observation, today)
     ranked = sorted([x for x in st], key=lambda x: (x['win_rate'] if x['win_rate'] is not None else -1,
                                                     x['high_ret'] if x['high_ret'] is not None else -9), reverse=True)
     enough = total >= min_samples
     lines = []
     for i, x in enumerate(ranked, 1):
         name = dict(DIMS)[x['dim']]
+        tail = ' | 观察期' if x.get('observation') else ''
         if (not enough) or x['win_rate'] is None:
-            lines.append('%s | 样本不足，本季观察' % name)
+            lines.append('%s | 样本不足，本季观察%s' % (name, tail))
             continue
-        lines.append('%s | 本周%d笔 | 胜率%.1f%% | 高分票均值%s | 排名%d'
+        lines.append('%s | 本周%d笔 | 胜率%.1f%% | 高分票均值%s | 排名%d%s'
                      % (name, x['n'], x['win_rate'],
-                        ('%.2f%%' % x['high_ret']) if x['high_ret'] is not None else '—', i))
+                        ('%.2f%%' % x['high_ret']) if x['high_ret'] is not None else '—', i, tail))
     return {'rows': len(rows), 'samples': total, 'enough': enough,
             'dims': st, 'ranked': ranked, 'lines': lines,
             'conclusion': _conclusion(ranked, enough, total)}
@@ -185,15 +214,18 @@ def _rebalance(w):
     return out
 
 
-def plan_adjust(fw, ranked, samples):
-    """返回 (new_fw, changes)。样本不足时 changes 恒为空——这是代码分支，不靠人盯。"""
+def plan_adjust(fw, ranked, samples, observation=None, today=None):
+    """返回 (new_fw, changes)。样本不足时 changes 恒为空；观察期引擎不参与末位降权。"""
     if samples < MIN_SAMPLES:
         return dict(fw), []
     worst = None
     for x in ranked[::-1]:
-        if x['win_rate'] is not None:
-            worst = x
-            break
+        if x['win_rate'] is None:
+            continue
+        if _in_observation(x['dim'], observation, today):
+            continue                      # 观察期：只统计不调权（代码分支，不靠人盯）
+        worst = x
+        break
     if worst is None:
         return dict(fw), []
     dim = worst['dim']
@@ -282,6 +314,22 @@ def _selftest():
     ck('新权重和=100', abs(sum(new.values()) - 100.0) < 0.5, sum(new.values()))
     ck('权重仍在[10,45]', all(LO * 100 <= v <= HI * 100 + 0.01 for v in new.values()), new)
 
+    # 观察期：末位引擎在观察期内 → 不降它，若次末位也观察则不降任何；排名行标「观察期」
+    worst_dim = rep2['ranked'][-1]['dim']
+    new_obs, ch_obs = plan_adjust(fw, rep2['ranked'], rep2['samples'],
+                                  observation={worst_dim: '2999-12-31'}, today='2026-11-07')
+    print('obs worst=', worst_dim, 'changes=', ch_obs)
+    ck('观察期内末位不降权', bool(ch_obs) and ch_obs[0]['dim'] != worst_dim, ch_obs)
+    obs_all = {x['dim']: '2999-12-31' for x in rep2['ranked']}
+    new_all, ch_all = plan_adjust(fw, rep2['ranked'], rep2['samples'],
+                                  observation=obs_all, today='2026-11-07')
+    ck('全部观察期→零变动', ch_all == [] and new_all == fw, (ch_all, new_all))
+    rep_obs = weekly_report(many, observation={worst_dim: '2999-12-31'}, today='2026-11-07')
+    ck('排行榜标观察期', any('观察期' in x for x in rep_obs['lines']), [x for x in rep_obs['lines'] if '观察期' in x])
+    exp_new, ch_exp = plan_adjust(fw, rep2['ranked'], rep2['samples'],
+                                  observation={worst_dim: '2020-01-01'}, today='2026-11-07')
+    ck('观察期已过期→照常降权', bool(ch_exp) and ch_exp[0]['dim'] == worst_dim, ch_exp)
+
     # 下限保护：末位已在 10% 时不再降，且总和仍为 100
     low = {'jq': 10.0, 'lj': 30.0, 'zj': 30.0, 'tc': 15.0, 'dl': 15.0}
     new_l, ch_l = plan_adjust(low, rep2['ranked'], rep2['samples'])
@@ -296,13 +344,14 @@ if __name__ == '__main__':
     if '--selftest' in sys.argv:
         sys.exit(_selftest())
     rows, _ = load_rows()
-    rep = weekly_report(rows)
-    print('样本=%d 记录=%d 结论=%s' % (rep['samples'], rep['rows'], rep['conclusion']))
+    obs = load_observation()
+    rep = weekly_report(rows, observation=obs)
+    print('样本=%d 记录=%d 观察期=%s 结论=%s' % (rep['samples'], rep['rows'], obs or '无', rep['conclusion']))
     for line in rep['lines']:
         print('  ' + line)
     if '--apply' in sys.argv:
         fw = load_fw()
-        new, ch = plan_adjust(fw, rep['ranked'], rep['samples'])
+        new, ch = plan_adjust(fw, rep['ranked'], rep['samples'], observation=obs)
         if apply_changes(new, ch, rep['samples']):
             print('已写入权重并记账: %s' % ch)
         else:
