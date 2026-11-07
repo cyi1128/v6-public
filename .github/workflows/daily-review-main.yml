@@ -25,7 +25,10 @@ on:
     #    risk/watch/tail/eod/follow/cycle/news 全部槽位；同段后续命中会被 marker 拦下快速退出。
     - cron: '*/15 0-7 * * 1-5'
     # ② 休市日每2小时新闻（scheduler 在非交易日不跑，必须独立保留）
-    - cron: '0 */2 * * *'
+    # 2026-11-07 修复：原 '0 */2 * * *' 全周生效，交易日白天会与 scheduler 抢同一时刻；
+    # 且 push job 对 schedule 一律 skipped，导致周末新闻彻底断供（11-06 晚间 + 11-07 全天零推送）。
+    # 现收窄为周末专属，交易日白天统一交给 scheduler，交易日 16:00 后由 ③④⑤ 承接。
+    - cron: '0 */2 * * 0,6'
     # ③ 外盘窗口 21:38/22:38 北京（超出 scheduler 的 8-16 时段，独立保留）
     - cron: '38 13,14 * * 1-5'
     # ④ 晚间消息汇总 22:50 北京（超出 scheduler 时段，独立保留）
@@ -54,9 +57,14 @@ jobs:
     # 手动 / 外部 workflow_dispatch 仍走这里，用于补推与单槽实测。
     # 2026-11-06 二次改造：slot=scheduler 的手动触发只跑下面的 scheduler job，
     # 不进本 job（否则会当成一个未知槽位空跑，且与调度器抢 slot_done）。
+    # 2026-11-07 修复（回归）：schedule 不再一律拉黑。scheduler 只接管「交易日首跳」与「周日因子报告」，
+    # 其余 cron（周末每2小时新闻 / 外盘 21:38·22:38 / 晚间 22:50 / 16:00 汇总）全部由本 job 承接——
+    # scheduler 在周末直接退出、也不覆盖 8-16 点以外时段，原先这些 schedule 命中全被 skipped 吞掉。
     if: >
-      github.event_name != 'schedule' &&
-      !(github.event_name == 'workflow_dispatch' && github.event.inputs.slot == 'scheduler')
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.slot != 'scheduler') ||
+      (github.event_name == 'schedule' &&
+       github.event.schedule != '*/15 0-7 * * 1-5' &&
+       github.event.schedule != '0 1 * * 0')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -145,8 +153,11 @@ jobs:
     # 重复推送由主程序内部 slot_done 去重兜住；同一日同一段重复起跑由 sched_active.json 标记拦截。
     # 2026-11-06 二次改造：除了 schedule 命中，也允许手动 slot=scheduler 直接拉起，
     # 用于 cron 被平台吞掉时强制接管当日剩余时段（不再依赖触发层运气）。
+    # 2026-11-07 修复：只接管「交易日首跳」与「周日因子报告」两条 cron，
+    # 其余 schedule 命中交给 push job（否则周末/晚间新闻推送会继续被吞）。
     if: >
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' &&
+       (github.event.schedule == '*/15 0-7 * * 1-5' || github.event.schedule == '0 1 * * 0')) ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.slot == 'scheduler')
     runs-on: ubuntu-latest
     timeout-minutes: 260
