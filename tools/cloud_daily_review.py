@@ -1989,8 +1989,9 @@ def ask_deepseek(payload, purpose='eod', system_text=None):
     system_text 缺省用全局 _ASK_DS_SYS；特殊场景可传独立系统提示词。"""
     global _DS_EXHAUSTED, _DS_FAILED
     system_text = system_text or _ASK_DS_SYS
-    if purpose not in ('zforce_radar', 'deep6', 'board'):
+    if purpose not in ('zforce_radar', 'deep6', 'board', 'risk_card', 'theme_health_card', 'factor_weekly_card'):
         # 全局「股票深挖铁律」注入所有模块（主力雷达 ZSYS 已有等价 bottom_logic 必填、deep6 手动完整版、board 小白通俗150字硬限 不注入）
+        # risk_card/theme_health_card/factor_weekly_card 是大盘级/统计级判读、不含个股，注入个股深挖铁律会诱导编造个股，故豁免
         system_text = _DEEP_DIG_RULE + '\n' + system_text
     if '反模板强化' not in system_text:
         system_text += _ANTI_TEMPLATE_BLOCK
@@ -3445,34 +3446,20 @@ def build_zscan(limit=None):
                 if isinstance(_eg, list):
                     r['evidence_gaps'] = '；'.join(str(x) for x in _eg) if _eg else '无'
     if not radar:
-        radar = []
-        for h in hits[:5]:
-            _rb = h.get('res_bonus', 0)
-            _qt = int(h.get('score_w') or h.get('score') or 0)
-            radar.append({'code': h['code'], 'name': h['name'], 'method': h['method'],
-                          'pattern_match': '不匹配', 'pattern_basis': 'LLM未输出，规则降级',
-                          'sequence_stage': '找锚中',
-                          'anchor_price': str(h.get('anchor') or ''), 'anchor_type': '未取得', 'anchor_quality_score': 0,
-                          'cost_zone': str(h['anchor']), 'cost_basis': '规则降级：箱体' + str(h.get('box_low') or '') + '-' + str(h.get('box_high') or ''),
-                          'breakout_check': {'verdict': '数据不足'}, 'washout_check': {'verdict': '数据不足无法判定'},
-                          'second_breakout': {'done': False, 'volume_type': '数据不足'},
-                          'pullback_check': {'five_conditions_met': [], 'time_window': '', 'verdict': '未到'},
-                          'quality_score_detail': {'anchor': 0, 'sector_resonance': _rb, 'news_freshness': 0, 'washout': 0, 'second_breakout': 0},
-                          'quality_total': _qt,
-                          'observation_priority': '低', 'position_ref': '三分之一档参考（规则降级）', 'observation_priority_note': '仅作观察优先级参考，非投资建议',
-                          'credibility': '中(规则降级)',
-                          'theme': h.get('industry') or '未判',
-                          'resonance': ('强' if _rb >= 15 else '中' if _rb >= 5 else '弱' if _rb else '未判'),
-                          'bottom_logic': ('客观数据：现价' + str(h.get('price') or '') + '元，箱体'
-                                           + str(h.get('box_low') or '') + '-' + str(h.get('box_high') or '')
-                                           + '，评分' + str(h.get('score_w') or h.get('score') or '')
-                                           + '，换手' + str(h.get('avg_turn') or '未取得')
-                                           + '%。主营与产业链信息不在输入内，待LLM研判恢复。'),
-                          'ignite_theme': h['industry'],
-                          'exit_rule': '止损=收盘破' + str(h.get('falsify_line') or h.get('box_low') or '') + '元；止盈参考=锚+' + str(h.get('anchor') or '') + '元+8%（观察剧本，非投资建议）',
-                          'next_watch': '①' + str(h.get('method') or '建仓痕迹') + '；②观察触发：放量突破' + str(h.get('box_high') or '') + '；③失效：跌破' + str(h.get('falsify_line') or '') + '元移出观察池',
-                          'false_alarm_status': '数据不足无法判定', 'false_alarm_risk': '缺模型研判',
-                          'rank_score': _qt, 'rank_reason': '规则降级按评分排', 'scan_score': int(h.get('score') or 0)})
+        # 用户硬约束：LLM 未返回时禁止用规则字段拼研判结论，只列客观数据事实
+        print('[zscan] LLM 未返回，已禁规则版兜底（不拼四问结论）')
+        _fact = ''.join(
+            '<div style="color:#ced4da;font-size:12px;margin:3px 0;">• %s(%s) %s｜评分%s｜现价%s｜箱体%s~%s｜换手%s%%</div>'
+            % (h.get('name') or '', h.get('code') or '', h.get('method') or '',
+               int(h.get('score_w') or h.get('score') or 0), h.get('price') or '-',
+               h.get('box_low') or '-', h.get('box_high') or '-', h.get('avg_turn') or '-')
+            for h in hits[:5])
+        return ('<div style="font-size:15px;font-weight:900;color:' + GOLD + ';">🛰 主力雷达 · 建仓痕迹</div>'
+                '<div style="color:#e6a23c;font-size:12px;margin-top:6px;">'
+                '⚠️ AI 研判未返回（模型通道未就绪），本卡只列六条件扫描命中的客观数据，'
+                '不给规则版四问（手法/序列/锚/洗盘）结论。</div>' + _fact
+                + '<div style="color:' + GREY + ';font-size:11px;margin-top:6px;">数据日 '
+                + trade_date + '：六条件扫描 → 板块共振加权；模型恢复后再出研判。</div>')
     # FIX16: 渲染前终拦——LLM 越权补票兜底（当日涨幅>=7% 剔除并从命中池补位）
     def _r_pct(r):
         for _k in ('daily_change_percent', 'daily_change', 'pct', 'change_percent'):
@@ -6735,14 +6722,17 @@ def build_eod():
                      + (f'<div style="color:{GOLD};font-size:12px;margin-top:2px;">🎚️ 阶段：{_dp2.get("stage", "")} ｜ 结论：{_dp2.get("verdict", "")}</div>' if _dp2.get('stage') or _dp2.get('verdict') else '')
                      + (f'<div style="color:{TEAL};font-size:12px;margin-top:2px;">🎯 明天：{_dp2.get("act", "")}</div>' if _dp2.get('act') else '')
                      + (f'<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳️ 暗线：{_dp2.get("dark", "")}</div>' if _dp2.get('dark') else ''))
-        plain = ('资金还在往里涌，明天低开别慌，回踩可轻仓。' if lv == '强'
-                 else '今天有资金但不算最强，明天只跟龙头，别追跟风。')
+        if _dp2 and _dp2.get('why'):
+            _plain_html = _llm2
+        else:
+            _plain_html = (f'<div style="color:#e6a23c;font-size:12px;margin-top:3px;">'
+                           f'AI 判读未返回（模型通道未就绪），本板块只列涨停家数/龙头/跟风数据，不给规则版结论</div>')
         sec2_rows += f"""<div style="background:#1f2635;border-left:4px solid {GOLD if lv=='强' else GREY};border-radius:10px;padding:10px 12px;margin:7px 0;">
 <div style="font-weight:700;color:{GOLD};">{n} <span style="color:{RED};">{len(s)}涨停</span> <span style="color:{TEAL};">{sc}/10·{lv}</span></div>
 <div style="color:#ced4da;font-size:13px;margin-top:4px;">👑 龙头：{leader.get('n')} {_hhmm(leader.get('fbt'))}封（封板最早，明天看回封或溢价）</div>
 {f'<div style="color:{TEAL};font-size:12px;margin-top:3px;">📌 历史强势股：{"、".join(old_leaders)}</div>' if old_leaders else ''}
 <div style="color:{TEAL};font-size:12px;margin-top:3px;">🔎 可跟踪跟风（未涨停量能放大）：{fg_txt}</div>
-<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 大白话：{plain}</div>{_llm2}</div>"""
+{_plain_html}</div>"""
     sec2 = f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">【今日主线 & 强势题材】（TOP10 上涨逻辑）</div>{sec2_rows}'
     if not sec2_rows:
         sec2 += '<div style="color:' + GREY + ';font-size:13px;margin-top:4px;">今日强势题材数据未取得（涨停池缺源），明日以竞价/开盘验证为准</div>'
@@ -7592,7 +7582,8 @@ def _fw_bar(v):
 
 def build_factor_weekly():
     """周日「因子体检报告」：本周 N 笔 / 5日胜率 / 分因子胜率对比 / 机械调权结果。
-    没有已回填样本时给明确空态，绝不编数。"""
+    样本数、胜率、调权全部由代码实算（绝不编数）；结论与解读交大模型生成，
+    模型未返回时只报数据事实、不给规则版结论。没有已回填样本时给明确空态。"""
     if not _FACTOR_OK:
         return ''
     try:
@@ -7618,6 +7609,52 @@ def build_factor_weekly():
     wr = s.get('win_rate') or 0
     av = s.get('avg_ret')
     _wcol = '#52c41a' if wr >= _FW_WIN_HI else ('#ffb020' if wr >= _FW_WIN_LO else '#ff6b6b')
+    # —— 大模型解读（禁规则结论：结论只认模型输出）——
+    _verdict = _weight_read = _plain = ''
+    _freads = {}
+
+    def _fw_pct(v):
+        return (None if v is None else round(float(v) * 100, 1))
+
+    _fkp = {
+        'task': 'factor_weekly_read',
+        'n': n,
+        'win_rate': round(float(wr) * 100, 1),
+        'avg_ret': (round(float(av), 2) if av is not None else None),
+        'factors': [{'k': _FW_LABEL[k],
+                     'hi_n': (s['factors'].get(k) or {}).get('hi_n', 0),
+                     'hi_win': _fw_pct((s['factors'].get(k) or {}).get('hi_win')),
+                     'lo_n': (s['factors'].get(k) or {}).get('lo_n', 0),
+                     'lo_win': _fw_pct((s['factors'].get(k) or {}).get('lo_win'))}
+                    for k in _FW_FACTORS],
+        'changes': [{'k': _FW_LABEL[c0['k']], 'why': c0['why'],
+                     'from': round(float(c0['from']) * 100), 'to': round(float(c0['to']) * 100)}
+                    for c0 in changes],
+        'weights': {_FW_LABEL[k]: round(float(w.get(k, 0)) * 100) for k in _FW_FACTORS},
+        'min_samples': _FW_MIN_SAMPLES,
+        'format': (
+            '你是A股量化因子研究员。上面样本数、5日胜率、分因子胜率、调权结果都是程序实算的事实，只许引用不许改、不许推新数字。'
+            '只输出 JSON，不要任何其他文字：'
+            '{"verdict":"本周结论：这批信号到底赚不赚、赚多少、问题出在哪，必须引用胜率和平均收益，至少40字",'
+            '"factor_read":[{"k":"因子名","read":"这个因子本周表现说明什么：给高分的那批真涨了还是虚高，下阶段该加重还是减，引用两组胜率，至少35字"}],'
+            '"weight_read":"权重解读：这次调权（或没调）说明什么、下阶段权重怎么走，至少30字",'
+            '"plain":"一句大白话给散户：这套因子现在还灵不灵，至少20字"}'
+            'factor_read 必须覆盖我给的每个因子。禁止万能句、禁止设问句、禁止列表符号、禁止编造未给出的数字。'),
+    }
+    _ft = ask_deepseek(_fkp, purpose='factor_weekly_card')
+    if _ft:
+        try:
+            _j = json.loads(_ft[_ft.find('{'):_ft.rfind('}') + 1])
+            _verdict = str(_j.get('verdict') or '').strip()
+            _weight_read = str(_j.get('weight_read') or '').strip()
+            _plain = str(_j.get('plain') or '').strip()
+            for _it in (_j.get('factor_read') or []):
+                _k = str(_it.get('k') or '').strip()
+                _rd = str(_it.get('read') or '').strip()
+                if _k and _rd:
+                    _freads[_k] = _rd
+        except Exception as e:
+            print('[fw] LLM JSON 解析失败:', e)
     inner = (f'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">'
              f'<div style="flex:1 1 100px;background:#1f2635;border-radius:8px;padding:9px 11px;">'
              f'<div style="color:{GREY};font-size:11px;">本周样本</div>'
@@ -7630,11 +7667,16 @@ def build_factor_weekly():
              f'<div style="color:{GREY};font-size:11px;">平均5日收益</div>'
              f'<div style="color:{_c(av or 0)};font-size:21px;font-weight:800;">'
              f'{(f"{av:+.2f}%" if av is not None else "—")}</div></div></div>')
+    if _verdict:
+        inner += (f'<div style="background:#1c2830;border-left:4px solid #a78bfa;border-radius:8px;'
+                  f'padding:9px 11px;margin-bottom:8px;color:#e9ecef;font-size:13px;line-height:1.65;">'
+                  f'🧠 本周结论：{_verdict}</div>')
+    else:
+        inner += (f'<div style="color:#e6a23c;font-size:12px;margin-bottom:8px;">'
+                  f'⚠️ AI 结论未返回（模型通道未就绪），本卡只出上面这些实算数据，不给规则版结论。</div>')
     # —— 分因子胜率对照 ——
     inner += (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">'
-              f'🔍 分因子胜率（因子分≥70 那批的实际 5 日胜率）</div>'
-              f'<div style="color:{GREY};font-size:11px;margin:3px 0 7px;">'
-              f'这一列越高说明「这个因子给高分时，票后来真的涨」，越低说明它只会虚高</div>')
+              f'🔍 分因子胜率（因子分≥70 那批的实际 5 日胜率）</div>')
     for k in _FW_FACTORS:
         f = s['factors'].get(k) or {}
         hi_w = f.get('hi_win')
@@ -7642,7 +7684,7 @@ def build_factor_weekly():
         if hi_w is None and lo_w is None:
             judge, jcol = '样本不足', GREY
         elif hi_w is None:
-            judge, jcol = '看多样本不足', GREY
+            judge, jcol = '多样本不足', GREY
         elif hi_w >= _FW_WIN_HI:
             judge, jcol = '能打', '#52c41a'
         elif hi_w < _FW_WIN_LO:
@@ -7651,13 +7693,18 @@ def build_factor_weekly():
             judge, jcol = '中性', '#ffb020'
         if lo_w is not None and hi_w is not None and hi_w - lo_w < -0.05:
             judge, jcol = '反向', '#ff6b6b'
+        _rd = _freads.get(_FW_LABEL[k])
+        _rd_html = ((f'<div style="font-size:11px;color:#a78bfa;margin-top:3px;">🧠 {_rd}</div>')
+                    if _rd else
+                    (f'<div style="font-size:11px;color:#e6a23c;margin-top:3px;">AI 判读未返回</div>'))
         inner += (f'<div style="background:#1f2635;border-radius:8px;padding:8px 11px;margin:5px 0;">'
                   f'<div style="font-size:13px;font-weight:700;color:#fff;">{_FW_LABEL[k]}'
                   f'<span style="float:right;color:{jcol};">{judge}</span></div>'
                   f'<div style="font-size:11px;color:{GREY};margin-top:2px;">'
                   f'看多 {f.get("hi_n", 0)} 笔：{"—" if hi_w is None else f"{hi_w * 100:.0f}%"}'
                   f'{_fw_bar(hi_w) if hi_w is not None else ""}'
-                  f'｜其余 {f.get("lo_n", 0)} 笔：{"—" if lo_w is None else f"{lo_w * 100:.0f}%"}</div></div>')
+                  f'｜其余 {f.get("lo_n", 0)} 笔：{"—" if lo_w is None else f"{lo_w * 100:.0f}%"}</div>'
+                  f'{_rd_html}</div>')
     # —— 机械调权结果 ——
     inner += (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">'
               f'⚙️ 机械调权（连续2周<45%减5点／>60%加5点，下限10%上限40%）</div>')
@@ -7670,11 +7717,16 @@ def build_factor_weekly():
     else:
         inner += (f'<div style="color:{GREY};font-size:12px;">本周没有触发调权的因子'
                   f'（需连续 2 周才动，避免被单周噪声带偏）。</div>')
+    if _weight_read:
+        inner += (f'<div style="color:#a78bfa;font-size:12px;margin-top:5px;">🧠 权重解读：{_weight_read}</div>')
     cur = ' / '.join(f'{_FW_LABEL[k]}{w.get(k, 0) * 100:.0f}%' for k in _FW_FACTORS)
     inner += (f'<div style="margin-top:8px;color:#8ce99a;font-size:12px;">当前生效权重：{cur}</div>')
+    if _plain:
+        inner += (f'<div style="color:#ced4da;font-size:12px;margin-top:6px;">💬 {_plain}</div>')
     # —— 明细口径说明 ——
     inner += (f'<div style="margin-top:10px;color:{GREY};font-size:11px;">'
-              f'口径：只看已回填的记录；胜 = 5 日复权收益 > 0；数据缺失不参与统计，绝不编数。</div>')
+              f'口径：只看已回填的记录；胜 = 5 日复权收益 > 0；数据缺失不参与统计，绝不编数。'
+              f'数字与调权由代码实算，解读由大模型生成。</div>')
     return _wrap(inner, '📊', '因子体检报告')
 
 
@@ -8095,19 +8147,55 @@ def build_theme_health(d, top_n=5):
     res = mod.theme_health(_theme_health_rows(raw), prev_rows=prev_rows, top_n=top_n)
     if not res:
         return ''
+    # —— 大模型判读（禁规则大白话：题材判读只认模型输出）——
+    _reads = {}
+    _overall = ''
+    _act = ''
+    _hp = {
+        'task': 'theme_health_read',
+        'prev_day': prev_day,
+        'themes': [{'theme': h['theme'], 'score': round(float(h['score']), 1), 'level': h['level'],
+                    'ladder': h['ladder'], 'promote': h['promote_note'] or ''} for h in res[:top_n]],
+        'format': (
+            '你是A股主线交易员。上面每个题材的健康分/档位/梯队是程序按涨停池实算的事实，只许引用不许改。'
+            '只输出 JSON，不要任何其他文字：'
+            '{"overall":"主线总判断：现在主线处在什么阶段、还能不能上、最该盯哪个题材，至少30字",'
+            '"per":[{"theme":"题材名","read":"这个题材的判读：加速还是分歧、梯队还健不健康、明天还能不能做，必须引用分数和梯队家数，至少40字"}],'
+            '"act":"动作：跟主线该怎么做——重点看哪几个、避开哪几个，至少25字"}'
+            'per 必须覆盖我给的每个题材。禁止万能句、禁止设问句、禁止列表符号、禁止可能/或许这类含糊词。'),
+    }
+    _ht = ask_deepseek(_hp, purpose='theme_health_card')
+    if _ht:
+        try:
+            _j = json.loads(_ht[_ht.find('{'):_ht.rfind('}') + 1])
+            _overall = str(_j.get('overall') or '').strip()
+            _act = str(_j.get('act') or '').strip()
+            for _it in (_j.get('per') or []):
+                _nm = str(_it.get('theme') or '').strip()
+                _rd = str(_it.get('read') or '').strip()
+                if _nm and _rd:
+                    _reads[_nm] = _rd
+        except Exception as e:
+            print('[theme_health] LLM JSON 解析失败:', e)
     blocks = []
     for h in res:
         col = RED if h['level'] == '加速期' else (GOLD if h['level'] == '分歧期' else GREY)
         pn = (' <span style="color:%s;font-size:11px;">（%s）</span>' % (GREY, h['promote_note'])) if h['promote_note'] else ''
+        _rd = _reads.get(h['theme'])
+        tail = (('<div style="color:%s;font-size:12px;margin-top:3px;">%s</div>' % (TEAL, _rd))
+                if _rd else
+                ('<div style="color:#e6a23c;font-size:11px;margin-top:3px;">AI 判读未返回，本条只列健康分/档位/梯队数据</div>'))
         blocks.append(
             '<div style="background:#1f2635;border-left:4px solid %s;border-radius:8px;padding:8px 10px;margin:6px 0;">'
             '<div style="font-weight:700;color:#fff;">%s <span style="color:%s;">%s/100</span>'
             '<span style="color:%s;"> → %s</span>%s</div>'
             '<div style="color:#ced4da;font-size:12px;margin-top:3px;">梯队 %s</div>'
-            '<div style="color:%s;font-size:12px;margin-top:3px;">%s</div></div>'
-            % (col, h['theme'], col, h['score'], col, h['level'], pn, h['ladder'], TEAL, h['note']))
-    return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">【主线体检】</div>'
-            + ''.join(blocks))
+            '%s</div>'
+            % (col, h['theme'], col, h['score'], col, h['level'], pn, h['ladder'], tail))
+    _head_txt = '<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">【主线体检】</div>'
+    _over_txt = ('<div style="color:#e2e8f0;font-size:12px;margin-top:4px;">🧠 %s</div>' % _overall) if _overall else ''
+    _act_txt = ('<div style="color:#ffd43b;font-size:12px;margin-top:4px;">👉 %s</div>' % _act) if _act else ''
+    return _head_txt + _over_txt + _act_txt + ''.join(blocks)
 
 
 # ============ 工单7：情绪周期（eod 算并落盘，次日竞价卡顶部展示） ============
@@ -11786,8 +11874,9 @@ def _mark_radar_done(d):
 
 # ============ 盘中风险体检（11-05 用户诉求：及时参与/躲避风险，10:35/13:35 每交易日两次）============
 def build_risk():
-    """盘中风险体检：纯规则（_risk_engine，零 LLM 预算）。红/橙/黄等级才推送；
-    绿色（无风险）静默不打扰。数据：东财涨停/炸板/跌停池 + 指数 + 昨日情绪账本对比。"""
+    """盘中风险体检：盘口等级由规则引擎算（红/橙/黄 才推，绿色静默不打扰）；
+    判读、风险链、动作、盯盘信号、大白话全部交大模型生成——模型未返回时只出数据事实行，
+    绝不落回规则动作句。数据：东财涨停/炸板/跌停池 + 指数 + 昨日情绪账本对比。"""
     bj = _bj_now()
     if not FORCE_SLOT and not _in_session(bj):
         print(f'[risk] 当前北京时间 {bj.strftime("%H:%M")} 不在盘中窗口(09:30-14:50)，不推风险体检')
@@ -11813,15 +11902,59 @@ def build_risk():
     except Exception:
         _mscore, _mlabel = 50, '—'
     col = {'红': RED, '橙': GOLD, '黄': GOLD}.get(r['level'], GREY)
+    # —— 大模型判读（硬约束：模型不返回就不给动作句）——
+    _verdict = _chain = _act = _watch = _plain = ''
+    _rp = {
+        'task': 'intraday_risk_read',
+        'clock': bj.strftime('%H:%M'),
+        'rule_level': r['level'],
+        'rule_score': round(float(r['score']), 1),
+        'lu': r['lu'], 'zb': r['zb'], 'zbr': round(float(r['zbr']), 1),
+        'dt': r['dt'], 'max_lbc': r['max_lbc'],
+        'mscore': int(_mscore), 'mlabel': _mlabel,
+        'evid': [str(e) for e in (r.get('evid') or [])][:6],
+        'format': (
+            '你是A股盘中风控交易员。上面盘口数字是程序实算的事实，只许引用、不许改、不许编新数字。'
+            '按这些事实写当前风险判读，只输出 JSON，不要任何其他文字：'
+            '{"verdict":"一句话判读：现在盘面处在什么状态、危险具体在哪（必须引用数字），至少20字",'
+            '"chain":"风险链：把这些盘口数字串成因果链，说清风险怎么一步步形成、现在走到第几步，至少60字",'
+            '"act":"具体动作：现在该做什么——仓位降到几成、哪些票必须走、现金留多少、还能不能接新票，必须落到数字，至少30字",'
+            '"watch":"接下来30分钟盯什么：具体到哪个数字或信号会升级、哪个会解除，至少25字",'
+            '"plain":"一句大白话给散户：说人话不带术语，至少20字"}'
+            '禁止万能句（注意风险/控制仓位/谨慎操作这类）、禁止设问句、禁止列表符号、禁止可能/或许/建议关注这类含糊词；'
+            '判断要一口咬定，错也错得干脆。'),
+    }
+    _rt = ask_deepseek(_rp, purpose='risk_card')
+    if _rt:
+        try:
+            _j = json.loads(_rt[_rt.find('{'):_rt.rfind('}') + 1])
+            _verdict = str(_j.get('verdict') or '').strip()
+            _chain = str(_j.get('chain') or '').strip()
+            _act = str(_j.get('act') or '').strip()
+            _watch = str(_j.get('watch') or '').strip()
+            _plain = str(_j.get('plain') or '').strip()
+        except Exception as e:
+            print('[risk] LLM JSON 解析失败:', e)
     ev = '<br>'.join(f'<span style="color:#e9ecef;">• {e}</span>' for e in r['evid'])
-    inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">🛡️ {bj.strftime("%H:%M")} 盘中风险体检 · '
-             f'风险等级：<b style="color:{col};">{r["level"]}</b>（{r["score"]:.0f}/100）</div>'
-             f'<div style="color:#e2e8f0;font-size:13px;line-height:1.8;margin-top:6px;">'
-             f'盘口实况：涨停{r["lu"]} 炸板{r["zb"]}（{r["zbr"]:.0f}%） 跌停{r["dt"]} 最高{r["max_lbc"]}板 ｜ '
-             f'情绪分{int(_mscore)}（{_mlabel}）<br>{ev}</div>'
-             f'<div style="color:#ffd43b;font-size:13px;margin-top:6px;">👉 动作：{r["act"]}</div>'
-             f'<div style="color:{GREY};font-size:11px;margin-top:4px;">纯规则体检（零 LLM 预算），数据来自东财涨停/炸板/跌停池与指数；10:35/13:35 每交易日两次。</div>')
-    return _wrap(inner, '🛡️', '盘中风险体检')
+    head = (f'<div style="color:{RED};font-size:14px;font-weight:700;">🛡️ {bj.strftime("%H:%M")} 盘中风险体检 · '
+            f'风险等级：<b style="color:{col};">{r["level"]}</b>（{r["score"]:.0f}/100）</div>'
+            f'<div style="color:#e2e8f0;font-size:13px;line-height:1.8;margin-top:6px;">'
+            f'盘口实况：涨停{r["lu"]} 炸板{r["zb"]}（{r["zbr"]:.0f}%） 跌停{r["dt"]} 最高{r["max_lbc"]}板 ｜ '
+            f'情绪分{int(_mscore)}（{_mlabel}）<br>{ev}</div>')
+    if _act:
+        body = (head
+                + f'<div style="color:#e2e8f0;font-size:13px;line-height:1.8;margin-top:8px;">🧠 判读：{_verdict}</div>'
+                + (f'<div style="color:#ced4da;font-size:12px;margin-top:4px;">🔗 风险链：{_chain}</div>' if _chain else '')
+                + f'<div style="color:#ffd43b;font-size:13px;margin-top:6px;">👉 动作：{_act}</div>'
+                + (f'<div style="color:#91a7ff;font-size:12px;margin-top:4px;">👀 盯：{_watch}</div>' if _watch else '')
+                + (f'<div style="color:#a78bfa;font-size:12px;margin-top:4px;">💬 {_plain}</div>' if _plain else '')
+                + f'<div style="color:{GREY};font-size:11px;margin-top:4px;">判读与动作由大模型生成；盘口数字由规则引擎实算，不编数。10:35/13:35 每交易日两次。</div>')
+    else:
+        body = (head
+                + '<div style="color:#e6a23c;font-size:12px;margin-top:8px;">⚠️ AI 判读未返回（模型通道未就绪），'
+                  '本卡只出上面这些盘口数据事实，不给规则版动作建议。</div>'
+                + f'<div style="color:{GREY};font-size:11px;margin-top:4px;">模型恢复后再出风险判读。</div>')
+    return _wrap(body, '🛡️', '盘中风险体检')
 
 
 # ============ 新闻发酵（11-05 指令⑧）：盘中 10 条消息汇总一起推 ============
