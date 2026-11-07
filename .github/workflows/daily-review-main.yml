@@ -221,7 +221,7 @@ jobs:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
           mkdir -p tools/data
-          python3 -u tools/cloud_daily_review.py --demo-all 2>&1 | tee -a tools/data/demo.log
+          python3 -u tools/cloud_daily_review.py --demo-all 2>&1 | tee -a tools/data/demo_run.txt
       - name: 提交演示日志
         if: github.event_name == 'push' && contains(github.event.head_commit.message, '[demo]')
         run: |
