@@ -108,23 +108,34 @@ LOG_KEEP = 200              # 只保留最近 200 行，避免仓库状态文件
 LOG_TO_FILE = '--selftest' not in sys.argv   # 自检不落盘，避免污染仓库状态
 
 
+_LOG_BUF: list[str] = []
+_LOG_INITED = False
+
+
 def log(msg: str) -> None:
     """同时打 stdout 和落盘 tools/data/sched_log.txt。
-    落盘的目的：云端 job 日志匿名 API 取不到（403/404），把判定过程写进仓库，
-    用 git fetch 就能读到云端真实执行轨迹（每次状态持久化会一并提交）。"""
+
+    落盘目的：云端 job 日志匿名 API 取不到（403/404），把判定过程写进仓库，
+    用 git fetch 就能读到云端真实执行轨迹（每次状态持久化会一并提交）。
+    实现要点：以内存 _LOG_BUF 为唯一真源，每次整体覆写文件。
+    主程序内部的 `git pull --rebase --autostash` 会动工作区，读文件再追加
+    会丢行；整体覆写才能保证云端日志不残缺（11-07 实测只落下首行的教训）。
+    """
+    global _LOG_INITED
     stamp = datetime.datetime.now(BJ).strftime('%m-%d %H:%M:%S')
     print(f'[SCHED] {msg}', flush=True)
     if not LOG_TO_FILE:
         return
     try:
-        lines: list[str] = []
-        if os.path.exists(LOG_PATH):
-            with open(LOG_PATH, encoding='utf-8') as fh:
-                lines = fh.readlines()
-        lines.append(f'{stamp} {msg}\n')
-        lines = lines[-LOG_KEEP:]
+        if not _LOG_INITED:
+            if os.path.exists(LOG_PATH):
+                with open(LOG_PATH, encoding='utf-8') as fh:
+                    _LOG_BUF.extend(fh.readlines())
+            _LOG_INITED = True
+        _LOG_BUF.append(f'{stamp} {msg}\n')
+        del _LOG_BUF[:-LOG_KEEP]
         with open(LOG_PATH, 'w', encoding='utf-8') as fh:
-            fh.writelines(lines)
+            fh.writelines(_LOG_BUF)
     except Exception:  # noqa: BLE001  日志落盘失败绝不能影响调度
         pass
 
@@ -287,6 +298,11 @@ def run_slot(slot: str) -> None:
         tail = (proc.stdout or '').strip().splitlines()[-40:]
         for line in tail:
             print(f'    | {line}', flush=True)
+        # 关键行落盘：云端 job 日志取不到，这几行是"到底推没推"的唯一云端证据
+        key_hits = [ln.strip() for ln in tail
+                    if any(k in ln for k in ('SLOT', 'PUSH', 'Traceback', 'Error', '异常', '跳过', '已推送', 'FAIL'))]
+        for ln in key_hits[-6:]:
+            log(f'    {slot}| {ln[:170]}')
         if proc.returncode != 0:
             log(f'槽位 {slot} 返回码 {proc.returncode}')
             for line in (proc.stderr or '').strip().splitlines()[-15:]:
@@ -416,6 +432,21 @@ def _selftest() -> int:
 
 
 # ---------------------------------------------------------------- 主流程
+def finish(tag: str) -> int:
+    """退出前把日志与状态写回仓库，保证云端每次都留下可追溯痕迹。
+
+    只有真正执行过槽位的场景才提交：秒退（idle / 已有存活调度）时日志也会变，
+    若一并无条件提交，一天 96 次 cron 就会叠出近百个只改日志的 commit，
+    把仓库历史刷脏。秒退的痕迹改用 run 记录本身（时长几秒）来判定。
+    """
+    if tag in ('weekend-end', 'seg-end'):
+        try:
+            persist_state(tag)
+        except Exception as exc:  # noqa: BLE001
+            log(f'退出持久化失败: {exc}')
+    return 0
+
+
 def main() -> int:
     if '--selftest' in sys.argv:
         return _selftest()
@@ -428,22 +459,24 @@ def main() -> int:
         win = bj.hour // 2 * 2
         seg = f'weekend-{win:02d}'
         if not acquire_segment(bj, seg, bj + datetime.timedelta(minutes=20)):
-            return 0
+            log(f'周末 {seg} 段已有存活调度器，本 run 让位退出')
+            return finish('weekend-busy')
         # 周日 09:00 档先出因子体检报告，再出本窗休市新闻（去重都在主程序内）
         if bj.weekday() == 6 and 9 <= bj.hour < 12:
             run_slot('factor_weekly')
         run_slot('watch')   # 休市日闸门会把任意槽位改走 holiday_slot（2 小时窗去重）
         log('周末快跑结束，退出')
-        return 0
+        return finish('weekend-end')
 
     # ---- 工作日 ----
     sess = current_session(bj)
     if sess is None:
         log('当前不在任何班次（08:00-11:45 / 12:00-16:30 / 21:15-23:10），本 run 直接退出')
-        return 0
+        return finish('idle')
     seg_name, end = sess
     if not acquire_segment(bj, seg_name, end):
-        return 0
+        log(f'班次 {seg_name} 已有存活调度器，本 run 让位退出（防并发双推）')
+        return finish('seg-busy')
 
     executed: set = set()
     # 启动补跑：先把本班次之前漏掉的槽补上（受宽容窗约束，过窗不补）
@@ -460,7 +493,7 @@ def main() -> int:
         time.sleep(15)
 
     log(f'本班次调度结束（{bj_now():%H:%M}），退出')
-    return 0
+    return finish('seg-end')
 
 
 if __name__ == '__main__':
