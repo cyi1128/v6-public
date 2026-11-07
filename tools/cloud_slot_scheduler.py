@@ -100,7 +100,10 @@ WATCH_WINDOWS = ((9 * 60 + 15, 11 * 60 + 30), (13 * 60, 15 * 60 + 5))  # 午休�
 WATCH_STEP = 15             # 每 15 分钟一次异动扫描
 
 SLOT_TIMEOUT = 900          # 单槽 15 分钟（主程序行情请求自带超时）
-SEG_ALIVE_GRACE = 600       # 班次结束后 10 分钟内仍视为存活，防刚跑完被另一 run 接管
+SEG_ALIVE_GRACE = 600       # 正常退出会清 marker，这里只是兜住"被 timeout 杀掉"的情况
+ROLL_MINUTES = 300          # 滚动占段时长：一次触发覆盖未来 5 小时
+ROLL_TAIL_MINUTES = 45      # 段尾 45 分钟内若还能接上下一槽，就把终点延到那槽窗口末端
+DAY_END = (23, 55)          # 今日收工时刻（之后不再占段，凌晨触发的 run 直接秒退）
 
 
 LOG_PATH = os.path.join(DATA_DIR, 'sched_log.txt')
@@ -262,6 +265,45 @@ def pick_slot(now: datetime.datetime, executed: set) -> str | None:
     return None
 
 
+def pending_within(now: datetime.datetime, end: datetime.datetime, executed: set, done: dict | None = None) -> bool:
+    """(now, end] 内是否还有待跑的槽位（含补跑宽容窗与异动扫描点）。
+
+    用途：滚动占段不能空转。本段尾部若已没有任何待跑槽（例如 15:40 之后既无
+    正点槽、尾盘扫描也收工），就提前把调度权让出来，省一个 runner 的时间，
+    也让后一个触发的 run 能立刻接手。
+    """
+    m0, m1 = minutes_of(now), minutes_of(end)
+    day = now.strftime('%Y-%m-%d')
+    if done is None:
+        done = _read_json(SLOT_DONE)
+
+    for hour, minute, slot, window, late in FIXED_SLOTS:
+        start = hour * 60 + minute
+        if start > m1:
+            continue
+        if start + max(window, late) < m0:
+            continue
+        token = f'{day}|{slot}|{hour:02d}{minute:02d}'
+        if token in executed:
+            continue
+        if is_done(hour, minute, slot, done):
+            continue
+        return True
+
+    for a, b in WATCH_WINDOWS:
+        lo, hi = max(a, m0), min(b, m1)
+        if lo > hi:
+            continue
+        t = ((lo + WATCH_STEP - 1) // WATCH_STEP) * WATCH_STEP
+        if t <= lo:
+            t += WATCH_STEP
+        while t <= hi:
+            if f'{day}|watch|{t}' not in executed:
+                return True
+            t += WATCH_STEP
+    return False
+
+
 def backfill_pending(now: datetime.datetime, executed: set, done: dict | None = None) -> list[tuple[int, int, str]]:
     """启动补跑：名义时刻已到、仍在宽容窗内、但今天还没推的槽，按时间顺序返回。"""
     minutes = minutes_of(now)
@@ -354,7 +396,52 @@ def acquire_segment(bj: datetime.datetime, seg: str, seg_end: datetime.datetime)
     return True
 
 
+def rolling_end(bj: datetime.datetime) -> datetime.datetime:
+    """滚动段终点：先吃满 ROLL_MINUTES；若段尾紧邻下一个槽（≤ROLL_TAIL_MINUTES），
+    把终点延到那个槽的窗口末端。
+
+    为什么需要这个延伸：17:45 触发的 run 死板算 5 小时会正好停在 22:45，
+    把 22:50 的晚间消息汇总截在段外——它只能等下一个人恰好触发，等于白等。
+    """
+    day_end = bj.replace(hour=DAY_END[0], minute=DAY_END[1], second=0, microsecond=0)
+    end = min(bj + datetime.timedelta(minutes=ROLL_MINUTES), day_end)
+    if end >= day_end:
+        return end
+    m_end = minutes_of(end)
+    best: int | None = None
+    for hour, minute, _slot, window, _late in FIXED_SLOTS:
+        start = hour * 60 + minute
+        if start <= m_end:
+            continue
+        if start - m_end > ROLL_TAIL_MINUTES:
+            break
+        cand = start + window
+        best = cand if best is None else max(best, cand)
+    if best is not None and best <= DAY_END[0] * 60 + DAY_END[1]:
+        return bj.replace(hour=best // 60, minute=best % 60, second=0, microsecond=0)
+    return end
+
+
+def release_segment() -> None:
+    """正常退出时清空 marker，让下一个触发的 run 立刻可接管。
+
+    不清的话要靠 seg_end + SEG_ALIVE_GRACE 才释放，下一次触发会被白白挡住
+    （15:00 那条 eod 就是这么丢的）。清空动作由 finish() 一并提交。
+    """
+    try:
+        with open(MARKER, 'w', encoding='utf-8') as fh:
+            json.dump({}, fh)
+    except Exception as exc:  # noqa: BLE001
+        log(f'释放调度权失败: {exc}')
+
+
 def current_session(bj: datetime.datetime) -> tuple[str, datetime.datetime] | None:
+    """参考用班次划分（am / pm / night）。
+
+    2026-11-07 起 main 不再用它当启动门槛——旧版正是被 pm 的 16:30 与 night 的
+    21:15 这两条边界，把 11-06 真实发生的 17:15、21:06 两次触发挡在门外。
+    现在启动只认"滚动窗口里还有没有待跑槽"。本函数保留供自检与人工排障对照。
+    """
     """当前落在哪个班次；返回 (段名, 段结束时刻)。"""
     m = minutes_of(bj)
     for start, end, name in SESSIONS:
@@ -418,6 +505,19 @@ def _selftest() -> int:
     expect('21:15 班次', (current_session(at(21, 15)) or ('', None))[0], 'night')
     expect('19:00 无班次', current_session(at(19, 0)), None)
 
+    # 滚动占段：段尾无槽时提前让位（否则一个 run 白占 5 小时 runner）
+    expect('09:59 段内仍有待跑槽', pending_within(at(9, 59), at(14, 59), set(), done={}), True)
+    expect('17:20 仍在 news2h 宽容窗内', pending_within(at(17, 20), at(19, 0), set(), done={}), True)
+    expect('17:40 段内已无槽（16:00 宽容窗已过）', pending_within(at(17, 40), at(19, 0), set(), done={}), False)
+    _seed_day = datetime.datetime.now(BJ).strftime('%Y-%m-%d')   # slot_done_key 取的是"今天"，注入日期不参与
+    expect('23:05 evening 与 ext 都已推过则无槽', pending_within(at(23, 5), at(23, 10), set(),
+             done={f'evening|{_seed_day}': True, f'ext|{_seed_day}|2235': True}), False)
+
+    # 滚动段终点（300 分钟 + 段尾 45 分钟延伸，杜绝"恰好把下一槽截在段外"）
+    expect('10:00 启动终点', rolling_end(at(10, 0)).strftime('%H:%M'), '15:55')
+    expect('13:30 启动终点（不空等 21:38）', rolling_end(at(13, 30)).strftime('%H:%M'), '18:30')
+    expect('17:45 启动终点（接住 22:50 晚间汇总）', rolling_end(at(17, 45)).strftime('%H:%M'), '23:10')
+
     # 窗口键必须与主程序一致（错一个就重复推或漏推）；用当天日期动态断言
     _t = datetime.datetime.now(BJ).strftime('%Y-%m-%d')
     expect('hourly 键', slot_done_key(10, 0, 'hourly'), f'hourly|{_t}|10')
@@ -439,7 +539,7 @@ def finish(tag: str) -> int:
     若一并无条件提交，一天 96 次 cron 就会叠出近百个只改日志的 commit，
     把仓库历史刷脏。秒退的痕迹改用 run 记录本身（时长几秒）来判定。
     """
-    if tag in ('weekend-end', 'seg-end'):
+    if tag in ('weekend-end', 'roll-end'):
         try:
             persist_state(tag)
         except Exception as exc:  # noqa: BLE001
@@ -468,32 +568,43 @@ def main() -> int:
         log('周末快跑结束，退出')
         return finish('weekend-end')
 
-    # ---- 工作日 ----
-    sess = current_session(bj)
-    if sess is None:
-        log('当前不在任何班次（08:00-11:45 / 12:00-16:30 / 21:15-23:10），本 run 直接退出')
-        return finish('idle')
-    seg_name, end = sess
-    if not acquire_segment(bj, seg_name, end):
-        log(f'班次 {seg_name} 已有存活调度器，本 run 让位退出（防并发双推）')
-        return finish('seg-busy')
-
+    # ---- 工作日：滚动占段 ----
+    # 不再绑定"固定三段班次"。GitHub 对本仓库的 schedule 实测延迟 2-15 小时
+    # （11-06 八次 run 只有 09:59 那次落在上午班次内，17:15 与 21:06 被旧 pm/night
+    # 边界挡在门外，收盘复盘整段丢失），所以改成：
+    #   启动门槛 = "接下来这个滚动窗口里还有待跑槽"，而不是"现在正好在班次里"；
+    #   一旦启动就吃满随后 300 分钟（段尾 45 分钟内能接上下一槽再顺延）。
+    # 副产物：凌晨触发的 run 会一路守到早盘第一个槽（省得早盘再赌一次 cron）。
     executed: set = set()
-    # 启动补跑：先把本班次之前漏掉的槽补上（受宽容窗约束，过窗不补）
+    end = rolling_end(bj)
+    if not pending_within(bj, end, executed):
+        log(f'接下来 {(end - bj).total_seconds() / 60:.0f} 分钟内已无待跑槽位，本 run 直接退出')
+        return finish('idle')
+
+    seg_name = f'roll-{bj:%H%M}'
+    if not acquire_segment(bj, seg_name, end):
+        log(f'滚动段 {seg_name} 已被存活调度器占用，本 run 让位退出（防并发双推）')
+        return finish('roll-busy')
+
+    # 启动补跑：先把本次触发之前漏掉的槽补上（受宽容窗约束，过窗不补）
     for _h, _m, slot in backfill_pending(bj_now(), executed):
         run_slot(slot)
 
-    log(f'本班次 {seg_name} 调度至 {end:%H:%M}，共可覆盖约 {(end - bj_now()).total_seconds() / 60:.0f} 分钟')
+    log(f'滚动段 {seg_name} 调度至 {end:%H:%M}，共可覆盖约 {(end - bj_now()).total_seconds() / 60:.0f} 分钟')
     while bj_now() < end:
         now = bj_now()
         slot = pick_slot(now, executed)
         if slot:
             run_slot(slot)
             continue
+        if not pending_within(now, end, executed):
+            log('本段剩余时间内已无待跑槽位，提前让位退出')
+            break
         time.sleep(15)
 
-    log(f'本班次调度结束（{bj_now():%H:%M}），退出')
-    return finish('seg-end')
+    release_segment()
+    log(f'滚动段调度结束（{bj_now():%H:%M}），退出')
+    return finish('roll-end')
 
 
 if __name__ == '__main__':

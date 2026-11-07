@@ -173,13 +173,17 @@ jobs:
     # 判槽依据从"run 启动时刻"换成"北京时间 + 今日欠槽补跑"，时刻表扩到 08:20…22:50、
     # 班次扩成 am(08:00-11:45)/pm(12:00-16:30)/night(21:15-23:10)；
     # 周末休市新闻与周日因子报告都由调度器内部驱动（不再单独占 step，避免双跑）。
+    # 2026-11-07 二次改造：判槽从"固定三段班次"换成"滚动占段"——
+    # 任何一次触发都吃满接下来 300 分钟（段尾 45 分钟内还能接上下一槽就延长），
+    # 因为实测 schedule 延迟 2-15 小时（11-06 八次 run 只有一次落在上午班次内）。
+    # 周末休市新闻与周日因子报告都由调度器内部驱动（不再单独占 step，避免双跑）。
     if: >
       github.event_name == 'schedule' ||
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.slot == 'scheduler')
     runs-on: ubuntu-latest
-    # pm 段 12:00-16:30 单次驻留 270 分钟，加 checkout/装依赖/补跑余量 → 340
-    timeout-minutes: 340
+    # 滚动段最长 300 + 45 分钟延伸 = 345，加 checkout/装依赖/自检余量 → 380
+    timeout-minutes: 380
     permissions:
       contents: write
     steps:
