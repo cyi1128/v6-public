@@ -358,5 +358,53 @@
   "close": 10.27,
   "pct": 15.26,
   "next_open_pct": -16.553067185978577
+ },
+ {
+  "date": "2026-11-07",
+  "code": "002641",
+  "name": "公元股份",
+  "close": 3.78,
+  "pct": 8.31,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-07",
+  "code": "688429",
+  "name": "时创能源",
+  "close": 12.36,
+  "pct": 15.62,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-07",
+  "code": "300313",
+  "name": "天山生物",
+  "close": 11.42,
+  "pct": 12.73,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-07",
+  "code": "000635",
+  "name": "英 力 特",
+  "close": 9.5,
+  "pct": 8.82,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-07",
+  "code": "300123",
+  "name": "ST亚光",
+  "close": 4.08,
+  "pct": 13.65,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-07",
+  "code": "300118",
+  "name": "东方日升",
+  "close": 10.27,
+  "pct": 15.26,
+  "next_open_pct": null
  }
 ]
