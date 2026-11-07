@@ -14,32 +14,23 @@ on:
         type: choice
         options: ['scheduler', 'pre', 'auction', 'tail', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'news', 'news2h', 'evening', 'follow', 'deep6', 'zscan', 'radar', 'newsfire', 'risk', 'cycle', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3']
   schedule:
-    # —— 2026-11-06 重构成 5 条（原 20 条）——
-    # 根因：本仓库实测 20 条分散 cron 理论约 95 次/天，实际只保留约 17 次；
-    # 11-06 全天只命中 09:59 一次，且命中的是 */15 那条，对称 /*5 与整点 20-24 全被丢弃。
-    # 结论：GitHub 优先保低频持续触发的 cron，丢弃密集/整点 cron。
-    # 故把配额集中到一条全天低频管道，任一次命中即由 scheduler 接管整个 8:00-15:48 时段。
+    # —— 2026-11-07 全天候改造：判槽从"run 启动时刻"改为"北京时间 + 欠槽补跑"——
+    # 原 6 条分散 cron 的实测问题：
+    #   · 11-06 全天 schedule 实际启动时刻为 UTC 01:59/09:15/13:06/15:49/17:12/20:03/20:37/22:45，
+    #     与 cron 名义时刻（UTC 0-8 = 北京 08-16）相差 2-15 小时；
+    #   · 同一份 slot_done 里 11-06 缺 warn/pre/hourly10/risk1035/news1140/follow1405/eod
+    #     —— 上午整段与收盘复盘全丢（eod 是用户最关心的收盘复盘）；
+    #   · 11-07（周六）全天 0 次 schedule，休市日新闻彻底断供。
+    # 根因是"按 run 启动时刻判槽"的 push job + 时刻表只覆盖 8-16 点。现改为：
+    # 只留两条低频宽窗 cron，所有 schedule 命中一律交给 scheduler job，
+    # 由调度器按北京时间 08:20…22:50 逐槽驱动，迟到/漏跳由 backfill 补跑兜住。
     #
-    # ① 核心首跳：每 15 分钟一次，覆盖北京 08:00-15:59，每天 32 次机会。
-    #    命中后 scheduler 起跑并按分钟时刻表驱动 warn/pre/auction/hourly/noon/newsfire/
-    #    risk/watch/tail/eod/follow/cycle/news 全部槽位；同段后续命中会被 marker 拦下快速退出。
-    - cron: '*/15 0-7 * * 1-5'
-    # ② 休市日每2小时新闻（scheduler 在非交易日不跑，必须独立保留）
-    # 2026-11-07 修复：原 '0 */2 * * *' 全周生效，交易日白天会与 scheduler 抢同一时刻；
-    # 且 push job 对 schedule 一律 skipped，导致周末新闻彻底断供（11-06 晚间 + 11-07 全天零推送）。
-    # 现收窄为周末专属，交易日白天统一交给 scheduler，交易日 16:00 后由 ③④⑤ 承接。
-    - cron: '0 */2 * * 0,6'
-    # ③ 外盘窗口 21:38/22:38 北京（超出 scheduler 的 8-16 时段，独立保留）
-    - cron: '38 13,14 * * 1-5'
-    # ④ 晚间消息汇总 22:50 北京（超出 scheduler 时段，独立保留）
-    - cron: '50 14 * * 1-5'
-    # ⑤ 16:00 两小时市场消息汇总（超出 scheduler 时段，独立保留）
-    - cron: '0 8 * * 1-5'
-    # ⑥ 周日 09:00 北京「因子体检报告」（第5步）
-    #    周日 scheduler 设计上直接退出（周末不跑），且 schedule 事件只进 scheduler job，
-    #    故本报告由 scheduler job 内的独立 step 承接（见 jobs.scheduler 的"周日因子体检报告"）。
-    #    刻意不放 08:00，避开与早盘窗口的配额争抢。
-    - cron: '0 1 * * 0'
+    # ① 工作日：UTC 0-15 = 北京 08:00-23:45，每 15 分钟一次起跑机会（96 次/天），
+    #    覆盖 am(08:00-11:45) / pm(12:00-16:30) / night(21:15-23:10) 三个班次的首跳。
+    - cron: '*/15 0-15 * * 1-5'
+    # ② 周末：UTC 0-15 = 北京 08:00-23:45，每 30 分钟一次（32 次/天）。
+    #    每个两小时窗口只需命中一次，调度器走"假日快跑"分支推一次即退出。
+    - cron: '*/30 0-15 * * 0,6'
 
 concurrency:
   # 双推修复②（2026-11-04）：schedule 与 dispatch 原共用一组防双推；
@@ -57,14 +48,13 @@ jobs:
     # 手动 / 外部 workflow_dispatch 仍走这里，用于补推与单槽实测。
     # 2026-11-06 二次改造：slot=scheduler 的手动触发只跑下面的 scheduler job，
     # 不进本 job（否则会当成一个未知槽位空跑，且与调度器抢 slot_done）。
-    # 2026-11-07 修复（回归）：schedule 不再一律拉黑。scheduler 只接管「交易日首跳」与「周日因子报告」，
-    # 其余 cron（周末每2小时新闻 / 外盘 21:38·22:38 / 晚间 22:50 / 16:00 汇总）全部由本 job 承接——
-    # scheduler 在周末直接退出、也不覆盖 8-16 点以外时段，原先这些 schedule 命中全被 skipped 吞掉。
+    # 2026-11-07 全天候改造：schedule 命中一律交给下面的 scheduler job（唯一判槽权威）。
+    # 本 job 现在只服务 workflow_dispatch 手动补推/单槽实测：
+    #   · slot 留空 → 走下面的 case $H:$M 按当前时刻判槽（人工排障用）；
+    #   · slot 指定 → --force 强制重推该槽（去重状态仍写回）。
     if: >
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.slot != 'scheduler') ||
-      (github.event_name == 'schedule' &&
-       github.event.schedule != '*/15 0-7 * * 1-5' &&
-       github.event.schedule != '0 1 * * 0')
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.slot != 'scheduler'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -169,14 +159,16 @@ jobs:
     # 重复推送由主程序内部 slot_done 去重兜住；同一日同一段重复起跑由 sched_active.json 标记拦截。
     # 2026-11-06 二次改造：除了 schedule 命中，也允许手动 slot=scheduler 直接拉起，
     # 用于 cron 被平台吞掉时强制接管当日剩余时段（不再依赖触发层运气）。
-    # 2026-11-07 修复：只接管「交易日首跳」与「周日因子报告」两条 cron，
-    # 其余 schedule 命中交给 push job（否则周末/晚间新闻推送会继续被吞）。
+    # 2026-11-07 全天候改造：本 job 接管全部 schedule 命中，成为唯一判槽权威。
+    # 判槽依据从"run 启动时刻"换成"北京时间 + 今日欠槽补跑"，时刻表扩到 08:20…22:50、
+    # 班次扩成 am(08:00-11:45)/pm(12:00-16:30)/night(21:15-23:10)；
+    # 周末休市新闻与周日因子报告都由调度器内部驱动（不再单独占 step，避免双跑）。
     if: >
-      (github.event_name == 'schedule' &&
-       (github.event.schedule == '*/15 0-7 * * 1-5' || github.event.schedule == '0 1 * * 0')) ||
+      github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.slot == 'scheduler')
     runs-on: ubuntu-latest
-    timeout-minutes: 260
+    # pm 段 12:00-16:30 单次驻留 270 分钟，加 checkout/装依赖/补跑余量 → 340
+    timeout-minutes: 340
     permissions:
       contents: write
     steps:
@@ -201,14 +193,10 @@ jobs:
           python -u tools/weekly_backtest_baseline.py --selftest || true
           python -u tools/position_sizer.py --selftest || true
           python -u tools/overnight_map.py --selftest || true
-      - name: 周日因子体检报告（第5步）
-        # 周日本身是休市日，scheduler 会直接退出，所以本 step 必须排在它前面独立执行。
-        # 触发条件用 cron 原文精确匹配，避免和其他 schedule 命中混淆。
-        if: github.event.schedule == '0 1 * * 0'
-        env:
-          MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
-          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
-        run: python3 -u tools/cloud_daily_review.py --time factor_weekly
+      # 调度器自检：注入固定时刻验证选槽/补跑/班次/窗口键，不联网不推送。
+      # 用 `|| true` 不阻断推送，但日志里的 FAIL 必须能一眼看到（selftest 会打印逐项 PASS/FAIL）。
+      - name: 调度器自检（不推送）
+        run: python3 -u tools/cloud_slot_scheduler.py --selftest || true
       - name: 云端自驱调度
         env:
           MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
