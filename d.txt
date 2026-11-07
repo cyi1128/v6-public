@@ -1,0 +1,21 @@
+=== DIAG START 2026-11-07T05:16:19Z ===
+PWD=/home/runner/work/v6-public/v6-public
+PY3=/opt/hostedtoolcache/Python/3.11.18/x64/bin/python3
+Python 3.11.18
+-rw-r--r-- 1 runner runner 738914 Nov  7 05:16 tools/cloud_daily_review.py
+MS_KEY_SET=YES
+PUSH_SET=YES
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/hostedtoolcache/Python/3.11.18/x64/lib/python3.11/ast.py", line 50, in parse
+    return compile(source, filename, mode, flags,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<unknown>", line 5238
+    (f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else '')
+                                         ^^^^^^^
+SyntaxError: f-string: f-string: unmatched '('
+  File "/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py", line 5238
+    (f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else '')
+                                         ^^^^^^^
+SyntaxError: f-string: f-string: unmatched '('
+STEP7_RC=1
