@@ -105,6 +105,16 @@ jobs:
           INPUT_CODE: ${{ github.event.inputs.code }}
         run: |
           H=$(date -u +%H); M=$(date -u +%M)
+          LOG=tools/data/step7.log
+          mkdir -p tools/data
+          {
+            echo "=== STEP7 $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+            echo "PWD=$(pwd)"
+            echo "PY3=$(command -v python3 || echo MISSING)"
+            python3 -V 2>&1 || true
+            ls -l tools/cloud_daily_review.py || true
+            python3 -c "import ast,io;ast.parse(io.open('tools/cloud_daily_review.py',encoding='utf-8').read());print('AST_OK')" 2>&1 || true
+          } 2>&1 | tee -a $LOG
           case $H:$M in
             00:2[0-4])   T=warn ;;      # 08:20-08:24 北京（板块启动预警）
             00:3[0-4])   T=pre ;;       # 08:30-08:34 北京 盘前速递
@@ -127,11 +137,17 @@ jobs:
             *)          T=watch ;;
           esac
           FORCE="${{ github.event.inputs.slot }}"
+          echo "H=$H M=$M T=$T FORCE=$FORCE" 2>&1 | tee -a $LOG
+          set +e
           if [ -n "$FORCE" ]; then
-            python3 -u tools/cloud_daily_review.py --time $T --force "$FORCE"
+            python3 -u tools/cloud_daily_review.py --time $T --force "$FORCE" 2>&1 | tee -a $LOG
+            RC=${PIPESTATUS[0]}
           else
-            python3 tools/cloud_daily_review.py --time $T
+            python3 tools/cloud_daily_review.py --time $T 2>&1 | tee -a $LOG
+            RC=${PIPESTATUS[0]}
           fi
+          echo "STEP7_RC=$RC" 2>&1 | tee -a $LOG
+          exit $RC
       - name: 持久化状态文件（竞价观察仓/去重）
         if: always()
         run: |
