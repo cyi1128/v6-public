@@ -1,21 +1,16 @@
-=== DIAG START 2026-11-07T05:16:19Z ===
+=== DIAG START 2026-11-07T05:21:25Z ===
 PWD=/home/runner/work/v6-public/v6-public
-PY3=/opt/hostedtoolcache/Python/3.11.18/x64/bin/python3
-Python 3.11.18
--rw-r--r-- 1 runner runner 738914 Nov  7 05:16 tools/cloud_daily_review.py
+PY3=/opt/hostedtoolcache/Python/3.12.16/x64/bin/python3
+Python 3.12.16
+-rw-r--r-- 1 runner runner 738914 Nov  7 05:21 tools/cloud_daily_review.py
 MS_KEY_SET=YES
 PUSH_SET=YES
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-  File "/opt/hostedtoolcache/Python/3.11.18/x64/lib/python3.11/ast.py", line 50, in parse
-    return compile(source, filename, mode, flags,
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "<unknown>", line 5238
-    (f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else '')
-                                         ^^^^^^^
-SyntaxError: f-string: f-string: unmatched '('
-  File "/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py", line 5238
-    (f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else '')
-                                         ^^^^^^^
-SyntaxError: f-string: f-string: unmatched '('
-STEP7_RC=1
+AST_OK
+/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py:185: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return datetime.utcnow() + timedelta(hours=8)
+[LLM] ModelScope OK model=Qwen/Qwen3.5-122B-A10B purpose=holiday_ds
+[LLM_OUT:holiday_ds] {   "items": [     {       "t": "美媒：万斯直接介入 美伊谈判“提级”",       "sector": "地缘政治避险概念题材",       "stocks": "无",       "good": "军工石油黄金避险资金",       "bad": "全球贸易航运受阻风险",       "why": "谈判提级意味着局势不明朗，资金会先躲进避险资产，没有具体标的就盯着原油和军工指数波动，别盲目乱冲。",       "act": "开盘后验证主力是否借消息动手"     },     {       "t": "上海振华重工集团第九届进博会已签订 28.35 亿元采购合同",       "sector": "高端装备制造基建板块",       "stocks": "上海振华重工",       "good": "业绩确定性显著增强",       "bad": "大盘股难有爆发力",       "why": "振华重工接了 28 亿订单是真，但盘子太大且主业慢，游资玩不动这种中军，除非板块集体高潮否则只看戏不碰。",       "act": "开盘后验证主力是否借消息动手"     },     {       "t": "《后会友期》带火“悬崖小屋”最新回应：咨询量翻了十倍 但明年约满系误解 还有房",       "sector": "旅游消费影视 IP 联动",       "stocks": "无",       "good": "景区酒店客流短期激增",       "bad": "短期炒作后回落极快",       "why": "咨询量翻十倍是情绪面，没具体上市公司受益，这种纯流量新闻容易高开低走，别去接盘当炮灰。",       "act": "开盘后验证主力是否借消息动手"     },     {       "t": "603595，被港股芯片公司斥资 4 亿元举牌",       "sector": "半导体重组举牌概念",       "stocks": "ST 东尼",       "good": "筹码结构改善预期强",       "bad": "ST 退市风险未消除",       "why": "ST 东尼本质做电缆硅片，举牌是芯片公司想入局但没实锤业绩，ST 风险大，开盘若缩量一字别追，破分时均线直接跑。",       "act": "开盘后验证主力是否借消息动手"     },     {       "t": "科创板 AI 企业加快构建“国模国芯”自主生态",       "sector": "国产算力自主可控主线",       "stocks": "无",       "good": "政策扶持方向非常明确",       "bad": "前期高位股补跌风险
+[反模板命中:holiday_ds] 第1次命中 结构改善 → 强制重写
+[LLM] ModelScope OK model=Qwen/Qwen3.5-122B-A10B purpose=holiday_ds
+[LLM_OUT:holiday_ds] {   "items": [     {       "t": "美媒：万斯直接介入 美伊谈判“提级”",       "sector": "地缘政治与国防安全概念",       "stocks": "无",       "good": "无明显直接利好特定个股",       "bad": "无明显直接利空特定个股",       "why": "谈判升级到底是缓和还是施压说不清，这种消息面最容易骗炮，没明确受益标的就别瞎猜跟风。",       "act": "开盘后验证条件"     },     {       "t": "上海振华重工集团第九届进博会已签订 28.35 亿元采购合同",       "sector": "港口机械与高端装备制造",       "stocks": "600320 振华重工",       "good": "大额订单确认短期业绩支撑",       "bad": "大盘股游资接力意愿通常不足",       "why": "两十八亿合同对它是实打实业绩，但盘子太大机构票属性重，游资想拉涨停得撬板，不如找弹性小的票。",       "act": "开盘后验证条件"     },     {       "t": "《后会友期》带火“悬崖小屋”最新回应：咨询量翻了十倍 但明年约满系误解 还有房",       "sector": "影视传媒与文旅消费热点",       "stocks": "无",       "good": "周边旅游餐饮可能短期客流增加",       "bad": "酒店本身未上市无法直接套利",       "why": "电影带火一个点属于典型事件驱动，没上市公司沾边就是空气，别去找什么影投公司硬蹭，容易吃面。",       "act": "开盘后验证条件"     },     {       "t": "603595，被港股芯片公司斥资 4 亿元举牌",       "sector": "半导体材料与消费电子重组",       "stocks": "603595 ST 东尼",       "good": "外部资本注入改善股权结构预期",       "bad": "ST 身份存在退市风险警示隐患",       "why": "四亿举牌是真金白银看好，本质是做碳化硅衬底，暗线是国产替代，但 ST 帽子随时可能摘也可能戴，只能轻仓博重组。",       "act": "开盘后验证条件"     },     {       "t": "科创板 AI 企业加快构建“国模国芯”自主生态",       "sector": "人工智能与国产算力芯片",       "stocks": "无",       "good": "政策扶持利好国产算力产业链",       "bad": "行
+STEP7_RC=0
