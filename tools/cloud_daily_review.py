@@ -12446,6 +12446,12 @@ def build_holiday_news():
 
     _deep_map = _holiday_ds([{'title': nw.get('title', ''), 'summary': nw.get('summary', '')}
                                for nw in today_news if nw.get('title', '').strip() or nw.get('summary', '').strip()])
+    def _nrm(s):
+        """标题归一化：只留中英文数字，用于扛住模型改写标点/空格导致的匹配失败。"""
+        return re.sub(r'[^\u4e00-\u9fffA-Za-z0-9]', '', str(s or ''))[:40]
+
+    _deep_map_n = {_nrm(k): v for k, v in (_deep_map or {}).items()}
+
     items = []
     for nw in today_news:
         title = nw.get('title', '').strip()
@@ -12454,19 +12460,34 @@ def build_holiday_news():
         src = nw.get('source') or '东财7x24'
         if not title and not summary:
             continue
-        sentiment, color = classify_news(title + ' ' + summary)
-        sector, stocks, plain = news_tags(title, summary)
-        tag_html = ''
-        _d = _deep_map.get(title) if _deep_map else None
+        _d = (_deep_map or {}).get(title) or _deep_map_n.get(_nrm(title))
+        # 情绪标签只认大模型判读；模型没返回就不写规则情绪（原 classify_news 关键词打分已停用）
         if _d:
-            _sec2 = _d.get('sector') or sector
-            _stk2 = _d.get('stocks') or stocks
+            _g = str(_d.get('good') or '').strip()
+            _b = str(_d.get('bad') or '').strip()
+            _rg = bool(_g) and ('无明显' not in _g)
+            _rb = bool(_b) and ('无明显' not in _b)
+            if _rg and _rb:
+                sentiment, color = '双向', GOLD
+            elif _rg:
+                sentiment, color = '利好', RED
+            elif _rb:
+                sentiment, color = '利空', GREEN
+            else:
+                sentiment, color = '待判读', GREY
+        else:
+            sentiment, color = '待判读', GREY
+        tag_html = ''
+        if _d:
+            _sec2 = _d.get('sector') or ''
+            _stk2 = _d.get('stocks') or ''
             _gd = _d.get('good') or ''
             _bd = _d.get('bad') or ''
-            _wh2 = _d.get('why') or plain
+            _wh2 = _d.get('why') or ''
             _ac2 = _d.get('act') or ''
-            tag_html = (f'<div style="color:{TEAL};font-size:12px;margin-top:3px;">🏷️ 板块题材：{_sec2}'
-                        f'｜相关个股：{_stk2}</div>')
+            if _sec2 or _stk2:
+                tag_html = (f'<div style="color:{TEAL};font-size:12px;margin-top:3px;">🏷️ 板块题材：{_sec2}'
+                            f'｜相关个股：{_stk2}</div>')
             if _gd:
                 tag_html += (f'<div style="color:{RED};font-size:12px;margin-top:2px;">✅ 利好：{_gd}</div>')
             if _bd:
@@ -12476,12 +12497,8 @@ def build_holiday_news():
             if _ac2:
                 tag_html += (f'<div style="color:{GOLD};font-size:12px;margin-top:2px;">💡 操作：{_ac2}</div>')
         else:
-            if sector:
-                tag_html = (f'<div style="color:{TEAL};font-size:12px;margin-top:3px;">🏷️ 板块题材：{sector}'
-                            f'｜相关个股：{stocks}</div>')
-            if plain:
-                tag_html += (f'<div style="color:#e2e8f0;font-size:12px;margin-top:3px;">'
-                             f'🗣️ 大白话：{plain}</div>')
+            tag_html = ('<div style="color:#9aa4b8;font-size:12px;margin-top:3px;">'
+                        'AI 判读未返回（模型通道未就绪），本条只列标题/时间/来源/摘要，不给规则版结论</div>')
         items.append(f"""<div style="background:#1f2635;border-left:3px solid {color};border-radius:8px;padding:9px 11px;margin:7px 0;">
 <b style="color:#fff;">【{sentiment}】{title or '（无标题）'}</b>
 <div style="color:{GREY};font-size:12px;margin-top:2px;">🕐 {ts}｜来源：{src}</div>
