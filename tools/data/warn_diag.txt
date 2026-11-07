@@ -318,3 +318,6 @@
 07:01:30 [反模板命中:sec2_deep] 情绪回暖 (try1)
 07:02:39 [反模板命中:sec2_deep] 资金认可 (try2)
 07:10:22 [反模板命中:resonance_verdict] 管住手 (try1)
+10:55:00 [build_warn] 进入；新闻条数=20
+10:55:00 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+10:56:03 [build_warn] LLM 返回长度=304
