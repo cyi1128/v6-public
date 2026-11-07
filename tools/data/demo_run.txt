@@ -1,0 +1,22 @@
+/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py:185: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return datetime.utcnow() + timedelta(hours=8)
+[LLM] ModelScope OK model=Qwen/Qwen3.5-122B-A10B purpose=warn_news_ds
+[LLM_OUT:warn_news_ds] {"fire":[{"sector":"算力温控设备","stocks":"申菱(液冷纯弹)","logic":"格力中标证需求，申菱本质服务器散热，暗线液冷供货移动，实受益非蹭。位低筹稳，破点火走。若订单无交付逻辑破。","data":"待竞价","verify":"量比>3高开<4%","fail_if":"低开无量","risk":"订单证伪"}],"news_brief":[{"t":"超3亿元算力订单 格力中标","core":"格力中标移动铁塔温控3亿，产品含氟泵空调","sec":"利好算力温控","theme":"AI基建","dark":"申菱：液冷弹性","p":"小票跟涨，大票滞涨","act":"竞价强半仓，破成本走","data":"待竞价"},{"t":"中信建投：化工产能周期共振","core":"化工盈利底部上行，估值低，库存周期共振","sec":"利好化工","theme":"周期复苏","dark":"暂无明确暗线","p":"缺爆发力，机构票慢","act":"观望等首板","data":"待竞价"}]}
+[git] commit attempt1: 
+[git] writeback ok attempt1
+/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py:185: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return datetime.utcnow() + timedelta(hours=8)
+Traceback (most recent call last):
+  File "/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py", line 12551, in <module>
+    ok, msg = push(html, f'【演示】{name} · 轮流试跑')
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py", line 12268, in push
+    html = _style_upgrade(html)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py", line 12201, in _style_upgrade
+    html = re.sub(r'font-size:11px', 'font-size:13px', html)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/re/__init__.py", line 186, in sub
+    return _compile(pattern, flags).sub(repl, string, count)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: expected string or bytes-like object, got 'tuple'

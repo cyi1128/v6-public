@@ -321,3 +321,6 @@
 10:55:00 [build_warn] 进入；新闻条数=20
 10:55:00 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
 10:56:03 [build_warn] LLM 返回长度=304
+11:00:00 [build_warn] 进入；新闻条数=20
+11:00:00 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+11:00:54 [build_warn] LLM 返回长度=479
