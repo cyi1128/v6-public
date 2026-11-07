@@ -51,7 +51,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT, 'tools', 'data')
 MARKER = os.path.join(DATA_DIR, 'sched_active.json')
 SLOT_DONE = os.path.join(DATA_DIR, 'slot_done.json')
-EOD_STATUS = os.path.join(DATA_DIR, 'eod_status.json')
+# 收盘复盘另用一套去重：主程序 eod_push_done() 读的是仓库根 data/eod_status.json
+# （结构 {"date": "YYYY-MM-DD", "pushed_at": ...}），不是 tools/data/slot_done.json。
+EOD_STATUS = os.path.join(ROOT, 'data', 'eod_status.json')
 PY = sys.executable or 'python3'
 
 # ---------------------------------------------------------------- 全天时刻表
@@ -181,8 +183,7 @@ def is_done(hour: int, minute: int, slot: str, done: dict | None = None) -> bool
     """该槽今天是否已完成。eod 用独立 eod_status.json（主程序就是这么判的）。"""
     if slot == 'eod':
         st = _read_json(EOD_STATUS)
-        today = bj_now().strftime('%Y-%m-%d')
-        return bool(st.get(today) or st.get('last') == today)
+        return st.get('date') == bj_now().strftime('%Y-%m-%d')
     key = slot_done_key(hour, minute, slot)
     if key is None:
         return False
