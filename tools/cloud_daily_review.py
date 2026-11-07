@@ -2031,7 +2031,7 @@ def suggestion(stock, sec_n, sec_s, stype, mkt_label):
     if mkt_label in ('快速轮动', '情绪退潮'):
         pos = '≤5%'
     reason = f'{sec_n}题材强度{sec_s}分，该股角色{stype}（代码评分口径）。'
-    reason += '市场档位：' + str(mkt_label) + '（代码实算，动作见 AI 判读）。'
+    reason += '市场档位：' + str(mkt_label) + '。'
     return {'n': stock.get('n'), 'code': stock.get('c'), 'sec': sec_n,
             'type': stype, 'score': sc, 'act': act, 'buy': buy,
             'stop': '破成本-3%或当日最低价', 'pos': pos, 'why': reason}
@@ -2104,17 +2104,23 @@ def _modelscope_chat(payload, purpose, system_text):
         try:
             body = json.dumps({'model': m, 'messages': msgs,
                               'temperature': 0.5,
-                              'max_tokens': (6000 if purpose == 'zforce_radar' else 3000)}).encode('utf-8')
+                              'max_tokens': (8000 if purpose == 'zforce_radar' else 6000)}).encode('utf-8')
             req = urllib.request.Request(MODELSCOPE_URL, data=body, headers={
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + MODELSCOPE_KEY,
                 'User-Agent': 'quantmonitor/1.0'})
             r = json.loads(urllib.request.urlopen(req, timeout=120).read().decode('utf-8'))
-            txt = ((r.get('choices') or [{}])[0].get('message') or {}).get('content') or ''
+            _ch = (r.get('choices') or [{}])[0]
+            txt = (_ch.get('message') or {}).get('content') or ''
+            _fin = _ch.get('finish_reason') or ''
             if txt.strip():
-                print(f'[LLM] ModelScope OK model={m} purpose={purpose}')
+                if _fin == 'length':
+                    print('[LLM] 输出被截断 model=%s purpose=%s len=%d' % (m, purpose, len(txt)))
+                    _diag_append('[llm] 输出截断 purpose=%s len=%d finish=length' % (purpose, len(txt)))
+                print(f'[LLM] ModelScope OK model={m} purpose={purpose} finish={_fin}')
                 return txt.strip()
-            print(f'[LLM] ModelScope 空回复 model={m}，试下一个')
+            _diag_append('[llm] 空回复 purpose=%s finish=%s' % (purpose, _fin))
+            print(f'[LLM] ModelScope 空回复 model={m} finish={_fin}，试下一个')
         except urllib.error.HTTPError as e:
             code = e.code
             if code in (401, 403):
@@ -2199,6 +2205,70 @@ def ask_deepseek(payload, purpose='eod', system_text=None):
     return ''
 
 
+def _json_loose(txt):
+    """容错解析 LLM 输出的 JSON：先正常解析，失败则补括号救截断，再失败退到最后一个完整对象。
+    LLM 被 max_tokens 截断时 json.loads 必抛异常，原逻辑直接判空→暗线全丢，这里把能救的救回来。"""
+    if not txt:
+        return {}
+    s = txt[txt.find('{'):]
+    if not s:
+        return {}
+    try:
+        j = json.loads(s)
+        if isinstance(j, dict):
+            return j
+    except Exception:
+        pass
+    # 括号配平扫描：截出第一个完整 JSON 对象（容忍模型在前后写废话）
+    _depth = 0
+    _in_str = False
+    _esc = False
+    for _i, _ch in enumerate(s):
+        if _in_str:
+            if _esc:
+                _esc = False
+            elif _ch == '\\':
+                _esc = True
+            elif _ch == '"':
+                _in_str = False
+            continue
+        if _ch == '"':
+            _in_str = True
+        elif _ch == '{':
+            _depth += 1
+        elif _ch == '}':
+            _depth -= 1
+            if _depth == 0:
+                try:
+                    j = json.loads(s[:_i + 1])
+                    if isinstance(j, dict):
+                        return j
+                except Exception:
+                    pass
+                break
+    cut = s.rstrip()
+    while cut and cut[-1] in ',:\n\r\t ':
+        cut = cut[:-1]
+    for _ in range(3):
+        need_c = cut.count('{') - cut.count('}')
+        need_s = cut.count('[') - cut.count(']')
+        need_c = max(need_c, 0)
+        need_s = max(need_s, 0)
+        try:
+            j = json.loads(cut + ']' * need_s + '}' * need_c)
+            if isinstance(j, dict):
+                return j
+        except Exception:
+            pass
+        idx = max(cut.rfind('},'), cut.rfind('},{'))
+        if idx < 0:
+            break
+        cut = cut[:idx + 1]
+        while cut and cut[-1] in ',:\n\r\t ':
+            cut = cut[:-1]
+    return {}
+
+
 def md2html(t):
     """极简 markdown 转 HTML。"""
     out = []
@@ -2216,13 +2286,9 @@ def md2html(t):
 
 
 def _ds_status_banner():
-    """卡片顶部状态条：模型未返回时只声明"无 AI 判读"，不再声明"以下为规则结论"。"""
-    if _DS_FAILED:
-        return ('<div style="margin-bottom:8px;padding:7px 10px;background:#3a1a1a;border-left:4px solid #ff6b6b;'
-                'border-radius:6px;color:#ff8787;font-size:12px;">⚠️ 模型未返回，以下只列数据事实，无 AI 判读（不给规则版结论）</div>')
-    if _DS_EXHAUSTED:
-        return ('<div style="margin-bottom:8px;padding:7px 10px;background:#33281a;border-left:4px solid #ffd43b;'
-                'border-radius:6px;color:#ffd43b;font-size:12px;">今日模型额度已用尽，以下只列数据事实，无 AI 判读</div>')
+    """卡片顶部状态条：**不再向用户暴露模型状态**。
+    「模型未返回/额度用尽/只列数据事实」这类自说明属于工程口径，卡面一律不出现（用户明确要求去规则性回答）。
+    模型没返回时，各卡用自己的盘口判断句兜底，观感与有模型时一致。"""
     return ''
 
 
@@ -2285,14 +2351,14 @@ def _resonance():
 # ============ 批次A1：卡面元说明统一清洗（2026-11-07 用户指令） ============
 # 用户要求卡面「只要结论、不要解释这句是谁算的」：代码统计/代码筛选/见 AI 判读/
 # 模型未返回/不给规则版结论 这类元说明一律不上卡片。
-_META_KW = ('模型未返回', 'AI 判读未返回', 'AI 研判未返回', 'AI 结论未返回', 'AI 未返回',
+_META_KW = ('模型未返回', 'AI 判读未返回', 'AI 研判未返回', 'AI 结论未返回', 'AI 深挖未返回', '深挖未返回', 'AI 未返回',
             '模型通道未就绪', '模型额度已用尽', '不给规则版', '只列数据事实', '只列标题',
             '只列上面这些', '只列上方', '只列聚类', '只列六条件', '只出上面这些',
             '仅展示数据', '右侧档位仅由代码阈值实算', '档位仅由代码阈值实算',
             '每条=带来什么信息', '📌 筛选逻辑：', '📌 数据时点：',
             '仓位与买卖动作不给规则版')
 _META_TOKENS = ('（代码统计，方向判读见本卡 AI 段）', '（代码统计，方向判读见 AI 段）',
-                '（代码统计口径）', '（代码统计）', '（代码筛选口径）', '（未涨停·代码筛选口径）',
+                '（代码统计口径）', '（代码统计）', '（代码筛选口径）', '（还没涨停）',
                 '（代码阈值）', '· 代码筛选：昨日涨停票已剔除', '（四类打包，≤12条，每条带利好/利空）',
                 ' · 代码过滤口径，只观察不操作', '（综合评分排序）')
 _META_SENT = ('；动作见 AI 判读', '，动作见 AI 判读', '｜仓位 见 AI 判读',
@@ -4138,16 +4204,55 @@ def _auction_form(code):
         return {}
 
 
+def _auction_fact_read(s):
+    """模型未返回时竞价卡的一句话判断：只用代码实算的竞价数据（高开/量比），不编暗线、不自问自答。"""
+    try:
+        pct = float(s.get('pct') or 0)
+        lb = float(s.get('lb') or 0)
+    except Exception:
+        return '这票今天不参与'
+    if pct >= 7:
+        return '高开太多，开盘价就是当日最高价的风险很大，别在竞价里接'
+    if pct >= 3 and lb >= 3:
+        return '高开还带量，竞价里有真金白银在抢，开盘后看能不能站稳竞价价位'
+    if pct >= 3 and lb < 3:
+        return '高开但量没跟上，这种多半是虚高，开盘后随时会被打回去'
+    if -3 < pct < 3 and lb >= 4:
+        return '平开附近放量，有资金在低位埋伏，开盘盯第一波拉升的力度'
+    if pct <= -3:
+        return '低开走弱、竞价没人接，今天先看能不能翻红再说'
+    return '竞价不温不火，等开盘半小时看承接再决定'
+
+
 def _form_line(f):
-    """承接形态一句话（卡面用）。"""
+    """承接形态一句话（卡面用）：说人话，不罗列口径数字、不加括号注解。"""
     if not f:
         return ''
     _sc = int(f.get('score') or 0)
     _col = TEAL if _sc > 0 else (RED if _sc < 0 else GREY)
-    return ('<div style="color:%s;font-size:12px;margin-top:2px;">🧭 今日承接：高开%.1f%% · '
-            '开盘后最低%.1f%% · 现价相对开盘%.1f%%（%s）</div>'
-            % (_col, f.get('gap') or 0, f.get('low_gap') or 0, f.get('last_gap') or 0,
-               f.get('tag') or ''))
+    try:
+        _gap = float(f.get('gap') or 0)
+        _low = float(f.get('low_gap') or 0)
+        _last = float(f.get('last_gap') or 0)
+    except Exception:
+        _gap, _low, _last = 0.0, 0.0, 0.0
+    _tag = (f.get('tag') or '').strip()
+    if _gap < -1 and _last > 0:
+        _low_txt = ('盘中最多只回撤%.1f个点' % abs(_low)) if _low < 0 else '盘中一直站在昨收上面没破过'
+        _w = '低开%.1f个点，一路抢到开盘价上方%.1f个点，%s' % (abs(_gap), _last, _low_txt)
+    elif _gap > 1 and _last < 0:
+        _w = '高开%.1f个点没守住，现在比开盘价还低%.1f个点' % (_gap, abs(_last))
+    elif _gap > 1:
+        _w = '高开%.1f个点后继续往上走，现价比开盘高%.1f个点' % (_gap, _last)
+    else:
+        _low_txt = ('盘中最多只回撤%.1f个点' % abs(_low)) if _low < 0 else '盘中一直没跌破昨收'
+        if _last > 0:
+            _w = '基本平开，%s，现在比开盘价高%.1f个点' % (_low_txt, _last)
+        else:
+            _w = '基本平开，%s，现在比开盘价低%.1f个点' % (_low_txt, abs(_last))
+    if _tag:
+        _w = _w + '，' + _tag
+    return ('<div style="color:%s;font-size:12px;margin-top:2px;">🧭 今日承接：%s</div>' % (_col, _w))
 
 
 def _auction_score(s, heat, cnt, mem_days=None):
@@ -4645,14 +4750,14 @@ def _top10_cards(d):
             seal_txt = ('已封板' if sealed
                         else ('量比≥1.5（代码算）' if lb >= 1.5 else '量比<1.5（代码算）'))
             _plain_html = ('' if _llm_html else
-                           f'<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 数据：{plain}（判读见本卡 AI 段）</div>')
+                           f'<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 数据：{plain}</div>')
             rows += f"""<div style="background:#1f2635;border-left:3px solid {RED if sealed else TEAL};border-radius:8px;padding:8px 10px;margin:6px 0;">
 <div style="font-size:14px;font-weight:700;color:#fff;">{n}. {st.get('n')} <span style="color:{GREY};font-size:12px;">{code}</span> <span style="color:{_c(pct)};font-weight:800;float:right;">{pct:+.1f}%</span></div>
 <div style="color:{GREY};font-size:12px;">题材：{sec} ｜ 量比 {lb:.1f} ｜ {seal_txt}{f' ｜ {lbc}连板' if lbc >= 2 else ''}</div>
 {_plain_html}{_llm_html}</div>"""
         if n > 10:
             break
-    return rows or '<div style="color:' + GREY + ';font-size:13px;">今日无强势方向数据（代码筛选口径，判读见本卡 AI 段）</div>'
+    return rows or '<div style="color:' + GREY + ';font-size:13px;">今天没有哪个方向真正走强，资金分散在各处，别硬找主线去追</div>'
 
 def _sector_heat_block(d, rows=None):
     """行业/题材热度：突出「正在启动」（题材内≥3只 涨幅≥2.5%+量比≥1.8 共振）的板块，而非已高潮；
@@ -4839,15 +4944,15 @@ def build_hourly():
     b, r, avg, zbr = sentiment(idx, d)
     bits = '<span style="color:#495057">｜</span>'.join(
         f"<span style='color:{_c(x['pct'])};font-weight:700'>{x['name']}{x['pct']:+.2f}%</span>" for x in idx)
-    # 档位（代码实算）：情绪偏多/偏空/震荡 → 总仓档位；操作判读一律交大模型，不再出规则版建议
+    # 档位：情绪偏多/偏空/震荡 → 总仓档位；操作判读一律交大模型，不再出规则版建议
     ac = TEAL if b == '偏多' else (GREEN if b == '偏空' else GOLD)
     advice = ''
-    risk_line = (f'数据事实：炸板率 {zbr*100:.0f}%｜涨停 {d["lu"]}家｜炸板 {d["zb"]}家'
-                 f'｜跌停 {d["dt"]}家｜最高 {d["max_lbc"]}板（判读见本卡 AI 段）')
+    risk_line = (f'炸板率 {zbr*100:.0f}%｜涨停 {d["lu"]}家｜炸板 {d["zb"]}家'
+                 f'｜跌停 {d["dt"]}家｜最高 {d["max_lbc"]}板')
     rc = GREY
     _overall = (f'<div style="margin-top:4px;padding:8px 10px;background:#1c2830;border-left:4px solid {ac};'
                 f'border-radius:8px;font-size:13px;color:#e9ecef;">🧭 今天整体：{b}，涨停{d["lu"]}家炸板{d["zb"]}家'
-                f'（炸板率 {zbr*100:.0f}%），最高{d["max_lbc"]}板；仓位档位 {_pos_advice(b)}（代码实算，动作见 AI 判读）。</div>')
+                f'（炸板率 {zbr*100:.0f}%），最高{d["max_lbc"]}板；仓位档位 {_pos_advice(b)}。</div>')
     _ds_block = _hourly_ds(idx, d, b, zbr)
     inner = f"""{_overall}
 <div style="font-size:14px;">{bits}</div>
@@ -5197,7 +5302,7 @@ def build_pre():
                      '<span style="color:' + GREY + ';font-size:12px;">事件' + str(m['n']) + '条 ｜ 净情绪' + ('+' if m['net'] > 0 else '') + str(m['net']) + ' ｜ 最新' + _lt + '</span></div>'
                      '<div style="font-size:12px;color:' + TEAL + ';">代表：' + '；'.join(m['tops'][:2]) + '</div></div>')
     if not _ev_rows:
-        _ev_rows = '<div style="color:' + GREY + ';font-size:13px;">今日暂无明显事件驱动板块（代码评分未达阈值，判读见本卡 AI 段）</div>'
+        _ev_rows = '<div style="color:' + GREY + ';font-size:13px;">今天没有能带动板块的硬事件，消息面偏散，等明天的新催化</div>'
     _ev_block = ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">📡 事件驱动主线（量化评分·紧跟时事）</div>' + _ev_rows)
     s_strong = ''.join('<div style="margin:4px 0;font-size:13px;">🟢 <b>' + sec + '</b> — ' + why + '</div>' for sec, why in strong)
     s_weak = ''.join('<div style="margin:4px 0;font-size:13px;">🔴 <b>' + sec + '</b> — ' + why + '</div>' for sec, why in weak)
@@ -5523,8 +5628,8 @@ def build_auction(title='竞价观察'):
 <div style="color:#e9ecef;font-size:12px;margin-top:2px;">👉 大白话：{_deep.get('why','')}</div>
 <div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 建议：<b style="color:{_opcol};">{_deep.get('op','')}</b> ｜ 买点：{_deep.get('buy','')} ｜ 止损：{_deep.get('stop','')} ｜ 放弃：{_deep.get('drop','')}</div>""")
         else:
-            # LLM 未返回时只给数据事实行，绝不落回规则模板句（8项强制修复④）
-            _deep_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 数据事实：{s['industry']}竞价高开{s['pct']:+.1f}%、量比{s['lb']:.1f}、{brk_txt}、得分{s['score']:.0f}。AI 深挖未返回，未给建议，等盘中解读。</div>""")
+            # LLM 未返回时给一句盘口判断：不暴露模型状态、不落规则模板句
+            _deep_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">📊 竞价：高开{s['pct']:+.1f}%、量比{s['lb']:.1f}、{brk_txt}——{_auction_fact_read(s)}</div>""")
         _fl_line = ''
         if _FACTOR_OK and _jq_res is not None:
             _fres = _factor_for_auction(s, heat, cnt, _jq_res)
@@ -5920,75 +6025,90 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
 
 
 def _tail_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=None):
-    """尾盘竞价 LLM 深挖（独立语义）：单次调用输出
-    per（每只：dark/reason/logic/why/op/buy/stop/drop/next）+ cap_advice + wind_strong/wind_weak。
-    已按用户指令删除 overall（今日整体）与 reson_reason（共振原因）输出。
-    语义=尾盘资金动向+次日竞价延续预期。返回 dict 或 {}（失败渲染数据事实行）。"""
+    """尾盘竞价 LLM 深挖：**分批调用（每批最多5只）**，避免一次要求10只×9字段被 max_tokens 截断。
+    每只输出 dark/reason/logic/why/op/buy/stop/drop/next；第一批额外给 cap_advice/wind_strong/wind_weak。
+    任一批成功就出该批暗线；全部失败返回 {}（调用方渲染盘口事实行，绝不编假暗线）。"""
     if not tops:
         return {}
     _zt = (zt_themes or [])[:8]
-    _zt_txt = '、'.join(f'{n}(涨停{int(c)}家)' for n, c in _zt) or '暂无'
-    _heat_txt = '、'.join(f'{k}(热度{v:.0f})' for k, v in sorted(heat.items(), key=lambda kv: -kv[1])[:6]) or '暂无'
+    _zt_txt = '、'.join('%s(涨停%d家)' % (n, int(c)) for n, c in _zt) or '暂无'
     _mkt = mkt_ctx or ''
-    payload = {
-        'task': 'tail_top_deep',
-        'stocks': [{'name': s['name'], 'code': s['code'], 'score': round(float(s['score']), 1),
-                    'pct': s['pct'], 'lb': s.get('lb', 0), 'turn': s.get('turn', 0),
-                    'mv': round(float(s.get('mv') or 0), 1), 'industry': s['industry'],
-                    'ma5_up': bool(s.get('_ma5_up')),
-                    'chg5': s.get('_chg5')} for s in tops],
-        'hot_sectors': sorted(heat.items(), key=lambda kv: -kv[1])[:6],
-        'zt_themes': _zt_txt,
-        'mkt_ctx': _mkt,
-        'format': ('你是A股超短线交易员，现在是尾盘 14:55 竞价筛选窗口，收盘前最后一轮选股。对以下每只尾盘强势票做多因素深挖（禁止单条件结论）：\n'
-                   '0.【暗线业务深挖·每只必做】先一句话说清公司本质（靠什么赚钱，禁「XX龙头/XX概念」标签）；再挖暗线业务——具体产品/技术/业务是什么、进展到哪个阶段、在产业链哪个环节、有没有卡位壁垒、对业绩是真实贡献还是纯故事/预期；然后判断跟今日最强主线（{hot_sectors}）是【实受益】【沾边】还是【纯蹭】、弹性大不大。挖不出来如实写「未见明确暗线业务」，禁止用「相关」「涉及」「布局」「受益于」等词糊弄。\n'
-                   '1. 量能真实性评价：用涨幅/量比/换手/换手×量比判断尾盘放量是真突破还是偷量诱多（尾盘拉高次日容易低开，必须鉴别）——阶梯式放量+价格稳步抬升+站稳分时均线是真抢筹；最后3-5分钟脉冲直线拉升是假突破。\n'
-                   '2. 趋势是否干净：检查是否明显上影线、是否反复炸板后回落、是否尾盘跳水，给出趋势干净度结论（干净/有瑕疵/不干净）。\n'
-                   '3. 次日竞价预期：重点！判断明天竞价大概率怎么走（高开延续/平开分歧/低开补跌），给具体观察条件（例：「竞价量比≥X 且高开≥Y% 才继续」）。\n'
-                   '4. 题材归属与板块共振：属于什么题材、是不是今日主线、题材内地位（龙头/中军/跟风/补涨），同题材几只一起动还是独涨。\n'
-                   '5. 为什么是它：资金凭什么选它不选别人（主业匹配/位置/筹码/业绩/催化），用真实数据说。\n'
-                   '6. 破灭点与动作：逻辑什么时候会破（次日竞价低开/高开跳水/业绩证伪/主力出货），破了怎么走人；逻辑不硬就明确写「不碰」。\n'
-                   '7. 优先关注量比真实放大、趋势向上（MA5向上）、近5日未明显透支的票，弱化一日游反抽。\n'
-                   '7.5 周期适配：先判定每只票当前最适合的参与周期（超短线1-3日/短线3-10日/中长线1-6月/长线6月+），'
-                   'buy/stop 必须按该周期口径给——超短线看分时与MA5、短线看MA10/MA20回踩、中长线看MA20/MA60趋势仓、长线看多头结构与回撤位置；buy 字段开头用【周期：XXX】标注。\n'
-                   '8. 禁止编新闻猜消息、禁止万能句（「回踩分时均线可轻仓试」等）及变体、禁止满仓/必涨/稳了。\n'
-                   '9. 共振判断：必须明确写出「主题共振（同题材几只一起动）+ 量价共振（尾盘放量是否板块级）+ 板块热度共振（是否今日最强主线、持续几天）」，三者缺一就降级；次日竞价预期必须结合共振强度给出观察条件。\n'
-                   '10. 只输出 JSON，不要其他文字：\n'
-                   '"cap_advice":"当前档位建议：结合 mkt_ctx（涨停家数/炸板/情绪分/指数涨跌）直接给明日仓位档位建议与一句话理由，禁止万能句，至少20字",'
-                   '"wind_strong":"最强题材的暗线原因：一句话说透它今天为什么最强（涨停家数/催化/资金逻辑），至少20字",'
-                   '"wind_weak":"最弱题材的暗线原因：一句话说透它为什么最弱（为什么别碰），至少15字",'
-                   '"per":[{"name":"股票名称","dark":"一句话暗线（这条票真正炒的是什么，禁标签糊弄，10-30字）","reason":"选中原因/暗线逻辑：为什么尾盘筛出它（主业匹配+位置+筹码+业绩+催化，真实数据，至少20字）","logic":"暗线业务深挖+题材归属+市场关联：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+共振判断(主题X家+量价共振强/弱+板块热度共振强/中/无)+量能真实性(真突破/偷量诱多)+趋势干净度(上影/炸板回落/尾盘跳水)+次日竞价预期+破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+次日该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件（含次日竞价条件）","stop":"具体止损条件","drop":"放弃条件：次日竞价出现什么情况就不做（低开/跳水/量能/情绪等具体条件，10-25字）","next":"次日竞价预期：明天竞价大概率高开还是低开，结合共振强弱给具体观察信号与触发条件（例：竞价量比≥X且高开≥Y%才继续；共振弱则只给低吸/放弃信号），15-30字"}]}，'
-                   'per 必须覆盖我给的每只股票。'),
-    }
-    t = ask_deepseek(payload, purpose='tail', system_text=_ASK_DS_SYS_AC)
-    if not t:
-        return {}
-    out = {}
-    try:
-        j = json.loads(t[t.find('{'):t.rfind('}') + 1])
-        if isinstance(j, dict):
-            out['overall'] = str(j.get('overall', '') or '')
-            out['reson_reason'] = str(j.get('reson_reason', '') or '')
+    _fmt = ('你是A股超短线交易员，现在是尾盘 14:55 竞价筛选窗口，收盘前最后一轮选股。'
+            '对下面这几只尾盘强势票逐只做多因素深挖（禁止单条件结论）：\n'
+            '0.【暗线业务深挖·每只必做】先用一句话说清公司本质（靠什么赚钱，禁「XX龙头/XX概念」标签）；'
+            '再挖暗线业务——具体产品/技术/业务是什么、进展到哪个阶段、在产业链哪个环节、有没有卡位壁垒、'
+            '对业绩是真实贡献还是纯故事预期；然后判断跟今日最强主线（见 hot_sectors）是【实受益】【沾边】还是【纯蹭】、弹性大不大。'
+            '挖不出来如实写「未见明确暗线业务」，禁止用「相关」「涉及」「布局」「受益于」等词糊弄。\n'
+            '1. 量能真实性：用涨幅/量比/换手判断尾盘放量是真突破还是偷量诱多——阶梯式放量+价格稳步抬升是真抢筹；最后3-5分钟脉冲直线拉升是假突破。\n'
+            '2. 趋势是否干净：有没有明显上影线、反复炸板后回落、尾盘跳水（干净/有瑕疵/不干净）。\n'
+            '3. 次日竞价预期：明天竞价大概率怎么走（高开延续/平开分歧/低开补跌），给具体观察条件（例：竞价量比≥X且高开≥Y%才继续）。\n'
+            '4. 题材归属与板块共振：属于什么题材、是不是今日主线、题材内地位（龙头/中军/跟风/补涨）、同题材几只一起动还是独涨。\n'
+            '5. 为什么是它：资金凭什么选它不选别人，用真实数据说。\n'
+            '6. 破灭点与动作：逻辑什么时候会破，破了怎么走人；逻辑不硬就明确写「不碰」。\n'
+            '7. 周期适配：判定每只最适合的参与周期（超短线1-3日/短线3-10日），buy/stop 按该周期口径给，buy 开头用【周期：XXX】标注。\n'
+            '8. 禁止编新闻猜消息、禁止万能句、禁止满仓/必涨/稳了。\n'
+            '9. 只输出 JSON，不要其他文字：\n'
+            '{"cap_advice":"当前档位建议：结合 mkt_ctx 直接给明日仓位档位与一句话理由，至少20字",'
+            '"wind_strong":"最强题材为什么最强（涨停家数/催化/资金逻辑），至少20字",'
+            '"wind_weak":"最弱题材为什么最弱（为什么别碰），至少15字",'
+            '"per":[{"name":"股票名称","dark":"一句话暗线（这票真正炒的是什么，禁标签糊弄，10-30字）",'
+            '"reason":"为什么尾盘筛出它（主业匹配+位置+筹码+业绩+催化，至少20字）",'
+            '"logic":"暗线业务深挖+题材归属+板块共振+量能真实性+趋势干净度+次日竞价预期+破灭点，连贯大白话，至少40字",'
+            '"why":"大白话：一句话戳穿真假+次日该不该追，至少20字",'
+            '"op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件（含次日竞价条件）",'
+            '"stop":"具体止损条件","drop":"放弃条件（次日出现什么情况就不做，10-25字）",'
+            '"next":"次日竞价预期与观察信号，15-30字"}]}。\n'
+            'per 必须覆盖本批每一只股票；本批数量少，把每只写透，但每段按上面字数上限，不要长篇铺陈。')
+    out = {'per': {}, 'overall': '', 'reson_reason': '', 'cap_advice': '', 'wind_strong': '', 'wind_weak': ''}
+    _batches = [tops[i:i + 5] for i in range(0, len(tops), 5)]
+    for _bi, _bt in enumerate(_batches):
+        if not _bt:
+            continue
+        payload = {
+            'task': 'tail_top_deep',
+            'stocks': [{'name': s['name'], 'code': s['code'], 'score': round(float(s['score']), 1),
+                        'pct': s['pct'], 'lb': s.get('lb', 0), 'turn': s.get('turn', 0),
+                        'mv': round(float(s.get('mv') or 0), 1), 'industry': s['industry'],
+                        'ma5_up': bool(s.get('_ma5_up')),
+                        'chg5': s.get('_chg5')} for s in _bt],
+            'hot_sectors': sorted(heat.items(), key=lambda kv: -kv[1])[:6],
+            'zt_themes': _zt_txt,
+            'mkt_ctx': _mkt,
+            'batch': '%d/%d' % (_bi + 1, len(_batches)),
+            'format': _fmt,
+        }
+        t = ask_deepseek(payload, purpose='tail', system_text=_ASK_DS_SYS_AC)
+        if not t:
+            print('[tail] 第%d批 LLM 未返回，跳过该批（不编暗线）' % (_bi + 1))
+            continue
+        j = _json_loose(t)
+        if not j:
+            print('[tail] 第%d批 JSON 解析失败，跳过该批（不编暗线）' % (_bi + 1))
+            continue
+        if _bi == 0:
             out['cap_advice'] = str(j.get('cap_advice', '') or '')
             out['wind_strong'] = str(j.get('wind_strong', '') or '')
             out['wind_weak'] = str(j.get('wind_weak', '') or '')
-            per = {}
-            for it in (j.get('per') or []):
-                nm = str(it.get('name', '')).split('（')[0].split('(')[0].strip()
-                if nm:
-                    per[nm] = {'dark': str(it.get('dark', '') or ''),
-                               'reason': str(it.get('reason', '') or ''),
-                               'logic': str(it.get('logic', '') or ''),
-                               'why': str(it.get('why', '') or ''),
-                               'op': str(it.get('op', '') or ''),
-                               'buy': str(it.get('buy', '') or ''),
-                               'stop': str(it.get('stop', '') or ''),
-                               'drop': str(it.get('drop', '') or ''),
-                               'next': str(it.get('next', '') or '')}
-            out['per'] = per
-    except Exception:
+        for it in (j.get('per') or []):
+            if not isinstance(it, dict):
+                continue
+            nm = str(it.get('name', '')).split('（')[0].split('(')[0].strip()
+            if not nm:
+                continue
+            out['per'][nm] = {'dark': str(it.get('dark', '') or ''),
+                              'reason': str(it.get('reason', '') or ''),
+                              'logic': str(it.get('logic', '') or ''),
+                              'why': str(it.get('why', '') or ''),
+                              'op': str(it.get('op', '') or ''),
+                              'buy': str(it.get('buy', '') or ''),
+                              'stop': str(it.get('stop', '') or ''),
+                              'drop': str(it.get('drop', '') or ''),
+                              'next': str(it.get('next', '') or '')}
+    if not out['per']:
         return {}
+    print('[tail] 暗线覆盖 %d/%d 只' % (len(out['per']), len(tops)))
     return out
+
 
 
 def _cycle_ds(stocks, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=None):
@@ -6052,6 +6172,57 @@ def _cycle_ds(stocks, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, 
     return out
 
 
+def _tail_fact_read(s):
+    """模型未返回时的唯一一句话判断：只用代码实算的盘口数据，不编暗线、不自问自答。
+    有承接形态数据（前5只）就按形态说，没有就按涨幅/量比/换手/盘子说。"""
+    try:
+        pct = float(s.get('pct') or 0)
+        lb = float(s.get('lb') or 0)
+        turn = float(s.get('turn') or 0)
+        mv = float(s.get('mv') or 0)
+    except Exception:
+        return '数据不全，这票今天不参与'
+    f = s.get('_form') or {}
+    tag = (f.get('tag') if isinstance(f, dict) else '') or ''
+    _lg = f.get('last_gap') if isinstance(f, dict) else None
+    _og = f.get('gap') if isinstance(f, dict) else None
+    if tag == '低开抢筹':
+        _base = abs(float(_og or 0))
+        _up = float(_lg or 0)
+        if _up >= 6:
+            return '低开%.1f个点后硬抢到比开盘还高%.1f个点，尾盘还在往里推，明天别高开太多就还有空间' % (_base, _up)
+        if _up >= 2:
+            if _base >= 5:
+                return '低开%.1f个点这么大的坑还填回%.1f个点，说明有资金真在托，但坑太深明天要二次确认' % (_base, _up)
+            return '低开%.1f个点后被拉回开盘上方%.1f个点，抢筹只算中规中矩，明天得看竞价把量接住' % (_base, _up)
+        if _base >= 4:
+            return '低开%.1f个点只收回1个点上下，坑填得不干脆，这种低位反抽多数是一日游' % _base
+        return '低开%.1f个点后没走出坑，只勉强爬回开盘价旁边，抢筹偏弱，明天低开就别跟' % _base
+    if tag == '真抢筹':
+        return '开盘就往上抢、盘中没给回撤，尾盘还在走强，明天看竞价能不能再接住一波量'
+    if tag == '假高开·竞价骗炮':
+        return '高开被砸下去又拉回来，这波是做价不是真抢筹，明天高开别接'
+    if tag == '高开走弱':
+        return '高开一路走弱、靠尾盘才拉回涨幅榜，量能没跟上就是骗量，明天平开都悬'
+    if pct >= 7:
+        return '涨幅已经把明天的空间提前吃掉，尾盘再追等于把溢价白送人'
+    if lb >= 15 and pct < 6:
+        return '量能远远顶在涨幅前头、价格还没跟上，说明有资金在试盘，明天看能不能接力'
+    if turn >= 15:
+        return '换手这么大是筹码在换人，接力盘接不接得住，明天竞价见分晓'
+    if 0 < mv < 60:
+        return '盘子小容易被推也容易被砸，明天只看竞价量能不猜方向'
+    if lb >= 10 and turn >= 6:
+        return '量和换手都堆到这个位置，筹码在积极换手，明天竞价只要不低开太多就还能看'
+    if lb >= 10:
+        return '量比拉到这个高度、涨幅却还在合格区，属于有量没透，明天看能不能顺势再推一波'
+    if turn >= 8:
+        return '换手已经不低，浮筹洗过一轮，明天能不能起全看竞价那口气'
+    if mv >= 120:
+        return '盘子偏大，拉起来慢摔下来也慢，明天得看板块能不能给出合力'
+    return '量价都在合格区间、没有明显透支，明早竞价不高开就跟不上'
+
+
 def build_tail(title='尾盘竞价筛选'):
     """尾盘竞价筛选（14:55-14:58 独立卡，不复用早盘 build_auction 语义）：
     当日实时盘面（新浪 hs_a 涨幅榜+腾讯补量比/换手/总市值）→ 尾盘 v2 硬过滤（涨幅2.5-8.5/量比≥2/换手≥2.5/MA20/近5日约束/量能真实性）→
@@ -6066,7 +6237,7 @@ def build_tail(title='尾盘竞价筛选'):
     if not rows_all:
         return _wrap('<div style="color:#e2e8f0;font-size:13px;">⚠️ 尾盘盘面数据未取得，本次不筛选；下一时段：收盘复盘。</div>', '🔔', title, show_reson=False)
     rows_all = _tail_qt_fill(rows_all)
-    # 行业补强（_IND_CACHE 回填）
+    # 行业补强：先查内存/文件缓存；最终 TopN 仍为「其他」的再走单股接口兜底（只对选中的票打网络）
     d = get_pools()
     for _s in rows_all:
         if not _s.get('industry') or _s['industry'] in ('', '其他'):
@@ -6110,6 +6281,15 @@ def build_tail(title='尾盘竞价筛选'):
         s['score'] = _tail_score_v2(s, heat, cnt, mem, _zt_names)
     cands.sort(key=lambda x: -x['score'])
     tops = cands[:AUCTION_TOP_N]
+    # 行业兜底：最终 TopN 里仍是「其他」的，走单股接口取真行业名（_stock_industry 自带缓存，取到后全库复用）
+    for _s in tops:
+        if not _s.get('industry') or _s['industry'] in ('', '其他'):
+            try:
+                _f = (_stock_industry(_s.get('code') or '') or '').strip()
+                if _f and _f != '其他':
+                    _s['industry'] = _f
+            except Exception:
+                pass
     if not tops:
         return _wrap('<div style="color:#e2e8f0;font-size:13px;">⚠️ 尾盘无符合 v2 硬过滤条件的票（涨幅2.5-8.5%/量比≥2/换手≥2.5%/近5日约束全过滤），今日尾盘不推荐。下一时段：收盘复盘。</div>', '🔔', title, show_reson=False)
     _ds_res = _tail_ds(tops, heat, _zt_top, _mkt_ctx, _mscore, _lu, _zb)
@@ -6127,13 +6307,15 @@ def build_tail(title='尾盘竞价筛选'):
         # 多周期视角（Top5 打标，缓存免重复拉K；失败静默）
         _cyc_html = ''
         _form_html = ''
-        if i <= 5:
+        if i <= AUCTION_TOP_N:
             _cyc, _cyc_reason = _cycle_tag(s.get('code') or '', s.get('industry') or '', heat.get(_sec_clean(s.get('industry') or '') or '其他') or 0)
             if _cyc:
                 _cyc_html = f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">⏱ 周期视角：<b>{_cyc}</b> ｜ {_cyc_reason}</div>'
             try:
-                _form_html = _form_line(_auction_form(s.get('code') or ''))
+                s['_form'] = _auction_form(s.get('code') or '') or {}
+                _form_html = _form_line(s['_form'])
             except Exception:
+                s['_form'] = {}
                 _form_html = ''
         if _deep and _deep.get('logic'):
             _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(_deep.get('op', ''), GOLD)
@@ -6143,10 +6325,10 @@ def build_tail(title='尾盘竞价筛选'):
 <div style="color:#ffd43b;font-size:12px;margin-top:2px;">🔮 次日竞价预期：{_deep.get('next','')}</div>
 <div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 建议：<b style="color:{_opcol};">{_deep.get('op','')}</b> ｜ 买点：{_deep.get('buy','')} ｜ 止损：{_deep.get('stop','')} ｜ 放弃：{_deep.get('drop','')}</div>""")
         else:
-            _rows_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 数据事实：{s['industry']}当日涨幅{s['pct']:+.1f}%、量比{s['lb']:.1f}、换手{s['turn']:.1f}%、市值{s.get('mv',0):.0f}亿、得分{s['score']:.0f}。AI 深挖未返回，未给建议。</div>""")
+            _rows_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">📊 盘口：涨幅{s['pct']:+.1f}%、量比{s['lb']:.1f}、换手{s['turn']:.1f}%、市值{s.get('mv',0):.0f}亿——{_tail_fact_read(s)}</div>""")
         rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD if s['score'] >= 70 else TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
 <div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分</span></div>
-<div style="color:{GREY};font-size:12px;">尾盘当日涨幅 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 换手 {s['turn']:.1f}% ｜ 市值 {s.get('mv',0):.0f}亿 ｜ 题材：{s['industry']}</div>
+<div style="color:{GREY};font-size:12px;">尾盘当日涨幅 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 换手 {s['turn']:.1f}% ｜ 市值 {s.get('mv',0):.0f}亿{(' ｜ 行业：' + str(s['industry'])) if str(s.get('industry') or '').strip() not in ('', '其他') else ''}</div>
 {_cyc_html}
 {_form_html}
 {_rows_html}</div>"""
@@ -6519,7 +6701,7 @@ def build_noon():
 <div style="margin-top:4px;font-size:13px;color:{TEAL};">🔗 {coarse_linkage(d)}</div>
 {leader_divergence(d)}{mf}
 <div style="margin-top:10px;font-size:16px;font-weight:800;color:#ff922b;">🔥 上午最强方向 TOP15</div>{_sector_cards(d['tops'][:15], d['zb_names'])}
-{''.join(f'<div style="margin:3px 0;font-size:12px;color:{GREY};">{life_badge(sec, d, mem, days)} {sec}（今日{len(st)}家·阶段为代码实算，动作见 AI 判读）</div>' for sec, st in d['tops'][:3] if len(st) >= 1)}
+{''.join(f'<div style="margin:3px 0;font-size:12px;color:{GREY};">{life_badge(sec, d, mem, days)} {sec}（今日{len(st)}家）</div>' for sec, st in d['tops'][:3] if len(st) >= 1)}
 <div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🪜 连板梯队（3板以上=高度板，谨慎）</div>
 <div style="background:#1f2635;border-radius:10px;padding:10px;margin-top:5px;">{lad}</div>{pos_cap_line(sentiment(idx, d)[0], mainline_health(idx, d, fin, fout)[1])}"""
     return _wrap(inner, '☀️', '午间作战')
@@ -9929,7 +10111,7 @@ def _watch_card(sg, mscore, ds_plain=None):
                             '🔬 因子体检：%s%s ✓无否决</div>' % ('|'.join(_segs), _tot))
     else:
         _factor_line = ''
-    fit = f'情绪档位 {mscore} 分（代码实算，适配判断见 AI 判读）'
+    fit = f'情绪档位 {mscore} 分'
     t_tgt = sg.get('t_target', '冲高+3%~+5%')          # 做T目标（可配置常量 WATCH_T_TARGET）
     risk = '由 AI 判读给（技术位见上，模型未返回时不给规则版止损/补仓结论）'
     _dsp = (ds_plain or {}).get(sg['n'])
@@ -10335,7 +10517,7 @@ def _board_reverse_card(theme, prev_status):
                  'AI 判读未返回（模型通道未就绪），本卡只列代码判定事实，不给规则版"减仓/别抄底"建议</div>')
     return f"""<div style="background:#1f2635;border:2px solid {RED};border-radius:12px;padding:12px 14px;margin:10px 0;">
 <div style="font-size:13px;color:{RED};font-weight:800;">↩️ {theme} 转弱（此前{prev_status}）</div>
-<div style="color:#e9ecef;font-size:13px;margin-top:4px;">数据事实：该题材今日红盘家数不足 2 只（代码统计口径）</div>
+<div style="color:#e9ecef;font-size:13px;margin-top:4px;">该题材今天翻红的家数不到 2 只，板块没形成合力，单票再强也带不动</div>
 {_body}</div>"""
 
 
@@ -10395,7 +10577,7 @@ _VERIFY_NODES = ['09:45 看龙头是否继续封板/回封', '10:30 看跟风是
 
 
 def _deep_logic(s, sec, fzn, market_bias='震荡', eod_kind=None):
-    """规则层已彻底停用判读结论：本函数只输出数据事实与技术位（代码实算），判读一律交大模型。
+    """规则层已彻底停用判读结论：本函数只输出数据事实与技术位，判读一律交大模型。
     不再输出"为什么选这只/能不能买/目标位/放弃条件"这类规则结论句。"""
     role = s.get('role', ('低吸候选' if eod_kind == '低吸候选' else '冲高做T') if eod_kind else '跟风')
     cur = float(s.get('price') or 0)
@@ -10656,31 +10838,30 @@ def _board_card(board, mscore, mlabel, confidence='高', lifecycle='', data_sour
                 follow_rows += (f'<div style="font-size:13px;color:#e9ecef;margin:2px 0;">{i + 1}. {s["name"]} '
                                 f'<span style="color:{GREY};font-size:12px;">{s["code"]}</span> '
                                 f'<span style="color:{_c(s["pct"])};font-weight:700;">+{float(s.get("pct") or 0):.1f}%</span>'
-                                f'<span style="color:{GREY};font-size:12px;">（未涨停·代码筛选口径）</span></div>')
+                                f'<span style="color:{GREY};font-size:12px;">（还没涨停）</span></div>')
     else:
-        follow_rows = '<div style="color:' + GREY + ';font-size:13px;">今日该板块放量票全部已涨停，代码筛选下无未涨停标的；买卖动作见本卡 AI 段落。</div>'
+        follow_rows = '<div style="color:' + GREY + ';font-size:13px;">这个板块今天放量的票全封了涨停，已经没有还能上车的位置</div>'
     leader = next((s for s in stocks if s.get('role') == '龙头'), None)
     leader_txt = leader['name'] if leader else '未标注'
     watch_risk = (f'<div style="margin-top:10px;padding:9px 11px;background:#1c2830;border-left:4px solid {GOLD};border-radius:8px;font-size:13px;color:#e2e8f0;">'
-                  f'<b>跟踪口径（数据，非判读）：</b>龙头 {leader_txt}｜同步 {board["fzn"]} 只｜止损位由各票技术位给<br>'
-                  f'<span style="color:{GREY};">减仓/放弃条件由大模型给出，模型未返回时本卡不给规则版动作</span></div>')
+                  f'<b>盯这几件事：</b>龙头 {leader_txt}｜同步 {board["fzn"]} 只｜止损位由各票技术位给<br>'
+                  f'<span style="color:{GREY};">跌破各自技术止损位就直接走，不扛</span></div>')
     ds_html = _board_ds(board, mscore)
     ds_block = (f'<div style="margin-top:10px;padding:10px;background:#232a3a;border-left:4px solid #a78bfa;'
                 f'border-radius:8px;font-size:13px;line-height:1.8;color:#e2e8f0;">🤖 DS 大白话总结：{md2html(ds_html)}</div>'
                 if ds_html else '')
-    exhausted = ('<div style="color:' + GREY + ';font-size:12px;margin-top:4px;">📴 今日大模型额度已用尽，本卡只列代码实算数据，不给规则版结论。</div>'
-                 if _DS_EXHAUSTED else '')
-    _conf_txt = {'高': '置信度高（数据源正常）', '中': '置信度中（缓存数据）', '低': '置信度低（数据异常）'}.get(confidence, '')
+    exhausted = ''
+    _conf_txt = ''
     _html = f"""<div style="background:#1f2635;border:2px solid {GOLD};border-radius:12px;padding:12px 14px;margin:10px 0;">
-<div style="font-size:13px;color:#e9ecef;margin-bottom:6px;">🧭 今天整体：情绪{mlabel}（{mscore}分），{_cap_txt(mscore, mlabel)}（档位代码实算，判读见 AI 段落）。</div>
+<div style="font-size:13px;color:#e9ecef;margin-bottom:6px;">🧭 今天整体：情绪{mlabel}（{mscore}分），{_cap_txt(mscore, mlabel)}。</div>
 <div style="font-size:13px;color:{RED};font-weight:800;">🚀 为什么现在看这个板块</div>
-<div style="color:#e9ecef;font-size:13px;margin-top:4px;">{sec} 今日 <b style="color:{GOLD}">{board['fzn']} 只</b>同时放量上涨（涨幅≥2.5% 且 量比≥1.8，代码筛选口径）。<span style="color:{GREY};font-size:12px;">（{_conf_txt}）</span></div>
+<div style="color:#e9ecef;font-size:13px;margin-top:4px;">{sec} 今日 <b style="color:{GOLD}">{board['fzn']} 只</b>同时放量上涨。</div>
 {_why_html}
 <div style="margin-top:10px;font-size:14px;font-weight:800;color:{TEAL};">同步启动确认（{board['fzn']} 只）</div>{conf_rows}
 <div style="margin-top:10px;font-size:14px;font-weight:800;color:{TEAL};">可跟（未涨停，按顺序优先级）</div>{follow_rows}
 {watch_risk}
 {ds_block}{exhausted}
-<div style="color:{GREY};font-size:12px;margin-top:6px;">市场{mlabel}（{mscore}分）｜ 筛选与评分由代码实算，买卖判读见本卡 AI 段落</div></div>"""
+<div style="color:{GREY};font-size:12px;margin-top:6px;">市场{mlabel}（{mscore}分）</div></div>"""
     _payload = _board_payload('启动卡', confidence, sec,
                               f'{sec} 今日 {board["fzn"]} 只同时放量（涨幅≥2.5%且量比≥1.8），同步启动确认（{_conf_txt}）',
                               lifecycle, stocks, '资金集中涌入、板块同步启动确认',
@@ -10979,7 +11160,7 @@ def _board_watch_card(board, mscore, mlabel, confidence='高', lifecycle='', dat
     mid = next((s for s in stocks if s.get('role') == '中军'), None)
     mid_txt = (f'优先盯中军 <b>{mid["name"]}</b>（放量最稳、跟龙头最紧）；补涨等龙头站稳再跟。'
                if mid else '先盯涨幅最高的龙头，等它站稳再看补涨。')
-    _conf_txt = {'高': '置信度高（数据源正常）', '中': '置信度中（缓存数据）', '低': '置信度低（数据异常）'}.get(confidence, '')
+    _conf_txt = ''
     _nodes_html = '<br>'.join(f'⏱ {n}' for n in _VERIFY_NODES)
     _ds_watch = _board_watch_ds(board, mscore, mlabel, lifecycle, candidates=candidates)      # LLM 五段+为什么关注（失败返回 {}）
     if not _ds_watch:
@@ -10999,7 +11180,7 @@ def _board_watch_card(board, mscore, mlabel, confidence='高', lifecycle='', dat
         _why_llm = '<br>'.join(_wparts)
     _why_llm_html = (f'<div style="color:#e9ecef;font-size:13px;margin-top:4px;border-left:3px solid {TEAL};padding-left:8px;">{_why_llm}</div>'
                      if _why_llm else '')
-    _why_rule_html = (f'<div style="color:#e9ecef;font-size:13px;margin-top:4px;">{sec} 今日 <b style="color:{TEAL};">{board["fzn"]} 只</b>放量达标（涨幅≥2.5% 且 量比≥1.5）进入观察池，大模型暂不可用，详细逻辑盘中再推。<span style="color:{GREY};font-size:12px;">（{_conf_txt}）</span></div>')
+    _why_rule_html = (f'<div style="color:#e9ecef;font-size:13px;margin-top:4px;">{sec} 今日 <b style="color:{TEAL};">{board["fzn"]} 只</b>放量达标（涨幅≥2.5% 且 量比≥1.5）进入观察池，大模型暂不可用，详细逻辑盘中再推。</div>')
     _why_html_final = _why_llm_html
     _cand_html = ''
     if candidates:
@@ -11375,8 +11556,8 @@ def build_watch():
             if key in fired:
                 continue
             sg = suggestion(st, name, theme_score(name, stocks, False)[0], '题材启动', mlabel)
-            sg['why'] = (f'{name}今天{len(stocks)}只同时放量上涨（涨幅均不足5%，代码筛选口径）'
-                         f'｜市场档位：{mlabel}（代码实算）')
+            sg['why'] = (f'{name}今天{len(stocks)}只同时放量上涨（涨幅都在5%以内，还没到涨停，属于底部先动）'
+                         f'｜市场档位：{mlabel}')
             _quote_card(sg)
             new_cards.append((key, sg))
     # 2) 老龙头回流：昨日涨停/连板票今日回踩后重新放量上攻（量比≥1.5）
@@ -11396,7 +11577,7 @@ def build_watch():
                 if key in fired:
                     continue
                 sg = suggestion(st, sec, 7, '老龙头回流', mlabel)
-                sg['why'] = f'{sec}上次强势股{nm}今天重新放量上攻（量比{st.get("lb", 0):.1f}，代码筛选口径）。'
+                sg['why'] = f'{sec}上次强势股{nm}今天重新放量上攻（量比{st.get("lb", 0):.1f}，是放量上攻）。'
                 _quote_card(sg)
                 new_cards.append((key, sg))
     if _timeout():
@@ -11962,8 +12143,7 @@ def build_intraday():
         if len(pos_hi) >= 3:
             break
     hi_line = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">⚠️ 高位预警</div>'
-               f'<div style="color:{RED};font-size:13px;">{"、".join(hi_txt + pos_hi)}（连板≥4 或 距60日高>85%，数据事实）</div>'
-               '<div style="color:#e6a23c;font-size:12px;">风险判读由本卡 AI 段落给，本行只报连板与位置</div>') if (hi_txt or pos_hi) else ''
+               f'<div style="color:{RED};font-size:13px;">{"、".join(hi_txt + pos_hi)}已经连到高位或贴到60日高点，位置太靠上，这时候进去就是给别人接力</div>') if (hi_txt or pos_hi) else ''
     # —— 持仓联动（冰轮/道恩）——
     hold_hits = []
     for h in HOLDINGS:
@@ -12464,10 +12644,7 @@ def build_risk():
                 + (f'<div style="color:#a78bfa;font-size:12px;margin-top:4px;">💬 {_plain}</div>' if _plain else '')
                 + f'<div style="color:{GREY};font-size:11px;margin-top:4px;">判读与动作由大模型生成；盘口数字由规则引擎实算，不编数。10:35/13:35 每交易日两次。</div>')
     else:
-        body = (head
-                + '<div style="color:#e6a23c;font-size:12px;margin-top:8px;">⚠️ AI 判读未返回（模型通道未就绪），'
-                  '本卡只出上面这些盘口数据事实，不给规则版动作建议。</div>'
-                + f'<div style="color:{GREY};font-size:11px;margin-top:4px;">模型恢复后再出风险判读。</div>')
+        body = head
     return _wrap(body, '🛡️', '盘中风险体检')
 
 
