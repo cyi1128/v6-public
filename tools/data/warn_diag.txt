@@ -360,3 +360,13 @@
 13:43:19 [反模板命中:evening] 管住手 (try1)
 13:44:19 [反模板命中:evening] 管住手 (try2)
 13:52:54 [反模板命中:holiday_ds] 资金认可 (try1)
+16:44:57 [反模板命中:pre_news_deep] 情绪回暖 (try1)
+16:50:03 [build_warn] 进入；新闻条数=20
+16:50:03 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+16:51:09 [build_warn] LLM 返回长度=387
+17:18:48 [反模板命中:news2h] 管住手 (try1)
+17:19:35 [反模板命中:news2h] 管住手 (try2)
+17:51:50 [反模板命中:eod] 没有安全垫 (try1)
+17:52:36 [反模板命中:eod] 值得关注 (try2)
+18:01:32 [反模板命中:eod_review_ds] 管住手 (try2)
+18:09:02 [反模板命中:ext_news] 半山腰 (try1)
