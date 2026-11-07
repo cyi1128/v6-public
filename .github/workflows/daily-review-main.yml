@@ -75,7 +75,7 @@ jobs:
       # 用 setup-python 的 pip 缓存，命中时开销约 1-2 秒；未命中约 20 秒。
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: requirements-cloud.txt
       - name: 安装云端依赖
@@ -185,7 +185,7 @@ jobs:
       # 用 setup-python 的 pip 缓存，命中时开销约 1-2 秒；未命中约 20 秒。
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: requirements-cloud.txt
       - name: 安装云端依赖
