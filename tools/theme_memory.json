@@ -1,4 +1,52 @@
 {
+ "2026-11-08": {
+  "光伏设备": {
+   "leaders": [
+    "永臻股份",
+    "贝特利",
+    "安彩高科"
+   ],
+   "reason": "3只涨停·龙头永臻股份",
+   "strength": 10,
+   "max_lbc": 4,
+   "fbt": 92501,
+   "divergence": false
+  },
+  "电力": {
+   "leaders": [
+    "新能股份",
+    "立新能源",
+    "东方新能"
+   ],
+   "reason": "3只涨停·龙头新能股份",
+   "strength": 9,
+   "max_lbc": 1,
+   "fbt": 93136,
+   "divergence": false
+  },
+  "纺织制造": {
+   "leaders": [
+    "浙文影业",
+    "华升股份"
+   ],
+   "reason": "2只涨停·龙头浙文影业",
+   "strength": 10,
+   "max_lbc": 5,
+   "fbt": 92501,
+   "divergence": false
+  },
+  "种植业": {
+   "leaders": [
+    "万向德农",
+    "新赛股份"
+   ],
+   "reason": "2只涨停·龙头万向德农",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93628,
+   "divergence": false
+  }
+ },
  "2026-11-07": {
   "光伏设备": {
    "leaders": [
@@ -753,6 +801,5 @@
    "fbt": 93017,
    "divergence": false
   }
- },
- "2026-10-27": {}
+ }
 }
