@@ -324,3 +324,20 @@
 11:00:00 [build_warn] 进入；新闻条数=20
 11:00:00 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
 11:00:54 [build_warn] LLM 返回长度=479
+11:04:45 [build_warn] 进入；新闻条数=20
+11:04:45 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+11:10:03 [build_warn] LLM 返回长度=412
+11:16:56 [反模板命中:batch_deep] 资金认可 (try1)
+11:17:51 [反模板命中:batch_deep] 半山腰 (try2)
+11:22:54 [反模板命中:noon_v4] 管住手 (try1)
+11:24:43 [反模板命中:brief_summary_v3] 管住手 (try1)
+11:25:28 [反模板命中:brief_summary_v3] 管住手 (try2)
+11:29:19 [反模板命中:news2h] 管住手 (try1)
+11:30:06 [反模板命中:news2h] 管住手 (try2)
+11:46:45 [反模板命中:theme_health_card] 资金认可 (try1)
+11:49:38 [反模板命中:eod] 值得关注 (try1)
+11:50:29 [反模板命中:eod] 管住手 (try2)
+11:57:22 [反模板命中:brief_summary_v3] 管住手 (try1)
+12:00:43 [反模板命中:ext] 管住手 (try1)
+12:03:11 [反模板命中:ext_news] 半山腰 (try1)
+12:04:22 [反模板命中:ext_news] 管住手 (try2)

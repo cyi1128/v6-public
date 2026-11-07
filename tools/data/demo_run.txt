@@ -20,3 +20,33 @@ Traceback (most recent call last):
     return _compile(pattern, flags).sub(repl, string, count)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: expected string or bytes-like object, got 'tuple'
+/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py:185: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return datetime.utcnow() + timedelta(hours=8)
+[demo] 盘前速递 SKIP 异常 object of type 'int' has no len()
+[LLM] ModelScope 超时 model=Qwen/Qwen3.5-122B-A10B，换备选重试
+[LLM] ModelScope 超时 model=Qwen/Qwen3.8-27B，换备选重试
+[LLM] ModelScope OK model=Qwen/Qwen3.5-35B-A3B purpose=warn_news_ds
+[LLM_OUT:warn_news_ds] {"fire":[{"sector":"算力温控","stocks":"格力电器，英维克","logic":"3 亿订单实锤，业绩直供非概念","data":"待竞价验证","verify":"量比>2 高开>3%","fail_if":"低开量能不足","risk":"大盘弱"},{"sector":"油气博弈","stocks":"中海油，中曼石油","logic":"产量增叠加地缘，避险推升油价","data":"待竞价验证","verify":"原油涨联动","fail_if":"油价跌","risk":"地缘缓"}],"news_brief":[{"t":"格力中标","core":"中标移动铁塔温控超 3 亿","sec":"算力温控","theme":"数字经济","dark":"格力电器，英维克","p":"真金白银进账，有业绩","act":"看量能，不追高","data":"待竞价验证"}]}
+[git] commit attempt1: 
+[git] writeback ok attempt1
+/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py:185: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return datetime.utcnow() + timedelta(hours=8)
+[push] OUT_IP: 52.155.60.178
+[push] FULL_RESP: {"code": 200, "data": "ebdd6d812c0a4102950aaf9e6c7e57b5", "msg": "执行成功"}
+[demo] 启动预警 PUSH True 执行成功
+[auction] 打分截止 2026-11-07 19:12:26.735803，已算 10 只，截断保证 09:27 前推送
+[LLM] ModelScope OK model=Qwen/Qwen3.5-122B-A10B purpose=confirm_ds
+[LLM_OUT:confirm_ds] {"market":"情绪分三十五退潮明显，炸板率三成压力大，指数震荡，光伏设备最强但跟风票容易亏钱，此时空仓等待比乱动更安全。","per":[{"name":"泽润新能","reason":"公司靠新能源设备组装赚钱，未见明确光伏核心暗线业务，跟今日光伏主线仅名字沾边无实受益，开盘跌五点量比二十倍是主力砸盘，放弃。"},{"name":"通用电梯","reason":"公司靠电梯销售维保赚钱，未见明确光伏暗线业务，跟今日最强主线纯蹭概念无弹性，低开放量说明资金出逃，不碰。"},{"name":"维康药业","reason":"公司靠卖药赚钱，未见能源相关暗线业务，跟今日光伏主线无关系，情绪退潮期非主流方向，开盘放量下跌是避险信号，放弃。"},{"name":"华新科技","reason":"公司靠电子元件加工赚钱，未见明确光伏核心暗线业务，对业绩无真实贡献，跟今日主线纯故事预期，开盘大跌是主力出货，不碰。"},{"name":"兆丰股份","reason":"公司靠汽车制动系统赚钱，未见明确光伏暗线业务，跟今日主线无关联，今日主线涨它反而跌六点是弱势表现，主力清仓中，坚决不抄底。"}]}
+[git] commit attempt1: 
+[git] writeback ok attempt1
+[LLM] ModelScope OK model=Qwen/Qwen3.5-122B-A10B purpose=auction
+[LLM_OUT:auction] { "cap_advice":"情绪分 35 炸板率 30%，大盘退潮期容错率低，仓位压到两成以下，不见主线龙头连板坚决空仓", "wind_strong":"光伏设备涨停 3 家叠加电力 3 家，行业产能出清预期落地，机构与游资合力做高低切避险", "wind_weak":"天山生物纯超跌反弹无业绩支撑，维康药业医药非当前风口，资金随时兑现砸盘风险大", "per":[ {"name":"泽润新能","dark":"靠光伏逆变器及储能系统赚钱，核心是海外渠道布局","reason":"名字带新能且行业匹配，竞价量比 182.8 倍显示主力抢筹意愿极强，涨幅 6.89% 未透支","logic":"公司本质是做光伏逆变器和储能系统的，主要卖海外，目前处于产能扩张阶段，壁垒在渠道认证。跟今日最强光伏设备属于实受益，弹性中等偏上。但量比 182.8 倍太夸张，说明分歧巨大，主力可能在试盘也可能对倒。位置上看如果是次新股没有历史套牢盘，筹码结构好。但情绪分只有 35，板块若不能持续，它容易补跌。破灭点是午后回落破分时均线，或者光伏板块炸板超过 2 家。","why":"名字虽响但量比过大存疑，除非确认是板块龙二否则不追高","op":"不碰","buy":"【周期：超短线】若回踩竞价开盘价不破且量能萎缩至 10 倍以内可轻仓试错","stop":"跌破竞价最低价无条件止损，或板块指数跳水离场","drop":"高开超 8% 直接放弃，防止主力诱多出货"}, {"name":"通用电梯","dark":"靠电梯整机制造和维保服务赚钱，主业传统制造业","reason":"标签低位放量启动，量比 136.7 倍，涨幅 5.96%，但电梯与光伏电力主线无关","logic":"公司本质就是造电梯的，现在搞节能改造算个概念，但跟光伏电力没关系，属于纯蹭热点。今日最强是光伏设备，它不在产业链环节，没有卡位壁垒。业绩贡献纯靠传统订单，暗线业务未见明确关联。资金选它可能是因为位置低没人管，但这波题材给不了实际增量，弹性小。破灭点是一日游行情结束，明天低开闷杀。动作上逻辑不硬直接不碰，别为了博反弹去接非主流票。","why":"跟主线八竿子打不着，纯粹资金自救，盈亏比极差","op":"不碰","buy":"无有效买点","stop":"不适用","drop":"非主线题材一律不关注，浪费机会成本"}, {"name":"维康药业","dark":"靠中成药研发生产销售赚钱，典型医药股","reason":"涨幅 9.44% 量比 201.7 倍，但医药非今日主线，缺乏政策催化","logic":"公司本质卖药的，跟光伏电力完全没关系。今日最强题材是光伏设备，它属于纯蹭，没有任何实受益逻辑。量比 201.7 倍说明有人在拉，可能是游资独立运作，但在退潮期这种票最容易天地板。没有板
+/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py:185: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return datetime.utcnow() + timedelta(hours=8)
+[git] commit attempt1: 
+[git] writeback ok attempt1
+/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py:185: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return datetime.utcnow() + timedelta(hours=8)
+/home/runner/work/v6-public/v6-public/tools/cloud_daily_review.py:185: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return datetime.utcnow() + timedelta(hours=8)
+[sigcsv] auction 写入 10 条 → data/signal_log.csv
