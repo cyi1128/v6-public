@@ -4714,7 +4714,10 @@ def _sector_wind(d, news):
         strong.append((sec, ('昨日%d家涨停、龙头%s（%s）' % (lu, lead['n'], cont)) if lead else ('昨日%d家涨停' % lu)))
     weak = []
     for sec, sts in (d.get('worst') or [])[:2]:
-        weak.append((sec, '跌停/炸板集中 %d 家（代码统计口径）' % len(sts or [])))
+        # worst 来自 get_pools 的 zb_sec.items()，第二项是「家数」int（不是列表），
+        # 2026-11-07 修：原来直接 len() 会 TypeError: object of type 'int' has no len()，整张盘前卡崩掉
+        _n = sts if isinstance(sts, int) else (len(sts) if sts else 0)
+        weak.append((sec, '跌停/炸板集中 %d 家（代码统计口径）' % _n))
     for nw in news[:12]:
         text = nw['title'] + ' ' + (nw.get('summary') or '')
         tag, _ = classify_news(text)
@@ -12520,6 +12523,9 @@ if __name__ == '__main__':
                 5: 'hourly', 6: 'hourly', 7: 'eod'}.get(h, 'eod')
     # —— 演示模式（--demo-all）：跳过休市闸门/去重/静默，轮流构建核心槽位并推送。仅显式参数触发，不影响定时任务 ——
     if '--demo-all' in args or (force and force and force.startswith('demo-')):
+        # 演示要看到「全部」卡：必须放行盘中/异动时段闸门，
+        # 否则盘后或周末跑时 newsfire/risk/watch 会被 _in_session 全部拦成空。
+        FORCE_SLOT = 'demo-all'
         demo_items = [('盘前速递', build_pre), ('启动预警', build_warn), ('竞价观察', build_auction),
                       ('盘中解读', build_hourly), ('新闻发酵', build_newsfire), ('风险体检', build_risk),
                       ('午间作战', build_noon),
@@ -12539,6 +12545,20 @@ if __name__ == '__main__':
             demo_items = demo_items[demo_batch * 3:(demo_batch + 1) * 3]
             print(f'[demo] 批次 {demo_batch}，本批模块 {len(demo_items)} 个')
         sent, skipped = [], []
+        # 演示结果单独落 /tmp（模块内部有 git 写回，会覆盖仓库内文件，所以不能写 tools/data/）
+        _trace = os.path.join(os.environ.get('TMPDIR') or os.environ.get('TEMP') or '/tmp', 'demo_trace.txt')
+        _traces = []
+
+        def _tr(line):
+            _traces.append(line)
+            try:
+                with open(_trace, 'a', encoding='utf-8') as f:
+                    f.write(line + '\n')
+            except Exception:
+                pass
+
+        import traceback
+        _tr(f'=== demo start {_bj_now().strftime("%Y-%m-%d %H:%M:%S")} items={len(demo_items)} ===')
         for name, fn in demo_items:
             try:
                 r = fn()
@@ -12546,22 +12566,31 @@ if __name__ == '__main__':
                     r = r[0] if r else None
                 html = r
             except Exception as e:
+                _tr(f'{name} SKIP 异常 {e}\n{traceback.format_exc()[:900]}')
                 skipped.append(f'{name}(异常:{str(e)[:60]})')
                 print(f'[demo] {name} SKIP 异常 {str(e)[:80]}')
                 continue
             if not isinstance(html, str) or not html.strip():
+                _tr(f'{name} SKIP 无数据 type={type(html).__name__}')
                 skipped.append(f'{name}(无数据)')
                 print(f'[demo] {name} SKIP 无数据 type={type(html).__name__}')
                 continue
             try:
                 ok, msg = push(html, f'【演示】{name} · 轮流试跑')
             except Exception as e:
+                _tr(f'{name} PUSH 异常 {e}\n{traceback.format_exc()[:900]}')
                 skipped.append(f'{name}(推送异常:{str(e)[:40]})')
                 print(f'[demo] {name} PUSH 异常 {str(e)[:80]}')
                 continue
+            _tr(f'{name} PUSH {ok} {msg} html_len={len(html)}')
             (sent if ok else skipped).append(name if ok else f'{name}({str(msg)[:40]})')
             print(f'[demo] {name} PUSH', ok, msg)
+        _tr(f'sent={sent} skipped={skipped}')
         print('[demo] sent:', sent, '| skipped:', skipped)
+        print('[demo] TRACE_BEGIN')
+        for _l in _traces:
+            print(_l)
+        print('[demo] TRACE_END')
         sys.exit(0)
 
     # （用户指令 2026-11-04：突破回踩·主力成本锚 anchor/review/evaluate 三档已删除，不再有对应推送分支）
