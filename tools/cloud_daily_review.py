@@ -6060,7 +6060,8 @@ def _tail_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=
             '"next":"次日竞价预期与观察信号，15-30字"}]}。\n'
             'per 必须覆盖本批每一只股票；本批数量少，把每只写透，但每段按上面字数上限，不要长篇铺陈。')
     out = {'per': {}, 'overall': '', 'reson_reason': '', 'cap_advice': '', 'wind_strong': '', 'wind_weak': ''}
-    _batches = [tops[i:i + 5] for i in range(0, len(tops), 5)]
+    # 每批 3 只：单批输出体积压在转录上限内，避免 JSON 被截断后整批丢失（失败只影响 3 只，不影响全卡）
+    _batches = [tops[i:i + 3] for i in range(0, len(tops), 3)]
     for _bi, _bt in enumerate(_batches):
         if not _bt:
             continue
