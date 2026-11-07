@@ -1,8 +1,8 @@
 {
  "suggest": "空仓",
  "emotion": "",
- "reason": "",
+ "reason": "空仓",
  "valid_until": "次日竞价",
- "updated_at": "2026-11-07 11:23",
- "source": "noon"
+ "updated_at": "2026-11-07 11:50",
+ "source": "eod"
 }
