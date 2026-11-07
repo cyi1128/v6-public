@@ -12541,14 +12541,24 @@ if __name__ == '__main__':
         sent, skipped = [], []
         for name, fn in demo_items:
             try:
-                html = fn()
+                r = fn()
+                if isinstance(r, (tuple, list)):
+                    r = r[0] if r else None
+                html = r
             except Exception as e:
                 skipped.append(f'{name}(异常:{str(e)[:60]})')
+                print(f'[demo] {name} SKIP 异常 {str(e)[:80]}')
                 continue
-            if not html:
+            if not isinstance(html, str) or not html.strip():
                 skipped.append(f'{name}(无数据)')
+                print(f'[demo] {name} SKIP 无数据 type={type(html).__name__}')
                 continue
-            ok, msg = push(html, f'【演示】{name} · 轮流试跑')
+            try:
+                ok, msg = push(html, f'【演示】{name} · 轮流试跑')
+            except Exception as e:
+                skipped.append(f'{name}(推送异常:{str(e)[:40]})')
+                print(f'[demo] {name} PUSH 异常 {str(e)[:80]}')
+                continue
             (sent if ok else skipped).append(name if ok else f'{name}({str(msg)[:40]})')
             print(f'[demo] {name} PUSH', ok, msg)
         print('[demo] sent:', sent, '| skipped:', skipped)
