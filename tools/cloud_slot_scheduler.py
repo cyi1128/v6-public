@@ -119,7 +119,7 @@ DAY_END = (23, 55)          # 今日收工时刻（之后不再占段，凌晨�
 
 
 LOG_PATH = os.path.join(DATA_DIR, 'sched_log.txt')
-LOG_KEEP = 200              # 只保留最近 200 行，避免仓库状态文件膨胀
+LOG_KEEP = 400              # 只保留最近 400 行（约一周的一天内多段运行轨迹），避免仓库状态文件膨胀
 LOG_TO_FILE = '--selftest' not in sys.argv   # 自检不落盘，避免污染仓库状态
 
 
