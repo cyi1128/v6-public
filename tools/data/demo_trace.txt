@@ -1,0 +1,20 @@
+=== demo start 2026-11-07 20:33:19 items=18 ===
+盘前速递 PUSH True 执行成功 html_len=26369
+启动预警 PUSH True 执行成功 html_len=2545
+竞价观察 PUSH True 执行成功 html_len=11566
+盘中解读 PUSH True 执行成功 html_len=22187
+新闻发酵 PUSH True 执行成功 html_len=1576
+风险体检 PUSH True 执行成功 html_len=1560
+午间作战 PUSH True 执行成功 html_len=25011
+事件简报 PUSH True 执行成功 html_len=10351
+两小时汇总 PUSH True 执行成功 html_len=5935
+跟涨三步走 PUSH True 执行成功 html_len=5178
+尾盘竞价 PUSH True 执行成功 html_len=14241
+多周期视角 PUSH True 执行成功 html_len=12173
+收盘复盘 PUSH True 执行成功 html_len=40167
+外盘窗口 PUSH True 执行成功 html_len=8371
+晚间汇总 PUSH True 执行成功 html_len=8601
+异动提醒 PUSH True 执行成功 html_len=909
+休市新闻 PUSH True 执行成功 html_len=12603
+因子体检 PUSH True 执行成功 html_len=646
+sent=['盘前速递', '启动预警', '竞价观察', '盘中解读', '新闻发酵', '风险体检', '午间作战', '事件简报', '两小时汇总', '跟涨三步走', '尾盘竞价', '多周期视角', '收盘复盘', '外盘窗口', '晚间汇总', '异动提醒', '休市新闻', '因子体检'] skipped=[]
