@@ -103,8 +103,30 @@ SLOT_TIMEOUT = 900          # 单槽 15 分钟（主程序行情请求自带超�
 SEG_ALIVE_GRACE = 600       # 班次结束后 10 分钟内仍视为存活，防刚跑完被另一 run 接管
 
 
+LOG_PATH = os.path.join(DATA_DIR, 'sched_log.txt')
+LOG_KEEP = 200              # 只保留最近 200 行，避免仓库状态文件膨胀
+LOG_TO_FILE = '--selftest' not in sys.argv   # 自检不落盘，避免污染仓库状态
+
+
 def log(msg: str) -> None:
+    """同时打 stdout 和落盘 tools/data/sched_log.txt。
+    落盘的目的：云端 job 日志匿名 API 取不到（403/404），把判定过程写进仓库，
+    用 git fetch 就能读到云端真实执行轨迹（每次状态持久化会一并提交）。"""
+    stamp = datetime.datetime.now(BJ).strftime('%m-%d %H:%M:%S')
     print(f'[SCHED] {msg}', flush=True)
+    if not LOG_TO_FILE:
+        return
+    try:
+        lines: list[str] = []
+        if os.path.exists(LOG_PATH):
+            with open(LOG_PATH, encoding='utf-8') as fh:
+                lines = fh.readlines()
+        lines.append(f'{stamp} {msg}\n')
+        lines = lines[-LOG_KEEP:]
+        with open(LOG_PATH, 'w', encoding='utf-8') as fh:
+            fh.writelines(lines)
+    except Exception:  # noqa: BLE001  日志落盘失败绝不能影响调度
+        pass
 
 
 def bj_now() -> datetime.datetime:

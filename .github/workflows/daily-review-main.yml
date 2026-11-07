@@ -1,6 +1,17 @@
 name: daily-review
 
 on:
+  push:
+    # 主动触发通道（2026-11-07）：云端 job 日志匿名 API 取不到（403/404），
+    # dispatch 面板会话校验也常被判 "You can't perform that action at this time"，
+    # 于是改成"改代码即触发一次真实调度"：推这几个文件立刻跑一遍 scheduler，
+    # 判定过程落盘 tools/data/sched_log.txt 随状态提交回仓库，用 git fetch 即可读到。
+    # paths 刻意不含 tools/data/ —— 调度器自己提交状态文件不会反过来再触发，杜绝自激循环。
+    branches: [main]
+    paths:
+      - 'tools/cloud_slot_scheduler.py'
+      - 'tools/cloud_daily_review.py'
+      - '.github/workflows/daily-review-main.yml'
   workflow_dispatch:
     inputs:
 
@@ -164,6 +175,7 @@ jobs:
     # 周末休市新闻与周日因子报告都由调度器内部驱动（不再单独占 step，避免双跑）。
     if: >
       github.event_name == 'schedule' ||
+      github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.slot == 'scheduler')
     runs-on: ubuntu-latest
     # pm 段 12:00-16:30 单次驻留 270 分钟，加 checkout/装依赖/补跑余量 → 340
