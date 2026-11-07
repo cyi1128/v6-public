@@ -212,8 +212,34 @@ jobs:
       # 用 `|| true` 不阻断推送，但日志里的 FAIL 必须能一眼看到（selftest 会打印逐项 PASS/FAIL）。
       - name: 调度器自检（不推送）
         run: python3 -u tools/cloud_slot_scheduler.py --selftest || true
+      # 演示全跑（2026-11-07）：commit message 带 [demo] 才触发，跑全部 18 个推送模块，
+      # 逐个真推到 PushPlus 微信，用户直接看真实卡效果；日志 demo.log 随状态提交回仓库可复核。
+      - name: 演示全跑（commit 带 [demo] 时）
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[demo]')
+        env:
+          MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        run: |
+          mkdir -p tools/data
+          python3 -u tools/cloud_daily_review.py --demo-all 2>&1 | tee -a tools/data/demo.log
+      - name: 提交演示日志
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[demo]')
+        run: |
+          git config user.name "v6-bot"
+          git config user.email "v6-bot@users.noreply.github.com"
+          git add tools/data/ || true
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: 演示日志 $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
+            git pull --rebase --autostash || true
+            git push || true
+          fi
       - name: 云端自驱调度
         env:
           MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
-        run: python3 -u tools/cloud_slot_scheduler.py
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ contains(github.event.head_commit.message, '[demo]') }}" = "true" ]; then
+            echo "本次为演示 run，跳过常规调度（避免同一次 run 再推正常槽位造成混淆）"
+            exit 0
+          fi
+          python3 -u tools/cloud_slot_scheduler.py
