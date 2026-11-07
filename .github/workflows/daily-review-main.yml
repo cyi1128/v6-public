@@ -227,6 +227,7 @@ jobs:
         run: |
           git config user.name "v6-bot"
           git config user.email "v6-bot@users.noreply.github.com"
+          cp /tmp/demo_trace.txt tools/data/demo_trace.txt 2>/dev/null || true
           git add tools/data/ || true
           if ! git diff --cached --quiet; then
             git commit -m "chore: 演示日志 $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
