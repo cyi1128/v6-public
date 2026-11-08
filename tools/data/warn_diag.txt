@@ -620,3 +620,12 @@
 17:31:19 [llm] 总预算用尽 purpose=cycle used=184s
 17:34:23 [llm] 总预算用尽 purpose=cycle used=184s
 17:34:23 [ask_deepseek] ModelScope 两次尝试均失败，purpose=cycle
+17:44:58 [llm] 截止已过停产 purpose=sec2_deep used=115s
+17:44:58 [ask_deepseek] 首轮无返回即止损 purpose=sec2_deep
+17:44:58 [ask_deepseek] ModelScope 两次尝试均失败，purpose=sec2_deep
+17:45:44 [ask_deepseek] 首轮无返回即止损 purpose=eod_review_ds
+17:45:44 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eod_review_ds
+17:55:40 [反模板命中:ext_news] 管住手 (try1)
+17:58:20 [ask_deepseek] ModelScope 两次尝试均失败，purpose=ext_news
+18:01:31 [ask_deepseek] 首轮无返回即止损 purpose=eve_news
+18:01:31 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eve_news
