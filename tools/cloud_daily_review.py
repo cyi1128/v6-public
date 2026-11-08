@@ -5831,7 +5831,8 @@ def _tail_gainers(max_pages=15, cover_pct=2.5):
 
 
 def _tail_qt_fill(rows):
-    """腾讯批量补量比(f43)/换手(f38)/总市值(f44, 亿)。f[2] 为完整 6 位 code，勿切前缀。"""
+    """腾讯批量补量比(f43)/换手(f38)/总市值(f44, 亿)/最高(f33)/最低(f34)/昨收(f4)。
+    「振幅」和「收盘在当日区间的位置」两个新因子就靠 f33/f34/f4 算，f[2] 为完整 6 位 code，勿切前缀。"""
     try:
         cs = [('sh' if r['code'].startswith('6') else 'sz') + r['code'] for r in rows]
         for i in range(0, len(cs), 60):
@@ -5849,6 +5850,9 @@ def _tail_qt_fill(rows):
                             r['lb'] = float(f[43] or 0)
                             r['turn'] = float(f[38] or 0)
                             r['mv'] = float(f[44] or 0)
+                            r['hi'] = float(f[33] or 0)
+                            r['lo'] = float(f[34] or 0)
+                            r['prev'] = float(f[4] or 0)
                             break
                 except Exception:
                     pass
@@ -5972,6 +5976,9 @@ def _tail_filter(rows, heat=None, zt_names=None):
         s['_kline_ok'] = False
         s['_ma5_up'] = False
         s['_chg5'] = None
+        s['_vt'] = None
+        s['_amp'] = None
+        s['_clv'] = None
         pending.append(s)
     # —— 并发拉 K 线（每只 1 次 25 根请求，MA5 用后5/前5根、近5日用 arr[-6] 基准）——
     def _kline_fetch(s):
@@ -5997,6 +6004,30 @@ def _tail_filter(rows, heat=None, zt_names=None):
                     if _pv > 0 and (c[_i] / _pv - 1) * 100 >= _lim:
                         _zn += 1
                 s['_zt_n'] = _zn
+                # —— 三个新因子（2026-11-08 无偏样本 17.3 万条 + 生产池 A/B 定盘）——
+                # ①振幅 amp=(今高-今低)/昨收：池内单调递增（A轨 3~5% 1.15%→>=10% 2.86%；
+                #   B轨 3~5% 3.54%→>=10% 9.89%），振幅越大说明当日分歧/洗盘越充分，次日更容易封板。
+                # ②收盘位置 clv=收盘在当日区间百分位：全市场 >=95% 是 3.10 倍，但**在 v7 池内反向**——
+                #   A轨 <50% 2.93% vs >=95% 1.10%，B轨 <50% 7.82% vs >=95% 1.75%（尾盘拉太高=透支次日）。
+                # ③量能趋势 vt=5日均量/20日均量：A轨偏温和（0.8~1.0 2.28% 最好、1.2~1.5 1.38% 最差），
+                #   B轨偏持续放量（1.5~2.0 8.42%）。
+                if len(arr) >= 20:
+                    try:
+                        vols = [float(r[5]) for r in arr[-20:]]
+                        v20 = sum(vols) / 20.0
+                        v5 = sum(vols[-5:]) / 5.0
+                        s['_vt'] = round(v5 / v20, 2) if v20 > 0 else None
+                    except Exception:
+                        s['_vt'] = None
+                try:
+                    _hi = float(s.get('hi') or 0) or float(arr[-1][3])
+                    _lo = float(s.get('lo') or 0) or float(arr[-1][4])
+                    _pv = float(s.get('prev') or 0) or float(arr[-2][2])
+                    if _hi > _lo and _pv > 0:
+                        s['_amp'] = round((_hi - _lo) / _pv * 100, 2)
+                        s['_clv'] = round((float(s['price']) - _lo) / (_hi - _lo) * 100, 1)
+                except Exception:
+                    pass
         except Exception:
             pass
         return s
@@ -6075,6 +6106,12 @@ def _tail_filter(rows, heat=None, zt_names=None):
         print('[tail] K线失败 %d/%d，位置闸可能偏严（数据源异常）' % (_kfail, len(pending)))
     print('[tail] v7过滤：进 %d（A低吸 %d / B二波 %d）/ 待判 %d（剔除双高超限/近5日超限/K线失败）'
           % (len(out), _na, _nb, len(pending)))
+    # 新因子（振幅/收盘位置/量能趋势）覆盖率：缺字段就不参与打分，不编造，这里留痕便于排查数据源
+    _c_amp = sum(1 for s in out if s.get('_amp') is not None)
+    _c_vt = sum(1 for s in out if s.get('_vt') is not None)
+    print('[tail] 新因子覆盖：振幅 %d/%d、量能趋势 %d/%d、收盘位置 %d/%d'
+          % (_c_amp, len(out), _c_vt, len(out),
+             sum(1 for s in out if s.get('_clv') is not None), len(out)))
     return out
 
 
@@ -6089,6 +6126,8 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
       B 轨另加「近5日涨停次数」加分（>=2 次 13.71%、>=3 次 10.34%）。
       主力资金净流入占比是阈值型：>=20% 9.97倍、15~20% 2.94倍、10~15% 1.54倍，10% 以下全部 1 倍
       甚至更低（这是 725 只随机个股 fflow 日线 8.6 万条重测出来的，旧档位 8~15 给 +9 是无偏样本里的白给分）。
+      三个新因子（v7.2）都是分轨制的：振幅越大越好（B 轨 >=10% 9.89%）、收盘位置在池内反向
+      （收在最高=当日透支，A 轨 >=95% 仅 1.10%）、量能趋势 A 轨偏温和 / B 轨偏持续放量。
     注：原「趋势强度(MA20+MA5向上)」随用户指令取消 MA20 限制，改为 MA5向上 + 当日均价代理。
     旧版 emo=turn*lb 与 v6 的「换手越低越好/量比越大越差」档位均已删除——那是 15 天涨停池选样过拟合的产物。"""
     sc = 0.0
@@ -6127,6 +6166,43 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
         sc += (10 if turn < 4.5 else 14 if turn < 6.0 else 18 if turn < 9.0 else 20)
     except Exception:
         pass
+    # —— 三个新因子（v7.2）：振幅 / 收盘位置 / 量能趋势 ——
+    # 依据 718 只随机无偏个股 17.3 万条重算 + 生产函数 A/B（同一 v7 双轨池 8549 条）：
+    #   只加这三档：top10 4.92%→6.77%、top5 5.08%→8.20%、top3 5.87%→9.43%、top1 6.56%→13.11%，
+    #   前半 4.35→6.57%、后半 5.49→6.97%，两段同向；单独加「振幅」+0.74pt、单独加「量能趋势」+0.33pt、
+    #   单独加「收盘位置」是负贡献(-0.41pt)，三者必须按分轨方向配对使用才成立。
+    # 口径提醒：全市场维度「收盘在当日最高」是 3.10 倍强信号，但在 v7 池内**反向**——
+    #   因为能进池的票已经具备量价条件，尾盘再拉到最高属当日透支，次日反而弱（A轨 >=95% 仅 1.10%）。
+    _amp = s.get('_amp')
+    if _amp is not None:
+        try:
+            _a = float(_amp)
+            if _track == 'B':
+                sc += (0 if _a < 5 else 4 if _a < 7 else 6 if _a < 10 else 9)
+            else:
+                sc += (0 if _a < 5 else 2 if _a < 7 else 4 if _a < 10 else 6)
+        except Exception:
+            pass
+    _clv = s.get('_clv')
+    if _clv is not None:
+        try:
+            _c = float(_clv)
+            if _track == 'B':
+                sc += (-4 if _c >= 95 else 0 if _c >= 80 else 1 if _c >= 50 else 5)
+            else:
+                sc += (-3 if _c >= 95 else -1 if _c >= 80 else 1 if _c >= 50 else 3)
+        except Exception:
+            pass
+    _vt = s.get('_vt')
+    if _vt is not None:
+        try:
+            _v = float(_vt)
+            if _track == 'B':
+                sc += (6 if _v >= 1.5 else 3 if _v >= 1.2 else 0)
+            else:
+                sc += (2 if _v >= 1.5 else -2 if _v >= 1.0 else 2 if _v >= 0.8 else 0)
+        except Exception:
+            pass
     # 趋势强度 18（无MA20）：MA5向上 12 + 当日价站上当日均价(VWAP) 6；K线失败半补
     if s.get('_ma5_up'):
         sc += 12
