@@ -582,11 +582,13 @@ def report_gaps() -> None:
 def finish(tag: str) -> int:
     """退出前把日志与状态写回仓库，保证云端每次都留下可追溯痕迹。
 
-    只有真正执行过槽位的场景才提交：秒退（idle / 已有存活调度）时日志也会变，
-    若一并无条件提交，一天 96 次 cron 就会叠出近百个只改日志的 commit，
-    把仓库历史刷脏。秒退的痕迹改用 run 记录本身（时长几秒）来判定。
+    任何退出都先算一遍"今天哪些槽已过窗却没推"写进日志——用户问的就是"到底按时推没推"，
+    这条不留痕就等于没法查。持久化仍只覆盖有意义的退出：weekend-end / roll-end / idle
+    （idle 是"接下来窗口里没槽"，一天最多几次，不会把历史刷脏）；weekend-busy 让位不写。
     """
-    if tag in ('weekend-end', 'roll-end'):
+    log(f'退出原因：{tag}')
+    report_gaps()
+    if tag in ('weekend-end', 'roll-end', 'idle'):
         try:
             persist_state(tag)
         except Exception as exc:  # noqa: BLE001
