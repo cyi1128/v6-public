@@ -386,3 +386,15 @@
 09:28:12 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eod_review_ds
 09:31:24 [llm] 总预算用尽 purpose=miss_deep used=185s
 09:37:48 [llm] 总预算用尽 purpose=brief_summary_v3 used=184s
+09:46:32 [llm] 总预算用尽 purpose=sec2_deep used=184s
+09:49:35 [llm] 总预算用尽 purpose=sec2_deep used=184s
+09:49:35 [ask_deepseek] ModelScope 两次尝试均失败，purpose=sec2_deep
+09:55:33 [llm] 总预算用尽 purpose=eod used=184s
+09:58:37 [llm] 总预算用尽 purpose=eod used=184s
+09:58:37 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eod
+09:58:37 [llm] 全局预算用尽 used=921s purpose=eod_review_ds
+09:59:18 [llm] 全局预算用尽 used=962s purpose=miss_deep
+09:59:57 [llm] 全局预算用尽 used=1001s purpose=resonance_verdict
+10:00:00 [llm] 全局预算用尽 used=1005s purpose=brief_summary_v3
+10:00:25 [llm] 全局预算用尽 used=1029s purpose=ext
+10:00:37 [llm] 全局预算用尽 used=1042s purpose=evening
