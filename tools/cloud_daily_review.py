@@ -7032,6 +7032,11 @@ def build_cycle(title='多周期视角研判'):
     _bp = _bq[:_cqB]
     _ap = _aq[:_cqA]
     cands = (_bp + _ap)[:_cqB + _cqA]
+    # v7.6e：周期卡也带主力资金口径（一屏最多 10 只，取数成本可控；取不到留空不编数）
+    try:
+        cands = _tail_flow_fill(cands)
+    except Exception:
+        pass
     groups = {}
     order = ['超短线（1-3日）', '短线（3-10日）', '中长线（1-6月）', '长线（6月+）', '短线观察']
     deep_stocks = []
@@ -7077,6 +7082,12 @@ def build_cycle(title='多周期视角研判'):
         rows += f'<div style="color:{_gc};font-size:14px;font-weight:800;margin:10px 0 4px;">{g}（{len(items)}）</div>'
         for s, reason in items:
             d_i = per.get(s['name'])
+            _fl = s.get('_flow')
+            flow_html = (''
+                         if _fl is None else
+                         f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">'
+                         f'💰 主力资金：当日净流入占成交额 {_fl:+.2f}%'
+                         f'（净流入{(s.get("_flow_amt") or 0)/1e8:.2f}亿）</div>')
             deep_html = ''
             if d_i and d_i.get('logic'):
                 _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(d_i.get('op', ''), GOLD)
@@ -7088,6 +7099,7 @@ def build_cycle(title='多周期视角研判'):
                      f'<div style="font-size:13px;font-weight:700;color:#fff;">{s["name"]} <span style="color:{GREY};font-size:11px;">{s.get("code","")}</span> <span style="color:{_c(s["pct"])};font-size:12px;">{s["pct"]:+.2f}%</span></div>'
                      f'<div style="color:{GREY};font-size:11px;">量比{s["lb"]:.1f} ｜ 换手{s.get("turn",0):.1f}% ｜ 市值{s.get("mv",0):.0f}亿 ｜ 题材:{s.get("industry","")}</div>'
                      f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">⏱ {reason}</div>'
+                     f'{flow_html}'
                      f'<div style="color:#e6a23c;font-size:11px;margin-top:2px;">仓位：{cap.get(g,"")}</div>'
                      f'{deep_html}</div>')
     if cap_advice:
