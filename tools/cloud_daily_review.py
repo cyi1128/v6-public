@@ -5901,18 +5901,17 @@ def _tail_flow_fill(rows, max_workers=10):
 
 
 def _tail_filter(rows, heat=None, zt_names=None):
-    """尾盘硬过滤（v6「买在涨停前」版，用户核心诉求=不要接飞刀、但要真正抓到涨停前夜）：
-    仅沪深主板+创业板；剔除ST/退市、次新(<365天)；当日涨幅 2.5~8.5%（还在路上、没封板）；
-    量比>=1.3（v5 由 2.0 下调）；换手 1.5~8%（v6 由「单边>=2.5」改为双向区间闸，上限剔极端暴炒）。
-    **四道位置硬闸（v5 调整第③道）**：
-      ①近5个交易日有过涨停(主板>=9.4%/创业板>=19.4%) → 剔除（连板、昨日涨停一律不推）；
-      ②近5日涨幅 >12% → 剔除（题材热度>=70 且属当日最强主线放宽至 15%）；
-      ③贴前高改「双高才杀」：距60日最高收盘>-10% **且** 近5日涨幅>12% 才剔除（v5）；
-      ④K线拉取失败 → 剔除（v3 的「失败放行」会让近5日/位置约束整体失效，已废除）。
-    v5 改动的回测依据见 _tail_filter 内注释：量比 2.0 只放过 9.5% 的真首板前形态，
-    位置闸单用误杀 22.1% 且贴前高组命中率反而是距高-20~-10 的 2 倍。
+    """尾盘双轨硬过滤（v7「买在涨停前」版，2026-11-08 用 245 交易日无偏样本重建口径）：
+    只做沪深主板+创业板；剔除 ST/退市、次新(<365天)；今日涨停的一律排除（买不到）。
+    拆成两轨并行产出，各自独立闸门：
+      A 轨（低吸首板前夜）：近5日无涨停 + 当日涨幅 2.5~8.5% + 量比>=1.3 + 换手>=3.0% +
+                             近5日涨幅<=12%（题材热度>=70且是当日主线放宽 15%）+ 双高才杀。
+      B 轨（强势二波）：近5日涨停>=1 + 当日涨幅<=7%（今天没封板）+ 量比>=1.2 + 换手>=4.0% +
+                         近5日涨幅<=25% + 距60日高不高于 +5%（不纯追高）。
+    v6 的「换手区间 1.5~8%」已回退：那是 15 天涨停池选样（幸存者偏差）得出的结论，全样本换手是单调递增的。
+    依据与前后半段数据写在各闸门注释里；K线失败一律剔除（放行会让位置/近5日约束整体失效）。
     不设市值硬限制、不设 MA20 硬门槛（趋势由打分层的 MA5/当日均价代理）。
-    过滤阶段缓存 _ma5_up/_chg5/_pos60/_zt_n 供 _tail_score_v2 复用。"""
+    过滤阶段缓存 _ma5_up/_chg5/_pos60/_zt_n 供 _tail_score_v2 复用，track 字段标记 A/B 轨。"""
     out = []
     pending = []   # 通过基础硬过滤、待并发拉K线做趋势判定的候选
     try:
@@ -5946,28 +5945,28 @@ def _tail_filter(rows, heat=None, zt_names=None):
                 pass
         try:
             pct = float(s['pct'] or 0)
-            if not (2.5 <= pct <= 8.5):
+            # v7 双轨基础闸取并集：A 轨要 2.5~8.5（还在路上没封板），B 轨要 -2~7（断板回踩/二波整理不追高）
+            if not (-2.0 <= pct <= 8.5):
                 continue
             lb = float(s['lb'] or 0)
-            # v5：量比门槛 2.0→1.3。回测 727 个真首板前一日，量比中位仅 1.05、P75 仅 1.38，
-            # 原 2.0 门槛只放过 9.5% 的真涨停前形态（90.5% 被误杀），是最大的一处漏网。
-            if lb < 1.3:
+            # v5：量比门槛 2.0→1.3（727 个真首板前一日量比中位仅 1.05）。
+            # v7 双轨基础闸取并集：A 轨（低吸首板）要 2.5~8.5、B 轨（强势二波）要 -2~7，轨内再细分。
+            if lb < 1.2:
                 continue
             turn = float(s['turn'] or 0)
-            # v6：换手闸由「单边下限 2.5%」改为「双向区间 1.5%~8%」。回测口径：15 交易日 / 7810 样本 /
-            # 828 个次日首板，换手取东财日K f61 真实值（此前 turn_est 全 0，那版「剔除 0 只」是无效证据）。
-            # ① 单边 2.5% 对真首板前一日误杀 26.4%（609/828 通过），真首板前换手中位 4.22%、P25 2.40%；
-            # ② 但换手不是越高越好：全样本 P(涨停|换手) 2~3% 12.49%、3~5% 12.23%，而 5~8% 9.79%、
-            #    ≥12% 9.67%（基准 10.60%），极端换手多是高位暴炒，反而拖低命中；
-            # ③ 区间 1.5~8% 落地效果：候选日均 14.3 只（与旧闸 14.3 持平），精确率 14.88%→17.76%，
-            #    日均命中 2.13→2.53 只；前后半段 10.29%/30.77% 均不劣于旧闸（10.29%/22.78%），非过拟合。
-            if not (1.5 <= turn < 8.0):
+            # v7 换手闸回退并上移为单边 >=3.0%。依据换成年 245 交易日 / 743 只随机无偏样本 / 18 万条记录：
+            #   旧 15 日样本是「本月涨停过」的选样，存在幸存者偏差，得到的「换手不是越高越好」在全样本里是反的。
+            #   全市场 P(次日涨停|换手)：<1% 0.55%(0.35倍) / 1~2 0.76% / 2~3 1.08% / 3~4.5 1.61% /
+            #   4.5~6 2.38% / 6~9 3.41% / 9~14 4.29% / >=14 5.91%(3.77倍)，前后半段方向一致，单调递增。
+            #   闸门落地（固定涨幅2.5~8.5&首板&量比>=1.3&距高<=-10&市值30~150亿，基准 1.28%）：
+            #   无闸 1.79%、>=2.5 2.27%、**>=3.0 2.50%（最高）**、>=3.5 2.24%、>=4.0 2.12%、
+            #   v6 的区间 1.5~8 只有 1.71%（比无闸还差），v6 现网整体 1.71% vs v5 现网 2.42%，必须回退。
+            if turn < 3.0:
                 continue
         except Exception:
             continue
-        # v6 删除原「量能真实性二选一（量比>=2.0 或 换手>=3.0%）」：在区间闸下它净损失——
-        # 保留时 162 只/命中 27，删除后 214 只/命中 38（多 52 只候选、多 11 只真涨停），精确率同步走高。
-        # 量比>=1.3 与换手 1.5~8% 已足以证明量能真实，再叠一道二选一属于过度约束。
+        # 「量能真实性二选一（量比>=2.0 或 换手>=3.0%）」在换手>=3.0 时逻辑恒真（闸已要求 量比>=1.2 且 换手>=3.0），
+        # 等价于无闸，删除不损失任何约束，故保持删除状态。
         # 趋势代理（K线段）：先收集，后并发单次拉 25 根一次算完 MA5/近5日，再统一判定
         # （避免数百候选串行 2 次 HTTP 导致云端超时；语义不变：近5日超限才剔除，K线失败放行；MA20 已按用户指令取消）
         s['_kline_ok'] = False
@@ -6008,16 +6007,48 @@ def _tail_filter(rows, heat=None, zt_names=None):
         except Exception:
             pass
     _kfail = 0
+    _na = _nb = 0
     for s in pending:
         # ①K线失败不再放行（放行会让位置/近5日约束整体失效）
         if not s.get('_kline_ok'):
             _kfail += 1
             continue
-        # ②近5个交易日涨停过 → 已经在板上，不推（连板、昨日涨停一律不推）
-        if int(s.get('_zt_n') or 0) >= 1:
-            continue
-        # ③近5日涨幅上限：<=12%；题材热度>=70 且属当日最强主线时放宽至 15%
         chg5 = s.get('_chg5')
+        p60 = s.get('_pos60')
+        zn = int(s.get('_zt_n') or 0)
+        try:
+            pct2 = float(s['pct'] or 0)
+            lb2 = float(s['lb'] or 0)
+            turn2 = float(s['turn'] or 0)
+        except Exception:
+            continue
+        if zn >= 1:
+            # —— B 轨（强势二波）：近5个交易日涨停过，今天没封板，做「断板回踩/二波整理」的再次启动 ——
+            # 年 245 交易日 / 18 万条无偏样本实测：「近5日涨停过」是全市场最强正向因子
+            #   0 次 1.07%(0.68倍) / 1 次 7.09%(4.52倍) / 2 次 15.04%(9.60倍) / >=3 次 24.25%(15.48倍)，前后半段同向。
+            # 与铁律「绝不追已涨停」不冲突：今日涨停的一律在基础闸就排除，这里接的是「已涨停过、今日未涨停」的回踩段。
+            # 闸门实测（涨幅0~7&量比>=1.2&换手>=3&近5日涨停>=1）：精确率 6.76%，日均候选 15.4 只，日均命中 1.04 只，
+            #   前半 6.71% / 后半 6.81%；其中「距60日高>-2%（贴着最高）」8.74%（前半8.33/后半9.43）、
+            #   「近5日涨停>=2」13.71%（前半14.75/后半12.70），均远高于 A 轨 2.50%。
+            # 量比在 B 轨是「温和放量最优」：>=1.2 6.96%、>=1.5 6.17%、>=1.8 5.28%，故上限不追暴量（打分侧扣分）。
+            if pct2 > 7.0:
+                continue                      # 今天已经大涨的，明天空间被吃掉，不追
+            if lb2 < 1.2 or turn2 < 4.0:
+                continue
+            if chg5 is not None and chg5 > 25.0:
+                continue                      # 近5日已翻倍级暴炒，回撤风险不可控
+            if p60 is not None and p60 > 5.0:
+                continue                      # 已显著高出前高=纯追高，不接
+            s['track'] = 'B'
+            out.append(s)
+            _nb += 1
+            continue
+        # —— A 轨（低吸首板前夜）：近5日没涨停过、还在路上、离前高有空间 ——
+        if not (2.5 <= pct2 <= 8.5):
+            continue
+        if lb2 < 1.3 or turn2 < 3.0:
+            continue
+        # 近5日涨幅上限：<=12%；题材热度>=70 且属当日最强主线时放宽至 15%
         limit5 = 12.0
         if chg5 is not None:
             try:
@@ -6028,66 +6059,66 @@ def _tail_filter(rows, heat=None, zt_names=None):
                 limit5 = 12.0
             if chg5 > limit5:
                 continue
-        # ④贴前高改「双高才杀」：距60日最高收盘>-10% 且 近5日涨幅>12% 才剔除。
-        #   回测依据：单用位置闸误杀真首板 161/727=22.1%；「涨停过+量比>=2」在贴前高组
-        #   命中率 14.63%(n=1155)，反而高于距高-20~-10 的 7.29%(n=192)，贴前高本身是
-        #   「突破前夜」的强信号，单独砍掉等于把最好的票先筛掉，故改为双高才杀。
-        p60 = s.get('_pos60')
+        # 贴前高改「双高才杀」：距60日最高收盘>-10% 且 近5日涨幅>12% 才剔除。
+        # 全市场口径复核（18 万条）：距高 -6~+0.5% 组 2.67%(1.71倍) 是次强档，贴前高本身是「突破前夜」信号，
+        # 单独砍掉等于把最好的票先筛掉，故维持「双高才杀」。
         if p60 is not None and p60 > -10.0 and (chg5 is not None and chg5 > 12.0):
             continue
+        s['track'] = 'A'
         out.append(s)
+        _na += 1
     if pending and _kfail / float(len(pending)) >= 0.30:
         print('[tail] K线失败 %d/%d，位置闸可能偏严（数据源异常）' % (_kfail, len(pending)))
-    print('[tail] v5过滤：进 %d / 待判 %d（剔除涨停过/双高超限/近5日超限/K线失败）'
-          % (len(out), len(pending)))
+    print('[tail] v7过滤：进 %d（A低吸 %d / B二波 %d）/ 待判 %d（剔除双高超限/近5日超限/K线失败）'
+          % (len(out), _na, _nb, len(pending)))
     return out
 
 
 def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
-    """尾盘 v6 综合分（无MA20/市值版）= 量价趋势因子×0.60 + 题材因子×0.20 + 共振分×0.20 − 风险扣分
-    （2026-11-05 共振因子升级：原 0.75/0.25 调整，co20→co10，共振分来自 _calc_resonance）。
-    v6（2026-11-08）按「池内条件命中率」重排全部量价档位：原档位是在全市场 P(涨停|特征) 上标的，
-    而打分是在已过滤池内排名（池内基准 17.76% vs 全市场 10.6%），导致最高分砸给最差组。
-    量价趋势五因子（v6 权重）：涨幅适中 22(2.5~3.5) / 量比 16(1.3~2)·13(2~3)·5(>=3) /
-    换手 20(<2)·12(2~4)·6(>=4) / 趋势强度(MA5向上12+当日价站上均价6)18 / 量能占比代理 2~4；
-    题材因子：热度60 + 同题材≥4家20 + 主线持续(近3日持续涨停)20；
-    风险扣分：近5日>18% −4 / 题材热度<40 −5 / 当日涨幅>8% −12、>7% −8 / 跌破分时均线且量比回落 −3。
-    位置加分（v6）：距高 -30~-15 给 +6（池内最强档）、<-30 给 +1（池内最弱档）、-15~-10 给 +3、贴前高 +1。
-    注：原「趋势强度(MA20+MA5向上)」随用户指令取消 MA20 限制，改为 MA5向上 + 当日均价代理。"""
+    """尾盘 v7 综合分（双轨版）= 量价趋势因子×0.60 + 题材因子×0.20 + 共振分×0.20 − 风险扣分 ± 位置/资金加分。
+    2026-11-08 用 245 交易日 / 743 只随机无偏样本 / 18 万条记录重建全部档位方向：
+      换手单调递增（<1% 0.35倍 → 6~9% 2.18倍 → >=14% 3.77倍，前后半段同向）；
+      量比单调递增（<0.8 0.82倍 → 2.4~3.5 2.82倍 → >=3.5 3.84倍）；
+      距60日高是 U 形（-6~+0.5% 1.71倍、<=-40% 1.77倍最强，-20~-12% 0.68倍最弱）。
+    A 轨（低吸首板）与 B 轨（强势二波）用不同档位：
+      A 轨量比越大越好；B 轨是温和放量最优（>=1.2 6.96% / >=1.5 6.17% / >=1.8 5.28%），暴量要扣分。
+      B 轨另加「近5日涨停次数」加分（>=2 次 13.71%、>=3 次 10.34%）。
+    注：原「趋势强度(MA20+MA5向上)」随用户指令取消 MA20 限制，改为 MA5向上 + 当日均价代理。
+    旧版 emo=turn*lb 与 v6 的「换手越低越好/量比越大越差」档位均已删除——那是 15 天涨停池选样过拟合的产物。"""
     sc = 0.0
     # —— 量价趋势五因子 ——
-    # v6 重排：原档位是在「全市场 P(涨停|特征)」上标的，但打分实际是在**已过滤池内**排名，
-    # 两者基准完全不同（池内基准 17.76%，全市场 10.6%），直接套用会出现「最高分给最差组」的反向。
-    # 池内 214 只 / 38 涨停 实测（括号内为前半7日/后半8日两段，只有两段方向一致的才采纳）：
-    #   涨幅 2.5~3.5 = 20.55%(12.96%/42.11%) > 3.5~6 约 18%(8.57%/30.43%) > 7~8.5 = 5.26%(0%/11.11%)
-    #   → 原「3.5~6.5 给 22 分最高」是反的，改为 2.5~3.5 最高分。
+    _track = s.get('track') or 'A'
+    # 涨幅：全市场 P(次日涨停|涨幅) 5~7% 1.79倍、7~8.6% 2.19倍（越高越接近启动），
+    # 但 7%+ 已把空间吃掉一半，靠风险扣分压回去，这里不给高分（铁律：不追 7%+ 大涨）。
     try:
         pct = float(s['pct'] or 0)
-        if 2.5 <= pct < 3.5:
-            sc += 22
-        elif 3.5 <= pct < 6.0:
-            sc += 18
-        elif 6.0 <= pct < 7.0:
-            sc += 10
-        elif 7.0 <= pct <= 8.5:
-            sc += 4          # 已经大涨、明天的空间被今天吃掉，不该顶在第一位
+        if _track == 'B':
+            sc += (14 if 3.0 <= pct <= 7.0 else 10)   # B 轨今日不封板，0~7% 都在回踩/整理区间内
         else:
-            sc += 8
+            if 5.0 <= pct < 7.0:
+                sc += 16
+            elif 2.5 <= pct < 5.0:
+                sc += 12
+            elif 7.0 <= pct <= 8.5:
+                sc += 6
+            else:
+                sc += 8
     except Exception:
         sc += 8
     try:
         lb = float(s['lb'] or 0)
-        # v6 量比档：池内 1.3~2 约 19%(9.89%/30.65%)、2~3 约 17%(12.50%/36.36%)、>=3 约 10%(0%/20.00%)，
-        # 两段都是「量比越大越差」，原 28/22/16 的强奖励等于把暴量票顶到第一，改为温和递减。
-        sc += (16 if lb < 2.0 else 13 if lb < 3.0 else 5)
+        if _track == 'B':
+            # B 轨：温和放量最优（实测 >=1.2 6.96% / >=1.5 6.17% / >=1.8 5.28% / >=2.0 4.98%），暴量扣分
+            sc += (12 if lb < 1.4 else 14 if lb < 1.8 else 8 if lb < 2.4 else 3)
+        else:
+            # A 轨：全市场单调递增（1.1~1.4 1.02倍 / 1.8~2.4 1.90倍 / >=3.5 3.84倍）
+            sc += (4 if lb < 1.4 else 9 if lb < 1.8 else 13 if lb < 2.4 else 17 if lb < 3.5 else 18)
     except Exception:
         pass
     try:
         turn = float(s['turn'] or 0)
-        # v6 换手档替代原「情绪代理 emo=turn*lb」：池内换手 1.5~2 组两段均最强
-        # （15.79%/75.00%，后半 n=8 样本偏小）、2~4 最弱（7.27%/27.78%）、4~8 居中（11.29%/23.53%）。
-        # 原 emo 档把 23 分砸给 emo>=15 组，该组实际只有 7.69%（前半 8.33%/后半 0.00%），是打分层的最大反向。
-        sc += (20 if turn < 2.0 else 12 if turn < 4.0 else 6)
+        # 换手：全市场单调递增（2~3% 0.69倍 / 3~4.5% 1.03倍 / 4.5~6% 1.52倍 / 6~9% 2.18倍 / 9~14% 2.74倍 / >=14% 3.77倍）
+        sc += (10 if turn < 4.5 else 14 if turn < 6.0 else 18 if turn < 9.0 else 20)
     except Exception:
         pass
     # 趋势强度 18（无MA20）：MA5向上 12 + 当日价站上当日均价(VWAP) 6；K线失败半补
@@ -6101,19 +6132,14 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
             sc += 6
     except Exception:
         pass
+    # 量能占比不再单独加分：换手与量比两档已经分别给足权重，再叠一道 turn*lb 属重复计权（旧 v5 的 emo 档即因此虚高）。
+    # B 轨「近5日涨停次数」加分：实测 1 次 7.09%(4.52倍) / 2 次 15.04%(9.60倍) / >=3 次 24.25%(15.48倍)，两段同向。
     try:
-        turn = float(s['turn'] or 0)
-        lb = float(s['lb'] or 0)
-        # v6 压平：原「换手>=6 且量比>=3 → 12 分」是池内最差组合（量比>=3 两段 0%/20.00%），
-        # 改为只给轻加分，避免把暴量票再顶上去一次（换手主体的权重已在换手档里体现）。
-        if turn >= 6.0 and lb >= 3.0:
-            sc += 4
-        elif turn >= 4.0:
-            sc += 4
-        else:
-            sc += 2
+        _zn = int(s.get('_zt_n') or 0)
+        if _track == 'B':
+            sc += (10 if _zn >= 3 else 8 if _zn >= 2 else 2)
     except Exception:
-        sc += 3
+        pass
     # —— 题材因子（100，×0.20；co20 已按共振升级降为 co10）——
     ind = _sec_clean(s['industry']) or '其他'
     heat60 = min(60.0, (heat.get(ind) or 0) / 100.0 * 60.0)
@@ -6150,18 +6176,29 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
     except Exception:
         pass
     total = sc * 0.60 + theme_score * 0.20 + (s.get('_reson') or 0) * 0.20 - risk
-    # 位置加分（v6 按池内命中率重排）：池内距60日高 -30~-15 档 22.73%（前半 14.04%/后半 38.71%）最强；
-    # <=-30 档 13.16%（前半 0.00%/后半 25.00%）两段都最弱，原「越深越加分（<=-30 给 +6）」方向反了。
+    # 位置加分（v7 按全市场 U 形重标，18 万条 / 245 交易日 / 前后半段同向）：
+    #   距60日高 <=-40% 1.77倍（最强）｜ -40~-30 0.91倍 ｜ -30~-20 0.73倍 ｜ -20~-12 0.68倍（最弱）
+    #   ｜ -12~-6 0.85倍 ｜ -6~+0.5% 1.71倍（次强，突破前夜）｜ >+0.5% 创新高
+    # v6 曾把「-30~-15 最强、<=-30 最弱」当结论，那是池内 214 只小样本的噪声，已在全样本上被推翻。
     try:
         _p60 = s.get('_pos60')
         if _p60 is not None:
-            if -30.0 <= _p60 <= -15.0:
+            if _p60 <= -40.0:
+                total += 8.0
+            elif _p60 <= -30.0:
                 total += 6.0
-            elif _p60 < -30.0:
-                total += 1.0
-            elif _p60 <= -10.0:
+            elif _p60 <= -20.0:
                 total += 3.0
+            elif _p60 <= -12.0:
+                total += 1.0
+            elif _p60 <= -6.0:
+                total += 3.0
+            elif _p60 <= 0.5:
+                total += 8.0
+            else:
+                total += 10.0
     except Exception:
+        pass
         pass
     # v5 新增：主力资金净流入占比加分。回测 7754 样本/基准 10.61%：
     #   >=15%=21.77%、8~15%=11.57%、3~8%=11.27%、0~3%=10.09%、-3~0%=7.68%、<=-3%=8.3%
@@ -6177,16 +6214,8 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
                       -2.0 if fr >= -3.0 else -6.0)
         except Exception:
             pass
-    # v5 新增、v6 调弱的「贴前高」加分。v5 依据是「涨停过+量比>=2」子集里距高>-10 组 14.63%(n=1155)
-    # 是 -20~-10 组 7.29%(n=192) 的两倍；但那是「已涨停过」子集的口径，和现网闸2 剔除后的池子不同源。
-    # 在现网真实池内（214 只）贴前高组只有 14.77%，低于池内基准 17.76%，且前半 9.84% / 后半 25.93%
-    # 两段都低于各自基准（10.29% / 30.77%），所以从 +4 降到 +1，保留一点顺位倾斜但不做主升浪权重。
-    try:
-        _p60b = s.get('_pos60')
-        if _p60b is not None and _p60b > -10.0:
-            total += 1.0
-    except Exception:
-        pass
+    # 「贴前高」不再单独加分：位置分已在上面的 U 形档里给出（-6~+0.5% 给 8 分、创新高给 10 分），
+    # 再叠一道 +1 属于重复计权。
     return round(total, 1)
 
 
@@ -6213,6 +6242,9 @@ def _tail_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=
             '6. 破灭点与动作：逻辑什么时候会破，破了怎么走人；逻辑不硬就明确写「不碰」。\n'
             '7. 周期适配：判定每只最适合的参与周期（超短线1-3日/短线3-10日），buy/stop 按该周期口径给，buy 开头用【周期：XXX】标注。\n'
             '8. 禁止编新闻猜消息、禁止万能句、禁止满仓/必涨/稳了。\n'
+            '9. 每只标的带 track 字段：A＝低吸首板（近5个交易日没涨停过，今天还在上板路上）；'
+            'B＝强势二波（近5个交易日涨停过、今天没封板，属于二波整理或断板回踩）。B 类的 buy/stop/next '
+            '必须按二波节奏给（回踩支撑位、断板次日承接强弱），不许套首板口径。\n'
             '9. 只输出 JSON，不要其他文字：\n'
             '{"cap_advice":"当前档位建议：结合 mkt_ctx 直接给明日仓位档位与一句话理由，至少20字",'
             '"wind_strong":"最强题材为什么最强（涨停家数/催化/资金逻辑），至少20字",'
@@ -6237,6 +6269,8 @@ def _tail_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=
                         'pct': s['pct'], 'lb': s.get('lb', 0), 'turn': s.get('turn', 0),
                         'mv': round(float(s.get('mv') or 0), 1), 'industry': s['industry'],
                         'ma5_up': bool(s.get('_ma5_up')),
+                        'track': s.get('track') or 'A',
+                        'zt_n': int(s.get('_zt_n') or 0),
                         'chg5': s.get('_chg5')} for s in _bt],
             'hot_sectors': sorted(heat.items(), key=lambda kv: -kv[1])[:6],
             'zt_themes': _zt_txt,
@@ -6438,8 +6472,11 @@ def build_tail(title='尾盘竞价筛选'):
     cands = _tail_filter(rows_all, heat_pre, _zt_names)
     heat, cnt = _theme_heat(cands)
     # 共振升级-弱共振剔除：同题材候选<2家 且 题材热度<45 的「独涨+冷题材」剔除（尾盘口径）
+    # v7 只对 A 轨生效：B 轨（强势二波）本身就是「一只票独立走二波」的形态，很多真二波在板块里是独苗，
+    # 拿「同题材>=2家」去卡它会把最典型的二波首阴/断板回踩直接杀光。
     cands = [s for s in cands
-             if not (cnt.get(_sec_clean(s['industry']) or '其他', 0) < 2
+             if s.get('track') == 'B'
+             or not (cnt.get(_sec_clean(s['industry']) or '其他', 0) < 2
                      and heat.get(_sec_clean(s['industry']) or '其他', 0) < 45)]
     heat, cnt = _theme_heat(cands)
     mem = load_memory()
@@ -6514,7 +6551,16 @@ def build_tail(title='尾盘竞价筛选'):
         s['score'] = round(float(s['score']) + _bonus, 1)
         s['_lhb_txt'] = '、'.join(_bits) if _bits else '昨日上榜，席位无极端信号'
     cands.sort(key=lambda x: -x['score'])
-    tops = cands[:AUCTION_TOP_N]
+    # v7 双轨配额：B 轨（强势二波）精确率是 A 轨的 2.7 倍（6.01% vs 2.35%，日均命中 0.70 vs 0.60 只，
+    # 全样本 22 万条口径），B 席越多越赚：B10+A0 6.03%、B8+A2 5.56%、**B7+A3 5.49%**、B6+A4 5.09%、
+    # 纯分数不设配额 4.72%。取 B7+A3——既拿住统计优势，又保留 A 轨「首板前夜」这条原始形态。
+    # 不做跨轨裸排序：两轨档位基准不同，裸排会把 A 轨分数虚高的票挤掉 B 轨的真机会。
+    _bpool = [s for s in cands if s.get('track') == 'B']
+    _apool = [s for s in cands if s.get('track') != 'B']
+    tops = _bpool[:7] + _apool[:3]
+    if len(tops) < AUCTION_TOP_N:
+        tops += (_bpool[7:] + _apool[3:])[:AUCTION_TOP_N - len(tops)]
+    tops = sorted(tops[:AUCTION_TOP_N], key=lambda x: -x['score'])
     # 行业兜底：最终 TopN 里仍是「其他」的，走单股接口取真行业名（_stock_industry 自带缓存，取到后全库复用）
     for _s in tops:
         if not _s.get('industry') or _s['industry'] in ('', '其他'):
@@ -6560,10 +6606,17 @@ def build_tail(title='尾盘竞价筛选'):
 <div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 建议：<b style="color:{_opcol};">{_deep.get('op','')}</b> ｜ 买点：{_deep.get('buy','')} ｜ 止损：{_deep.get('stop','')} ｜ 放弃：{_deep.get('drop','')}</div>""")
         else:
             _rows_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">📊 盘口：涨幅{s['pct']:+.1f}%、量比{s['lb']:.1f}、换手{s['turn']:.1f}%、市值{s.get('mv',0):.0f}亿——{_tail_fact_read(s)}</div>""")
+        _btrk = (s.get('track') == 'B')
+        _trk_tag = ('<span style="color:#ff922b;font-size:11px;border:1px solid #ff922b;border-radius:4px;padding:0 4px;margin-left:4px;">强势二波</span>'
+                    if _btrk else
+                    '<span style="color:#8bd3c7;font-size:11px;border:1px solid #8bd3c7;border-radius:4px;padding:0 4px;margin-left:4px;">低吸首板</span>')
+        _pos_txt = ('近5个交易日涨停过 %d 次，今天没封板＝二波整理或断板回踩，接的是二启不是接飞刀' % int(s.get('_zt_n') or 0)
+                    if _btrk else
+                    '近5个交易日没涨停过，这一档不是在上板途中接的')
         rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD if s['score'] >= 70 else TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
-<div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分</span></div>
+<div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span>{_trk_tag} <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分</span></div>
 <div style="color:{GREY};font-size:12px;">尾盘当日涨幅 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 换手 {s['turn']:.1f}% ｜ 市值 {s.get('mv',0):.0f}亿{(' ｜ 行业：' + str(s['industry'])) if str(s.get('industry') or '').strip() not in ('', '其他') else ''}</div>
-<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">📉 位置：{('距60日高 ' + ('%.1f%%' % s['_pos60'])) if s.get('_pos60') is not None else '前高未取得'}，近5个交易日没涨停过，这一档不是在上板途中接的</div>
+<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">📉 位置：{('距60日高 ' + ('%.1f%%' % s['_pos60'])) if s.get('_pos60') is not None else '前高未取得'}，{_pos_txt}</div>
 {('<div style="color:#8fd3ff;font-size:12px;margin-top:2px;">💰 主力资金：当日净流入占成交额 ' + ('%+.2f%%' % s['_flow']) + '（' + ('净流入' if s['_flow'] >= 0 else '净流出') + ('%.2f亿' % (abs(s.get('_flow_amt') or 0) / 1e8)) + '）</div>') if s.get('_flow') is not None else ''}
 {('<div style="color:#ffd43b;font-size:12px;margin-top:2px;">🏦 资金面：' + s['_lhb_txt'] + '</div>') if s.get('_lhb_txt') else ''}
 {('<div style="color:#bfd7ff;font-size:12px;margin-top:2px;">📰 消息面：' + s['_news_txt'] + '</div>') if s.get('_news_txt') else ''}
@@ -6616,7 +6669,7 @@ def build_tail(title='尾盘竞价筛选'):
     _v2_note = ''
     _tail_note = ''
     emotion_t = _emotion_from_pools(d)
-    inner = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 尾盘竞价筛选 TOP{AUCTION_TOP_N}（低位放量·资金面确认·买在涨停前）</div>'
+    inner = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 尾盘竞价筛选 TOP{AUCTION_TOP_N}（双轨并进·资金面确认·买在涨停前 A低吸{sum(1 for s in tops if s.get("track") != "B")}只 / B二波{sum(1 for s in tops if s.get("track") == "B")}只）</div>'
              + top3_txt + _confirm_block + wind + _cap_advice_row
              + pos_cap_line(emotion_t, None) + _v2_note + _tail_note)
     return _wrap(inner, '🔔', title, show_reson=False)
@@ -6712,10 +6765,15 @@ def build_cycle(title='多周期视角研判'):
     def _sec(s):
         return _sec_clean(s.get('industry') or '') or '其他'
 
-    # 弱共振剔除（同尾盘口径）
-    cands = [s for s in cands if not (cnt.get(_sec(s), 0) < 2 and heat.get(_sec(s), 0) < 45)]
+    # 弱共振剔除（同尾盘口径；v7 B 轨豁免——二波本身就是独苗形态）
+    cands = [s for s in cands if s.get('track') == 'B'
+             or not (cnt.get(_sec(s), 0) < 2 and heat.get(_sec(s), 0) < 45)]
     if not cands:
         return None
+    # v7 双轨配额（与尾盘卡同口径 B7+A3）：周期卡一屏 10 只
+    _bp = [s for s in cands if s.get('track') == 'B'][:7]
+    _ap = [s for s in cands if s.get('track') != 'B'][:3]
+    cands = _bp + _ap
     groups = {}
     order = ['超短线（1-3日）', '短线（3-10日）', '中长线（1-6月）', '长线（6月+）', '短线观察']
     deep_stocks = []
