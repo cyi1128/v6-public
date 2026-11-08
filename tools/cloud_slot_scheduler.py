@@ -113,9 +113,10 @@ WATCH_STEP = 15             # 每 15 分钟一次异动扫描
 
 SLOT_TIMEOUT = 900          # 单槽 15 分钟（主程序行情请求自带超时）
 SEG_ALIVE_GRACE = 600       # 正常退出会清 marker，这里只是兜住"被 timeout 杀掉"的情况
-ROLL_MINUTES = 300          # 滚动占段时长：一次触发覆盖未来 5 小时
+ROLL_MINUTES = 350          # 滚动占段时长：一次触发覆盖未来 5.8 小时（+ 启动开销仍在 380 timeout 内）
 ROLL_TAIL_MINUTES = 45      # 段尾 45 分钟内若还能接上下一槽，就把终点延到那槽窗口末端
-DAY_END = (23, 55)          # 今日收工时刻（之后不再占段，凌晨触发的 run 直接秒退）
+DAY_END = (23, 55)          # 今日收工时刻（之后不再占段）
+EARLY_GUARD = (9, 30)       # 凌晨/深夜命中一律守到早盘竞价（09:25）跑完，不让早盘整段靠下一次运气
 
 
 LOG_PATH = os.path.join(DATA_DIR, 'sched_log.txt')
@@ -416,6 +417,11 @@ def rolling_end(bj: datetime.datetime) -> datetime.datetime:
     把 22:50 的晚间消息汇总截在段外——它只能等下一个人恰好触发，等于白等。
     """
     day_end = bj.replace(hour=DAY_END[0], minute=DAY_END[1], second=0, microsecond=0)
+    # 凌晨/天没亮就命中：直接守到早盘 09:30（受 ROLL_MINUTES 上限约束）。
+    # 这是"平台一天只给 1-7 次命中、且多半落在深夜"下唯一能把早盘 8:20/8:30/9:25 兜住的办法。
+    if bj.hour < 8:
+        guard = bj.replace(hour=EARLY_GUARD[0], minute=EARLY_GUARD[1], second=0, microsecond=0)
+        return min(bj + datetime.timedelta(minutes=ROLL_MINUTES), guard)
     end = min(bj + datetime.timedelta(minutes=ROLL_MINUTES), day_end)
     if end >= day_end:
         return end
@@ -526,9 +532,16 @@ def _selftest() -> int:
              done={f'evening|{_seed_day}': True, f'ext|{_seed_day}|2235': True}), False)
 
     # 滚动段终点（300 分钟 + 段尾 45 分钟延伸，杜绝"恰好把下一槽截在段外"）
-    expect('10:00 启动终点', rolling_end(at(10, 0)).strftime('%H:%M'), '15:55')
-    expect('13:30 启动终点（不空等 21:38）', rolling_end(at(13, 30)).strftime('%H:%M'), '18:30')
-    expect('17:45 启动终点（接住 22:50 晚间汇总）', rolling_end(at(17, 45)).strftime('%H:%M'), '23:10')
+    expect('10:00 启动终点（350 分钟+段尾延伸到 16:00 news2h）',
+           rolling_end(at(10, 0)).strftime('%H:%M'), '16:20')
+    expect('13:30 启动终点（350 分钟，不空等 21:38）',
+           rolling_end(at(13, 30)).strftime('%H:%M'), '19:20')
+    expect('17:45 启动终点（350 分钟，已过 22:50 故不延伸）',
+           rolling_end(at(17, 45)).strftime('%H:%M'), '23:35')
+    # 凌晨命中必须守到早盘，不许秒退（11-06 早盘整段丢失的根因）
+    expect('04:47 凌晨命中守到早盘 09:30', rolling_end(at(4, 47)).strftime('%H:%M'), '09:30')
+    expect('03:00 凌晨命中受 350 分钟上限 -> 08:50', rolling_end(at(3, 0)).strftime('%H:%M'), '08:50')
+    expect('00:27 命中受上限约束 -> 06:17', rolling_end(at(0, 27)).strftime('%H:%M'), '06:17')
 
     # 窗口键必须与主程序一致（错一个就重复推或漏推）；用当天日期动态断言
     _t = datetime.datetime.now(BJ).strftime('%Y-%m-%d')
@@ -544,6 +557,28 @@ def _selftest() -> int:
 
 
 # ---------------------------------------------------------------- 主流程
+def report_gaps() -> None:
+    """退出前把"今天名义时刻已过宽容窗、但仍没推"的槽列出来，让缺口可追溯。"""
+    try:
+        now = bj_now()
+        minutes = minutes_of(now)
+        done = _read_json(SLOT_DONE)
+        gaps = []
+        for hour, minute, slot, _window, late in FIXED_SLOTS:
+            start = hour * 60 + minute
+            if start + late >= minutes:
+                continue          # 还没过窗，不叫缺口
+            if is_done(hour, minute, slot, done):
+                continue
+            gaps.append(f'{hour:02d}:{minute:02d}{slot}')
+        if gaps:
+            log('今日已过窗未推 %d 个槽：%s' % (len(gaps), '、'.join(gaps)))
+        else:
+            log('今日应推槽位全部已落地，无缺口')
+    except Exception as exc:  # noqa: BLE001
+        log(f'缺口统计失败: {exc}')
+
+
 def finish(tag: str) -> int:
     """退出前把日志与状态写回仓库，保证云端每次都留下可追溯痕迹。
 
