@@ -7758,20 +7758,24 @@ def _eod_review_html(rv, scored):
     _tops = rv.get('tops') or []
     if _tops:
         rows = []
-        for t_ in _tops[:10]:
+        for t_ in _tops[:6]:
+            _lg = re.sub(r'\s+', ' ', str(t_.get('logic', '')))[:110]
+            _dk = re.sub(r'\s+', ' ', str(t_.get('leader_dark', '')))[:80]
             rows.append(f"""<div style="background:#1f2635;border-left:3px solid {RED};border-radius:8px;padding:8px 11px;margin:5px 0;">
 <div style="font-weight:700;color:#fff;">{t_.get('sec','')} <span style="color:{GREY};font-size:12px;">龙头 {t_.get('leader','')}</span></div>
-<div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.6;">🧠 上涨逻辑：{t_.get('logic','')}</div>
-<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳️ 龙头暗线：{t_.get('leader_dark','')}</div></div>""")
-        out.append('<div style="margin-top:12px;font-size:15px;font-weight:800;color:' + RED + ';">【TOP10 板块/题材上涨逻辑 & 涨停个股原因暗线】（大模型研判）</div>' + ''.join(rows))
+<div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.6;">🧠 上涨逻辑：{_lg}</div>
+<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳️ 龙头暗线：{_dk}</div></div>""")
+        out.append('<div style="margin-top:12px;font-size:15px;font-weight:800;color:' + RED + ';">【TOP6 板块/题材上涨逻辑 & 涨停个股原因暗线】（大模型研判）</div>' + ''.join(rows))
     _tom = rv.get('tomorrow') or []
     if _tom:
         rows = []
-        for t_ in _tom[:6]:
+        for t_ in _tom[:4]:
+            _rs = re.sub(r'\s+', ' ', str(t_.get('reason', '')))[:90]
+            _dk2 = re.sub(r'\s+', ' ', str(t_.get('dark', '')))[:60]
             rows.append(f"""<div style="background:#1f2635;border-left:3px solid {TEAL};border-radius:8px;padding:8px 11px;margin:5px 0;">
 <div style="font-weight:700;color:#fff;">明日可介入：{t_.get('name','')} <span style="color:{GREY};font-size:12px;">｜{t_.get('pos','')}</span></div>
-<div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.6;">🧠 原因：{t_.get('reason','')}</div>
-<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳️ 暗线：{t_.get('dark','')}</div>
+<div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.6;">🧠 原因：{_rs}</div>
+<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳️ 暗线：{_dk2}</div>
 <div style="color:{GOLD};font-size:12px;margin-top:2px;">🎯 买点：{t_.get('buy','待确认')}｜止损：{t_.get('stop','-3%')}</div></div>""")
         out.append('<div style="margin-top:12px;font-size:15px;font-weight:800;color:' + TEAL + ';">【明日可介入个股】（原因+暗线）</div>' + ''.join(rows))
     _main = rv.get('mainline_next') or []
@@ -7894,13 +7898,13 @@ def build_eod():
         _dp2 = _sec2_map.get(n)
         _llm2 = ''
         if _dp2 and _dp2.get('why'):
-            _llm2 = (f'<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🧠 逻辑：{_dp2.get("logic", "")}</div>'
-                     f'<div style="color:#e9ecef;font-size:12px;margin-top:2px;">👉 大白话：{_dp2.get("why", "")}</div>'
-                     + (f'<div style="color:{GOLD};font-size:12px;margin-top:2px;">🎚️ 阶段：{_dp2.get("stage", "")} ｜ 结论：{_dp2.get("verdict", "")}</div>' if _dp2.get('stage') or _dp2.get('verdict') else '')
-                     + (f'<div style="color:{TEAL};font-size:12px;margin-top:2px;">🎯 明天：{_dp2.get("act", "")}</div>' if _dp2.get('act') else '')
-                     + (f'<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳️ 暗线：{_dp2.get("dark", "")}</div>' if _dp2.get('dark') else ''))
-        if _dp2 and _dp2.get('why'):
-            _plain_html = _llm2
+            # v7.9d 压成一行：板块模型段原来 5 行（逻辑/大白话/阶段/结论/明天/暗线）与 sec8 全面研判重复
+            _one = (str(_dp2.get('logic', '')) + '；' + str(_dp2.get('why', ''))).strip('；')
+            _act = str(_dp2.get('act', '') or '').strip()
+            if _act:
+                _one += '；明天 ' + _act
+            _one = re.sub(r'\s+', ' ', _one)[:150]
+            _plain_html = f'<div style="color:#a78bfa;font-size:12px;margin-top:3px;line-height:1.6;">🧠 {_one}</div>'
         else:
             _plain_html = ''
         sec2_rows += f"""<div style="background:#1f2635;border-left:4px solid {GOLD if lv=='强' else GREY};border-radius:10px;padding:10px 12px;margin:7px 0;">
@@ -8023,7 +8027,7 @@ def build_eod():
                    '推荐：…\n'
                    '风险：…\n'
                    '明日预案：…\n'
-                   '【仓位仪表盘】明日开盘前建议总仓位一档（空仓/1成试探/2成/半仓）+ 一句理由' + '\n【自检】输出前自查：是否违反高位连板别追？是否缺止损？是否有万能句（值得关注/建议留意/具备投资价值）？是否与仓位仪表盘矛盾？有问题降级改写；无问题结尾写「自检通过」。'),
+                   '【仓位仪表盘】明日开盘前建议总仓位一档（空仓/1成试探/2成/半仓）+ 一句理由（一行说完；不写自检、不写反问句）。'),
     }
     ds_md = ask_deepseek(ds_payload)
     if ds_md:
@@ -8057,7 +8061,7 @@ def build_eod():
     except Exception:
         _al0 = {'fired': []}
     _miss = miss_review(d, _al0)
-    _miss_block = (f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:{GREY};">🔍 今日错过 TOP5（仅规则优化线索，不构成买卖建议）</div>{_miss}'
+    _miss_block = (f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:{GREY};">🔍 今日错过 TOP3（仅规则优化线索，不构成买卖建议）</div>{_miss}'
                    if _miss else '')
     _overall = (f'<div style="margin-top:4px;padding:8px 10px;background:#1c2830;border-left:4px solid {mc};'
                 f'border-radius:8px;font-size:13px;color:#e9ecef;">🧭 今天整体：{b}，涨停{d["lu"]}家炸板{d["zb"]}家，'
@@ -8103,7 +8107,7 @@ def build_eod():
              + build_events('eod') + sec6 + _pool_today
              + pos_cap_line(sentiment(idx, d)[0], hl)
              + (f'<div style="margin-top:6px;font-size:12px;color:{GREY};">{_st_line}</div>' if _st_line else '')
-             + _factor_board_top(d) + _reson_sec + _miss_block)
+             + _factor_board_top(d, topn=5) + _reson_sec + _miss_block)
     return _wrap(inner, '🌆', '收盘复盘')
 
 
@@ -9073,7 +9077,7 @@ def miss_review(d, al):
     miss = [s for s in rows if s['pct'] >= 9.0 and s['name'] not in names_fired]
     out = []
     items = []
-    for s in miss[:5]:
+    for s in miss[:3]:
         # 简单归因：硬过滤剔除（次新/ST/高位MA20下）或 规则外首动
         reason = '规则外首动（涨幅榜直接拉板，未进盘中监控窗口）'
         sym = ('sh' if s['code'].startswith('6') else 'sz') + s['code']
