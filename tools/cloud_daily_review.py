@@ -7962,6 +7962,9 @@ def _eod_fallback_html(scored, tpool):
     return ''.join(out)
 
 
+ELITE_SNAP_EXT = True   # 池内候选不足时是否拉当日全市场快照补候选（单测置 False）
+
+
 def _eod_elite_pick(scored, tpool):
     """v7.9x 收盘复盘·量化入榜：模型只讲板块，个股由代码按实测因子判定。
     五闸 = 量比 ≥1.5 / 换手 ≥4.5% / 涨幅 ≤7%（不追 7%+）/ 收盘位置 ≥50% / 未封板；
@@ -7973,6 +7976,30 @@ def _eod_elite_pick(scored, tpool):
         _s0 = _it[0] if isinstance(_it, (tuple, list)) and _it else _it
         if isinstance(_s0, dict):
             _rows_in.append(_s0)
+    _pool_n = len(_rows_in)
+    if ELITE_SNAP_EXT:   # 无条件并入当日快照：强市里池内票常全在 8% 上方，7% 闸会全否
+        # 池太窄（强市里池内票常全在 8% 上方）→ 补当日全市场快照，只取 0.5%~7% 这一段
+        _seen = {str(_x.get('code') or '') for _x in _rows_in}
+        for _fn in ('_clist_gainers', '_clist_gainers_alt'):
+            try:
+                _snap = (globals().get(_fn) or (lambda: []))()
+            except Exception:
+                _snap = []
+            for _x in (_snap or [])[:300]:
+                _c = str(_x.get('code') or '')
+                if not _c or _c in _seen:
+                    continue
+                try:
+                    _pc0 = float(_x.get('pct') or 0)
+                except Exception:
+                    continue
+                if not (0.5 <= _pc0 <= 7.0):
+                    continue
+                _seen.add(_c)
+                _rows_in.append(_x)
+            if len(_rows_in) >= 30:
+                break
+        print('[eod] 入榜候选补全：池内 %d 只 → 合并快照后 %d 只' % (_pool_n, len(_rows_in)))
     for s in _rows_in:
         try:
             _p = float(s.get('price') or 0)
