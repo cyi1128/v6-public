@@ -119,3 +119,8 @@
 11-08 16:32:28 >>> 执行槽位 watch @ 16:32:28
 11-08 16:35:03     watch| [LLM_OUT:holiday_ds] {   "items": [     {       "t": "内塔尼亚胡指责埃森科特 以色列正直党发声明回击",       "sector": "中东地区政治博弈局势",       "stocks": "无",       "dark": "未见明确暗线业务，该事件属于局部政治摩擦，不涉及
 11-08 16:35:03     watch| SLOT watch 休市新闻 PUSH True 执行成功
+11-08 16:35:04 持久化(watch)：已推送
+11-08 16:35:04 <<< 完成槽位 watch，用时 156.4s
+11-08 16:35:04 周末快跑结束，退出
+11-08 16:35:04 退出原因：weekend-end
+11-08 16:35:04 今日已过窗未推 20 个槽：08:20warn、08:30pre、09:25auction、10:00hourly、10:30newsfire、10:35risk、11:00hourly、11:30noon、11:40news、12:00news2h、13:00hourly、13:30newsfire、13:35risk、14:00hourly、14:01news2h、14:05follow、14:55tail、15:05follow、15:10news、15:20cycle
