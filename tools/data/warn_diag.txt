@@ -704,3 +704,15 @@
 21:01:20 [ask_deepseek] ModelScope 两次尝试均失败，purpose=ext_news
 21:04:27 [ask_deepseek] 首轮无返回即止损 purpose=eve_news
 21:04:27 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eve_news
+21:50:02 [llm] 截止已过停产 purpose=sec2_deep used=114s
+21:50:02 [ask_deepseek] 首轮无返回即止损 purpose=sec2_deep
+21:50:02 [ask_deepseek] ModelScope 两次尝试均失败，purpose=sec2_deep
+21:53:41 [反模板命中:theme_health_card] 资金认可 (try1)
+22:02:21 [ask_deepseek] 首轮无返回即止损 purpose=brief_summary_v3
+22:02:21 [ask_deepseek] ModelScope 两次尝试均失败，purpose=brief_summary_v3
+22:03:17 [反模板命中:ext] 管住手 (try1)
+22:03:55 [反模板命中:ext] 管住手 (try2)
+22:06:35 [ask_deepseek] 首轮无返回即止损 purpose=ext_news
+22:06:35 [ask_deepseek] ModelScope 两次尝试均失败，purpose=ext_news
+22:10:06 [ask_deepseek] 首轮无返回即止损 purpose=eve_news
+22:10:06 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eve_news
