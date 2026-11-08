@@ -2182,6 +2182,16 @@ def _modelscope_chat(payload, purpose, system_text):
     _t_start = time.time()
     for m in models:
         _used = time.time() - _t_start
+        try:
+            # v7.9m：全局（或本模块）截止时刻已过就不要再换模型，
+            # 一次换模型最坏 45s，会把后面几段（复盘主解读/错过深挖/事件汇总）的额度吃干净。
+            if time.time() > _LLM_DEADLINE[0]:
+                print('[LLM] 截止时刻已过 停止轮换 %.0fs>剩余%.0fs purpose=%s'
+                      % (_used, _LLM_DEADLINE[0] - time.time(), purpose))
+                _diag_append('[llm] 截止已过停产 purpose=%s used=%.0fs' % (purpose, _used))
+                return None
+        except Exception:
+            pass
         if _used > MS_BUDGET:
             print('[LLM] ModelScope 总预算用尽 %.0fs>%ds purpose=%s，停止轮换（调用方降级）'
                   % (_used, MS_BUDGET, purpose))
