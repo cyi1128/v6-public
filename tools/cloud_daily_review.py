@@ -7911,7 +7911,9 @@ def build_eod():
         _tsec2 = time.time()
         _room = max(0.0, _gend - _tsec2)
         _dsec2 = min(_gend, _tsec2 + min(320.0, max(60.0, _room * 0.55)))
-        _llm_set_deadline(min(_dsec2, _tsec2 + max(45.0, (_dsec2 - _tsec2) * 0.35)))
+        # v7.9n：板块深挖固定只占 90s（8 个板块里能出几个算几个，其余走规则行），
+        # 剩下的窗口必须留给复盘主解读/错过深挖/事件汇总，否则这些段永远拿不到模型。
+        _llm_set_deadline(min(_dsec2, _tsec2 + 90.0))
     except Exception:
         _dsec2 = None
     _sec2_map = _sec2_deep(scored)
