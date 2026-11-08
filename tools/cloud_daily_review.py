@@ -5981,6 +5981,7 @@ def _tail_filter(rows, heat=None, zt_names=None):
         s['_amp'] = None
         s['_clv'] = None
         s['_shadow'] = None
+        s['_zn60'] = None
         pending.append(s)
     # —— 并发拉 K 线（每只 1 次 25 根请求，MA5 用后5/前5根、近5日用 arr[-6] 基准）——
     def _kline_fetch(s):
@@ -6021,6 +6022,19 @@ def _tail_filter(rows, heat=None, zt_names=None):
                         s['_vt'] = round(v5 / v20, 2) if v20 > 0 else None
                     except Exception:
                         s['_vt'] = None
+                try:
+                    # 60日涨停基因（v7.4）：过去60个交易日（不含今日）的涨停次数，抓的是「有主力在做」的痕迹。
+                    # 池内 A 轨 0次 1.35% / 1次 2.06% / 2次 3.82% / 3~4次 2.33% / >=5次 6.05%（A 轨本身已排除近5日涨停，所以这是更早的底子）；
+                    # B 轨 1次 3.74% / 2次 6.37% / 3~4次 7.05% / >=5次 9.09%，严格单调。
+                    _lim = 1.194 if str(s.get('code') or '').startswith('300') else 1.094
+                    _cl = [float(x[2]) for x in arr[-61:-1]]
+                    _n60 = 0
+                    for _i in range(1, len(_cl)):
+                        if _cl[_i - 1] > 0 and _cl[_i] / _cl[_i - 1] >= _lim:
+                            _n60 += 1
+                    s['_zn60'] = _n60
+                except Exception:
+                    s['_zn60'] = None
                 try:
                     _hi = float(s.get('hi') or 0) or float(arr[-1][3])
                     _lo = float(s.get('lo') or 0) or float(arr[-1][4])
@@ -6120,6 +6134,8 @@ def _tail_filter(rows, heat=None, zt_names=None):
           % (_c_amp, len(out), _c_vt, len(out),
              sum(1 for s in out if s.get('_clv') is not None), len(out),
              sum(1 for s in out if s.get('_shadow') is not None), len(out)))
+    print('[tail] 新因子覆盖(60日涨停基因)：%d/%d'
+          % (sum(1 for s in out if s.get('_zn60') is not None), len(out)))
     return out
 
 
@@ -6136,6 +6152,10 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
       甚至更低（这是 725 只随机个股 fflow 日线 8.6 万条重测出来的，旧档位 8~15 给 +9 是无偏样本里的白给分）。
       三个新因子（v7.2）都是分轨制的：振幅越大越好（B 轨 >=10% 9.89%）、收盘位置在池内反向
       （收在最高=当日透支，A 轨 >=95% 仅 1.10%）、量能趋势 A 轨偏温和 / B 轨偏持续放量。
+      第四个新因子上影线（v7.3）两轨都是「越长越强」：A 轨 >=4% 3.63% vs <1% 1.37%，B 轨 >=4% 9.34%，
+      因为冲高回落的浮筹已经被洗过一遍，跟「收在最高」那种透支结构不是一回事。
+      第五个因子 60 日涨停基因（v7.4）抓的是两个月内有没有主力真做过：A 轨 0 次 1.35% / >=5 次 6.05%，
+      B 轨 1 次 3.74% → >=5 次 9.09% 单调递增；A 轨对 0 次给负分（这是池内最弱的一档）。
     注：原「趋势强度(MA20+MA5向上)」随用户指令取消 MA20 限制，改为 MA5向上 + 当日均价代理。
     旧版 emo=turn*lb 与 v6 的「换手越低越好/量比越大越差」档位均已删除——那是 15 天涨停池选样过拟合的产物。"""
     sc = 0.0
@@ -6209,6 +6229,18 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
                 sc += (6 if _v >= 1.5 else 3 if _v >= 1.2 else 0)
             else:
                 sc += (2 if _v >= 1.5 else -2 if _v >= 1.0 else 2 if _v >= 0.8 else 0)
+        except Exception:
+            pass
+    # 60日涨停基因（v7.4）：这个票过去两个月有没有被资金真正做过，A 轨 0次只有 1.35%，>=5次 6.05%；
+    # B 轨 1次 3.74% → >=5次 9.09% 单调。叠在上影线之上，top10 6.28%→6.73%、top1 12.70%→13.52%（池 8549/日均 28.6）。
+    _z60 = s.get('_zn60')
+    if _z60 is not None:
+        try:
+            _z = int(_z60)
+            if _track == 'B':
+                sc += (0 if _z < 2 else 2 if _z < 3 else 4 if _z < 5 else 6)
+            else:
+                sc += (-3 if _z == 0 else 1 if _z == 1 else 6 if _z == 2 else 2 if _z < 5 else 8)
         except Exception:
             pass
     # 上影线（v7.3）：当日冲高回落的长度。池内 A 轨 >=4% 3.63% vs <1% 1.37%，B 轨 >=4% 9.34% vs 5.0~5.8%，
