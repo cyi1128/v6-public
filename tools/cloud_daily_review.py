@@ -8112,11 +8112,20 @@ def build_eod():
     except Exception:
         _reson_sec = ''
 
-    inner = (_overall + health_bar(idx, d, fin, fout) + sec1 + sec2 + sec8 + sec2b + sec4 + sec45 + sec5 + sec_ds + sec_sell + sec7
-             + build_events('eod') + sec6 + _pool_today
-             + pos_cap_line(sentiment(idx, d)[0], hl)
-             + (f'<div style="margin-top:6px;font-size:12px;color:{GREY};">{_st_line}</div>' if _st_line else '')
-             + _factor_board_top(d, topn=5) + _reson_sec + _miss_block)
+    _ev = build_events('eod')
+    _cap = pos_cap_line(sentiment(idx, d)[0], hl)
+    _parts = [('overall', _overall), ('health', health_bar(idx, d, fin, fout)), ('s1', sec1),
+              ('s2', sec2), ('s8', sec8), ('s2b', sec2b), ('s4', sec4), ('s45', sec45),
+              ('s5', sec5), ('sds', sec_ds), ('sell', sec_sell), ('s7', sec7), ('ev', _ev),
+              ('s6', sec6), ('pool', _pool_today), ('cap', _cap),
+              ('st', (f'<div style="margin-top:6px;font-size:12px;color:{GREY};">{_st_line}</div>' if _st_line else '')),
+              ('fac', _factor_board_top(d, topn=5)), ('reson', _reson_sec), ('miss', _miss_block)]
+    inner = ''.join(x for _, x in _parts)
+    try:
+        print('[eod] SEC ' + ' '.join('%s=%d' % (k, len(v)) for k, v in _parts)
+              + ' total=%d' % len(inner))
+    except Exception:
+        pass
     return _wrap(inner, '🌆', '收盘复盘')
 
 
@@ -10171,8 +10180,10 @@ def build_evening():
                           'news': news_brief, 'format': fmt}, purpose='evening')
         ds_html = md2html(t) if t else ''
     if not ds_html:
-        print('[evening] LLM 未返回且已禁规则版兜底，不推晚间汇总')
-        return None
+        # v7.9f：模型没返回也照常出卡。卡内 A股全景/全球行情/龙虎榜/消息汇总 都是真数据，
+        # 原逻辑 return None 会让晚间槽在模型故障日一张卡都没有（11-08 run 42470000130 实测 SKIP）。
+        print('[evening] LLM 未返回，改出数据版（不显示模型段）')
+        ds_html = ''
     _lhb_html_block = ''
     try:
         _lhb_day, _lhb = _lhb_layer()
