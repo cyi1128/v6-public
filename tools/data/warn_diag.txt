@@ -691,3 +691,16 @@
 20:30:03 [ask_deepseek] ModelScope 两次尝试均失败，purpose=brief_summary_v3
 20:35:35 [ask_deepseek] 首轮无返回即止损 purpose=eve_news
 20:35:35 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eve_news
+20:46:05 [llm] 截止已过停产 purpose=sec2_deep used=114s
+20:46:05 [ask_deepseek] 首轮无返回即止损 purpose=sec2_deep
+20:46:05 [ask_deepseek] ModelScope 两次尝试均失败，purpose=sec2_deep
+20:51:23 [ask_deepseek] 首轮无返回即止损 purpose=eod_review_ds
+20:51:23 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eod_review_ds
+20:54:04 [ask_deepseek] 首轮无返回即止损 purpose=eod
+20:54:04 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eod
+20:58:02 [ask_deepseek] 首轮无返回即止损 purpose=brief_summary_v3
+20:58:02 [ask_deepseek] ModelScope 两次尝试均失败，purpose=brief_summary_v3
+21:01:20 [ask_deepseek] 首轮无返回即止损 purpose=ext_news
+21:01:20 [ask_deepseek] ModelScope 两次尝试均失败，purpose=ext_news
+21:04:27 [ask_deepseek] 首轮无返回即止损 purpose=eve_news
+21:04:27 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eve_news
