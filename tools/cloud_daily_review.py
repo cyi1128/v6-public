@@ -8037,13 +8037,13 @@ def _eod_elite_pick(scored, tpool):
             _miss = '、'.join('%s %s(%s)' % (n, v, th) for n, v, ok, th in _best[2] if not ok)
             print('[eod] 量化入榜：0 只（三闸以下），最靠前 %s %s 差 %s'
                   % (_best[1].get('name') or '', _best[1].get('code') or '', _miss))
-            return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:%s;">【明日精选·量化入榜】</div>'
+            return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:%s;">🎯 明日精选 · 量化入榜</div>'
                     '<div style="background:#232a3a;border-left:4px solid %s;border-radius:10px;padding:10px 12px;'
                     'font-size:13px;line-height:1.8;color:#e2e8f0;">今天没有一只票过三闸，'
                     '最靠前的是 %s %s，差在 %s。宁可不做，不做不对。</div>'
                     % (GOLD, GREY, _best[1].get('name') or '', _best[1].get('code') or '', _miss))
         print('[eod] 量化入榜：0 只（可跟踪池为空 %d 行）' % len(_rows_in))
-        return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:%s;">【明日精选·量化入榜】</div>'
+        return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:%s;">🎯 明日精选 · 量化入榜</div>'
                 '<div style="background:#232a3a;border-left:4px solid %s;border-radius:10px;padding:10px 12px;'
                 'font-size:13px;color:#e2e8f0;">可跟踪池为空，今天不给票。</div>' % (GOLD, GREY))
     _rows = []
@@ -8082,7 +8082,7 @@ def _eod_elite_pick(scored, tpool):
                       % (c[1].get('name') or '', c[1].get('code') or '',
                          float(c[1].get('lb') or 0), float(c[1].get('turn') or 0),
                          float(c[1].get('pct') or 0)) for c in _hard)))
-    _tit = '【明日精选·量化入榜】%d 只%s' % (_cnt, '（四闸透明降级）' if _relaxed else '（五闸全过）')
+    _tit = '🎯 明日精选 · 量化入榜 ｜ %d 只%s' % (_cnt, '（四闸透明降级）' if _relaxed else '（五闸全过）')
     return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:%s;">%s</div>' % (GOLD, _tit)
             + ''.join(_rows)
             + '<div style="color:%s;font-size:12px;margin-top:4px;line-height:1.6;">'
