@@ -114,3 +114,8 @@
 11-08 15:09:34 退出原因：weekend-end
 11-08 15:09:34 今日已过窗未推 16 个槽：08:20warn、08:30pre、09:25auction、10:00hourly、10:30newsfire、10:35risk、11:00hourly、11:30noon、11:40news、12:00news2h、13:00hourly、13:30newsfire、13:35risk、14:00hourly、14:01news2h、14:05follow
 11-08 16:32:26 启动调度器 v2，当前北京时间 2026-11-08 16:32:26 星期日
+11-08 16:32:28 持久化(sched-active)：已推送
+11-08 16:32:28 已占用 2026-11-08 weekend-16 段调度权（至 16:52）
+11-08 16:32:28 >>> 执行槽位 watch @ 16:32:28
+11-08 16:35:03     watch| [LLM_OUT:holiday_ds] {   "items": [     {       "t": "内塔尼亚胡指责埃森科特 以色列正直党发声明回击",       "sector": "中东地区政治博弈局势",       "stocks": "无",       "dark": "未见明确暗线业务，该事件属于局部政治摩擦，不涉及
+11-08 16:35:03     watch| SLOT watch 休市新闻 PUSH True 执行成功
