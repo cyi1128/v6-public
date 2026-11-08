@@ -139,6 +139,15 @@ DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions'
 # 起因：11-08 demo-4 实测「超时×5 模型×2 轮」把 job 拖到 30 分钟 timeout 被砍。
 MS_TIMEOUT = int(os.environ.get('MS_TIMEOUT', '45'))
 MS_BUDGET = int(os.environ.get('MS_BUDGET', '180'))
+# v7.9c 全局 LLM 墙钟预算：从进程启动算起，超了就不再调模型，保证推送一定跑得到。
+# 起因：11-08 demo-4 实测 ModelScope 34 次超时/429，LLM 段把 30 分钟 job 吃满，推送 0 条。
+LLM_TOTAL_BUDGET = int(os.environ.get('LLM_TOTAL_BUDGET', '660'))
+_PROC_T0 = time.time()
+
+
+def _llm_wall_used():
+    """本进程已用墙钟秒数（含取数时间，用于给 LLM 段设总闸）。"""
+    return time.time() - _PROC_T0
 
 HOLDINGS = [
     {'code': 'sz002838', 'name': '道恩股份', 'cost': 25.823, 'qty': 8500, 'sector': '塑料'},
@@ -2249,6 +2258,12 @@ def ask_deepseek(payload, purpose='eod', system_text=None):
     if not MODELSCOPE_KEY:
         _DS_FAILED = True
         _diag_append('[ask_deepseek] MODELSCOPE_KEY 为空，purpose=%s' % purpose)
+        return ''
+    _wall = _llm_wall_used()
+    if _wall > LLM_TOTAL_BUDGET:
+        print('[LLM] 全局预算用尽 %.0fs>%ds purpose=%s，直接降级（保推送）'
+              % (_wall, LLM_TOTAL_BUDGET, purpose))
+        _diag_append('[llm] 全局预算用尽 used=%.0fs purpose=%s' % (_wall, purpose))
         return ''
     if _ds_daily_used() >= DS_DAILY_LIMIT:
         _DS_EXHAUSTED = True
