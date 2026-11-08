@@ -5985,6 +5985,8 @@ def _tail_filter(rows, heat=None, zt_names=None):
         s['_clv'] = None
         s['_shadow'] = None
         s['_zn60'] = None
+        s['_gap'] = None      # 断板天数（v7.6）
+        s['_vrr'] = None      # 今日量/涨停日均量（v7.6）
         pending.append(s)
     # —— 并发拉 K 线（每只 1 次 25 根请求，MA5 用后5/前5根、近5日用 arr[-6] 基准）——
     def _kline_fetch(s):
@@ -6038,6 +6040,23 @@ def _tail_filter(rows, heat=None, zt_names=None):
                     s['_zn60'] = _n60
                 except Exception:
                     s['_zn60'] = None
+                try:
+                    # 断板天数 gap + 涨停量能比 vrr（v7.6 落地，2026-11-08 池内 A/B 定盘）：
+                    # gap=最近一次涨停（不含今日）距今几个交易日，1=昨天刚涨停今天断板；vrr=今日成交量 / 近60日涨停日均量。
+                    # 这两个只做 B 轨打分档位、绝不做闸门：硬闸实测把 B 池砍到 5.0%，卡面精确率反而掉到 5.05~5.28%，
+                    # 因为 B 席空出来的位置只能由精确率更低的 A 轨补位。
+                    _zr = 1.194 if str(s.get('code') or '').startswith('300') else 1.094
+                    _c60 = [float(x[2]) for x in arr[-61:-1]]
+                    _v60 = [float(x[5]) for x in arr[-61:-1]]
+                    _zts = [_i for _i in range(1, len(_c60))
+                            if _c60[_i - 1] > 0 and _c60[_i] / _c60[_i - 1] >= _zr]
+                    s['_gap'] = ((len(_c60) - 1) - _zts[-1] + 1) if _zts else None
+                    if _zts:
+                        _av = sum(_v60[_i] for _i in _zts) / float(len(_zts))
+                        _tv = float(arr[-1][5] or 0)
+                        s['_vrr'] = round(_tv / _av, 2) if (_av > 0 and _tv > 0) else None
+                except Exception:
+                    pass
                 try:
                     _hi = float(s.get('hi') or 0) or float(arr[-1][3])
                     _lo = float(s.get('lo') or 0) or float(arr[-1][4])
@@ -6256,6 +6275,25 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
                 sc += (0 if _x < 2.0 else 2 if _x < 4.0 else 8)
             else:
                 sc += (0 if _x < 1.0 else 2 if _x < 2.0 else 4 if _x < 4.0 else 6)
+        except Exception:
+            pass
+    # 断板天数 gap（v7.6）：B 轨最近一次涨停距今几天。3 日最好（二启在途、还没走完），1 日反而一般
+    # （昨天刚断板今天反抽多是自救），>=4 日说明那波资金基本走完了。打分叠加实测：卡面 7.30%→7.38%
+    # （前 7.14/后 7.62）、top10 6.60%→7.14%（前 6.81/后 7.46），前后两段同向。
+    _gp = s.get('_gap')
+    if _gp is not None and _track == 'B':
+        try:
+            _g = int(_gp)
+            sc += (5 if _g == 3 else 3 if _g == 2 else 0 if _g == 1 else -3)
+        except Exception:
+            pass
+    # 涨停量能比 vrr（v7.6）：今日量 / 近60日涨停日均量。>=2 说明今天量能盖过前几次涨停，是真资金在接；
+    # <0.8 是缩量假突破。同一 A/B：与 gap 叠加后卡面 7.30%→7.38%、top10 6.60%→7.14%。
+    _vr = s.get('_vrr')
+    if _vr is not None and _track == 'B':
+        try:
+            _v2 = float(_vr)
+            sc += (6 if _v2 >= 2.0 else 2 if _v2 >= 1.2 else 0 if _v2 >= 0.8 else -5)
         except Exception:
             pass
     # 趋势强度 18（无MA20）：MA5向上 12 + 当日价站上当日均价(VWAP) 6；K线失败半补
@@ -6573,7 +6611,8 @@ def build_tail(title='尾盘竞价筛选'):
     """尾盘竞价筛选（14:55-14:58 独立卡，不复用早盘 build_auction 语义）：
     当日实时盘面（新浪 hs_a 涨幅榜+腾讯补量比/换手/总市值）→ 尾盘 v2 硬过滤（涨幅2.5-8.5/量比≥2/换手≥2.5/MA20/近5日约束/量能真实性）→
     尾盘 v2 打分（量价趋势×0.75+题材×0.25−风险）→ TOP10，LLM 尾盘深挖（暗线+量能真实性+趋势干净度+次日竞价预期）。
-    席位随情绪分档（v7.5）：弱情绪日 5 席（B4+A1）、中/强 10 席（9B+1A）。
+    席位随情绪分档（v7.5）：弱情绪日 5 席（B4+A1）、中/强 10 席（9B+1A）；
+    情绪迁移（v7.6）：昨日中/强今日转弱只出 3 席（B2+A1）；打分另含断板天数 gap 与涨停量能比 vrr 两个 B 轨档位。
     失败仅兜底数据事实行，无规则模板句。"""
     # 数据：尾盘独立拉取当日涨幅榜（覆盖 2.5~8.5% 强票区间，动态翻页）
     rows_all = None
@@ -6718,9 +6757,21 @@ def build_tail(title='尾盘竞价筛选'):
     # 弱档(<=53家) 卡面 top1 9.88% / top5 6.52% / top10 4.93%；中档(54~86) top10 6.46%；
     # 强档(>86) top1 17.81% / top10 11.10%。弱情绪日第 6~10 席基本是噪声（后 5 席约 3.3%），
     # 只出 5 席（B4+A1）把噪声席位砍掉；中/强档维持 9B+1A 十席。涨停家数取不到（0）按中性处理，不缩席。
+    # 情绪迁移（v7.6）：昨日档 → 今日档。样本内实测「前中→今弱」3.33%、「前强→今弱」3.18%，是所有迁移组合里最差的，
+    # 这种连续退潮日只出 3 席（B2+A1）；昨日档从 tools/data/tail_mood.json 读，取不到或超过 3 天就不缩席。
+    _pmb = None
+    _mood_state = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'tail_mood.json')
+    try:
+        _ps = json.load(open(_mood_state, encoding='utf-8'))
+        _plu = int(_ps.get('lu') or 0)
+        _pts = float(_ps.get('ts') or 0)
+        if _plu > 0 and (time.time() - _pts) < 3 * 86400:
+            _pmb = 0 if _plu <= 53 else (1 if _plu <= 86 else 2)
+    except Exception:
+        _pmb = None
     _mband = 1 if _lu <= 0 else (0 if _lu <= 53 else (1 if _lu <= 86 else 2))
     _mood_nm = ('弱', '中', '强')[_mband]
-    _qB, _qA = (4, 1) if _mband == 0 else (9, 1)
+    _qB, _qA = ((2, 1) if _pmb in (1, 2) else (4, 1)) if _mband == 0 else (9, 1)
     _qcap = _qB + _qA
     tops = _bpool[:_qB] + _apool[:_qA]
     if len(tops) < _qcap:
@@ -6829,8 +6880,20 @@ def build_tail(title='尾盘竞价筛选'):
     # v7.5 情绪行（只陈述当日涨停家数与档位，弱档说明为何只出 5 席）
     _mood_row = ''
     if _lu > 0:
-        _mood_extra = ('，弱档只出前 5 席（历史同档前 5 席次日首板 6.52%、第 6~10 席约 3.3%）' if _mband == 0 else '')
+        if _mband == 0 and _pmb in (1, 2):
+            _mood_extra = '，昨日情绪中/强今日转弱（历史同档次日首板仅 3.3%），只出 3 席'
+        elif _mband == 0:
+            _mood_extra = '，弱档只出前 5 席（历史同档前 5 席次日首板 6.52%、第 6~10 席约 3.3%）'
+        else:
+            _mood_extra = ''
         _mood_row = (f'<div style="margin:4px 0;font-size:12px;color:#9aa4b2;">🌡️ 今日全市场涨停 {_lu} 家，情绪{_mood_nm}{_mood_extra}</div>')
+    # 记录当日涨停家数供次日判断情绪迁移（运行时态文件，不进仓库）
+    if _lu > 0:
+        try:
+            os.makedirs(os.path.dirname(_mood_state), exist_ok=True)
+            json.dump({'lu': int(_lu), 'ts': time.time()}, open(_mood_state, 'w', encoding='utf-8'))
+        except Exception:
+            pass
     _mkt_sum = ''
     if ds_overall:
         _mkt_sum = f'<div style="margin:4px 0;font-size:13px;background:#1a2029;border-left:3px solid {GOLD};border-radius:8px;padding:6px 10px;">🌍 大盘实时：{_mkt_ctx}</div>'
@@ -6948,9 +7011,13 @@ def build_cycle(title='多周期视角研判'):
     _bq.sort(key=lambda x: (-min(3, int(x.get('_zt_n') or 0)), -float(x.get('score') or 0)))
     _aq = [s for s in cands if s.get('track') != 'B']
     _aq.sort(key=lambda x: -float(x.get('score') or 0))
-    _bp = _bq[:9]
-    _ap = _aq[:1]
-    cands = _bp + _ap
+    # v7.6 周期卡席位跟情绪分档（与尾盘卡同口径）：弱情绪日 5 席（B4+A1）、中/强 10 席（9B+1A）
+    _clu = int(d.get('lu') or 0)
+    _cmb = 1 if _clu <= 0 else (0 if _clu <= 53 else (1 if _clu <= 86 else 2))
+    _cqB, _cqA = (4, 1) if _cmb == 0 else (9, 1)
+    _bp = _bq[:_cqB]
+    _ap = _aq[:_cqA]
+    cands = (_bp + _ap)[:_cqB + _cqA]
     groups = {}
     order = ['超短线（1-3日）', '短线（3-10日）', '中长线（1-6月）', '长线（6月+）', '短线观察']
     deep_stocks = []
