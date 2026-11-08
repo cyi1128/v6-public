@@ -1,4 +1,52 @@
 {
+ "2026-11-09": {
+  "光伏设备": {
+   "leaders": [
+    "永臻股份",
+    "贝特利",
+    "安彩高科"
+   ],
+   "reason": "3只涨停·龙头永臻股份",
+   "strength": 10,
+   "max_lbc": 4,
+   "fbt": 92501,
+   "divergence": false
+  },
+  "电力": {
+   "leaders": [
+    "新能股份",
+    "立新能源",
+    "东方新能"
+   ],
+   "reason": "3只涨停·龙头新能股份",
+   "strength": 9,
+   "max_lbc": 1,
+   "fbt": 93136,
+   "divergence": false
+  },
+  "纺织制造": {
+   "leaders": [
+    "浙文影业",
+    "华升股份"
+   ],
+   "reason": "2只涨停·龙头浙文影业",
+   "strength": 10,
+   "max_lbc": 5,
+   "fbt": 92501,
+   "divergence": false
+  },
+  "种植业": {
+   "leaders": [
+    "万向德农",
+    "新赛股份"
+   ],
+   "reason": "2只涨停·龙头万向德农",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93628,
+   "divergence": false
+  }
+ },
  "2026-11-08": {
   "光伏设备": {
    "leaders": [
@@ -703,102 +751,6 @@
    "strength": 8,
    "max_lbc": 1,
    "fbt": 93342,
-   "divergence": false
-  }
- },
- "2026-10-28": {
-  "汽车零部": {
-   "leaders": [
-    "襄阳轴承",
-    "光洋股份",
-    "凯众股份"
-   ],
-   "reason": "11只涨停·龙头襄阳轴承",
-   "strength": 10,
-   "max_lbc": 5,
-   "fbt": 93215,
-   "divergence": false
-  },
-  "通用设备": {
-   "leaders": [
-    "宁波东力",
-    "五洲新春",
-    "神驰机电"
-   ],
-   "reason": "8只涨停·龙头宁波东力",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 93139,
-   "divergence": false
-  },
-  "专用设备": {
-   "leaders": [
-    "江顺科技",
-    "山东矿机",
-    "大丰实业"
-   ],
-   "reason": "5只涨停·龙头江顺科技",
-   "strength": 10,
-   "max_lbc": 2,
-   "fbt": 110539,
-   "divergence": false
-  },
-  "元件": {
-   "leaders": [
-    "金安国纪",
-    "方正科技",
-    "世运电路"
-   ],
-   "reason": "3只涨停·龙头金安国纪",
-   "strength": 9,
-   "max_lbc": 1,
-   "fbt": 92500,
-   "divergence": false
-  },
-  "半导体": {
-   "leaders": [
-    "富瀚微",
-    "必易微",
-    "金海通"
-   ],
-   "reason": "3只涨停·龙头富瀚微",
-   "strength": 9,
-   "max_lbc": 1,
-   "fbt": 93239,
-   "divergence": false
-  },
-  "化学制品": {
-   "leaders": [
-    "中欣氟材",
-    "福莱蒽特",
-    "宏柏新材"
-   ],
-   "reason": "3只涨停·龙头中欣氟材",
-   "strength": 9,
-   "max_lbc": 1,
-   "fbt": 102248,
-   "divergence": false
-  },
-  "电网设备": {
-   "leaders": [
-    "长城科技",
-    "长缆科技"
-   ],
-   "reason": "2只涨停·龙头长城科技",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 93005,
-   "divergence": false
-  },
-  "家电零部": {
-   "leaders": [
-    "东贝集团",
-    "振邦智能"
-   ],
-   "reason": "2只涨停·龙头东贝集团",
-   "strength": 9,
-   "max_lbc": 2,
-   "fbt": 93017,
    "divergence": false
   }
  }
