@@ -5852,15 +5852,60 @@ def _tail_qt_fill(rows):
     return rows
 
 
+def _tail_flow_fill(rows, max_workers=10):
+    """v5 新增因子：当日主力资金净流入占比（%）= 东财分时资金流累计主力净流入 / 当日成交额。
+
+    取数：push2.eastmoney.com/api/qt/stock/fflow/kline/get?klt=1（09:31 起逐分钟累计），
+    取 klines[-1] 第 2 字段 = 截至当前的主力净流入（元），除以新浪涨幅榜给的 amount（元）。
+    这个口径与东财日线 fflow 的 f57「主力净流入占比」一致，因此可以拿来做回测外推：
+      P(涨停|主力占比>=15%)=21.77%、8~15%=11.57%、0~3%=10.09%、-3~0%=7.68%（基准 10.61%）。
+    失败一律留 None，打分时中性处理——绝不编数、绝不因取不到就扣分。"""
+    def _one(s):
+        try:
+            secid = ('1.' if s['code'].startswith('6') else '0.') + s['code']
+            url = ('https://push2.eastmoney.com/api/qt/stock/fflow/kline/get?secid=%s'
+                   '&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56&klt=1&lmt=0' % secid)
+            txt, ok = _getm(url, 'tail_flow', timeout=10)
+            if not ok or not txt:
+                return
+            js = json.loads(txt)
+            kl = ((js.get('data') or {}).get('klines') or [])
+            if not kl:
+                return
+            amt = float(s.get('amount') or 0)
+            if amt <= 0:
+                return
+            parts = kl[-1].split(',')
+            if len(parts) < 2:
+                return
+            main_net = float(parts[1])
+            s['_flow'] = round(main_net / amt * 100.0, 2)
+            s['_flow_amt'] = main_net
+        except Exception:
+            return
+    if not rows:
+        return rows
+    try:
+        with ThreadPoolExecutor(max_workers=max_workers) as _ex:
+            list(_ex.map(_one, rows))
+    except Exception:
+        pass
+    _ok = sum(1 for s in rows if s.get('_flow') is not None)
+    print('[tail] 资金流：%d/%d 只取到主力净流入占比' % (_ok, len(rows)))
+    return rows
+
+
 def _tail_filter(rows, heat=None, zt_names=None):
-    """尾盘硬过滤（v4「买在涨停前」版，用户核心诉求=不要接飞刀）：
+    """尾盘硬过滤（v5「买在涨停前」版，用户核心诉求=不要接飞刀、但要真正抓到涨停前夜）：
     仅沪深主板+创业板；剔除ST/退市、次新(<365天)；当日涨幅 2.5~8.5%（还在路上、没封板）；
-    量比>=2.0；换手>=2.5%；量能真实性二选一：量比>=2.5 或(量比>=2.0 且换手>=4%)。
-    **四道位置硬闸（v4 新增，全部靠日K自证，不依赖外部历史接口）**：
-      ①近年6个交易日有过涨停(主板>=9.4%/创业板>=19.4%) → 剔除（连板、昨日涨停一律不推）；
-      ②距60日最高收盘回撤 <10% → 剔除（贴前高/创新高不追，这是「接飞刀」的根源）；
-      ③近5日涨幅 >12% → 剔除（题材热度>=70 且属当日最强主线放宽至 15%）；
+    量比>=1.3（v5 由 2.0 下调）；换手>=2.5%；量能真实性二选一：量比>=2.0 或(量比>=1.3 且换手>=3%)。
+    **四道位置硬闸（v5 调整第③道）**：
+      ①近5个交易日有过涨停(主板>=9.4%/创业板>=19.4%) → 剔除（连板、昨日涨停一律不推）；
+      ②近5日涨幅 >12% → 剔除（题材热度>=70 且属当日最强主线放宽至 15%）；
+      ③贴前高改「双高才杀」：距60日最高收盘>-10% **且** 近5日涨幅>12% 才剔除（v5）；
       ④K线拉取失败 → 剔除（v3 的「失败放行」会让近5日/位置约束整体失效，已废除）。
+    v5 改动的回测依据见 _tail_filter 内注释：量比 2.0 只放过 9.5% 的真首板前形态，
+    位置闸单用误杀 22.1% 且贴前高组命中率反而是距高-20~-10 的 2 倍。
     不设市值硬限制、不设 MA20 硬门槛（趋势由打分层的 MA5/当日均价代理）。
     过滤阶段缓存 _ma5_up/_chg5/_pos60/_zt_n 供 _tail_score_v2 复用。"""
     out = []
@@ -5899,16 +5944,18 @@ def _tail_filter(rows, heat=None, zt_names=None):
             if not (2.5 <= pct <= 8.5):
                 continue
             lb = float(s['lb'] or 0)
-            if lb < 2.0:
+            # v5：量比门槛 2.0→1.3。回测 727 个真首板前一日，量比中位仅 1.05、P75 仅 1.38，
+            # 原 2.0 门槛只放过 9.5% 的真涨停前形态（90.5% 被误杀），是最大的一处漏网。
+            if lb < 1.3:
                 continue
             turn = float(s['turn'] or 0)
             if turn < 2.5:
                 continue
         except Exception:
             continue
-        # 量能真实性二选一：量比>=2.5 或(量比>=2.0 且换手>=4%)（在量比>=2.0 硬条件之上）
+        # 量能真实性二选一：量比>=2.0 或(量比>=1.3 且换手>=3.0%)（随 v5 门槛同步下调）
         try:
-            if not (lb >= 2.5 or (lb >= 2.0 and turn >= 4.0)):
+            if not (lb >= 2.0 or (lb >= 1.3 and turn >= 3.0)):
                 continue
         except Exception:
             continue
@@ -5960,26 +6007,29 @@ def _tail_filter(rows, heat=None, zt_names=None):
         # ②近5个交易日涨停过 → 已经在板上，不推（连板、昨日涨停一律不推）
         if int(s.get('_zt_n') or 0) >= 1:
             continue
-        # ③贴前高/创新高不追：距60日最高收盘至少留 10% 空间
-        p60 = s.get('_pos60')
-        if p60 is not None and p60 > -10.0:
-            continue
-        # ④近5日涨幅：<=12%；题材热度>=70 且属当日最强主线时放宽至 15%
+        # ③近5日涨幅上限：<=12%；题材热度>=70 且属当日最强主线时放宽至 15%
         chg5 = s.get('_chg5')
+        limit5 = 12.0
         if chg5 is not None:
-            limit5 = 15.0
             try:
                 ind = _sec_clean(s['industry']) or '其他'
-                if not ((heat or {}).get(ind, 0) >= 70 and (zt_names and ind in zt_names)):
-                    limit5 = 12.0
+                if (heat or {}).get(ind, 0) >= 70 and (zt_names and ind in zt_names):
+                    limit5 = 15.0
             except Exception:
                 limit5 = 12.0
             if chg5 > limit5:
                 continue
+        # ④贴前高改「双高才杀」：距60日最高收盘>-10% 且 近5日涨幅>12% 才剔除。
+        #   回测依据：单用位置闸误杀真首板 161/727=22.1%；「涨停过+量比>=2」在贴前高组
+        #   命中率 14.63%(n=1155)，反而高于距高-20~-10 的 7.29%(n=192)，贴前高本身是
+        #   「突破前夜」的强信号，单独砍掉等于把最好的票先筛掉，故改为双高才杀。
+        p60 = s.get('_pos60')
+        if p60 is not None and p60 > -10.0 and (chg5 is not None and chg5 > 12.0):
+            continue
         out.append(s)
     if pending and _kfail / float(len(pending)) >= 0.30:
         print('[tail] K线失败 %d/%d，位置闸可能偏严（数据源异常）' % (_kfail, len(pending)))
-    print('[tail] v4过滤：进 %d / 待判 %d（剔除涨停过/贴前高/近5日超限/K线失败）'
+    print('[tail] v5过滤：进 %d / 待判 %d（剔除涨停过/双高超限/近5日超限/K线失败）'
           % (len(out), len(pending)))
     return out
 
@@ -6009,7 +6059,10 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
         sc += 8
     try:
         lb = float(s['lb'] or 0)
-        sc += 25 if lb >= 4.0 else (18 if lb >= 3.0 else (10 if lb >= 2.0 else 0))
+        # v5 量比档随门槛 1.3 重排：1.3~1.6=4、1.6~2.0=9 是「温和放量启动」的基础分，
+        # 2.0 以上才给强分（回测：量比>=2 命中率 10.17%，1.05~1.4 只有 4.32%）
+        sc += (28 if lb >= 4.0 else 22 if lb >= 3.0 else 16 if lb >= 2.0
+               else (9 if lb >= 1.6 else 4))
     except Exception:
         pass
     try:
@@ -6084,6 +6137,28 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
                 total += 6.0
             elif _p60 <= -18.0:
                 total += 3.0
+    except Exception:
+        pass
+    # v5 新增：主力资金净流入占比加分。回测 7754 样本/基准 10.61%：
+    #   >=15%=21.77%、8~15%=11.57%、3~8%=11.27%、0~3%=10.09%、-3~0%=7.68%、<=-3%=8.3%
+    # 取不到（None）一律不加不减，不做假数据。
+    fr = s.get('_flow')
+    if fr is not None:
+        try:
+            fr = float(fr)
+            total += (14.0 if fr >= 15.0 else
+                      9.0 if fr >= 8.0 else
+                      4.0 if fr >= 3.0 else
+                      1.0 if fr >= 0 else
+                      -2.0 if fr >= -3.0 else -6.0)
+        except Exception:
+            pass
+    # v5 新增：贴前高（突破前夜）加分。回测「涨停过+量比>=2」在距高>-10% 组命中率 14.63%
+    # (n=1155)，是距高-20~-10 组 7.29%(n=192) 的两倍，位置越贴前高说明上方套牢越少。
+    try:
+        _p60b = s.get('_pos60')
+        if _p60b is not None and _p60b > -10.0:
+            total += 4.0
     except Exception:
         pass
     return round(total, 1)
@@ -6343,6 +6418,8 @@ def build_tail(title='尾盘竞价筛选'):
     heat, cnt = _theme_heat(cands)
     mem = load_memory()
     _calc_resonance(cands, heat, cnt, mem, is_tail=True)
+    # v5 新增因子：主力资金净流入占比（只对已过滤候选取数，避免全市场打接口）
+    cands = _tail_flow_fill(cands)
     # 昨日资金面（龙虎榜）：机构真买加分、机构净卖与一日游/拉萨帮席位减分
     _lhb_day, _lhb_map = '', {}
     try:
@@ -6461,6 +6538,7 @@ def build_tail(title='尾盘竞价筛选'):
 <div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分</span></div>
 <div style="color:{GREY};font-size:12px;">尾盘当日涨幅 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 换手 {s['turn']:.1f}% ｜ 市值 {s.get('mv',0):.0f}亿{(' ｜ 行业：' + str(s['industry'])) if str(s.get('industry') or '').strip() not in ('', '其他') else ''}</div>
 <div style="color:#8bd3c7;font-size:12px;margin-top:2px;">📉 位置：{('距60日高 ' + ('%.1f%%' % s['_pos60'])) if s.get('_pos60') is not None else '前高未取得'}，近5个交易日没涨停过，这一档不是在上板途中接的</div>
+{('<div style="color:#8fd3ff;font-size:12px;margin-top:2px;">💰 主力资金：当日净流入占成交额 ' + ('%+.2f%%' % s['_flow']) + '（' + ('净流入' if s['_flow'] >= 0 else '净流出') + ('%.2f亿' % (abs(s.get('_flow_amt') or 0) / 1e8)) + '）</div>') if s.get('_flow') is not None else ''}
 {('<div style="color:#ffd43b;font-size:12px;margin-top:2px;">🏦 资金面：' + s['_lhb_txt'] + '</div>') if s.get('_lhb_txt') else ''}
 {('<div style="color:#bfd7ff;font-size:12px;margin-top:2px;">📰 消息面：' + s['_news_txt'] + '</div>') if s.get('_news_txt') else ''}
 {_cyc_html}
