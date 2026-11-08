@@ -5853,6 +5853,7 @@ def _tail_qt_fill(rows):
                             r['hi'] = float(f[33] or 0)
                             r['lo'] = float(f[34] or 0)
                             r['prev'] = float(f[4] or 0)
+                            r['opn'] = float(f[5] or 0)
                             break
                 except Exception:
                     pass
@@ -5979,6 +5980,7 @@ def _tail_filter(rows, heat=None, zt_names=None):
         s['_vt'] = None
         s['_amp'] = None
         s['_clv'] = None
+        s['_shadow'] = None
         pending.append(s)
     # —— 并发拉 K 线（每只 1 次 25 根请求，MA5 用后5/前5根、近5日用 arr[-6] 基准）——
     def _kline_fetch(s):
@@ -6026,6 +6028,11 @@ def _tail_filter(rows, heat=None, zt_names=None):
                     if _hi > _lo and _pv > 0:
                         s['_amp'] = round((_hi - _lo) / _pv * 100, 2)
                         s['_clv'] = round((float(s['price']) - _lo) / (_hi - _lo) * 100, 1)
+                        # ④上影线 shadow=(今高-实体上沿)/昨收：池内单调递增——
+                        #   A轨 ≥4% 3.63%（<1% 仅 1.37%），B轨 ≥4% 9.34%（<2% 5.0~5.8%）。
+                        #   冲高回落的票次日封板率更高，因为当日上方抛压已经被洗过一遍，不是「收在最高」那种透支结构。
+                        _op = float(s.get('opn') or 0) or float(arr[-1][1])
+                        s['_shadow'] = round((_hi - max(_op, float(s['price']))) / _pv * 100, 2)
                 except Exception:
                     pass
         except Exception:
@@ -6109,9 +6116,10 @@ def _tail_filter(rows, heat=None, zt_names=None):
     # 新因子（振幅/收盘位置/量能趋势）覆盖率：缺字段就不参与打分，不编造，这里留痕便于排查数据源
     _c_amp = sum(1 for s in out if s.get('_amp') is not None)
     _c_vt = sum(1 for s in out if s.get('_vt') is not None)
-    print('[tail] 新因子覆盖：振幅 %d/%d、量能趋势 %d/%d、收盘位置 %d/%d'
+    print('[tail] 新因子覆盖：振幅 %d/%d、量能趋势 %d/%d、收盘位置 %d/%d、上影线 %d/%d'
           % (_c_amp, len(out), _c_vt, len(out),
-             sum(1 for s in out if s.get('_clv') is not None), len(out)))
+             sum(1 for s in out if s.get('_clv') is not None),
+             sum(1 for s in out if s.get('_shadow') is not None), len(out)))
     return out
 
 
@@ -6201,6 +6209,18 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
                 sc += (6 if _v >= 1.5 else 3 if _v >= 1.2 else 0)
             else:
                 sc += (2 if _v >= 1.5 else -2 if _v >= 1.0 else 2 if _v >= 0.8 else 0)
+        except Exception:
+            pass
+    # 上影线（v7.3）：当日冲高回落的长度。池内 A 轨 >=4% 3.63% vs <1% 1.37%，B 轨 >=4% 9.34% vs 5.0~5.8%，
+    # 两段同向；A 轨三个新因子之上再叠它，top10 6.07%→6.93%、top1 11.48%→13.11%（池 8549/日均 28.6）。
+    _sh = s.get('_shadow')
+    if _sh is not None:
+        try:
+            _x = float(_sh)
+            if _track == 'B':
+                sc += (0 if _x < 2.0 else 2 if _x < 4.0 else 8)
+            else:
+                sc += (0 if _x < 1.0 else 2 if _x < 2.0 else 4 if _x < 4.0 else 6)
         except Exception:
             pass
     # 趋势强度 18（无MA20）：MA5向上 12 + 当日价站上当日均价(VWAP) 6；K线失败半补
