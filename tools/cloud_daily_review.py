@@ -5690,13 +5690,14 @@ def build_auction(title='竞价观察'):
                 return '强', TEAL
             return '中', GOLD
         _t3 = []
+        _dark_any = any(((ds_map or {}).get(s_['name']) or {}).get('dark') for s_ in tops[:3])
         for i, s_ in enumerate(tops[:3], 1):
             _a, _col = _quick_act(s_)
             _d3 = (ds_map or {}).get(s_['name']) or {}
             _dark_txt = (f'｜🔍暗线:{_d3.get("dark","")}' if _d3.get('dark') else '')
             _t3.append(f'<b style="color:{_col}">{i}.{s_["name"]} {_a}</b>{_dark_txt}')
         top3_txt = (f'<div style="margin-top:10px;padding:9px 11px;background:#1c2830;border-left:4px solid #a78bfa;'
-                    f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 Top3 速判（小白版·含暗线）：</b>'
+                    f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 Top3 速判（小白版{"·含暗线" if _dark_any else ""}）：</b>'
                     + ('<br>'.join(_t3) if _t3 else '—')
                     + '</div>')
     try:
@@ -6863,13 +6864,14 @@ def build_tail(title='尾盘竞价筛选'):
                 return '强', TEAL
             return '中', GOLD
         _t3 = []
+        _dark_any = any((ds_map.get(s_['name']) or {}).get('dark') for s_ in tops[:3])
         for i, s_ in enumerate(tops[:3], 1):
             _a, _col = _quick_act_tail(s_)
             _d3 = ds_map.get(s_['name']) or {}
             _dark_txt = (f'｜🔍暗线:{_d3.get("dark","")}' if _d3.get('dark') else '')
             _t3.append(f'<b style="color:{_col}">{i}.{s_["name"]} {_a}</b>{_dark_txt}')
         top3_txt = (f'<div style="margin-top:10px;padding:9px 11px;background:#1c2830;border-left:4px solid #a78bfa;'
-                    f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 尾盘 Top3 速判（含暗线）：</b>'
+                    f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 尾盘 Top3 速判{"（含暗线）" if _dark_any else ""}：</b>'
                     + ('<br>'.join(_t3) if _t3 else '—')
                     + '</div>')
     # 行业/题材风向（最强/最弱暗线原因）
