@@ -6573,6 +6573,7 @@ def build_tail(title='尾盘竞价筛选'):
     """尾盘竞价筛选（14:55-14:58 独立卡，不复用早盘 build_auction 语义）：
     当日实时盘面（新浪 hs_a 涨幅榜+腾讯补量比/换手/总市值）→ 尾盘 v2 硬过滤（涨幅2.5-8.5/量比≥2/换手≥2.5/MA20/近5日约束/量能真实性）→
     尾盘 v2 打分（量价趋势×0.75+题材×0.25−风险）→ TOP10，LLM 尾盘深挖（暗线+量能真实性+趋势干净度+次日竞价预期）。
+    席位随情绪分档（v7.5）：弱情绪日 5 席（B4+A1）、中/强 10 席（9B+1A）。
     失败仅兜底数据事实行，无规则模板句。"""
     # 数据：尾盘独立拉取当日涨幅榜（覆盖 2.5~8.5% 强票区间，动态翻页）
     rows_all = None
@@ -6712,10 +6713,19 @@ def build_tail(title='尾盘竞价筛选'):
     _apool.sort(key=lambda x: -float(x.get('score') or 0))
     # 卡面排序与配额同序：B 轨整体排在 A 轨前面（B 精确率是 A 的 2.7 倍），B 内部再按连板次数分层、
     # 层内按分数；A 轨按分数。这样 1~9 号位是二波、第 10 位是低吸首板，用户一眼就知道先看哪几行。
-    tops = _bpool[:9] + _apool[:1]
-    if len(tops) < AUCTION_TOP_N:
-        tops += (_bpool[9:] + _apool[1:])[:AUCTION_TOP_N - len(tops)]
-    tops = sorted(tops[:AUCTION_TOP_N], key=lambda x: (
+    # v7.5 情绪分档席位（2026-11-08 大样本回测）：卡面精确率随「当日全市场涨停家数」强相关。
+    # 718 只无偏样本（占全 A 4941 只 14.5%）的四分位是 8/13 家，折算全市场 55/90 家：
+    # 弱档(<=55家) 卡面 top1 9.88% / top5 6.52% / top10 4.93%；中档(56~90) top10 6.46%；
+    # 强档(>90) top1 17.81% / top10 11.10%。弱情绪日第 6~10 席基本是噪声（后 5 席约 3.3%），
+    # 只出 5 席（B4+A1）把噪声席位砍掉；中/强档维持 9B+1A 十席。涨停家数取不到（0）按中性处理，不缩席。
+    _mband = 1 if _lu <= 0 else (0 if _lu <= 55 else (1 if _lu <= 90 else 2))
+    _mood_nm = ('弱', '中', '强')[_mband]
+    _qB, _qA = (4, 1) if _mband == 0 else (9, 1)
+    _qcap = _qB + _qA
+    tops = _bpool[:_qB] + _apool[:_qA]
+    if len(tops) < _qcap:
+        tops += (_bpool[_qB:] + _apool[_qA:])[:_qcap - len(tops)]
+    tops = sorted(tops[:_qcap], key=lambda x: (
         0 if x.get('track') == 'B' else 1,
         -min(3, int(x.get('_zt_n') or 0)),
         -float(x.get('score') or 0)))
@@ -6816,6 +6826,11 @@ def build_tail(title='尾盘竞价筛选'):
     wind = ((f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🌬️ 行业/题材风向</div>{_ws}{_ww}')
             if (_ws or _ww) else '')
     # 大盘实时确认（结合大盘总结）
+    # v7.5 情绪行（只陈述当日涨停家数与档位，弱档说明为何只出 5 席）
+    _mood_row = ''
+    if _lu > 0:
+        _mood_extra = ('，弱档只出前 5 席（历史同档前 5 席次日首板 6.52%、第 6~10 席约 3.3%）' if _mband == 0 else '')
+        _mood_row = (f'<div style="margin:4px 0;font-size:12px;color:#9aa4b2;">🌡️ 今日全市场涨停 {_lu} 家，情绪{_mood_nm}{_mood_extra}</div>')
     _mkt_sum = ''
     if ds_overall:
         _mkt_sum = f'<div style="margin:4px 0;font-size:13px;background:#1a2029;border-left:3px solid {GOLD};border-radius:8px;padding:6px 10px;">🌍 大盘实时：{_mkt_ctx}</div>'
@@ -6827,8 +6842,8 @@ def build_tail(title='尾盘竞价筛选'):
     _v2_note = ''
     _tail_note = ''
     emotion_t = _emotion_from_pools(d)
-    inner = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 尾盘竞价筛选 TOP{AUCTION_TOP_N}（双轨并进·资金面确认·买在涨停前 A低吸{sum(1 for s in tops if s.get("track") != "B")}只 / B二波{sum(1 for s in tops if s.get("track") == "B")}只）</div>'
-             + top3_txt + _confirm_block + wind + _cap_advice_row
+    inner = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 尾盘竞价筛选 TOP{_qcap}（双轨并进·资金面确认·买在涨停前 A低吸{sum(1 for s in tops if s.get("track") != "B")}只 / B二波{sum(1 for s in tops if s.get("track") == "B")}只·今日涨停{_lu}家情绪{_mood_nm}）</div>'
+             + top3_txt + _mood_row + _confirm_block + wind + _cap_advice_row
              + pos_cap_line(emotion_t, None) + _v2_note + _tail_note)
     return _wrap(inner, '🔔', title, show_reson=False)
 
