@@ -7964,7 +7964,7 @@ def _eod_fallback_html(scored, tpool):
 
 def _eod_elite_pick(scored, tpool):
     """v7.9x 收盘复盘·量化入榜：模型只讲板块，个股由代码按实测因子判定。
-    五闸 = 量比 ≥1.5 / 换手 ≥4.5% / 涨幅 ≤8.5% / 收盘位置 ≥50% / 未封板；
+    五闸 = 量比 ≥1.5 / 换手 ≥4.5% / 涨幅 ≤7%（不追 7%+）/ 收盘位置 ≥50% / 未封板；
     全过最多 3 只，不足则四闸补位最多 2 只并橙字点名差哪一闸，只过三闸写明差在哪。"""
     _cands = []
     for s in (tpool or []):
@@ -8002,11 +8002,14 @@ def _eod_elite_pick(scored, tpool):
         _best = (_hard_ok or _cands)[0] if _cands else None
         if _best:
             _miss = '、'.join('%s %s(%s)' % (n, v, th) for n, v, ok, th in _best[2] if not ok)
+            print('[eod] 量化入榜：0 只（三闸以下），最靠前 %s %s 差 %s'
+                  % (_best[1].get('name') or '', _best[1].get('code') or '', _miss))
             return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:%s;">【明日精选·量化入榜】</div>'
                     '<div style="background:#232a3a;border-left:4px solid %s;border-radius:10px;padding:10px 12px;'
                     'font-size:13px;line-height:1.8;color:#e2e8f0;">今天没有一只票过三闸，'
                     '最靠前的是 %s %s，差在 %s。宁可不做，不做不对。</div>'
                     % (GOLD, GREY, _best[1].get('name') or '', _best[1].get('code') or '', _miss))
+        print('[eod] 量化入榜：0 只（可跟踪池为空 %d 行）' % len(tpool or []))
         return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:%s;">【明日精选·量化入榜】</div>'
                 '<div style="background:#232a3a;border-left:4px solid %s;border-radius:10px;padding:10px 12px;'
                 'font-size:13px;color:#e2e8f0;">可跟踪池为空，今天不给票。</div>' % (GOLD, GREY))
@@ -8040,6 +8043,12 @@ def _eod_elite_pick(scored, tpool):
                      % (TEAL if not _bad else '#ff9f43', _head, ' ｜ '.join(_gts), _warn, GOLD,
                         _p * 0.99, _p * 1.01, _p * 0.97))
     _cnt = len(_hard)
+    print('[eod] 量化入榜 %d 只%s：%s'
+          % (_cnt, '（四闸降级）' if _relaxed else '（五闸全过）',
+             '、'.join('%s %s 量比%.2f 换手%.1f%% 涨幅%+.2f%%'
+                      % (c[1].get('name') or '', c[1].get('code') or '',
+                         float(c[1].get('lb') or 0), float(c[1].get('turn') or 0),
+                         float(c[1].get('pct') or 0)) for c in _hard)))
     _tit = '【明日精选·量化入榜】%d 只%s' % (_cnt, '（四闸透明降级）' if _relaxed else '（五闸全过）')
     return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:%s;">%s</div>' % (GOLD, _tit)
             + ''.join(_rows)
