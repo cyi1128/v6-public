@@ -203,16 +203,25 @@ def persist_state(tag: str) -> None:
     if diff.returncode == 0:
         log(f'持久化({tag})：无可提交改动')
         return
+    # CI runner 的 git 身份常常是空的，此时 commit 会直接失败；而 commit 失败后
+    # 再 push 只会得到 "Everything up-to-date"（returncode 仍是 0），于是被误判成
+    # 推送成功——这是「日志写已推送、远端一个字节没变」的真正原因。三处都要收紧。
+    git('config', 'user.email', 'v6-bot@users.noreply.github.com')
+    git('config', 'user.name', 'v6-bot')
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-    git('commit', '-m', f'chore: 状态持久化({tag}) {stamp}')
+    c = git('commit', '-m', f'chore: 状态持久化({tag}) {stamp}')
+    if c.returncode != 0:
+        log(f'持久化({tag})：提交失败 {((c.stderr or c.stdout or "").strip())[:140]}')
+        return
     # 状态写回可能撞上别的 run 刚推的提交，rebase 后重试，最多 3 轮
     for attempt in range(1, 4):
-        r = git('push')
-        if r.returncode == 0:
+        r = git('push', 'origin', 'HEAD:main')
+        out = ((r.stdout or '') + (r.stderr or '')).strip()
+        if r.returncode == 0 and 'Everything up-to-date' not in out:
             log(f'持久化({tag})：已推送')
             return
-        log(f'状态推送失败（第{attempt}次）：{(r.stderr or "").strip()[:160]}')
-        git('pull', '--rebase', '--autostash')
+        log(f'状态推送失败（第{attempt}次）：{out[:160]}')
+        git('pull', '--rebase', '--autostash', 'origin', 'main')
 
 
 # ---------------------------------------------------------------- 状态判定
