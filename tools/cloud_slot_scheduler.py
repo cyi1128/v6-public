@@ -179,11 +179,29 @@ def pull_latest() -> None:
     git('pull', '--rebase', '--autostash')
 
 
+def _flush_log() -> None:
+    """用内存 _LOG_BUF 整体覆写日志文件（它是唯一真源）。"""
+    try:
+        if LOG_TO_FILE:
+            with open(LOG_PATH, 'w', encoding='utf-8') as fh:
+                fh.writelines(_LOG_BUF)
+    except Exception:  # noqa: BLE001  日志落盘失败绝不能影响调度
+        pass
+
+
 def persist_state(tag: str) -> None:
-    """把工具写出的状态文件提交回仓库，保证跨 run 去重一致。"""
+    """把工具写出的状态文件提交回仓库，保证跨 run 去重一致。
+
+    提交前必须先用内存日志重写文件：主程序的 `git pull --rebase --autostash`
+    撞上远端并发的 sched_log 改动时，autostash pop 会失败并把工作区文件退回
+    HEAD 版本（改动留在 stash），此时 add + diff 判定为"无改动"直接返回，
+    「退出原因」「今日缺口」这类关键判定行就永远进不了仓库。
+    """
+    _flush_log()
     git('add', 'tools/data/')
     diff = git('diff', '--cached', '--quiet')
     if diff.returncode == 0:
+        log(f'持久化({tag})：无可提交改动')
         return
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     git('commit', '-m', f'chore: 状态持久化({tag}) {stamp}')
@@ -191,6 +209,7 @@ def persist_state(tag: str) -> None:
     for attempt in range(1, 4):
         r = git('push')
         if r.returncode == 0:
+            log(f'持久化({tag})：已推送')
             return
         log(f'状态推送失败（第{attempt}次）：{(r.stderr or "").strip()[:160]}')
         git('pull', '--rebase', '--autostash')
