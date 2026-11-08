@@ -376,3 +376,13 @@
 08:01:54 [反模板命中:eod] 管住手 (try2)
 08:39:07 [反模板命中:eod] 管住手 (try1)
 08:56:03 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eod_review_ds
+09:12:04 [llm] 总预算用尽 purpose=sec2_deep used=184s
+09:15:08 [llm] 总预算用尽 purpose=sec2_deep used=184s
+09:15:08 [ask_deepseek] ModelScope 两次尝试均失败，purpose=sec2_deep
+09:21:16 [llm] 总预算用尽 purpose=eod used=184s
+09:22:01 [反模板命中:eod] 值得关注/半山腰/管住手 (try2)
+09:25:07 [llm] 总预算用尽 purpose=eod_review_ds used=184s
+09:28:12 [llm] 总预算用尽 purpose=eod_review_ds used=185s
+09:28:12 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eod_review_ds
+09:31:24 [llm] 总预算用尽 purpose=miss_deep used=185s
+09:37:48 [llm] 总预算用尽 purpose=brief_summary_v3 used=184s
