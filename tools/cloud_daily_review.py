@@ -1321,6 +1321,53 @@ def get_news(n=15):
     return []
 
 
+_ANN_NOISE = ['季度报告', '半年度报告', '年度报告', '审计报告', '会议材料', '会议通知',
+              '议事规则', '公司章程', '章程修正案', '募集说明书', '独立董事', '监事会决议',
+              '股东大会决议', '投资者关系活动', '内部控制', '信息披露事务', '董事会决议',
+              '持续督导', '保荐', '专项核查', '问询函回复', '定期报告']
+
+_ANN_BAD = ['减持', '质押', '诉讼', '处罚', '立案', '问询', '退市', '终止', '亏损',
+            '下调', '风险提示', '权益变动', '预亏', '被执行', '冻结']
+
+_ANN_GOOD = ['中标', '签订', '合同', '订单', '增持', '回购', '分红', '派息', '获批',
+             '投产', '量产', '扩产', '收购', '涨价', '提价', '补贴', '进展公告',
+             '项目', '合作协议', '战略合作', '专利']
+
+
+def get_stock_ann(code, days=3):
+    """个股公告（东财 np-anotice，近 days 天）。滤掉定期报告/会议材料等噪音，
+    利好/利空先按公告词表判，判不出再退回 classify_news。返回 [{'t','tag','ann','dt'}]，最多 2 条。"""
+    try:
+        u = ('https://np-anotice-stock.eastmoney.com/api/security/ann?sr=-1&page_size=15'
+             '&page_index=1&ann_type=A&client_source=web&f_node=0&s_node=0&stock_list=' + str(code))
+        rq = urllib.request.Request(u, headers=UA)
+        d = json.loads(urllib.request.urlopen(rq, timeout=6).read().decode('utf-8', 'ignore'))
+        lst = ((d.get('data') or {}).get('list')) or []
+    except Exception:
+        return []
+    _lim = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    out = []
+    for x in lst:
+        _dt = (x.get('notice_date') or '')[:10]
+        _ti = re.sub(r'<[^>]+>', '', (x.get('title') or '')).strip()
+        _ti = re.sub(r'^[^:：]{2,8}[:：]', '', _ti)   # 去掉「股票名:」前缀
+        if not _ti or _dt < _lim:
+            continue
+        if any(k in _ti for k in _ANN_NOISE):
+            continue
+        _tag = ''
+        if any(k in _ti for k in _ANN_BAD):
+            _tag = '利空'
+        elif any(k in _ti for k in _ANN_GOOD):
+            _tag = '利好'
+        else:
+            _tag, _ = classify_news(_ti)
+        out.append({'t': _ti[:46], 'tag': _tag, 'ann': True, 'dt': _dt})
+        if len(out) >= 2:
+            break
+    return out
+
+
 HOT_KW = ['政策', '批复', '规划', '中标', '签约', '重组', '收购', '突破', '首发',
           '业绩', '涨价', '补贴', '降息', '降准', '会议', '印发', '支持', '涨停', '获批']
 
@@ -6695,7 +6742,27 @@ def build_tail(title='尾盘竞价筛选'):
                     _tag, _ = classify_news(_txt)
                     _news_map[_cd] = {'t': (_nw.get('title') or '').strip()[:46], 'tag': _tag}
                     break
-        print('[tail] 消息面：%d/%d 只候选有今日个股消息' % (len(_news_map), len(cands)))
+        # v7.8：全市场快讯一次只 60 条，35 只小票几乎不可能被点名（实测 0/35）；
+        # 改为对未命中的候选并发补查个股公告（近 3 天），公告级的硬催化比快讯更该进卡面。
+        _miss = [s for s in cands
+                 if (s.get('code') or '') and ((s.get('code') or '') not in _news_map)]
+        _ann_n = 0
+        if _miss:
+            def _one_ann(_s):
+                try:
+                    return _s.get('code') or '', get_stock_ann(_s.get('code') or '', 3)
+                except Exception:
+                    return _s.get('code') or '', []
+            try:
+                with ThreadPoolExecutor(max_workers=8) as _ex:
+                    for _cd2, _lst2 in _ex.map(_one_ann, _miss):
+                        if _cd2 and _lst2:
+                            _news_map[_cd2] = _lst2[0]
+                            _ann_n += 1
+            except Exception as _e2:
+                print('[tail] 公告补查失败（不阻断）:', _e2)
+        print('[tail] 消息面：%d/%d 只候选有消息（公告补位 %d / 快讯 %d）'
+              % (len(_news_map), len(cands), _ann_n, len(_news_map) - _ann_n))
     except Exception as _e:
         print('[tail] 消息面取数失败:', _e)
         _news_map = {}
@@ -6703,12 +6770,16 @@ def build_tail(title='尾盘竞价筛选'):
         s['score'] = _tail_score_v2(s, heat, cnt, mem, _zt_names)
         _nw_hit = (_news_map or {}).get(s['code'])
         if _nw_hit:
+            _isann = bool(_nw_hit.get('ann'))
+            _p = 1.5 if _isann else 3.0      # 公告是「已发生的事」，比盘中快讯弱一档
+            _n = 4.0 if _isann else 6.0
             if _nw_hit['tag'] == '利好':
-                s['score'] = round(float(s['score']) + 3.0, 1)
+                s['score'] = round(float(s['score']) + _p, 1)
             elif _nw_hit['tag'] == '利空':
-                s['score'] = round(float(s['score']) - 6.0, 1)
-            s['_news_txt'] = _nw_hit['t'] + ('（利好）' if _nw_hit['tag'] == '利好'
-                                            else ('（利空）' if _nw_hit['tag'] == '利空' else ''))
+                s['score'] = round(float(s['score']) - _n, 1)
+            _nt = ('（利好）' if _nw_hit['tag'] == '利好'
+                   else ('（利空）' if _nw_hit['tag'] == '利空' else ''))
+            s['_news_txt'] = ('📄 ' if _isann else '') + _nw_hit['t'] + _nt
         _h = (_lhb_map or {}).get(s['code'])
         if not _h:
             continue
