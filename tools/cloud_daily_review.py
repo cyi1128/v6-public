@@ -5997,8 +5997,12 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
         pct = float(s['pct'] or 0)
         if 3.5 <= pct <= 6.5:
             sc += 22
-        elif 2.5 <= pct < 3.5 or 6.5 < pct <= 8.5:
+        elif 2.5 <= pct < 3.5:
             sc += 15
+        elif 6.5 < pct < 7.0:
+            sc += 12
+        elif 7.0 <= pct <= 8.5:
+            sc += 4          # 已经大涨、明天的空间被今天吃掉，不该顶在第一位
         else:
             sc += 8
     except Exception:
@@ -6057,8 +6061,11 @@ def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
     if (heat.get(ind) or 0) < 40:
         risk += 5.0
     try:
-        if float(s['pct'] or 0) > 7.5:
-            risk += 3.0
+        _p = float(s['pct'] or 0)
+        if _p > 8.0:
+            risk += 12.0     # 贴近涨停，明日溢价基本被吃掉
+        elif _p > 7.0:
+            risk += 8.0      # 铁律：不追 7%+ 大涨
     except Exception:
         pass
     # 跌破当日均价线(成交额/成交量≈分时均线) 且 量比<3（未持续放量=回落）→ 尾盘走弱信号
@@ -6336,8 +6343,43 @@ def build_tail(title='尾盘竞价筛选'):
     heat, cnt = _theme_heat(cands)
     mem = load_memory()
     _calc_resonance(cands, heat, cnt, mem, is_tail=True)
+    # 昨日资金面（龙虎榜）：机构真买加分、机构净卖与一日游/拉萨帮席位减分
+    _lhb_day, _lhb_map = '', {}
+    try:
+        _lhb_day, _lhb_map = _lhb_layer()
+        print('[tail] 资金面：龙虎榜 %s 取到 %d 只' % (_lhb_day or '—', len(_lhb_map or {})))
+    except Exception as _e:
+        print('[tail] 龙虎榜取数失败:', _e)
+        _lhb_day, _lhb_map = '', {}
     for s in cands:
         s['score'] = _tail_score_v2(s, heat, cnt, mem, _zt_names)
+        _h = (_lhb_map or {}).get(s['code'])
+        if not _h:
+            continue
+        _bonus = 0.0
+        _bits = []
+        try:
+            _inst = float(_h.get('inst_net') or 0)
+            _buy = float(_h.get('buy') or 0)
+        except Exception:
+            _inst, _buy = 0.0, 0.0
+        if _inst > 0:
+            _bonus += 5.0
+            _bits.append('机构净买%.0f万' % (_inst / 1e4) if _inst < 1e8 else '机构净买%.1f亿' % (_inst / 1e8))
+        elif _inst < 0:
+            _bonus -= 3.0
+            _bits.append('机构净卖%.0f万' % (abs(_inst) / 1e4) if abs(_inst) < 1e8 else '机构净卖%.1f亿' % (abs(_inst) / 1e8))
+        if _buy > 0:
+            _yq = float(_h.get('yiri') or 0) / _buy
+            _lq = float(_h.get('lasa') or 0) / _buy
+            if _yq >= 0.25:
+                _bonus -= 4.0
+                _bits.append('一日游席位占%.0f%%' % (_yq * 100))
+            elif _lq >= 0.40:
+                _bonus -= 4.0
+                _bits.append('拉萨帮占%.0f%%' % (_lq * 100))
+        s['score'] = round(float(s['score']) + _bonus, 1)
+        s['_lhb_txt'] = '、'.join(_bits) if _bits else '昨日上榜，席位无极端信号'
     cands.sort(key=lambda x: -x['score'])
     tops = cands[:AUCTION_TOP_N]
     # 行业兜底：最终 TopN 里仍是「其他」的，走单股接口取真行业名（_stock_industry 自带缓存，取到后全库复用）
@@ -6389,6 +6431,7 @@ def build_tail(title='尾盘竞价筛选'):
 <div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分</span></div>
 <div style="color:{GREY};font-size:12px;">尾盘当日涨幅 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 换手 {s['turn']:.1f}% ｜ 市值 {s.get('mv',0):.0f}亿{(' ｜ 行业：' + str(s['industry'])) if str(s.get('industry') or '').strip() not in ('', '其他') else ''}</div>
 <div style="color:#8bd3c7;font-size:12px;margin-top:2px;">📉 位置：{('距60日高 ' + ('%.1f%%' % s['_pos60'])) if s.get('_pos60') is not None else '前高未取得'}，近5个交易日没涨停过，这一档不是在上板途中接的</div>
+{('<div style="color:#ffd43b;font-size:12px;margin-top:2px;">🏦 资金面：' + s['_lhb_txt'] + '</div>') if s.get('_lhb_txt') else ''}
 {_cyc_html}
 {_form_html}
 {_rows_html}</div>"""
@@ -6438,7 +6481,7 @@ def build_tail(title='尾盘竞价筛选'):
     _v2_note = ''
     _tail_note = ''
     emotion_t = _emotion_from_pools(d)
-    inner = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 尾盘竞价筛选 TOP{AUCTION_TOP_N}（低位放量·买在涨停前）</div>'
+    inner = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 尾盘竞价筛选 TOP{AUCTION_TOP_N}（低位放量·资金面确认·买在涨停前）</div>'
              + top3_txt + _confirm_block + wind + _cap_advice_row
              + pos_cap_line(emotion_t, None) + _v2_note + _tail_note)
     return _wrap(inner, '🔔', title, show_reson=False)
