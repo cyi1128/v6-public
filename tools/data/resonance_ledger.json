@@ -504,15 +504,15 @@
   },
   "2026-11-08": {
    "grade": "B",
-   "score": 51,
+   "score": 60,
    "factors": {
     "R1": {
-     "s": 8,
-     "tag": "资金中"
+     "s": 4,
+     "tag": "资金弱"
     },
     "R2": {
-     "s": 3,
-     "tag": "龙头松"
+     "s": 16,
+     "tag": "龙头稳"
     },
     "R3": {
      "s": 17,
@@ -528,11 +528,11 @@
     }
    },
    "veto": [],
-   "sector": "*ST亿晶相关板块",
+   "sector": "光伏设备",
    "date": "2026-11-08",
    "detail": {
-    "avg_lb": 1.97,
-    "avg_pct": 10.11,
+    "avg_lb": 1.0,
+    "avg_pct": 9.9,
     "lu": 32,
     "zb": 14,
     "prev_lu": 0,
@@ -540,8 +540,8 @@
     "mscore": 50,
     "seen_count": 1,
     "zbr": 0.304,
-    "leader_pct": 10.22,
-    "leader_lb": 2.39
+    "leader_pct": 9.9,
+    "leader_lb": 1.0
    },
    "reconciled": false
   }
