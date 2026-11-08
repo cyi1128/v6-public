@@ -7972,7 +7972,8 @@ def build_eod():
     # 3. 可跟踪池（明日操作，禁止已涨停：只保留 未涨停量能放大+题材共振 / 大涨未封板分时强势）
     tpool = _track_pool(d)
     sec4_rows = ''
-    for s, kind in tpool:
+    # v7.9o：模型段恢复后单卡逼近上限，可跟踪池限 5 只（深挖逻辑最占字数的那块）
+    for s, kind in tpool[:5]:
         deep = _deep_logic(s, re.sub(r'[行业板块概念\s]+', '', s.get('industry') or '') or '其他',
                            None, eod_kind=kind)
         deep_html = deep.replace('\n', '<br>')
