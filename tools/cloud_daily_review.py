@@ -6697,8 +6697,11 @@ def build_tail(title='尾盘竞价筛选'):
         s['_lhb_txt'] = '、'.join(_bits) if _bits else '昨日上榜，席位无极端信号'
     cands.sort(key=lambda x: -x['score'])
     # v7 双轨配额：B 轨（强势二波）精确率是 A 轨的 2.7 倍（6.01% vs 2.35%，日均命中 0.70 vs 0.60 只，
-    # 池 8549 口径），v7.4 换成 B 席更多的 B 池（量比闸 1.0）：8B+2A 7.88%、7B+3A 7.40%、9B+1A 8.25%、10B+0A 8.45%，
-    # A 轨是「买在涨停前」的原始形态不能砍光，取 B8+A2；纯分数裸排 6.55% vs 连板分层 6.80%，分层排序是必要的。
+    # 池 8549 口径）。配额按生产真实补位重测（每卡 10 席、B 不足 A 补）：8B+2A 6.85%（前6.65/后7.05）、
+    # 9B+1A 7.30%（前7.06/后7.54）、10B+0A 7.18%（前6.98/后7.38）、7B+3A 6.77%；另一轮独立回测同向（8B+2A 7.88% < 9B+1A 8.25% < 10B+0A 8.45%）。
+    # 两轮都指向「B 席越多越准」，但 8B+2A→9B+1A 的 +0.45pt 在 2438 个样本上只是半个标准差量级，不能当铁证；
+    # A 轨是「买在涨停前」的原始形态不能砍光，取 B9+A1：多给 B 一席仍留一席低位低吸，A 轨不断根。
+    # 纯分数裸排 6.55% vs 连板分层 6.80%，分层排序是必要的。
     # 不做跨轨裸排序：两轨档位基准不同，裸排会把 A 轨分数虚高的票挤掉 B 轨的真机会。
     _bpool = [s for s in cands if s.get('track') == 'B']
     _apool = [s for s in cands if s.get('track') != 'B']
@@ -6708,10 +6711,10 @@ def build_tail(title='尾盘竞价筛选'):
     _bpool.sort(key=lambda x: (-min(3, int(x.get('_zt_n') or 0)), -float(x.get('score') or 0)))
     _apool.sort(key=lambda x: -float(x.get('score') or 0))
     # 卡面排序与配额同序：B 轨整体排在 A 轨前面（B 精确率是 A 的 2.7 倍），B 内部再按连板次数分层、
-    # 层内按分数；A 轨按分数。这样 1~8 号位是二波、9~10 号位是低吸首板，用户一眼就知道先看哪几行。
-    tops = _bpool[:8] + _apool[:2]
+    # 层内按分数；A 轨按分数。这样 1~9 号位是二波、第 10 位是低吸首板，用户一眼就知道先看哪几行。
+    tops = _bpool[:9] + _apool[:1]
     if len(tops) < AUCTION_TOP_N:
-        tops += (_bpool[8:] + _apool[2:])[:AUCTION_TOP_N - len(tops)]
+        tops += (_bpool[9:] + _apool[1:])[:AUCTION_TOP_N - len(tops)]
     tops = sorted(tops[:AUCTION_TOP_N], key=lambda x: (
         0 if x.get('track') == 'B' else 1,
         -min(3, int(x.get('_zt_n') or 0)),
@@ -6925,13 +6928,13 @@ def build_cycle(title='多周期视角研判'):
              or not (cnt.get(_sec(s), 0) < 2 and heat.get(_sec(s), 0) < 45)]
     if not cands:
         return None
-    # v7.4 双轨配额（与尾盘卡同口径 B8+A2）：周期卡一屏 10 只
+    # v7.4 双轨配额（与尾盘卡同口径 B9+A1）：周期卡一屏 10 只
     _bq = [s for s in cands if s.get('track') == 'B']
     _bq.sort(key=lambda x: (-min(3, int(x.get('_zt_n') or 0)), -float(x.get('score') or 0)))
     _aq = [s for s in cands if s.get('track') != 'B']
     _aq.sort(key=lambda x: -float(x.get('score') or 0))
-    _bp = _bq[:8]
-    _ap = _aq[:2]
+    _bp = _bq[:9]
+    _ap = _aq[:1]
     cands = _bp + _ap
     groups = {}
     order = ['超短线（1-3日）', '短线（3-10日）', '中长线（1-6月）', '长线（6月+）', '短线观察']
