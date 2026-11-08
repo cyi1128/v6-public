@@ -554,3 +554,6 @@
 14:10:43 [llm] 截止已过停产 purpose=evening used=183s
 14:10:43 [ask_deepseek] ModelScope 两次尝试均失败，purpose=evening
 14:11:02 [llm] 全局预算用尽 used=1135s purpose=eve_news
+14:29:08 [llm] 总预算用尽 purpose=holiday_ds used=182s
+14:32:10 [llm] 总预算用尽 purpose=holiday_ds used=182s
+14:32:10 [ask_deepseek] ModelScope 两次尝试均失败，purpose=holiday_ds
