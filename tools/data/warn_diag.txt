@@ -505,3 +505,19 @@
 12:39:03 [llm] 总预算用尽 purpose=eve_news used=182s
 12:42:06 [llm] 总预算用尽 purpose=eve_news used=184s
 12:42:06 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eve_news
+12:49:16 [llm] 截止已过停产 purpose=sec2_deep used=139s
+12:49:16 [llm] 截止已过停产 purpose=sec2_deep used=0s
+12:49:16 [ask_deepseek] ModelScope 两次尝试均失败，purpose=sec2_deep
+12:52:46 [llm] 全局预算用尽 used=358s purpose=theme_health_card
+12:53:34 [llm] 全局预算用尽 used=406s purpose=signal_review
+12:53:36 [llm] 全局预算用尽 used=409s purpose=eod
+12:53:36 [llm] 全局预算用尽 used=409s purpose=eod_review_ds
+12:54:59 [llm] 全局预算用尽 used=491s purpose=resonance_verdict
+12:55:00 [llm] 全局预算用尽 used=493s purpose=brief_summary_v3
+12:56:06 [反模板命中:ext] 管住手 (try1)
+12:59:49 [llm] 总预算用尽 purpose=ext_news used=183s
+13:00:34 [llm] 截止已过停产 purpose=ext_news used=46s
+13:00:34 [ask_deepseek] ModelScope 两次尝试均失败，purpose=ext_news
+13:05:12 [llm] 截止已过停产 purpose=eve_news used=46s
+13:05:12 [llm] 截止已过停产 purpose=eve_news used=0s
+13:05:12 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eve_news
