@@ -135,6 +135,10 @@ _MODELSCOPE_MODELS = ('Qwen/Qwen3.5-122B-A10B', 'Qwen/Qwen3.8-27B',
                       'Qwen/Qwen3.5-35B-A3B', 'Qwen/Qwen3.8-Flash-Next',
                       'ZhipuAI/GLM-4.7-Flash')  # 智谱Flash，魔搭放量(429=错峰可用)，轮换兜底
 DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions'
+# v7.9b 模型调用预算闸：单次 45s（原来 120s），整次调用总预算 180s。
+# 起因：11-08 demo-4 实测「超时×5 模型×2 轮」把 job 拖到 30 分钟 timeout 被砍。
+MS_TIMEOUT = int(os.environ.get('MS_TIMEOUT', '45'))
+MS_BUDGET = int(os.environ.get('MS_BUDGET', '180'))
 
 HOLDINGS = [
     {'code': 'sz002838', 'name': '道恩股份', 'cost': 25.823, 'qty': 8500, 'sector': '塑料'},
@@ -2152,7 +2156,14 @@ def _modelscope_chat(payload, purpose, system_text):
         models.insert(0, override)
     msgs = [{'role': 'system', 'content': system_text or _ASK_DS_SYS},
             {'role': 'user', 'content': json.dumps(payload, ensure_ascii=False)}]
+    _t_start = time.time()
     for m in models:
+        _used = time.time() - _t_start
+        if _used > MS_BUDGET:
+            print('[LLM] ModelScope 总预算用尽 %.0fs>%ds purpose=%s，停止轮换（调用方降级）'
+                  % (_used, MS_BUDGET, purpose))
+            _diag_append('[llm] 总预算用尽 purpose=%s used=%.0fs' % (purpose, _used))
+            return None
         try:
             body = json.dumps({'model': m, 'messages': msgs,
                               'temperature': 0.5,
@@ -2161,7 +2172,7 @@ def _modelscope_chat(payload, purpose, system_text):
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + MODELSCOPE_KEY,
                 'User-Agent': 'quantmonitor/1.0'})
-            r = json.loads(urllib.request.urlopen(req, timeout=120).read().decode('utf-8'))
+            r = json.loads(urllib.request.urlopen(req, timeout=MS_TIMEOUT).read().decode('utf-8'))
             _ch = (r.get('choices') or [{}])[0]
             txt = (_ch.get('message') or {}).get('content') or ''
             _fin = _ch.get('finish_reason') or ''
@@ -2247,6 +2258,10 @@ def ask_deepseek(payload, purpose='eod', system_text=None):
     for _try in range(2):
         _ms = _modelscope_chat(payload, purpose, system_text)
         if _ms:
+            _qn = _ms.count('？') + _ms.count('?')
+            if _qn:
+                _ms = _ms.replace('?', '。').replace('？', '。').replace('。。', '。')
+                print('[LLM] QFIX purpose=%s 问句归一 n=%d' % (purpose, _qn))
             _hits = _antitemplate_hits(_ms)
             print('[LLM_OUT:%s] %s' % (purpose, _ms[:1200].replace(chr(10), ' ')))
             if _hits:
