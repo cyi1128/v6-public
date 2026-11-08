@@ -141,7 +141,7 @@ MS_TIMEOUT = int(os.environ.get('MS_TIMEOUT', '45'))
 MS_BUDGET = int(os.environ.get('MS_BUDGET', '180'))
 # v7.9c 全局 LLM 墙钟预算：从进程启动算起，超了就不再调模型，保证推送一定跑得到。
 # 起因：11-08 demo-4 实测 ModelScope 34 次超时/429，LLM 段把 30 分钟 job 吃满，推送 0 条。
-LLM_TOTAL_BUDGET = int(os.environ.get('LLM_TOTAL_BUDGET', '840'))
+LLM_TOTAL_BUDGET = int(os.environ.get('LLM_TOTAL_BUDGET', '1080'))
 _PROC_T0 = time.time()
 _LLM_DEADLINE = [_PROC_T0 + LLM_TOTAL_BUDGET]
 
@@ -7894,8 +7894,13 @@ def build_eod():
     # miss_deep / brief_summary_v3）才是卡的核心。给板块深挖限到模块剩余预算的 35%，
     # 跑完立刻把截止时刻还给模块，避免它把预算吃光导致「全面研判」整段消失。
     try:
-        _dsec2 = _LLM_DEADLINE[0]
+        # v7.9l：本模块的数据准备（涨停池/日K/公告/分时/新闻）实测耗时 590s，
+        # demo 循环在模块开始时定下的截止时刻这时早已过期，必须按此刻重新开窗，
+        # 否则复盘的所有 LLM 段（板块深挖/全面研判/错过深挖/事件汇总）全部降级。
+        _gend = _PROC_T0 + LLM_TOTAL_BUDGET
         _tsec2 = time.time()
+        _room = max(0.0, _gend - _tsec2)
+        _dsec2 = min(_gend, _tsec2 + min(320.0, max(60.0, _room * 0.55)))
         _llm_set_deadline(min(_dsec2, _tsec2 + max(45.0, (_dsec2 - _tsec2) * 0.35)))
     except Exception:
         _dsec2 = None
