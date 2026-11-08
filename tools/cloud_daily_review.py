@@ -5344,18 +5344,18 @@ def build_pre():
                          + (('｜板块：' + _sec2) if _sec2 else ''))
                 _rg2 = bool(_gd) and ('无明显' not in _gd)
                 _rb2 = bool(_bd) and ('无明显' not in _bd)
-                tag = '利好' if (_rg2 and not _rb2) else ('利空' if (_rb2 and not _rg2) else ('双向' if (_rg2 and _rb2) else '待判读'))
+                tag = '利好' if (_rg2 and not _rb2) else ('利空' if (_rb2 and not _rg2) else ('双向' if (_rg2 and _rb2) else ''))
             else:
                 # 模型未判读：只列标题/时间，不再用 _plain_for 规则生成大白话与板块
                 plain = ''
                 _sec2 = ''
-                tag = '待判读'
+                tag = ''
             tag_html = (f'<span style="background:{RED if tag=="利好" else GREEN if tag=="利空" else GREY};'
-                        f'color:#161b26;border-radius:4px;padding:0 6px;font-size:11px;font-weight:700;">{tag}</span>')
+                        f'color:#161b26;border-radius:4px;padding:0 6px;font-size:11px;font-weight:700;">{tag}</span>') if tag else ''
             rows += ('<div style="background:#1f2635;border-left:3px solid ' + GOLD + ';border-radius:6px;padding:6px 8px;margin:5px 0;">'
                      '<div style="font-size:12px;color:' + GREY + ';">' + (nw['ts'][11:16] if len(nw.get('ts', '')) >= 16 else nw.get('ts', '')) + ' ' + tag_html + '</div>'
                      '<div style="font-size:13px;color:#e9ecef;">' + nw['title'][:60] + '</div>'
-                     '<div style="font-size:12px;color:' + TEAL + ';line-height:1.6;">👉 ' + plain + (('｜板块：' + _sec2) if _sec2 else '') + '</div></div>')
+                     + (('<div style="font-size:12px;color:' + TEAL + ';line-height:1.6;">👉 ' + plain + (('｜板块：' + _sec2) if _sec2 else '') + '</div>') if plain else '') + '</div>')
         news_rows += '<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">▍' + cat + '</div>' + rows
     if not news_rows:
         news_rows = '<div style="color:' + GREY + ';font-size:13px;">今日暂未获取到有效新闻（不伪造内容）</div>'
@@ -10668,16 +10668,16 @@ def _watch_card(sg, mscore, ds_plain=None):
         else:
             # op 不在枚举内：动作/仓位仍不给规则版，只保留代码算出的技术位
             _head_txt, _pos_txt, _buy_txt, _stop_txt, _act_txt, _t_tgt2 = (
-                '待判读', '未给（无 AI 判读）',
+                '', '',
                 f"{sg.get('buy_low', '—')} ~ {sg.get('buy_high', '—')}（技术位·代码算）",
-                str(sg.get('stop', '—')) + '（技术位·代码算）', '待判读', t_tgt)
+                str(sg.get('stop', '—')) + '（技术位·代码算）', '', t_tgt)
         _logic_html = ('<div style="color:' + TEAL + ';font-size:12px;margin-top:4px;">🧠 个股逻辑：' + _logic + '</div>') if _logic else ''
         _why_html = ('<div style="color:#e9ecef;font-size:12px;margin-top:2px;">👉 大白话：' + _why + '</div>') if _why else ''
         _ai_block = _logic_html + _why_html
     else:
         # 无模型判读：保留代码算出的技术位（买入区间/止损），操作与仓位不给规则结论
         st_color = GREY
-        _head_txt = '待判读'
+        _head_txt = ''
         _act_txt = ''
         _pos_txt = ''
         _buy_txt = f"{sg.get('buy_low', '—')} ~ {sg.get('buy_high', '—')}"
@@ -10687,7 +10687,7 @@ def _watch_card(sg, mscore, ds_plain=None):
     _t_line = (f'🎯 做T目标 {_t_tgt2}；留多少出多少看盘口，冲涨停能不能追看量能。<br>'
                if _t_tgt2 else '')
     return f"""<div style="background:#2a1518;border:2px solid {RED};border-radius:12px;padding:12px 14px;margin:10px 0;">
-<div style="font-size:17px;font-weight:900;color:{RED};">⚡ {sg['n']}（{sg['code']}）· {sg['type']} <span style="background:{st_color};color:#161b26;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:700;">{_head_txt}</span></div>
+<div style="font-size:17px;font-weight:900;color:{RED};">⚡ {sg['n']}（{sg['code']}）· {sg['type']} {(f'<span style="background:{st_color};color:#161b26;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:700;">{_head_txt}</span>') if _head_txt else ''}</div>
 <div style="color:#fff;font-size:13px;margin-top:6px;">所属题材：{(_dsp.get('theme') if _llm_ok and _dsp.get('theme') else sg['sec'])}｜得分 <b style="color:{GOLD}">{sg['score']}/10</b>{sg.get('life', '')}</div>
 {_factor_line}
 {_ai_block}
