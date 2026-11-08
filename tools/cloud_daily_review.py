@@ -6351,8 +6351,38 @@ def build_tail(title='尾盘竞价筛选'):
     except Exception as _e:
         print('[tail] 龙虎榜取数失败:', _e)
         _lhb_day, _lhb_map = '', {}
+    # 今日消息面：只认点名个股的标题（题材热不等于个股有事，没点名的不加分）
+    _news_map = {}
+    try:
+        _news_all = get_news(60)
+        for s in cands:
+            _nm = (s.get('name') or '').strip()
+            _cd = s.get('code') or ''
+            if not _nm or len(_nm) < 2:
+                continue
+            for _nw in _news_all:
+                _ti = (_nw.get('title') or '')
+                _txt = (_ti + ' ' + (_nw.get('summary') or ''))
+                # 只认标题点名：摘要里出现股票名多半是财经综述（实测「宁德时代」曾从一条
+                # DeepSeek 融资新闻的摘要里误命中），这种噪音不能当个股催化。
+                if _nm in _ti or (_cd and _cd in _ti):
+                    _tag, _ = classify_news(_txt)
+                    _news_map[_cd] = {'t': (_nw.get('title') or '').strip()[:46], 'tag': _tag}
+                    break
+        print('[tail] 消息面：%d/%d 只候选有今日个股消息' % (len(_news_map), len(cands)))
+    except Exception as _e:
+        print('[tail] 消息面取数失败:', _e)
+        _news_map = {}
     for s in cands:
         s['score'] = _tail_score_v2(s, heat, cnt, mem, _zt_names)
+        _nw_hit = (_news_map or {}).get(s['code'])
+        if _nw_hit:
+            if _nw_hit['tag'] == '利好':
+                s['score'] = round(float(s['score']) + 3.0, 1)
+            elif _nw_hit['tag'] == '利空':
+                s['score'] = round(float(s['score']) - 6.0, 1)
+            s['_news_txt'] = _nw_hit['t'] + ('（利好）' if _nw_hit['tag'] == '利好'
+                                            else ('（利空）' if _nw_hit['tag'] == '利空' else ''))
         _h = (_lhb_map or {}).get(s['code'])
         if not _h:
             continue
@@ -6432,6 +6462,7 @@ def build_tail(title='尾盘竞价筛选'):
 <div style="color:{GREY};font-size:12px;">尾盘当日涨幅 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 换手 {s['turn']:.1f}% ｜ 市值 {s.get('mv',0):.0f}亿{(' ｜ 行业：' + str(s['industry'])) if str(s.get('industry') or '').strip() not in ('', '其他') else ''}</div>
 <div style="color:#8bd3c7;font-size:12px;margin-top:2px;">📉 位置：{('距60日高 ' + ('%.1f%%' % s['_pos60'])) if s.get('_pos60') is not None else '前高未取得'}，近5个交易日没涨停过，这一档不是在上板途中接的</div>
 {('<div style="color:#ffd43b;font-size:12px;margin-top:2px;">🏦 资金面：' + s['_lhb_txt'] + '</div>') if s.get('_lhb_txt') else ''}
+{('<div style="color:#bfd7ff;font-size:12px;margin-top:2px;">📰 消息面：' + s['_news_txt'] + '</div>') if s.get('_news_txt') else ''}
 {_cyc_html}
 {_form_html}
 {_rows_html}</div>"""
