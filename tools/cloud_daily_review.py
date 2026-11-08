@@ -7988,6 +7988,32 @@ def _resonance_verdict(res):
     except Exception:
         return None
 
+_EOD_FIT_ORDER = ('fac', 'st', 'cap', 'pool', 'reson', 's6', 's5', 'miss', 's45')
+
+
+def _eod_fit_parts(parts, fit=18000):
+    """v7.9u 推送前字数预算：模型段（s2/sds/s8/s4/ev…）一律不动，
+    只按 _EOD_FIT_ORDER 丢次要数据段，直到塞进单条线。返回 (parts, 丢掉的段名列表)。"""
+    _pp = list(parts)
+    _dropped = []
+    for _k in _EOD_FIT_ORDER:
+        if sum(len(x) for _, x in _pp) <= fit:
+            break
+        _i = None
+        for i, (kk, vv) in enumerate(_pp):
+            if kk == _k and len(vv) > 120:
+                _i = i
+                break
+        if _i is not None:
+            print('[eod] 字数预算裁剪：丢 %s（%d 字）' % (_k, len(_pp[_i][1])))
+            _dropped.append(_k)
+            _pp.pop(_i)
+    if sum(len(x) for _, x in _pp) > fit:
+        print('[eod] 字数预算裁剪：丢完仍超 %d 字，末尾兜底截断' % (sum(len(x) for _, x in _pp) - fit))
+        _dropped.append('hard_clip')
+    return _pp, _dropped
+
+
 def build_eod():
     idx = get_indices()
     d = get_pools()
@@ -8061,15 +8087,10 @@ def build_eod():
     _pool = ThreadPoolExecutor(max_workers=2)
     try:
         _f2 = _pool.submit(_sec2_worker)
-        _fr = _pool.submit(_eod_review_ds, d, idx, scored, tpool)
         try:
             _sec2_map = _f2.result() or {}
         except Exception as _e3:
             print('[eod] 板块深挖异常:', _e3)
-        try:
-            _rv = _fr.result() or {}
-        except Exception as _e4:
-            print('[eod] 全面研判异常:', _e4)
     finally:
         _pool.shutdown(wait=False)
     sec2_rows = ''
@@ -8228,6 +8249,13 @@ def build_eod():
     }
     # v7.9r：复盘主文是卡的核心，按此刻重开并给它最大份额
     _llm_reopen(share=0.85)
+    # v7.9u：全面研判从并发块移出。实测它与板块深挖并跑时两者一起全超时（s8=0），
+    # 串行放在通道空闲之后，同一处窗口内与复盘主文前后脚调，成功率完全不同。
+    try:
+        _rv = _eod_review_ds(d, idx, scored, tpool) or {}
+    except Exception as _e4:
+        print('[eod] 全面研判异常:', _e4)
+        _rv = {}
     ds_md = ask_deepseek(ds_payload)
     if ds_md:
         try:
@@ -8308,7 +8336,13 @@ def build_eod():
               ('s6', sec6), ('pool', _pool_today), ('cap', _cap),
               ('st', (f'<div style="margin-top:6px;font-size:12px;color:{GREY};">{_st_line}</div>' if _st_line else '')),
               ('fac', _factor_board_top(d, topn=3)), ('reson', _reson_sec), ('miss', _miss_block)]
+    _parts, _fit_drop = _eod_fit_parts(_parts, fit=18000)
+    if _fit_drop:
+        print('[eod] 字数预算裁剪完成：丢掉 %s，剩余 %d 字'
+              % ('/'.join(_fit_drop), sum(len(x) for _, x in _parts)))
     inner = ''.join(x for _, x in _parts)
+    if 'hard_clip' in (_fit_drop or []) and len(inner) > 18000:
+        inner = inner[:18000]
     try:
         print('[eod] SEC ' + ' '.join('%s=%d' % (k, len(v)) for k, v in _parts)
               + ' total=%d' % len(inner))
