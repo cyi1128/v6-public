@@ -544,6 +544,49 @@
     "leader_lb": 2.39
    },
    "reconciled": false
+  },
+  "2026-11-09": {
+   "grade": "B",
+   "score": 51,
+   "factors": {
+    "R1": {
+     "s": 8,
+     "tag": "资金中"
+    },
+    "R2": {
+     "s": 3,
+     "tag": "龙头松"
+    },
+    "R3": {
+     "s": 17,
+     "tag": "结构健"
+    },
+    "R4": {
+     "s": 8,
+     "tag": "情绪平"
+    },
+    "R5": {
+     "s": 15,
+     "tag": "时1天新"
+    }
+   },
+   "veto": [],
+   "sector": "*ST亿晶相关板块",
+   "date": "2026-11-09",
+   "detail": {
+    "avg_lb": 1.97,
+    "avg_pct": 10.11,
+    "lu": 32,
+    "zb": 14,
+    "prev_lu": 0,
+    "prev_zb": 0,
+    "mscore": 50,
+    "seen_count": 1,
+    "zbr": 0.304,
+    "leader_pct": 10.22,
+    "leader_lb": 2.39
+   },
+   "reconciled": false
   }
  }
 }
