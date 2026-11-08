@@ -6303,6 +6303,93 @@ def _tail_filter(rows, heat=None, zt_names=None):
     return out
 
 
+def _elite_pick(tops, mband=1):
+    """v7.9s 量化精选：从已排好的 TOP 榜里，按双轨硬条件再筛出「今天就能下单」的最多 3 只。
+    纯代码判定，不依赖模型；每只逐项打印实测值 vs 阈值，进与不进都能逐条复核。
+       F1 主力真做过：B 轨 近5日涨停>=1（样本内 4.52×）；A 轨 60日涨停>=3（A 轨 6.05% vs 0次 1.35%）
+       F2 量能是不是真的：B 轨 1.2~3.5（温和放量最优，>=2.0 4.98% < >=1.5 6.17%）；A 轨 >=1.3 不封顶
+       F3 换手 >=4.5%（全市场单调递增，4.5~6% 档 1.52×）
+       F4 距60日高 >=-10%（不追高，前高还留一成空间）
+       F5 今日涨幅 <=8.5%（没透支，前置过滤已保证，这里复核）
+    五闸全过 = 精选；不足时允许"过4闸"按分数补位并在卡面点名差哪一条，不匿名凑数。"""
+    def _gates(s):
+        _trk = s.get('track') or 'A'
+        _lb = float(s.get('lb') or 0)
+        _turn = float(s.get('turn') or 0)
+        _pos = s.get('_pos60')
+        _pct = float(s.get('pct') or 0)
+        _zt5 = int(s.get('_zt_n') or 0)
+        _z60 = s.get('_zn60')
+        _z60 = None if _z60 is None else int(_z60)
+        _f = []
+        if _trk == 'B':
+            _f.append(('F1 近5日涨停 %d 次（需≥1）' % _zt5, _zt5 >= 1))
+            _f.append(('F2 量比 %.2f（需1.2~3.5）' % _lb, 1.2 <= _lb <= 3.5))
+        else:
+            _f.append(('F1 60日涨停 %s 次（需≥3）' % ('未取得' if _z60 is None else _z60),
+                       _z60 is not None and _z60 >= 3))
+            _f.append(('F2 量比 %.2f（需≥1.3）' % _lb, _lb >= 1.3))
+        _f.append(('F3 换手 %.1f%%（需≥4.5）' % _turn, _turn >= 4.5))
+        _f.append(('F4 距60日高 %s（需≥-10）' % ('未取得' if _pos is None else '%.1f%%' % _pos),
+                   _pos is not None and _pos >= -10.0))
+        _f.append(('F5 涨幅 %+.2f%%（需≤8.5）' % _pct, _pct <= 8.5))
+        return _f
+
+    _hard, _soft = [], []
+    for s in tops:
+        _f = _gates(s)
+        _n = sum(1 for _t, v in _f if v)
+        if _n == 5:
+            _hard.append((s, _f, ''))
+        elif _n == 4:
+            _soft.append((s, _f, '、'.join(t.split('（')[0] for t, v in _f if not v)))
+    _sel = _hard[:3]
+    _relaxed = False
+    if not _sel and _soft:
+        _soft.sort(key=lambda x: -float(x[0].get('score') or 0))
+        _sel = _soft[:2]
+        _relaxed = True
+    if not _sel:
+        _miss = ''
+        if tops:
+            _f0 = _gates(tops[0])
+            _miss = ('今天最靠前的是 %s，只过了 %d/5 道闸，差在 %s。缺项不硬凑，空仓等明天。'
+                     % (tops[0]['name'], sum(1 for _t, v in _f0 if v),
+                        '、'.join(t.split('（')[0] for t, v in _f0 if not v) or '无'))
+        return ('<div style="margin-top:10px;padding:9px 11px;background:#2a1f22;border-left:4px solid '
+                + RED + ';border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 今日精选 0 只</b>'
+                '<div style="color:#ced4da;font-size:12px;margin-top:3px;">'
+                + '没有一只同时过五道硬闸，今天不做就是最优解。' + _miss + '</div></div>'), []
+
+    _pos_txt = ('1~2成' if mband == 2 else '1~2成' if mband == 1 else '半仓以内（总仓≤1成）')
+    rows = []
+    for i, (s, _f, _bad) in enumerate(_sel, 1):
+        _price = s.get('price') or 0
+        if _price:
+            _buy = '%.2f~%.2f' % (_price * 0.99, _price * 1.01)
+            _stop = '%.2f（-3%%）' % (_price * 0.97)
+        else:
+            _buy = '次日竞价 -1%~+1%'
+            _stop = '买入价 -3%'
+        _bit = ' '.join(('<span style="color:#8bd3c7;">%s</span>' % t) if v
+                        else ('<span style="color:#ff6b6b;">%s</span>' % t)
+                        for t, v in _f)
+        _trk = 'B二波' if s.get('track') == 'B' else 'A低吸'
+        _tag = ('<div style="color:#ffb86b;font-size:12px;margin-top:2px;">⚠ 放宽入榜（%s 未达标）</div>' % _bad) if _bad else ''
+        rows.append(f'''<div style="background:#14261f;border-left:4px solid {TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
+<div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-size:12px;">{_trk}｜{s['score']:.0f}分</span></div>
+<div style="color:{GREY};font-size:12px;margin-top:2px;">收盘 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 行业 {str(s.get('industry') or '其他')}</div>
+<div style="color:#ced4da;font-size:12px;margin-top:3px;line-height:1.7;">五道闸：{_bit}</div>{_tag}
+<div style="color:#8fd3ff;font-size:12px;margin-top:3px;">买点 {_buy} ｜ 止损 {_stop} ｜ 仓位 {_pos_txt}</div></div>''')
+    _head = ('🎯 今日精选 %d 只（%s）' % (len(_sel), '五闸全过' if not _relaxed else '四闸入榜·已点名放宽项'))
+    html = ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:' + TEAL + ';">' + _head + '</div>'
+            + ''.join(rows)
+            + '<div style="color:#9aa4b2;font-size:12px;margin-top:3px;">'
+              + '口径：主力真做过（B近5日涨停≥1／A六十日涨停≥3）＋量能真实（B量比1.2~3.5／A量比≥1.3）＋换手≥4.5%＋距60日高≥-10%＋涨幅≤8.5%。'
+              + '红字是没达标的项，一条都不遮。</div>')
+    return html, _sel
+
+
 def _tail_score_v2(s, heat, cnt, mem_days=None, zt_names=None):
     """尾盘 v7 综合分（双轨版）= 量价趋势因子×0.60 + 题材因子×0.20 + 共振分×0.20 − 风险扣分 ± 位置/资金加分。
     2026-11-08 用 245 交易日 / 743 只随机无偏样本 / 18 万条记录重建全部档位方向：
@@ -6968,6 +7055,8 @@ def build_tail(title='尾盘竞价筛选'):
                 pass
     if not tops:
         return _wrap('<div style="color:#e2e8f0;font-size:13px;">今天尾盘没有一只同时满足「还没上板、放量、离前高还有空间」的票，这一档直接空着，不硬凑。下一时段：收盘复盘。</div>', '🔔', title, show_reson=False)
+    # v7.9s：先出「精选 3 只」，纯代码判定，不依赖模型返回
+    _elite_html, _elite_picks = _elite_pick(tops, _mband)
     _ds_res = _tail_ds(tops, heat, _zt_top, _mkt_ctx, _mscore, _lu, _zb)
     ds_map = (_ds_res or {}).get('per') or {}
     ds_overall = (_ds_res or {}).get('overall') or ''
@@ -7085,7 +7174,7 @@ def build_tail(title='尾盘竞价筛选'):
     _tail_note = ''
     emotion_t = _emotion_from_pools(d)
     inner = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 尾盘竞价筛选 TOP{_qcap}（双轨并进·资金面确认·买在涨停前 A低吸{sum(1 for s in tops if s.get("track") != "B")}只 / B二波{sum(1 for s in tops if s.get("track") == "B")}只·今日涨停{_lu}家情绪{_mood_nm}）</div>'
-             + top3_txt + _mood_row + _confirm_block + wind + _cap_advice_row
+             + _mood_row + _elite_html + top3_txt + _confirm_block + wind + _cap_advice_row
              + pos_cap_line(emotion_t, None) + _v2_note + _tail_note)
     return _wrap(inner, '🔔', title, show_reson=False)
 
