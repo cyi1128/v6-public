@@ -7962,6 +7962,92 @@ def _eod_fallback_html(scored, tpool):
     return ''.join(out)
 
 
+def _eod_elite_pick(scored, tpool):
+    """v7.9x 收盘复盘·量化入榜：模型只讲板块，个股由代码按实测因子判定。
+    五闸 = 量比 ≥1.5 / 换手 ≥4.5% / 涨幅 ≤8.5% / 收盘位置 ≥50% / 未封板；
+    全过最多 3 只，不足则四闸补位最多 2 只并橙字点名差哪一闸，只过三闸写明差在哪。"""
+    _cands = []
+    for s in (tpool or []):
+        try:
+            _p = float(s.get('price') or 0)
+            _pc = float(s.get('pct') or 0)
+            if _p <= 0 or _pc >= 9.4:
+                continue
+            _hi = float(s.get('high') or 0)
+            _lo = float(s.get('low') or 0)
+            _pos = ((_p - _lo) / (_hi - _lo) * 100) if (_hi > _lo) else None
+            _g = [
+                ('量比', '%.2f' % float(s.get('lb') or 0), float(s.get('lb') or 0) >= 1.5, '≥1.5'),
+                ('换手', '%.1f%%' % float(s.get('turn') or 0), float(s.get('turn') or 0) >= 4.5, '≥4.5%'),
+                ('涨幅', '%+.2f%%' % _pc, _pc <= 7.0, '≤7%'),
+                ('位置', ('%.0f%%' % _pos) if _pos is not None else '未取到',
+                 (_pos is not None and _pos >= 50), '≥50%'),
+                ('封板', '未封板', True, '不追'),
+            ]
+            _cn = sum(1 for _, _, ok, _ in _g if ok)
+            # 涨幅 / 封板 是硬闸：差这两闸不给降级席（不追 7%+、不追已封板）
+            _soft_ok = _g[2][2] and _g[4][2]
+            _cands.append((_cn, s, _g, _p, _pos, _soft_ok))
+        except Exception:
+            continue
+    _cands.sort(key=lambda x: (-x[0], -(float(x[1].get('lb') or 0))))
+    _hard = [c for c in _cands if c[0] == 5][:3]
+    _relaxed = False
+    if not _hard:
+        _soft = [c for c in _cands if c[0] == 4 and c[5]][:2]
+        _hard = _soft
+        _relaxed = bool(_soft)
+    if not _hard:
+        _hard_ok = [c for c in _cands if c[5]]
+        _best = (_hard_ok or _cands)[0] if _cands else None
+        if _best:
+            _miss = '、'.join('%s %s(%s)' % (n, v, th) for n, v, ok, th in _best[2] if not ok)
+            return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:%s;">【明日精选·量化入榜】</div>'
+                    '<div style="background:#232a3a;border-left:4px solid %s;border-radius:10px;padding:10px 12px;'
+                    'font-size:13px;line-height:1.8;color:#e2e8f0;">今天没有一只票过三闸，'
+                    '最靠前的是 %s %s，差在 %s。宁可不做，不做不对。</div>'
+                    % (GOLD, GREY, _best[1].get('name') or '', _best[1].get('code') or '', _miss))
+        return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:%s;">【明日精选·量化入榜】</div>'
+                '<div style="background:#232a3a;border-left:4px solid %s;border-radius:10px;padding:10px 12px;'
+                'font-size:13px;color:#e2e8f0;">可跟踪池为空，今天不给票。</div>' % (GOLD, GREY))
+    _rows = []
+    for _cn, s, _g, _p, _pos, _sok in _hard:
+        _bad = [n for n, _, ok, _ in _g if not ok]
+        _gts = []
+        for n, v, ok, th in _g:
+            _gts.append('<span style="color:%s;">%s %s(%s)%s</span>'
+                        % (TEAL if ok else '#ff6b6b', n, v, th, '✓' if ok else '✗'))
+        _ind = str(s.get('industry') or '其他')
+        if _ind in ('', '其他') or re.fullmatch(r'[-+]?[0-9.]+', _ind):
+            _ind = '其他'
+            try:
+                _q = _stock_industry(s.get('code') or '')
+                _q = str(_q or '').strip()
+                if _q and not re.fullmatch(r'[-+]?[0-9.]+', _q):
+                    _ind = _q
+            except Exception:
+                pass
+        _head = ('<div style="font-weight:700;color:#fff;">%s %s <span style="color:%s;font-size:12px;">｜%s ｜%s</span></div>'
+                 % (s.get('name') or '', s.get('code') or '', GREY, _cn and ('五闸全过' if _cn == 5 else '四闸入榜'),
+                    _ind))
+        _warn = ''
+        if _bad:
+            _warn = ('<div style="color:%s;font-size:12px;margin-top:2px;">⚠ 放宽入榜：%s</div>'
+                     % ('#ff9f43', '、'.join(_bad)))
+        _rows.append('<div style="background:#1f2635;border-left:3px solid %s;border-radius:8px;padding:8px 11px;margin:5px 0;">'
+                     '%s<div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.8;">%s</div>%s'
+                     '<div style="color:%s;font-size:12px;margin-top:2px;">买点 %.2f~%.2f ｜ 止损 %.2f（-3%%）｜ 仓位 1 成</div></div>'
+                     % (TEAL if not _bad else '#ff9f43', _head, ' ｜ '.join(_gts), _warn, GOLD,
+                        _p * 0.99, _p * 1.01, _p * 0.97))
+    _cnt = len(_hard)
+    _tit = '【明日精选·量化入榜】%d 只%s' % (_cnt, '（四闸透明降级）' if _relaxed else '（五闸全过）')
+    return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:%s;">%s</div>' % (GOLD, _tit)
+            + ''.join(_rows)
+            + '<div style="color:%s;font-size:12px;margin-top:4px;line-height:1.6;">'
+              '闸门口径：量比≥1.5、换手≥4.5%%、今日涨幅≤7%%（不追 7%% 以上）、收盘价站稳当日区间上半段（≥50%%）、'
+              '今日未封板。绿是过了、红是没过，一条不遮。</div>' % GREY)
+
+
 def _eod_review_html(rv, scored, tpool=None):
     """渲染收盘全面研判段。"""
     if not rv:
@@ -8006,7 +8092,7 @@ def _eod_review_html(rv, scored, tpool=None):
         out.append('<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">【明天怎么做】</div>'
                    + '<div style="background:#232a3a;border-left:4px solid #ff922b;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.8;color:#e2e8f0;">'
                    + '；'.join(_sent) + '。</div>')
-    return ''.join(out)
+    return ''.join(out) + _eod_elite_pick(scored, tpool)
 
 
 def _resonance_verdict(res):
