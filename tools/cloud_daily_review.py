@@ -141,13 +141,22 @@ MS_TIMEOUT = int(os.environ.get('MS_TIMEOUT', '45'))
 MS_BUDGET = int(os.environ.get('MS_BUDGET', '180'))
 # v7.9c 全局 LLM 墙钟预算：从进程启动算起，超了就不再调模型，保证推送一定跑得到。
 # 起因：11-08 demo-4 实测 ModelScope 34 次超时/429，LLM 段把 30 分钟 job 吃满，推送 0 条。
-LLM_TOTAL_BUDGET = int(os.environ.get('LLM_TOTAL_BUDGET', '660'))
+LLM_TOTAL_BUDGET = int(os.environ.get('LLM_TOTAL_BUDGET', '840'))
 _PROC_T0 = time.time()
+_LLM_DEADLINE = [_PROC_T0 + LLM_TOTAL_BUDGET]
 
 
 def _llm_wall_used():
     """本进程已用墙钟秒数（含取数时间，用于给 LLM 段设总闸）。"""
     return time.time() - _PROC_T0
+
+
+def _llm_set_deadline(ts):
+    """设置 LLM 截止时刻：单槽用全局；demo 多模块按剩余模块数均分，避免第一个模块吃光预算。"""
+    try:
+        _LLM_DEADLINE[0] = float(ts)
+    except Exception:
+        pass
 
 HOLDINGS = [
     {'code': 'sz002838', 'name': '道恩股份', 'cost': 25.823, 'qty': 8500, 'sector': '塑料'},
@@ -2260,9 +2269,9 @@ def ask_deepseek(payload, purpose='eod', system_text=None):
         _diag_append('[ask_deepseek] MODELSCOPE_KEY 为空，purpose=%s' % purpose)
         return ''
     _wall = _llm_wall_used()
-    if _wall > LLM_TOTAL_BUDGET:
-        print('[LLM] 全局预算用尽 %.0fs>%ds purpose=%s，直接降级（保推送）'
-              % (_wall, LLM_TOTAL_BUDGET, purpose))
+    if time.time() > _LLM_DEADLINE[0]:
+        print('[LLM] 全局预算用尽 已用%.0fs 剩余%.0fs purpose=%s，直接降级（保推送）'
+              % (_wall, _LLM_DEADLINE[0] - time.time(), purpose))
         _diag_append('[llm] 全局预算用尽 used=%.0fs purpose=%s' % (_wall, purpose))
         return ''
     if _ds_daily_used() >= DS_DAILY_LIMIT:
@@ -14036,7 +14045,14 @@ if __name__ == '__main__':
 
         import traceback
         _tr(f'=== demo start {_bj_now().strftime("%Y-%m-%d %H:%M:%S")} items={len(demo_items)} ===')
-        for name, fn in demo_items:
+        for _di, (name, fn) in enumerate(demo_items):
+            try:
+                _now = time.time()
+                _glob = _PROC_T0 + LLM_TOTAL_BUDGET
+                _left = max(1, len(demo_items) - _di)
+                _llm_set_deadline(min(_glob, _now + max(90.0, (_glob - _now) / _left)))
+            except Exception:
+                pass
             try:
                 r = fn()
                 if isinstance(r, (tuple, list)):
