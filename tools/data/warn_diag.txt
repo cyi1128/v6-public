@@ -611,3 +611,12 @@
 17:04:57 [llm] 全局预算用尽 used=1523s purpose=ext_news
 17:05:07 [llm] 全局预算用尽 used=1533s purpose=evening
 17:05:15 [llm] 全局预算用尽 used=1541s purpose=eve_news
+17:17:19 [llm] 总预算用尽 purpose=follow used=184s
+17:20:22 [llm] 总预算用尽 purpose=follow used=184s
+17:20:22 [ask_deepseek] ModelScope 两次尝试均失败，purpose=follow
+17:21:34 [llm] 全局预算用尽 used=520s purpose=follow
+17:26:21 [llm] 总预算用尽 purpose=tail used=184s
+17:26:59 [反模板命中:tail] 管住手 (try2)
+17:31:19 [llm] 总预算用尽 purpose=cycle used=184s
+17:34:23 [llm] 总预算用尽 purpose=cycle used=184s
+17:34:23 [ask_deepseek] ModelScope 两次尝试均失败，purpose=cycle
