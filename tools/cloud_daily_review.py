@@ -7716,7 +7716,7 @@ def _sec2_deep(scored):
         return {}
     lines = '\n'.join(
         f"- 板块「{n}」涨停{len(s)}家 评分{sc}/10 强度{lv} 龙头{sorted(s, key=lambda x: x.get('fbt') or 0)[0].get('n')}"
-        for n, s, sc, lv, _ol in scored[:8])
+        for n, s, sc, lv, _ol in scored[:6])
     fmt = ('你是一线游资，收盘复盘，对下面每个强势板块点评明天怎么看（严格按主力游资五步铁律）：\n'
            + FIVE_BRIEF + '\n'
            + '先判断主力明天还会继续做还是准备出货。\n板块数据：\n' + lines + '\n'
@@ -7906,7 +7906,7 @@ def build_eod():
     except Exception:
         pass
     sec2_rows = ''
-    for n, s, sc, lv, old_leaders in scored:
+    for n, s, sc, lv, old_leaders in scored[:6]:
         leader = sorted(s, key=lambda x: x.get('fbt') or 0)[0]
         _lq_txt = _lpq_line(_lqmap.get(str(leader.get('c') or '')) or {})
         # 跟风未涨停票：涨幅榜中该题材、未涨停、量比≥1.5 的前2只
@@ -7942,7 +7942,7 @@ def build_eod():
 {f'<div style="color:{TEAL};font-size:12px;margin-top:3px;">📌 历史强势股：{"、".join(old_leaders)}</div>' if old_leaders else ''}
 {('<div style="color:' + TEAL + ';font-size:12px;margin-top:3px;">🔎 可跟踪跟风：' + fg_txt + '</div>') if fg_txt else ''}
 {_plain_html}</div>"""
-    sec2 = f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">【今日主线 & 强势题材】（TOP8 上涨逻辑）</div>{sec2_rows}'
+    sec2 = f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:#ff922b;">【今日主线 & 强势题材】（TOP6 上涨逻辑）</div>{sec2_rows}'
     if not sec2_rows:
         sec2 += '<div style="color:' + GREY + ';font-size:13px;margin-top:4px;">今日强势题材数据未取得（涨停池缺源），明日以竞价/开盘验证为准</div>'
     sec2 += ''.join(f'<div style="margin:3px 0;font-size:12px;color:{GREY};">{life_badge(n, d, mem, days)} {n}</div>'
@@ -8131,14 +8131,14 @@ def build_eod():
     except Exception:
         _reson_sec = ''
 
-    _ev = build_events('eod', cap=5, light=True)
+    _ev = build_events('eod', cap=3, light=True)
     _cap = pos_cap_line(sentiment(idx, d)[0], hl)
     _parts = [('overall', _overall), ('health', health_bar(idx, d, fin, fout)), ('s1', sec1),
               ('s2', sec2), ('s8', sec8), ('s2b', sec2b), ('s4', sec4), ('s45', sec45),
               ('s5', sec5), ('sds', sec_ds), ('sell', sec_sell), ('s7', sec7), ('ev', _ev),
               ('s6', sec6), ('pool', _pool_today), ('cap', _cap),
               ('st', (f'<div style="margin-top:6px;font-size:12px;color:{GREY};">{_st_line}</div>' if _st_line else '')),
-              ('fac', _factor_board_top(d, topn=4)), ('reson', _reson_sec), ('miss', _miss_block)]
+              ('fac', _factor_board_top(d, topn=3)), ('reson', _reson_sec), ('miss', _miss_block)]
     inner = ''.join(x for _, x in _parts)
     try:
         print('[eod] SEC ' + ' '.join('%s=%d' % (k, len(v)) for k, v in _parts)
