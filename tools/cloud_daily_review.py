@@ -6566,10 +6566,15 @@ def build_tail(title='尾盘竞价筛选'):
     # 因为连板次数是硬结构信号，分数里的软权重压不过它。
     _bpool.sort(key=lambda x: (-min(3, int(x.get('_zt_n') or 0)), -float(x.get('score') or 0)))
     _apool.sort(key=lambda x: -float(x.get('score') or 0))
+    # 卡面排序与配额同序：B 轨整体排在 A 轨前面（B 精确率是 A 的 2.7 倍），B 内部再按连板次数分层、
+    # 层内按分数；A 轨按分数。这样 1~7 号位是二波、8~10 号位是低吸首板，用户一眼就知道先看哪几行。
     tops = _bpool[:7] + _apool[:3]
     if len(tops) < AUCTION_TOP_N:
         tops += (_bpool[7:] + _apool[3:])[:AUCTION_TOP_N - len(tops)]
-    tops = sorted(tops[:AUCTION_TOP_N], key=lambda x: -x['score'])
+    tops = sorted(tops[:AUCTION_TOP_N], key=lambda x: (
+        0 if x.get('track') == 'B' else 1,
+        -min(3, int(x.get('_zt_n') or 0)),
+        -float(x.get('score') or 0)))
     # 行业兜底：最终 TopN 里仍是「其他」的，走单股接口取真行业名（_stock_industry 自带缓存，取到后全库复用）
     for _s in tops:
         if not _s.get('industry') or _s['industry'] in ('', '其他'):
