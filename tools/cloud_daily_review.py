@@ -2212,7 +2212,9 @@ def _modelscope_chat(payload, purpose, system_text):
     msgs = [{'role': 'system', 'content': system_text or _ASK_DS_SYS},
             {'role': 'user', 'content': json.dumps(payload, ensure_ascii=False)}]
     _t_start = time.time()
-    for m in models:
+    # v7.9t：关键段（卡面主干）多给 60s，让递减链跑满 6 个候选模型
+    _mb = MS_BUDGET + 60 if purpose in ('eod', 'eod_review_ds', 'brief_summary_v3') else MS_BUDGET
+    for _mi, m in enumerate(models):
         _used = time.time() - _t_start
         try:
             # v7.9m：全局（或本模块）截止时刻已过就不要再换模型，
@@ -2225,9 +2227,9 @@ def _modelscope_chat(payload, purpose, system_text):
                 return None
         except Exception:
             pass
-        if _used > MS_BUDGET:
+        if _used > _mb:
             print('[LLM] ModelScope 总预算用尽 %.0fs>%ds purpose=%s，停止轮换（调用方降级）'
-                  % (_used, MS_BUDGET, purpose))
+                  % (_used, _mb, purpose))
             _diag_append('[llm] 总预算用尽 purpose=%s used=%.0fs' % (purpose, _used))
             return None
         try:
@@ -2238,7 +2240,9 @@ def _modelscope_chat(payload, purpose, system_text):
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + MODELSCOPE_KEY,
                 'User-Agent': 'quantmonitor/1.0'})
-            r = json.loads(urllib.request.urlopen(req, timeout=MS_TIMEOUT).read().decode('utf-8'))
+            # v7.9t 超时递减：45/37/29/22/22，5~6 个候选模型合计 155s，都在预算内轮到
+            _to = MS_TIMEOUT if _mi == 0 else max(22, MS_TIMEOUT - 8 * _mi)
+            r = json.loads(urllib.request.urlopen(req, timeout=_to).read().decode('utf-8'))
             _ch = (r.get('choices') or [{}])[0]
             txt = (_ch.get('message') or {}).get('content') or ''
             _fin = _ch.get('finish_reason') or ''
@@ -2330,6 +2334,12 @@ def ask_deepseek(payload, purpose='eod', system_text=None):
         return ''
     for _try in range(2):
         _ms = _modelscope_chat(payload, purpose, system_text)
+        if not _ms and _try == 0:
+            # v7.9t：首轮拿不到任何内容（全超时/全 429/全空回复）就别再烧一轮，
+            # 上一版每段白烧 180s，三段就是 9 分钟，把后面的段全饿死。
+            print('[LLM] 首轮无返回（全超时或全不可用），不再重试 purpose=%s' % purpose)
+            _diag_append('[ask_deepseek] 首轮无返回即止损 purpose=%s' % purpose)
+            break
         if _ms:
             _qn = _ms.count('？') + _ms.count('?')
             if _qn:
