@@ -2170,6 +2170,12 @@ def _modelscope_chat(payload, purpose, system_text):
                     print('[LLM] 输出被截断 model=%s purpose=%s len=%d' % (m, purpose, len(txt)))
                     _diag_append('[llm] 输出截断 purpose=%s len=%d finish=length' % (purpose, len(txt)))
                 print(f'[LLM] ModelScope OK model={m} purpose={purpose} finish={_fin}')
+                try:
+                    _oq = txt.count('？')
+                    _head = re.sub(r'\s+', ' ', txt.strip())[:60]
+                    print('[LLM] OUT purpose=%s len=%d q=%d head=%s' % (purpose, len(txt), _oq, _head))
+                except Exception as _oe:
+                    print('[LLM] OUT 审计行失败:', type(_oe).__name__)
                 return txt.strip()
             _diag_append('[llm] 空回复 purpose=%s finish=%s' % (purpose, _fin))
             print(f'[LLM] ModelScope 空回复 model={m} finish={_fin}，试下一个')
