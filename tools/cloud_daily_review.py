@@ -143,7 +143,20 @@ MS_BUDGET = int(os.environ.get('MS_BUDGET', '180'))
 # 起因：11-08 demo-4 实测 ModelScope 34 次超时/429，LLM 段把 30 分钟 job 吃满，推送 0 条。
 LLM_TOTAL_BUDGET = int(os.environ.get('LLM_TOTAL_BUDGET', '1500'))
 _PROC_T0 = time.time()
+import threading
+
 _LLM_DEADLINE = [_PROC_T0 + LLM_TOTAL_BUDGET]
+# v7.9q：复盘各段并发时，截止时刻必须线程隔离——否则板块深挖的 90s 上限
+# 会把同窗口内并发的复盘主文一起掐死。
+_LLM_TL = threading.local()
+
+
+def _llm_deadline():
+    """当前线程的 LLM 截止时刻；子线程未设置时继承主线程的模块窗口。"""
+    try:
+        return float(getattr(_LLM_TL, 'd', _LLM_DEADLINE[0]))
+    except Exception:
+        return _LLM_DEADLINE[0]
 
 
 def _llm_wall_used():
@@ -154,7 +167,11 @@ def _llm_wall_used():
 def _llm_set_deadline(ts):
     """设置 LLM 截止时刻：单槽用全局；demo 多模块按剩余模块数均分，避免第一个模块吃光预算。"""
     try:
-        _LLM_DEADLINE[0] = float(ts)
+        _LLM_TL.d = float(ts)
+        # v7.9q：只有主线程能改全局窗口，否则并发的工作线程（如板块深挖的 90s 上限）
+        # 会把全局值改脏，让同窗口内另一个线程读到错误截止时刻。
+        if threading.current_thread() is threading.main_thread():
+            _LLM_DEADLINE[0] = float(ts)
     except Exception:
         pass
 
@@ -2185,9 +2202,10 @@ def _modelscope_chat(payload, purpose, system_text):
         try:
             # v7.9m：全局（或本模块）截止时刻已过就不要再换模型，
             # 一次换模型最坏 45s，会把后面几段（复盘主解读/错过深挖/事件汇总）的额度吃干净。
-            if time.time() > _LLM_DEADLINE[0]:
+            _dl = _llm_deadline()
+            if time.time() > _dl:
                 print('[LLM] 截止时刻已过 停止轮换 %.0fs>剩余%.0fs purpose=%s'
-                      % (_used, _LLM_DEADLINE[0] - time.time(), purpose))
+                      % (_used, _dl - time.time(), purpose))
                 _diag_append('[llm] 截止已过停产 purpose=%s used=%.0fs' % (purpose, _used))
                 return None
         except Exception:
@@ -2284,9 +2302,10 @@ def ask_deepseek(payload, purpose='eod', system_text=None):
         _diag_append('[ask_deepseek] MODELSCOPE_KEY 为空，purpose=%s' % purpose)
         return ''
     _wall = _llm_wall_used()
-    if time.time() > _LLM_DEADLINE[0]:
+    _dl = _llm_deadline()
+    if time.time() > _dl:
         print('[LLM] 全局预算用尽 已用%.0fs 剩余%.0fs purpose=%s，直接降级（保推送）'
-              % (_wall, _LLM_DEADLINE[0] - time.time(), purpose))
+              % (_wall, _dl - time.time(), purpose))
         _diag_append('[llm] 全局预算用尽 used=%.0fs purpose=%s' % (_wall, purpose))
         return ''
     if _ds_daily_used() >= DS_DAILY_LIMIT:
@@ -7904,24 +7923,48 @@ def build_eod():
     # miss_deep / brief_summary_v3）才是卡的核心。给板块深挖限到模块剩余预算的 35%，
     # 跑完立刻把截止时刻还给模块，避免它把预算吃光导致「全面研判」整段消失。
     try:
-        # v7.9l：本模块的数据准备（涨停池/日K/公告/分时/新闻）实测耗时 590s，
-        # demo 循环在模块开始时定下的截止时刻这时早已过期，必须按此刻重新开窗，
-        # 否则复盘的所有 LLM 段（板块深挖/全面研判/错过深挖/事件汇总）全部降级。
+        tpool = _track_pool(d)
+    except Exception:
+        tpool = []
+    # v7.9q：复盘各段互不依赖，改并发执行。串行时四段各 90~160s、窗口只够三段，
+    # 排最后的「全面研判 / 事件汇总」永远拿不到模型（s8=0、[ev] sum=0 的根因）。
+    try:
         _gend = _PROC_T0 + LLM_TOTAL_BUDGET
         _tsec2 = time.time()
         _room = max(0.0, _gend - _tsec2)
         _dsec2 = min(_gend, _tsec2 + min(480.0, max(60.0, _room * 0.55)))
-        # v7.9n：板块深挖固定只占 90s（8 个板块里能出几个算几个，其余走规则行），
-        # 剩下的窗口必须留给复盘主解读/错过深挖/事件汇总，否则这些段永远拿不到模型。
-        _llm_set_deadline(min(_dsec2, _tsec2 + 90.0))
+        _llm_set_deadline(_dsec2)
+        # 板块深挖线程只给自己的 90s 上限（线程级隔离，不影响并发的复盘主文）
+        _sec2_end = min(_dsec2, _tsec2 + 90.0)
     except Exception:
-        _dsec2 = None
-    _sec2_map = _sec2_deep(scored)
+        _dsec2 = _LLM_DEADLINE[0]
+        _sec2_end = _LLM_DEADLINE[0]
+
+    def _sec2_worker():
+        try:
+            _llm_set_deadline(_sec2_end)
+            return _sec2_deep(scored)
+        except Exception as _e2:
+            print('[eod] 板块深挖异常:', _e2)
+            return {}
+
+    _sec2_map = {}
+    _rv = {}
+    from concurrent.futures import ThreadPoolExecutor
+    _pool = ThreadPoolExecutor(max_workers=2)
     try:
-        if _dsec2 is not None:
-            _llm_set_deadline(_dsec2)
-    except Exception:
-        pass
+        _f2 = _pool.submit(_sec2_worker)
+        _fr = _pool.submit(_eod_review_ds, d, idx, scored, tpool)
+        try:
+            _sec2_map = _f2.result() or {}
+        except Exception as _e3:
+            print('[eod] 板块深挖异常:', _e3)
+        try:
+            _rv = _fr.result() or {}
+        except Exception as _e4:
+            print('[eod] 全面研判异常:', _e4)
+    finally:
+        _pool.shutdown(wait=False)
     sec2_rows = ''
     for n, s, sc, lv, old_leaders in scored[:6]:
         leader = sorted(s, key=lambda x: x.get('fbt') or 0)[0]
@@ -7969,8 +8012,7 @@ def build_eod():
     # 工单7：当日情绪周期算完落盘，供次日竞价卡顶部展示
     _sentiment_refresh()
 
-    # 3. 可跟踪池（明日操作，禁止已涨停：只保留 未涨停量能放大+题材共振 / 大涨未封板分时强势）
-    tpool = _track_pool(d)
+    # 3. 可跟踪池（tpool 已在并发前算好，这里直接渲染）
     sec4_rows = ''
     # v7.9o：模型段恢复后单卡逼近上限，可跟踪池限 5 只（深挖逻辑最占字数的那块）
     for s, kind in tpool[:5]:
@@ -8090,11 +8132,7 @@ def build_eod():
                   'font-size:13px;color:#9aa4b8;">🧠 大白话复盘生成失败（模型通道不可用），以上方结构化数据为准</div>')
 
     # 全面研判（11-05 指令⑤）：TOP10 上涨逻辑+涨停个股原因暗线+明日可介入+主线候选/下次爆发/主升启动
-    try:
-        _rv = _eod_review_ds(d, idx, scored, tpool)
-    except Exception as _e:
-        print('[eod] 全面研判异常:', _e)
-        _rv = {}
+    # v7.9q：_rv 已在并发阶段取得，这里只做渲染
     sec8 = _eod_review_html(_rv, scored)
 
     sec_sell = f"""<div style="margin-top:12px;border-left:4px solid {GREEN};border-radius:8px;padding:9px 11px;background:#1c2830;font-size:13px;color:#e2e8f0;">
