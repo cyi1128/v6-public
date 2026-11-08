@@ -1806,7 +1806,7 @@ def _event_line_html(evs, limit=4):
             + _rows + '</div>')
 
 
-def build_events(slot, news=None):
+def build_events(slot, news=None, cap=12, light=False):
     """早盘/午间/尾盘事件精华。slot=pre/noon/eod。"""
     news = news if news is not None else get_news(30)
     mem = load_memory()
@@ -1835,15 +1835,18 @@ def build_events(slot, news=None):
     # —— 事件简报改版（11-05 指令④）：按利好→利空→中性排序（段落排序），最多12条（内容紧密）——
     _pri = {'利好': 0, '重大利好': 0, '正面': 0, '政策利好': 0, '中性': 2, '利空': 1, '重大利空': 1, '负面': 1, '风险提示': 1}
     out.sort(key=lambda x: (_pri.get(x['tag'], 2), x['time'] or ''))
-    out = out[:12]
+    out = out[:max(1, int(cap))]
     if not out:
         return ''
     _sum_html = _brief_summary(out)      # 顶部大白话汇总（做减法+实战映射）
-    try:
-        _evt_html = _event_line_html(_event_layer(news))
-    except Exception as _ee:
-        print('[event] 事件分层异常:', _ee)
+    if light:
         _evt_html = ''
+    else:
+        try:
+            _evt_html = _event_line_html(_event_layer(news))
+        except Exception as _ee:
+            print('[event] 事件分层异常:', _ee)
+            _evt_html = ''
     cards = []
     for i, x in enumerate(out, 1):
         cards.append(f"""<div style="background:#1f2635;border-left:4px solid {x['color']};border-radius:10px;padding:7px 11px;margin:5px 0;display:flex;gap:8px;align-items:flex-start;">
@@ -1865,6 +1868,8 @@ def build_events(slot, news=None):
             json.dump(data, f, ensure_ascii=False, indent=1)
     except Exception:
         pass
+    if slot == 'eod':
+        print('[ev] SEG slot=%s n=%d sum=%d evt=%d cards=%d' % (slot, len(out), len(_sum_html), len(_evt_html), len(cards)))
     return f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:{GOLD};">{head}</div>{_sum_html}{_evt_html}{cards}'
 
 
@@ -8112,7 +8117,7 @@ def build_eod():
     except Exception:
         _reson_sec = ''
 
-    _ev = build_events('eod')
+    _ev = build_events('eod', cap=6, light=True)
     _cap = pos_cap_line(sentiment(idx, d)[0], hl)
     _parts = [('overall', _overall), ('health', health_bar(idx, d, fin, fout)), ('s1', sec1),
               ('s2', sec2), ('s8', sec8), ('s2b', sec2b), ('s4', sec4), ('s45', sec45),
