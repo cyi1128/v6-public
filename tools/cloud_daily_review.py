@@ -7772,18 +7772,18 @@ def _eod_review_html(rv, scored):
     _tops = rv.get('tops') or []
     if _tops:
         rows = []
-        for t_ in _tops[:6]:
+        for t_ in _tops[:4]:
             _lg = re.sub(r'\s+', ' ', str(t_.get('logic', '')))[:110]
             _dk = re.sub(r'\s+', ' ', str(t_.get('leader_dark', '')))[:80]
             rows.append(f"""<div style="background:#1f2635;border-left:3px solid {RED};border-radius:8px;padding:8px 11px;margin:5px 0;">
 <div style="font-weight:700;color:#fff;">{t_.get('sec','')} <span style="color:{GREY};font-size:12px;">龙头 {t_.get('leader','')}</span></div>
 <div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.6;">🧠 上涨逻辑：{_lg}</div>
 <div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳️ 龙头暗线：{_dk}</div></div>""")
-        out.append('<div style="margin-top:12px;font-size:15px;font-weight:800;color:' + RED + ';">【TOP6 板块/题材上涨逻辑 & 涨停个股原因暗线】（大模型研判）</div>' + ''.join(rows))
+        out.append('<div style="margin-top:12px;font-size:15px;font-weight:800;color:' + RED + ';">【TOP4 板块/题材上涨逻辑 & 涨停个股原因暗线】（大模型研判）</div>' + ''.join(rows))
     _tom = rv.get('tomorrow') or []
     if _tom:
         rows = []
-        for t_ in _tom[:4]:
+        for t_ in _tom[:3]:
             _rs = re.sub(r'\s+', ' ', str(t_.get('reason', '')))[:90]
             _dk2 = re.sub(r'\s+', ' ', str(t_.get('dark', '')))[:60]
             rows.append(f"""<div style="background:#1f2635;border-left:3px solid {TEAL};border-radius:8px;padding:8px 11px;margin:5px 0;">
@@ -7890,7 +7890,21 @@ def build_eod():
         _lqmap = _limitup_quality(d)
     except Exception:
         _lqmap = {}
+    # v7.9i 预算优先级：板块逐个股深挖是「锦上添花」，复盘主解读（eod / eod_review_ds /
+    # miss_deep / brief_summary_v3）才是卡的核心。给板块深挖限到模块剩余预算的 35%，
+    # 跑完立刻把截止时刻还给模块，避免它把预算吃光导致「全面研判」整段消失。
+    try:
+        _dsec2 = _LLM_DEADLINE[0]
+        _tsec2 = time.time()
+        _llm_set_deadline(min(_dsec2, _tsec2 + max(45.0, (_dsec2 - _tsec2) * 0.35)))
+    except Exception:
+        _dsec2 = None
     _sec2_map = _sec2_deep(scored)
+    try:
+        if _dsec2 is not None:
+            _llm_set_deadline(_dsec2)
+    except Exception:
+        pass
     sec2_rows = ''
     for n, s, sc, lv, old_leaders in scored:
         leader = sorted(s, key=lambda x: x.get('fbt') or 0)[0]
