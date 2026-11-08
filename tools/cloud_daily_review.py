@@ -6765,7 +6765,18 @@ def build_tail(title='尾盘竞价筛选'):
         _ps = json.load(open(_mood_state, encoding='utf-8'))
         _plu = int(_ps.get('lu') or 0)
         _pts = float(_ps.get('ts') or 0)
-        if _plu > 0 and (time.time() - _pts) < 3 * 86400:
+        _pd = str(_ps.get('d') or '')
+        _today_d = datetime.now().strftime('%Y%m%d')
+        if _pd:
+            # 有日期戳：同一天重复运行不算「昨日档」（否则会拿今天的档位把自己缩席）
+            try:
+                _lag = (datetime.now() - datetime.strptime(_pd, '%Y%m%d')).days
+            except Exception:
+                _lag = 99
+            _lag_ok = (0 <= _lag <= 5) and (_pd != _today_d)
+        else:
+            _lag_ok = (time.time() - _pts) < 3 * 86400
+        if _plu > 0 and _lag_ok:
             _pmb = 0 if _plu <= 53 else (1 if _plu <= 86 else 2)
     except Exception:
         _pmb = None
@@ -6891,7 +6902,8 @@ def build_tail(title='尾盘竞价筛选'):
     if _lu > 0:
         try:
             os.makedirs(os.path.dirname(_mood_state), exist_ok=True)
-            json.dump({'lu': int(_lu), 'ts': time.time()}, open(_mood_state, 'w', encoding='utf-8'))
+            json.dump({'lu': int(_lu), 'ts': time.time(), 'd': datetime.now().strftime('%Y%m%d')},
+                      open(_mood_state, 'w', encoding='utf-8'))
         except Exception:
             pass
     _mkt_sum = ''
