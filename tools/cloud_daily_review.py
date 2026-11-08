@@ -7967,7 +7967,13 @@ def _eod_elite_pick(scored, tpool):
     五闸 = 量比 ≥1.5 / 换手 ≥4.5% / 涨幅 ≤7%（不追 7%+）/ 收盘位置 ≥50% / 未封板；
     全过最多 3 只，不足则四闸补位最多 2 只并橙字点名差哪一闸，只过三闸写明差在哪。"""
     _cands = []
-    for s in (tpool or []):
+    # 生产 tpool 是 [(个股 dict, 标签)], 测试/兜底也可能直接给 [dict]，两种都归一
+    _rows_in = []
+    for _it in (tpool or []):
+        _s0 = _it[0] if isinstance(_it, (tuple, list)) and _it else _it
+        if isinstance(_s0, dict):
+            _rows_in.append(_s0)
+    for s in _rows_in:
         try:
             _p = float(s.get('price') or 0)
             _pc = float(s.get('pct') or 0)
@@ -8009,7 +8015,7 @@ def _eod_elite_pick(scored, tpool):
                     'font-size:13px;line-height:1.8;color:#e2e8f0;">今天没有一只票过三闸，'
                     '最靠前的是 %s %s，差在 %s。宁可不做，不做不对。</div>'
                     % (GOLD, GREY, _best[1].get('name') or '', _best[1].get('code') or '', _miss))
-        print('[eod] 量化入榜：0 只（可跟踪池为空 %d 行）' % len(tpool or []))
+        print('[eod] 量化入榜：0 只（可跟踪池为空 %d 行）' % len(_rows_in))
         return ('<div style="margin-top:12px;font-size:15px;font-weight:800;color:%s;">【明日精选·量化入榜】</div>'
                 '<div style="background:#232a3a;border-left:4px solid %s;border-radius:10px;padding:10px 12px;'
                 'font-size:13px;color:#e2e8f0;">可跟踪池为空，今天不给票。</div>' % (GOLD, GREY))
@@ -8060,7 +8066,7 @@ def _eod_elite_pick(scored, tpool):
 def _eod_review_html(rv, scored, tpool=None):
     """渲染收盘全面研判段。"""
     if not rv:
-        return _eod_fallback_html(scored, tpool)
+        return _eod_fallback_html(scored, tpool) + _eod_elite_pick(scored, tpool)
     out = []
     _tops = rv.get('tops') or []
     if _tops:
