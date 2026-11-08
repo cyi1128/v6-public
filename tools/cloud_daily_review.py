@@ -674,11 +674,16 @@ def signals_review_html():
 
 
 def _klines_em(sym, n):
-    """东方财富前复权日K（腾讯 fqkline 限流 501 时的 fallback）。行格式与腾讯一致：[日期,开,收,高,低,量]。"""
+    """东方财富前复权日K（腾讯 fqkline 限流 501/断连时的 fallback）。行格式与腾讯一致：[日期,开,收,高,低,量]。
+    **坑（2026-11-08 实测修掉）**：beg=0 会被东财服务端直接断连或返回 rc:102 + data:null，
+    也就是说这个 fallback 此前一直是死的——腾讯一限流，日K就整体失败，尾盘卡随即全空
+    （实测本地 68/68 只 K线失败）。必须传真实起始日期，beg=19900101/20260101 都正常返回。"""
     sec = ('1.' if sym.startswith('sh') else '0.') + sym[2:]
+    _n = int(n or 70)
+    _beg = (datetime.now() - timedelta(days=_n * 3 + 60)).strftime('%Y%m%d')
     url = (f'https://push2his.eastmoney.com/api/qt/stock/kline/get?secid={sec}'
            f'&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58'
-           f'&klt=101&fqt=1&beg=0&end=20500101&lmt={n}')
+           f'&klt=101&fqt=1&beg={_beg}&end=20500101&lmt={_n}')
     d = json.loads(_get(url))
     kl = (d.get('data') or {}).get('klines') or []
     out = []
@@ -690,7 +695,7 @@ def _klines_em(sym, n):
             out.append([p[0], float(p[1]), float(p[2]), float(p[3]), float(p[4]), float(p[5])])
         except ValueError:
             continue
-    return out
+    return out[-_n:] if out else out
 
 
 def get_klines(code, n=20):
