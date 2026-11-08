@@ -2914,7 +2914,10 @@ def _sec_clean(sec):
     """题材名清洗（单股链路）：去噪声词→黑名单→纯数字→中文占比；无效返回 ''。"""
     if not sec:
         return ''
-    s2 = re.sub(r'[行业板块概念\s]+', '', str(sec)).strip()
+    s2 = re.sub(r'\s+', '', str(sec))
+    s2 = re.sub(r'^(?:行业|板块|概念)[:：]?', '', s2)
+    s2 = re.sub(r'[（(](?:行业|板块|概念)[)）]$', '', s2)
+    s2 = s2.strip()
     if not s2 or s2 in _BLACKLIST:
         return ''
     if _is_digit_serial(s2):
