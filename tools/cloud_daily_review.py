@@ -6118,7 +6118,7 @@ def _tail_filter(rows, heat=None, zt_names=None):
     _c_vt = sum(1 for s in out if s.get('_vt') is not None)
     print('[tail] 新因子覆盖：振幅 %d/%d、量能趋势 %d/%d、收盘位置 %d/%d、上影线 %d/%d'
           % (_c_amp, len(out), _c_vt, len(out),
-             sum(1 for s in out if s.get('_clv') is not None),
+             sum(1 for s in out if s.get('_clv') is not None), len(out),
              sum(1 for s in out if s.get('_shadow') is not None), len(out)))
     return out
 
