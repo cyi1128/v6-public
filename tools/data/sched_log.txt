@@ -151,3 +151,8 @@
 11-08 18:06:48 已占用 2026-11-08 weekend-18 段调度权（至 18:26）
 11-08 18:06:48 >>> 执行槽位 watch @ 18:06:48
 11-08 18:16:36     watch| SLOT watch 休市新闻 PUSH True 执行成功
+11-08 18:16:37 持久化(watch)：已推送
+11-08 18:16:37 <<< 完成槽位 watch，用时 589.6s
+11-08 18:16:37 周末快跑结束，退出
+11-08 18:16:37 退出原因：weekend-end
+11-08 18:16:37 今日已过窗未推 23 个槽：08:20warn、08:30pre、09:25auction、10:00hourly、10:30newsfire、10:35risk、11:00hourly、11:30noon、11:40news、12:00news2h、13:00hourly、13:30newsfire、13:35risk、14:00hourly、14:01news2h、14:05follow、14:55tail、15:00eod、15:05follow、15:10news、15:20cycle、15:35news、16:00news2h
