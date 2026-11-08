@@ -554,6 +554,26 @@
 14:10:43 [llm] 截止已过停产 purpose=evening used=183s
 14:10:43 [ask_deepseek] ModelScope 两次尝试均失败，purpose=evening
 14:11:02 [llm] 全局预算用尽 used=1135s purpose=eve_news
+<<<<<<< Updated upstream
 14:29:08 [llm] 总预算用尽 purpose=holiday_ds used=182s
 14:32:10 [llm] 总预算用尽 purpose=holiday_ds used=182s
 14:32:10 [ask_deepseek] ModelScope 两次尝试均失败，purpose=holiday_ds
+=======
+14:28:12 [llm] 截止已过停产 purpose=sec2_deep used=92s
+14:28:12 [llm] 截止已过停产 purpose=sec2_deep used=0s
+14:28:12 [ask_deepseek] ModelScope 两次尝试均失败，purpose=sec2_deep
+>>>>>>> Stashed changes
+14:35:21 [llm] 截止已过停产 purpose=eod used=92s
+14:35:21 [llm] 截止已过停产 purpose=eod used=0s
+14:35:21 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eod
+14:35:21 [llm] 全局预算用尽 used=532s purpose=eod_review_ds
+14:35:28 [llm] 全局预算用尽 used=540s purpose=miss_deep
+14:35:51 [llm] 全局预算用尽 used=562s purpose=resonance_verdict
+14:35:52 [llm] 全局预算用尽 used=563s purpose=brief_summary_v3
+14:39:18 [llm] 总预算用尽 purpose=ext used=184s
+14:44:32 [llm] 截止已过停产 purpose=ext_news used=138s
+14:44:32 [llm] 截止已过停产 purpose=ext_news used=0s
+14:44:32 [ask_deepseek] ModelScope 两次尝试均失败，purpose=ext_news
+14:50:58 [llm] 总预算用尽 purpose=eve_news used=184s
+14:51:44 [llm] 截止已过停产 purpose=eve_news used=46s
+14:51:44 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eve_news
