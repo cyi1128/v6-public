@@ -7888,13 +7888,16 @@ def _eod_review_ds(d, idx, scored, tpool):
     if not scored and not tpool:
         return {}
     tops_txt = '；'.join(f"「{n}」涨停{len(s)}家 龙头{sorted(s, key=lambda x: x.get('fbt') or 0)[0].get('n')}" for n, s, *_ in scored[:10])
+    tops_txt5 = '；'.join(f"「{n}」涨停{len(s)}家" for n, s, *_ in scored[:5])
     pool_txt = '；'.join(f"{s.get('name')}（{s.get('pct')}%，量比{s.get('lb')}，题材{s.get('industry') or '其他'}）" for s, _k in tpool[:8])
     idx_txt = '、'.join(f"{x['name']}{x['pct']:+.2f}%" for x in idx) or '未取得'
+    # v7.9v：规格瘦身——原来要 TOP10 板块各 ≥25 字逻辑 + ≥20 字暗线 + 3 票 + 3 主线 + 3 题材 + 主升，
+    # 一次 600+ 中文字，45s 内跑不完，5 个候选全部超时（s8 连续 9 轮为 0 的直接原因）。
     fmt = ('你是深谙A股主力运作的一线游资，收盘后做全面研判。基于以下收盘数据，只输出 JSON：\n'
-           '{"tops":[{"sec":"板块名(照抄TOP10)","logic":"上涨核心逻辑：驱动+资金+持续性(≥25字)","leader":"龙头股","leader_dark":"龙头涨停的真实原因与暗线(≥20字)：是板块爆发还是个股利好、资金为什么封它"}],"tomorrow":[{"name":"股票名","reason":"明日可介入原因(≥20字，只从盘面真实异动推导)","dark":"暗线(≥15字)","buy":"买点具体","stop":"止损具体","pos":"仓位"}],"mainline_next":["板块A：为什么可能成主线(≥15字)","板块B：…(最多3个)"],"spark_next":["题材X：下次爆发逻辑(≥15字)","题材Y：…(最多3个)"],"main_start":["股票Z：准备启动主升的理由(≥20字，用盘面数据说话)"]}\n'
-           '硬约束：明日可介入/主升启动票禁止推今日涨停/连板票与千亿大盘股；没有把握写「暂无」，禁止万能句；用数据说话。\n'
-           '排序要求：tomorrow 数组按「明日最值得介入→次之」排序，只保留最有把握的最多3只，宁缺毋滥；mainline_next/spark_next 同理只给最有把握的方向，禁止罗列凑数。\n'
-           '数据：指数 ' + idx_txt + '；涨停' + str(d['lu']) + '炸板' + str(d['zb']) + '跌停' + str(d['dt']) + '；TOP10板块：' + tops_txt + '\n'
+           '{"tops":[{"sec":"板块名(照抄TOP5)","logic":"上涨核心逻辑(≥18字)","leader":"龙头股","leader_dark":"龙头涨停真实原因(≥12字)"}],"tomorrow":[{"name":"股票名","reason":"明日可介入原因(≥15字)","dark":"暗线(≥10字)","buy":"买点","stop":"止损","pos":"仓位"}],"mainline_next":["板块：为什么可能成主线(≥10字)"],"spark_next":["题材：下次爆发逻辑(≥10字)"],"main_start":["股票：准备启动主升的理由(≥12字)"]}\n'
+           '硬约束：明日可介入/主升启动票禁止推今日涨停/连板票与千亿大盘股；没有把握写「暂无」；禁止万能句。\n'
+           '数量上限：tops 最多 5 条、tomorrow 最多 2 只、mainline_next / spark_next / main_start 各最多 2 条，宁缺毋滥。\n'
+           '数据：指数 ' + idx_txt + '；涨停' + str(d['lu']) + '炸板' + str(d['zb']) + '跌停' + str(d['dt']) + '；TOP5板块：' + tops_txt5 + '\n'
            '可跟踪池（今日未涨停、量能放大）：' + (pool_txt or '无'))
     t = ask_deepseek({'task': 'eod_review_ds', 'tops': [n for n, s, *_ in scored[:10]],
                       'pool': [s.get('name') for s, _k in tpool[:8]], 'format': fmt}, purpose='eod_review_ds')
@@ -7907,10 +7910,48 @@ def _eod_review_ds(d, idx, scored, tpool):
         return {}
 
 
-def _eod_review_html(rv, scored):
+def _eod_fallback_html(scored, tpool):
+    """v7.9v：全面研判模型段缺席时的数据兜底——只摆盘面实测（板块涨停家数 / 可跟踪池的量比·涨幅·题材），
+    不下判断、不冒充研判，标清口径。目的是让这一整段不再空白，且给的是明天能手查的数字。"""
+    out = []
+    _tops = []
+    for n, s, *_ in scored[:5]:
+        if not s:
+            continue
+        try:
+            _lg = sorted(s, key=lambda x: x.get('fbt') or 0)[0]
+        except Exception:
+            _lg = {}
+        _tops.append('<div style="background:#1f2635;border-left:3px solid %s;border-radius:8px;padding:7px 11px;margin:5px 0;">'
+                     '<span style="font-weight:700;color:#fff;">%s</span>'
+                     '<span style="color:%s;font-size:12px;"> %d 家涨停 ｜ 最先封 %s %s</span></div>'
+                     % (RED, n, GREY, len(s), _lg.get('n') or '—',
+                        ('%+.2f%%' % _lg['pct']) if isinstance(_lg.get('pct'), (int, float)) else ''))
+    if _tops:
+        out.append('<div style="margin-top:12px;font-size:15px;font-weight:800;color:' + RED + ';">'
+                   '【今日主线实测】</div>' + ''.join(_tops))
+    _rows = []
+    for s, tag in (tpool or [])[:3]:
+        _p = s.get('price') or 0
+        _buy = ('%.2f~%.2f' % (_p * 0.99, _p * 1.01)) if _p else '待开盘竞价定'
+        _stp = ('%.2f（-3%%）' % (_p * 0.97)) if _p else '-3%'
+        _rows.append('<div style="background:#1f2635;border-left:3px solid %s;border-radius:8px;padding:7px 11px;margin:5px 0;">'
+                     '<div style="font-weight:700;color:#fff;">%s %s <span style="color:%s;font-size:12px;">｜%s ｜%s</span></div>'
+                     '<div style="color:#e9ecef;font-size:12px;margin-top:2px;">量比 %.2f ｜ 今日 %+.2f%% ｜ 题材 %s</div>'
+                     '<div style="color:%s;font-size:12px;">买点 %s ｜ 止损 %s</div></div>'
+                     % (TEAL, s.get('name') or '', s.get('code') or '', GREY, tag, s.get('industry') or '其他',
+                        float(s.get('lb') or 0), float(s.get('pct') or 0), s.get('industry') or '其他', GOLD, _buy, _stp))
+    if _rows:
+        out.append('<div style="margin-top:12px;font-size:15px;font-weight:800;color:' + TEAL + ';">'
+                   '【明日盯盘清单·今日未涨停量能放大】</div>' + ''.join(_rows)
+                   + '<div style="color:%s;font-size:11px;margin-top:3px;">口径：以上为收盘盘面实测值（量比/涨幅/题材/价格），不是模型研判，明日按竞价实际情况定。</div>' % GREY)
+    return ''.join(out)
+
+
+def _eod_review_html(rv, scored, tpool=None):
     """渲染收盘全面研判段。"""
     if not rv:
-        return ''
+        return _eod_fallback_html(scored, tpool)
     out = []
     _tops = rv.get('tops') or []
     if _tops:
@@ -7988,7 +8029,36 @@ def _resonance_verdict(res):
     except Exception:
         return None
 
-_EOD_FIT_ORDER = ('fac', 'st', 'cap', 'pool', 'reson', 's6', 's5', 'miss', 's45')
+_EOD_FIT_ORDER = ('fac', 'st', 'cap', 'pool', 'reson', 's6', 's5', 'miss', 's45', 'health', 'sell', 's1')
+
+
+def _eod_fit_styled(parts, wrap_fn, limit=19000, margin=120):
+    """v7.9v2 闭环裁剪：每丢一段就用真实成品长度复算一次（_style_upgrade 会按元素膨胀约 7%，
+    写死阈值算不准）。模型段不动，只按 _EOD_FIT_ORDER 丢次要数据段。返回 (inner, 丢掉的段名)。"""
+    _pp = list(parts)
+    _dropped = []
+    _inner = ''.join(x for _, x in _pp)
+    _cap = limit - margin
+    while wrap_fn(_inner) > _cap:
+        _cand = None
+        for _k in _EOD_FIT_ORDER:
+            for i, (kk, vv) in enumerate(_pp):
+                if kk == _k and len(vv) > 120:
+                    _cand = i
+                    break
+            if _cand is not None:
+                break
+        if _cand is None:
+            _over = wrap_fn(_inner) - _cap
+            _inner = _inner[:max(1200, len(_inner) - int(_over * 1.15) - 200)]
+            print('[eod] 字数预算裁剪：可丢段已用尽，按成品超量硬截断到 %d 字' % len(_inner))
+            _dropped.append('hard_clip')
+            break
+        print('[eod] 字数预算裁剪：丢 %s（%d 字）' % (_pp[_cand][0], len(_pp[_cand][1])))
+        _dropped.append(_pp[_cand][0])
+        _pp.pop(_cand)
+        _inner = ''.join(x for _, x in _pp)
+    return _inner, _dropped
 
 
 def _eod_fit_parts(parts, fit=18000):
@@ -8272,7 +8342,7 @@ def build_eod():
 
     # 全面研判（11-05 指令⑤）：TOP10 上涨逻辑+涨停个股原因暗线+明日可介入+主线候选/下次爆发/主升启动
     # v7.9q：_rv 已在并发阶段取得，这里只做渲染
-    sec8 = _eod_review_html(_rv, scored)
+    sec8 = _eod_review_html(_rv, scored, tpool)
 
     sec_sell = f"""<div style="margin-top:12px;border-left:4px solid {GREEN};border-radius:8px;padding:9px 11px;background:#1c2830;font-size:13px;color:#e2e8f0;">
 <div style="font-weight:800;color:{GREEN};">📋 明日开盘预案</div>
@@ -8336,13 +8406,12 @@ def build_eod():
               ('s6', sec6), ('pool', _pool_today), ('cap', _cap),
               ('st', (f'<div style="margin-top:6px;font-size:12px;color:{GREY};">{_st_line}</div>' if _st_line else '')),
               ('fac', _factor_board_top(d, topn=3)), ('reson', _reson_sec), ('miss', _miss_block)]
-    _parts, _fit_drop = _eod_fit_parts(_parts, fit=18000)
+    # v7.9v2：预算走真实成品长度闭环（_style_upgrade 按元素膨胀约 7%，写死阈值必然算漏）
+    inner, _fit_drop = _eod_fit_styled(
+        _parts, lambda h: len(_style_upgrade(_wrap(h, '🌆', '收盘复盘'))))
     if _fit_drop:
         print('[eod] 字数预算裁剪完成：丢掉 %s，剩余 %d 字'
-              % ('/'.join(_fit_drop), sum(len(x) for _, x in _parts)))
-    inner = ''.join(x for _, x in _parts)
-    if 'hard_clip' in (_fit_drop or []) and len(inner) > 18000:
-        inner = inner[:18000]
+              % ('/'.join(_fit_drop), len(inner)))
     try:
         print('[eod] SEC ' + ' '.join('%s=%d' % (k, len(v)) for k, v in _parts)
               + ' total=%d' % len(inner))
