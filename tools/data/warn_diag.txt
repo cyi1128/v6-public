@@ -442,3 +442,17 @@
 11:02:26 [ask_deepseek] ModelScope 两次尝试均失败，purpose=ext_news
 11:02:39 [llm] 全局预算用尽 used=952s purpose=evening
 11:02:46 [llm] 全局预算用尽 used=960s purpose=eve_news
+11:13:18 [llm] 总预算用尽 purpose=sec2_deep used=184s
+11:16:23 [llm] 总预算用尽 purpose=sec2_deep used=185s
+11:16:23 [ask_deepseek] ModelScope 两次尝试均失败，purpose=sec2_deep
+11:17:32 [llm] 全局预算用尽 used=449s purpose=theme_health_card
+11:17:53 [llm] 全局预算用尽 used=470s purpose=signal_review
+11:17:55 [llm] 全局预算用尽 used=472s purpose=eod
+11:17:55 [llm] 全局预算用尽 used=472s purpose=eod_review_ds
+11:18:03 [llm] 全局预算用尽 used=480s purpose=miss_deep
+11:18:26 [llm] 全局预算用尽 used=503s purpose=resonance_verdict
+11:18:34 [llm] 全局预算用尽 used=511s purpose=brief_summary_v3
+11:22:03 [llm] 全局预算用尽 used=720s purpose=ext_news
+11:26:23 [llm] 总预算用尽 purpose=eve_news used=184s
+11:29:27 [llm] 总预算用尽 purpose=eve_news used=184s
+11:29:27 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eve_news
