@@ -482,3 +482,7 @@
 12:13:13 [llm] 全局预算用尽 used=956s purpose=ext_news
 12:13:24 [llm] 全局预算用尽 used=967s purpose=evening
 12:13:43 [llm] 全局预算用尽 used=986s purpose=eve_news
+12:26:26 [llm] 总预算用尽 purpose=holiday_ds used=184s
+12:29:30 [llm] 总预算用尽 purpose=holiday_ds used=184s
+12:29:30 [ask_deepseek] ModelScope 两次尝试均失败，purpose=holiday_ds
+12:32:34 [llm] 总预算用尽 purpose=holiday_ds used=184s

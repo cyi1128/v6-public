@@ -179,3 +179,7 @@
 11-08 19:35:54 退出原因：weekend-end
 11-08 19:35:54 今日已过窗未推 23 个槽：08:20warn、08:30pre、09:25auction、10:00hourly、10:30newsfire、10:35risk、11:00hourly、11:30noon、11:40news、12:00news2h、13:00hourly、13:30newsfire、13:35risk、14:00hourly、14:01news2h、14:05follow、14:55tail、15:00eod、15:05follow、15:10news、15:20cycle、15:35news、16:00news2h
 11-08 20:20:19 启动调度器 v2，当前北京时间 2026-11-08 20:20:19 星期日
+11-08 20:20:21 持久化(sched-active)：已推送
+11-08 20:20:21 已占用 2026-11-08 weekend-20 段调度权（至 20:40）
+11-08 20:20:21 >>> 执行槽位 watch @ 20:20:21
+11-08 20:33:12     watch| SLOT watch 休市新闻 PUSH True 执行成功
