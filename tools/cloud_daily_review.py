@@ -175,6 +175,21 @@ def _llm_set_deadline(ts):
     except Exception:
         pass
 
+def _llm_reopen(share=0.55, cap=480.0, floor=60.0):
+    """按「此刻」重开 LLM 窗口并返回截止时刻（主线程）。
+    v7.9r：build_eod 的重取数在并发块之后，实测到情绪核对/复盘主文时已 500s+，
+    沿用模块开始时算死的窗口会被一律判过期。每个模型入口重开一次才拿得到模型。"""
+    try:
+        _gend = _PROC_T0 + LLM_TOTAL_BUDGET
+        _now = time.time()
+        _room = max(0.0, _gend - _now)
+        _end = min(_gend, _now + min(cap, max(floor, _room * share)))
+        _llm_set_deadline(_end)
+        return _end
+    except Exception:
+        return _llm_deadline()
+
+
 HOLDINGS = [
     {'code': 'sz002838', 'name': '道恩股份', 'cost': 25.823, 'qty': 8500, 'sector': '塑料'},
     {'code': 'sz000811', 'name': '冰轮环境', 'cost': 37.571, 'qty': 4300, 'sector': '通用设备'},
@@ -7928,17 +7943,10 @@ def build_eod():
         tpool = []
     # v7.9q：复盘各段互不依赖，改并发执行。串行时四段各 90~160s、窗口只够三段，
     # 排最后的「全面研判 / 事件汇总」永远拿不到模型（s8=0、[ev] sum=0 的根因）。
-    try:
-        _gend = _PROC_T0 + LLM_TOTAL_BUDGET
-        _tsec2 = time.time()
-        _room = max(0.0, _gend - _tsec2)
-        _dsec2 = min(_gend, _tsec2 + min(480.0, max(60.0, _room * 0.55)))
-        _llm_set_deadline(_dsec2)
-        # 板块深挖线程只给自己的 90s 上限（线程级隔离，不影响并发的复盘主文）
-        _sec2_end = min(_dsec2, _tsec2 + 90.0)
-    except Exception:
-        _dsec2 = _LLM_DEADLINE[0]
-        _sec2_end = _LLM_DEADLINE[0]
+    _tsec2 = time.time()
+    _dsec2 = _llm_reopen()
+    # 板块深挖线程只给自己的 90s 上限（线程级隔离，不影响并发的复盘主文）
+    _sec2_end = min(_dsec2, _tsec2 + 90.0)
 
     def _sec2_worker():
         try:
@@ -8067,6 +8075,8 @@ def build_eod():
     except Exception:
         pass
     sec6 = f'<div style="margin-top:10px;color:{GREY};font-size:12px;">【题材记忆】今日记录{len(today_sec)}个强势题材：{"、".join(list(today_sec.keys())[:6])}</div>'
+    # v7.9r：此处已到 500s+，按此刻重开窗口，否则情绪核对必然判过期
+    _llm_reopen(share=0.60)
     sec7 = f'<div style="margin-top:8px;font-size:13px;">{signals_review_html()}{_signal_review_llm()}</div>'
 
     # DeepSeek 大白话复盘（经统一预算网关；预算熔断/失败时自动不出本段）
@@ -8117,6 +8127,8 @@ def build_eod():
                    '明日预案：…\n'
                    '【仓位仪表盘】明日开盘前建议总仓位一档（空仓/1成试探/2成/半仓）+ 一句理由（一行说完；不写自检、不写反问句）。'),
     }
+    # v7.9r：复盘主文是卡的核心，按此刻重开并给它最大份额
+    _llm_reopen(share=0.85)
     ds_md = ask_deepseek(ds_payload)
     if ds_md:
         try:
@@ -8144,6 +8156,7 @@ def build_eod():
         _al0 = load_alerts()
     except Exception:
         _al0 = {'fired': []}
+    _llm_reopen(share=0.90)
     _miss = miss_review(d, _al0)
     _miss_block = (f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:{GREY};">🔍 今日错过 TOP3（仅规则优化线索，不构成买卖建议）</div>{_miss}'
                    if _miss else '')
@@ -8187,6 +8200,7 @@ def build_eod():
     except Exception:
         _reson_sec = ''
 
+    _llm_reopen(share=0.95)
     _ev = build_events('eod', cap=3, light=True)
     _cap = pos_cap_line(sentiment(idx, d)[0], hl)
     _parts = [('overall', _overall), ('health', health_bar(idx, d, fin, fout)), ('s1', sec1),
