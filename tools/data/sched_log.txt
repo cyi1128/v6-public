@@ -10,3 +10,7 @@
 11-08 10:05:15 已占用 2026-11-08 weekend-10 段调度权（至 10:25）
 11-08 10:05:15 >>> 执行槽位 factor_weekly @ 10:05:15
 11-08 10:05:15     factor_weekly| SLOT factor_weekly 本期已推送，跳过
+11-08 10:05:16 持久化(factor_weekly)：已推送
+11-08 10:05:16 <<< 完成槽位 factor_weekly，用时 1.4s
+11-08 10:05:16 >>> 执行槽位 watch @ 10:05:16
+11-08 10:09:25     watch| SLOT watch 休市新闻 PUSH True 执行成功
