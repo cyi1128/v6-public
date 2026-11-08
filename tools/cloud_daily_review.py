@@ -7935,12 +7935,26 @@ def _eod_fallback_html(scored, tpool):
         _p = s.get('price') or 0
         _buy = ('%.2f~%.2f' % (_p * 0.99, _p * 1.01)) if _p else '待开盘竞价定'
         _stp = ('%.2f（-3%%）' % (_p * 0.97)) if _p else '-3%'
+        # v7.9w：四项实测值 + 阈值逐项判定，红字是没达标的项
+        _lb = float(s.get('lb') or 0)
+        _tn = float(s.get('turn') or 0)
+        _pc = float(s.get('pct') or 0)
+        _hi = float(s.get('high') or 0)
+        _lo = float(s.get('low') or 0)
+        _pos = ((_p - _lo) / (_hi - _lo) * 100) if (_hi > _lo and _p) else None
+        def _mk(txt, ok):
+            return '<span style="color:%s;">%s %s</span>' % (TEAL if ok else '#ff6b6b', txt, '✓' if ok else '✗')
+        _g = [_mk('量比 %.2f(≥1.5)' % _lb, _lb >= 1.5),
+              _mk('换手 %.1f%%(≥4.5)' % _tn, _tn >= 4.5),
+              _mk('涨幅 %+.2f%%(≤8.5)' % _pc, _pc <= 8.5),
+              _mk('收盘位置 %.0f%%(≥50)' % _pos, (_pos is not None and _pos >= 50)) if _pos is not None
+              else '<span style="color:%s;">收盘位置 未取到</span>' % GREY]
         _rows.append('<div style="background:#1f2635;border-left:3px solid %s;border-radius:8px;padding:7px 11px;margin:5px 0;">'
                      '<div style="font-weight:700;color:#fff;">%s %s <span style="color:%s;font-size:12px;">｜%s ｜%s</span></div>'
-                     '<div style="color:#e9ecef;font-size:12px;margin-top:2px;">量比 %.2f ｜ 今日 %+.2f%% ｜ 题材 %s</div>'
+                     '<div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.7;">%s</div>'
                      '<div style="color:%s;font-size:12px;">买点 %s ｜ 止损 %s</div></div>'
                      % (TEAL, s.get('name') or '', s.get('code') or '', GREY, tag, s.get('industry') or '其他',
-                        float(s.get('lb') or 0), float(s.get('pct') or 0), s.get('industry') or '其他', GOLD, _buy, _stp))
+                        ' ｜ '.join(_g), GOLD, _buy, _stp))
     if _rows:
         out.append('<div style="margin-top:12px;font-size:15px;font-weight:800;color:' + TEAL + ';">'
                    '【明日盯盘清单·今日未涨停量能放大】</div>' + ''.join(_rows)
@@ -8033,12 +8047,14 @@ _EOD_FIT_ORDER = ('fac', 'st', 'cap', 'pool', 'reson', 's6', 's5', 'miss', 's45'
 
 
 def _eod_fit_styled(parts, wrap_fn, limit=19000, margin=120):
-    """v7.9v2 闭环裁剪：每丢一段就用真实成品长度复算一次（_style_upgrade 会按元素膨胀约 7%，
-    写死阈值算不准）。模型段不动，只按 _EOD_FIT_ORDER 丢次要数据段。返回 (inner, 丢掉的段名)。"""
+    """v7.9v2 闭环裁剪 + v7.9w 捡回：每丢一段用真实成品长度复算（_style_upgrade 按元素膨胀，
+    写死阈值算不准）。丢完后再逆序把还能装下的段捡回来，尽量不牺牲内容。返回 (inner, 丢掉段名)。"""
+    _all = list(parts)
     _pp = list(parts)
     _dropped = []
     _inner = ''.join(x for _, x in _pp)
     _cap = limit - margin
+    _clipped = False
     while wrap_fn(_inner) > _cap:
         _cand = None
         for _k in _EOD_FIT_ORDER:
@@ -8053,11 +8069,23 @@ def _eod_fit_styled(parts, wrap_fn, limit=19000, margin=120):
             _inner = _inner[:max(1200, len(_inner) - int(_over * 1.15) - 200)]
             print('[eod] 字数预算裁剪：可丢段已用尽，按成品超量硬截断到 %d 字' % len(_inner))
             _dropped.append('hard_clip')
+            _clipped = True
             break
         print('[eod] 字数预算裁剪：丢 %s（%d 字）' % (_pp[_cand][0], len(_pp[_cand][1])))
         _dropped.append(_pp[_cand][0])
         _pp.pop(_cand)
         _inner = ''.join(x for _, x in _pp)
+    if _dropped and not _clipped:
+        _kept = [k for k, _ in _pp]
+        for _k in reversed([d for d in _dropped if d != 'hard_clip']):
+            _ks = set(_kept) | {_k}
+            _try_inner = ''.join(v for k, v in _all if k in _ks)
+            if wrap_fn(_try_inner) <= _cap:
+                _kept.append(_k)
+                _inner = _try_inner
+                print('[eod] 字数预算捡回：%s 仍放得下，保留' % _k)
+        if len(_kept) > len([k for k, _ in _pp]):
+            _dropped = [d for d in _dropped if d not in set(_kept)]
     return _inner, _dropped
 
 
