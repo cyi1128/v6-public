@@ -13518,6 +13518,107 @@ def _style_upgrade(html, theme=None):
     return html
 
 
+def _hard_split_div(s, budget):
+    """把超长段按 <div>/</div> 边界切开：段尾补齐已开容器，段首按原属性重开，保证每段标签自洽。"""
+    out, cur, stack, pos = [], '', [], 0
+    for m in re.finditer(r'<div[^>]*>|</div>', s):
+        piece = s[pos:m.start()]
+        tag = m.group(0)
+        # 纯文本段无标签，可任意断开：按预算逐段填满，超了就先收口再重开容器
+        while piece:
+            _room = budget - len(cur)
+            if _room <= 0:
+                out.append(cur + '</div>' * len(stack))
+                cur = ''.join(stack)
+                _room = budget - len(cur)
+            cur += piece[:_room]
+            piece = piece[_room:]
+            if piece:
+                out.append(cur + '</div>' * len(stack))
+                cur = ''.join(stack)
+        cur += tag
+        if tag == '</div>':
+            if stack:
+                stack.pop()
+        else:
+            stack.append(tag)
+        pos = m.end()
+    cur += s[pos:]
+    if cur:
+        out.append(cur)
+    return out
+
+
+def _split_html(html, limit):
+    """把超长卡片按模块边界（</div>）切成若干段，每段自带根容器外壳。
+    返回 [(段i, i, n)]；html 未超限时原样返回单段。绝不切在标签中间。"""
+    if len(html) <= limit:
+        return [(html, 1, 1)]
+    _gt = html.find('>')
+    if _gt < 0 or not html.lstrip().lower().startswith('<div'):
+        # 找不到根容器就退化为按 </div> 硬切
+        prefix, body = '', html
+    else:
+        prefix, body = html[:_gt + 1], html[_gt + 1:]
+    if body.endswith('</div>'):
+        body = body[:-len('</div>')]
+    budget = max(2000, limit - len(prefix) - 120)
+    segs, cur, pos = [], '', 0
+    while pos < len(body):
+        nxt = body.find('</div>', pos)
+        if nxt < 0:
+            cur += body[pos:]
+            break
+        piece = body[pos:nxt + len('</div>')]
+        if len(cur) + len(piece) > budget and cur:
+            segs.append(cur)
+            cur = piece
+        else:
+            cur += piece
+        pos = nxt + len('</div>')
+    if cur:
+        segs.append(cur)
+    # 单模块本身超预算（例如一次 LLM 长段）→ 再按标签起始 '<' 边界硬切，避免整段超限发不出去
+    _fixed = []
+    for s in segs:
+        if len(s) > budget:
+            _fixed.extend(_hard_split_div(s, budget))
+        else:
+            _fixed.append(s)
+    segs = _fixed
+    n = len(segs)
+    out = []
+    for i, s in enumerate(segs, 1):
+        head = '' if i == 1 else ('<div style="color:#8b96a8;font-size:12px;'
+                                  'margin-bottom:8px;">（续 %d/%d）</div>' % (i, n))
+        out.append((prefix + head + s + '</div>', i, n))
+    return out
+
+
+def _send_once(html, title):
+    """单次 PushPlus 发送，返回 (ok, msg)。"""
+    body = json.dumps({'token': PUSHPLUS_TOKEN, 'title': title,
+                       'content': html, 'template': 'html'}).encode()
+    req = urllib.request.Request(PUSHPLUS_API, data=body,
+                                 headers={'Content-Type': 'application/json'})
+    try:
+        r = json.loads(urllib.request.urlopen(req, timeout=15).read().decode())
+        try:
+            ip_req = urllib.request.Request('http://ifconfig.me/ip', headers={'User-Agent': 'curl'})
+            _ip = urllib.request.urlopen(ip_req, timeout=6).read().decode().strip()
+        except Exception:
+            _ip = 'ip_unavailable'
+        print('[push] OUT_IP:', _ip)
+        print('[push] FULL_RESP:', json.dumps(r, ensure_ascii=False))
+        ok = r.get('code') == 200
+        if not ok:
+            print('[push] FAIL code=%s msg=%s title=%s' % (r.get('code'), r.get('msg'), title))
+        return ok, r.get('msg')
+    except Exception as e:
+        print('[push] EXCEPTION title=%s err=%s （不再重试告警，避免循环）' % (title, e))
+        return False, str(e)
+
+
 def push(html, title):
     if DRY_RUN:
         print(f'[DRY-RUN] 模拟推送 title={title} 内容长={len(html)}B（未发真实请求）')
@@ -13546,35 +13647,21 @@ def push(html, title):
             print(f'[push] 备份通道 {ch} 发送成功 title={title}')
         except Exception as e:
             print(f'[push] 备份通道 {ch} 失败（不阻断主通道） err={e}')
-    # PushPlus 内容上限 20000 字（实测超限返回 999 服务端验证错误：发送内容过大）
+    # PushPlus 单条上限 20000 字（实测超限返回 999）。v7.7a 起：超限拆多条，不再裁内容。
     MAX_PUSH_LEN = 19000
     html = _style_upgrade(html)
-    if len(html) > MAX_PUSH_LEN:
-        _cut = MAX_PUSH_LEN
-        _tag = html.rfind('</div>', 0, MAX_PUSH_LEN)
-        if _tag > MAX_PUSH_LEN - 500:
-            _cut = _tag
-        html = html[:_cut] + '</div></body></html>'
-        print(f'[push] 内容超限已截断 {len(html)}->{_cut}+closing chars')
-    body = json.dumps({'token': PUSHPLUS_TOKEN, 'title': title, 'content': html, 'template': 'html'}).encode()
-    req = urllib.request.Request(PUSHPLUS_API, data=body, headers={'Content-Type': 'application/json'})
-    try:
-        r = json.loads(urllib.request.urlopen(req, timeout=15).read().decode())
-        try:
-            ip_req = urllib.request.Request('http://ifconfig.me/ip', headers={'User-Agent':'curl'})
-            _ip = urllib.request.urlopen(ip_req, timeout=6).read().decode().strip()
-        except Exception:
-            _ip = 'ip_unavailable'
-        print('[push] OUT_IP:', _ip)
-        print('[push] FULL_RESP:', json.dumps(r, ensure_ascii=False))
-        ok = r.get('code') == 200
-        if not ok:
-            # 只打印日志，绝不递归再发推送（避免失败循环）
-            print(f'[push] FAIL code={r.get("code")} msg={r.get("msg")} title={title}')
-        return ok, r.get('msg')
-    except Exception as e:
-        print(f'[push] EXCEPTION title={title} err={e} （不再重试告警，避免循环）')
-        return False, str(e)
+    parts = _split_html(html, MAX_PUSH_LEN)
+    if len(parts) > 1:
+        print('[push] 内容 %d 字超上限，拆 %d 条发送 title=%s' % (len(html), len(parts), title))
+    ok_all, msgs = True, []
+    for _h, _i, _n in parts:
+        _t = title if _n == 1 else ('%s（%d/%d）' % (title, _i, _n))
+        _ok, _m = _send_once(_h, _t)
+        ok_all = ok_all and _ok
+        msgs.append(str(_m))
+        if not _ok:
+            print('[push] 第 %d/%d 条失败，继续发后续段（不中断）' % (_i, _n))
+    return ok_all, (msgs[0] if len(msgs) == 1 else '; '.join(msgs))
 
 
 # ============ 休市日新闻汇总：去重 + 组装（2026-10-19 新增） ============
