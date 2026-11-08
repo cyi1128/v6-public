@@ -6035,8 +6035,12 @@ def _tail_filter(rows, heat=None, zt_names=None):
                 continue                      # 今天已经大涨的，明天空间被吃掉，不追
             if lb2 < 1.2 or turn2 < 4.0:
                 continue
-            if chg5 is not None and chg5 > 25.0:
-                continue                      # 近5日已翻倍级暴炒，回撤风险不可控
+            # 近5日涨幅上限放宽到 40%（实测：<=15 6.24% / <=20 6.36% / <=25 6.01% / <=30 6.30% / <=40 6.44% /
+            # 完全不限 6.53%，两段同向 5.82%/6.95%）。B 轨本来就在「已涨停过+今日不封板」的回踩结构里，
+            # 近5日涨幅大恰恰说明资金认这条线，卡在 25% 白扔掉了最活跃的一批；放到 40% 只留 40%+ 这种
+            # 已经暴炒到失真的排除在外，兼顾命中率与回撤可控。
+            if chg5 is not None and chg5 > 40.0:
+                continue                      # 近5日涨幅 40%+，已属翻倍级暴炒，回撤风险不可控
             if p60 is not None and p60 > 5.0:
                 continue                      # 已显著高出前高=纯追高，不接
             s['track'] = 'B'
@@ -6557,6 +6561,11 @@ def build_tail(title='尾盘竞价筛选'):
     # 不做跨轨裸排序：两轨档位基准不同，裸排会把 A 轨分数虚高的票挤掉 B 轨的真机会。
     _bpool = [s for s in cands if s.get('track') == 'B']
     _apool = [s for s in cands if s.get('track') != 'B']
+    # B 池内按「连板次数」分层再按分数：近5日涨停 >=3 次 11.88%、>=2 次 9.99%、>=1 次 6.01%，
+    # 卡内实测（同为 B7+A3 十席）分层后 6.39% vs 纯分数 5.85%（+0.54pt，前半6.18/后半6.60），
+    # 因为连板次数是硬结构信号，分数里的软权重压不过它。
+    _bpool.sort(key=lambda x: (-min(3, int(x.get('_zt_n') or 0)), -float(x.get('score') or 0)))
+    _apool.sort(key=lambda x: -float(x.get('score') or 0))
     tops = _bpool[:7] + _apool[:3]
     if len(tops) < AUCTION_TOP_N:
         tops += (_bpool[7:] + _apool[3:])[:AUCTION_TOP_N - len(tops)]
@@ -6771,8 +6780,12 @@ def build_cycle(title='多周期视角研判'):
     if not cands:
         return None
     # v7 双轨配额（与尾盘卡同口径 B7+A3）：周期卡一屏 10 只
-    _bp = [s for s in cands if s.get('track') == 'B'][:7]
-    _ap = [s for s in cands if s.get('track') != 'B'][:3]
+    _bq = [s for s in cands if s.get('track') == 'B']
+    _bq.sort(key=lambda x: (-min(3, int(x.get('_zt_n') or 0)), -float(x.get('score') or 0)))
+    _aq = [s for s in cands if s.get('track') != 'B']
+    _aq.sort(key=lambda x: -float(x.get('score') or 0))
+    _bp = _bq[:7]
+    _ap = _aq[:3]
     cands = _bp + _ap
     groups = {}
     order = ['超短线（1-3日）', '短线（3-10日）', '中长线（1-6月）', '长线（6月+）', '短线观察']
