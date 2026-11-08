@@ -5956,7 +5956,10 @@ def _tail_filter(rows, heat=None, zt_names=None):
             lb = float(s['lb'] or 0)
             # v5：量比门槛 2.0→1.3（727 个真首板前一日量比中位仅 1.05）。
             # v7 双轨基础闸取并集：A 轨（低吸首板）要 2.5~8.5、B 轨（强势二波）要 -2~7，轨内再细分。
-            if lb < 1.2:
+            # v7.4：B 轨量比闸 1.2 → 1.0。池 8549 里 B 池 2855（日均 9.5）→ 3863（日均 12.9），B 池精确率 7.02%，
+            #   卡内 8B+2A 由 7.00% 抬到 7.88%（前半 8.13 / 后半 7.64）——B 席变多，打分才有得挑；
+            #   再往下放（0.9 / 0.8）能到 8.09% / 8.24%，但前半 9.02 对后半 7.46 已失衡，取 1.0 为止。
+            if lb < 1.0:
                 continue
             turn = float(s['turn'] or 0)
             # v7 换手闸回退并上移为单边 >=3.0%。依据换成年 245 交易日 / 743 只随机无偏样本 / 18 万条记录：
@@ -6694,8 +6697,8 @@ def build_tail(title='尾盘竞价筛选'):
         s['_lhb_txt'] = '、'.join(_bits) if _bits else '昨日上榜，席位无极端信号'
     cands.sort(key=lambda x: -x['score'])
     # v7 双轨配额：B 轨（强势二波）精确率是 A 轨的 2.7 倍（6.01% vs 2.35%，日均命中 0.70 vs 0.60 只，
-    # 全样本 22 万条口径），B 席越多越赚：B10+A0 6.03%、B8+A2 5.56%、**B7+A3 5.49%**、B6+A4 5.09%、
-    # 纯分数不设配额 4.72%。取 B7+A3——既拿住统计优势，又保留 A 轨「首板前夜」这条原始形态。
+    # 池 8549 口径），v7.4 换成 B 席更多的 B 池（量比闸 1.0）：8B+2A 7.88%、7B+3A 7.40%、9B+1A 8.25%、10B+0A 8.45%，
+    # A 轨是「买在涨停前」的原始形态不能砍光，取 B8+A2；纯分数裸排 6.55% vs 连板分层 6.80%，分层排序是必要的。
     # 不做跨轨裸排序：两轨档位基准不同，裸排会把 A 轨分数虚高的票挤掉 B 轨的真机会。
     _bpool = [s for s in cands if s.get('track') == 'B']
     _apool = [s for s in cands if s.get('track') != 'B']
@@ -6705,10 +6708,10 @@ def build_tail(title='尾盘竞价筛选'):
     _bpool.sort(key=lambda x: (-min(3, int(x.get('_zt_n') or 0)), -float(x.get('score') or 0)))
     _apool.sort(key=lambda x: -float(x.get('score') or 0))
     # 卡面排序与配额同序：B 轨整体排在 A 轨前面（B 精确率是 A 的 2.7 倍），B 内部再按连板次数分层、
-    # 层内按分数；A 轨按分数。这样 1~7 号位是二波、8~10 号位是低吸首板，用户一眼就知道先看哪几行。
-    tops = _bpool[:7] + _apool[:3]
+    # 层内按分数；A 轨按分数。这样 1~8 号位是二波、9~10 号位是低吸首板，用户一眼就知道先看哪几行。
+    tops = _bpool[:8] + _apool[:2]
     if len(tops) < AUCTION_TOP_N:
-        tops += (_bpool[7:] + _apool[3:])[:AUCTION_TOP_N - len(tops)]
+        tops += (_bpool[8:] + _apool[2:])[:AUCTION_TOP_N - len(tops)]
     tops = sorted(tops[:AUCTION_TOP_N], key=lambda x: (
         0 if x.get('track') == 'B' else 1,
         -min(3, int(x.get('_zt_n') or 0)),
@@ -6922,13 +6925,13 @@ def build_cycle(title='多周期视角研判'):
              or not (cnt.get(_sec(s), 0) < 2 and heat.get(_sec(s), 0) < 45)]
     if not cands:
         return None
-    # v7 双轨配额（与尾盘卡同口径 B7+A3）：周期卡一屏 10 只
+    # v7.4 双轨配额（与尾盘卡同口径 B8+A2）：周期卡一屏 10 只
     _bq = [s for s in cands if s.get('track') == 'B']
     _bq.sort(key=lambda x: (-min(3, int(x.get('_zt_n') or 0)), -float(x.get('score') or 0)))
     _aq = [s for s in cands if s.get('track') != 'B']
     _aq.sort(key=lambda x: -float(x.get('score') or 0))
-    _bp = _bq[:7]
-    _ap = _aq[:3]
+    _bp = _bq[:8]
+    _ap = _aq[:2]
     cands = _bp + _ap
     groups = {}
     order = ['超短线（1-3日）', '短线（3-10日）', '中长线（1-6月）', '长线（6月+）', '短线观察']
