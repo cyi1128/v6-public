@@ -351,9 +351,10 @@ def persist_state(tag: str) -> None:
     if c.returncode != 0:
         log(f'持久化({tag})：提交失败 {((c.stderr or c.stdout or "").strip())[:140]}')
         return
-    # v13：重试 3 轮 -> 1 轮。写一个心跳不值得把下一张卡拖掉；
-    # 失败就返回，主循环的下一个 tick（每 15 秒）会再试一次。
-    for attempt in range(1, 2):
+    # v15：v13 砍成 1 轮后，撞上「远端已被别人先推」就直接放弃，
+    # slot_done 丢键 -> 下一个 run 补跑 -> 重复推送（14:42 实测 ! [rejected] fetch first）。
+    # 改成 2 轮：第一轮失败先 pull --rebase 再推。最坏 75 秒，仍不会卡死时刻表。
+    for attempt in (1, 2):
         r = git('push', 'origin', 'HEAD:main')
         out = ((r.stdout or '') + (r.stderr or '')).strip()
         if r.returncode == 0 and 'Everything up-to-date' not in out:
@@ -885,6 +886,9 @@ def main() -> int:
         return finish('roll-busy')
 
     # 启动补跑：先把本次触发之前漏掉的槽补上（受宽容窗约束，过窗不补）
+    # v15：补跑前再拉一次去重表——上一个 run 的状态推送若刚好被拒（fetch first），
+    # 本地 slot_done 是旧表，照着补跑就是重复推送。
+    pull_latest()
     for _h, _m, slot in backfill_pending(bj_now(), executed):
         run_slot(slot, _h, _m)
 
