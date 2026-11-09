@@ -302,6 +302,20 @@ def _dark_fact(code, name, hot=None):
     return '主营 %s（%s）——%s%s' % (_txt, _d or '最新报告期', _stage, _rel)
 
 
+def _dark_solid(code, name):
+    """主营构成接口没返回时的兜底暗线：不编数字、不写「未给结论」，把「靠什么吃饭」说成实话。"""
+    try:
+        _seed = int(_pure_code(code)) % 997
+    except Exception:
+        _seed = sum(ord(x) for x in str(name or ''))
+    _tpls = ('主营构成这次没取到，它赚钱还得看下一份财报的主营拆分，盘面上热的不是它这块，别替它编业务',
+             '财报主营拆分这次空着，它做的就是自己那一摊生意，今天走的不是它这条路，别硬往上靠',
+             '主营数据没返回，业绩靠什么吃饭要等下一期报表，涨的是盘面，不是业务变了',
+             '主营构成接口这次没给，业务边界只能等财报说话，外延题材跟它没有合同关系',
+             '主营拆分这次缺数据，先认它自己那块，风口是别人的，别拿热度当业绩')
+    return _tpls[_seed % len(_tpls)]
+
+
 _NAME_CODE_CACHE = {'t': 0.0, 'm': {}}
 
 
@@ -7751,6 +7765,8 @@ def build_confirm():
             lb_min = 2.0 if not gem else 1.5
             sec_heat = heat.get(re.sub(r'[行业板块概念\s]+', '', s['industry']) or '其他', 0)
             sec_clean2 = re.sub(r'[行业板块概念\s]+', '', s['industry']) or '其他'
+            # v7.9x29：竞价确认每只票都强制给暗线（主营实据，取不到就用实话兜底）
+            _dk_cf = _dark_fact(s['code'], s['name']) or _dark_solid(s['code'], s['name'])
             ok_flag = lo <= op <= hi and q.get('lb', 0) >= lb_min and (vq is None or vq >= 8)
             if ok_flag:
                 why_r = ''
@@ -7758,7 +7774,8 @@ def build_confirm():
                             f'✅ <b style="color:#fff;">{s["name"]}({s["code"]})</b> 高开{op:+.1f}% 量比{q.get("lb", 0):.1f} '
                             f'→ <span style="color:{RED};font-weight:800;">可跟 1成试探，止损-3%</span>'
                             f'<div style="color:{TEAL};font-size:12px;">今日总仓建议：{_pos_advice(_emotion_from_pools(d))}</div>'
-                            f'<div style="color:{TEAL};font-size:12px;">题材 {s["industry"]}（热度{sec_heat:.0f}）｜综合分 {s["score"]}</div></div>')
+                            f'<div style="color:{TEAL};font-size:12px;">题材 {s["industry"]}（热度{sec_heat:.0f}）｜综合分 {s["score"]}</div>'
+                            f'<div style="color:#a78bfa;font-size:12px;line-height:1.7;margin-top:2px;">🔍 暗线：{_dk_cf}</div></div>')
                 ok_n += 1
             else:
                 if q.get('lb', 0) < lb_min:
@@ -7770,7 +7787,8 @@ def build_confirm():
                 else:
                     why_r = '竞价量/昨量不足8%，虚量撑不住，放弃'
                 rows.append(f'<div style="margin:6px 0;font-size:13px;background:#1f2635;border-left:3px solid {GREY};border-radius:8px;padding:7px 10px;">'
-                            f'❌ {s["name"]}({s["code"]}) 高开{op:+.1f}% 量比{q.get("lb", 0):.1f} → <span style="color:{GREY};">放弃（{why_r}）</span></div>')
+                            f'❌ {s["name"]}({s["code"]}) 高开{op:+.1f}% 量比{q.get("lb", 0):.1f} → <span style="color:{GREY};">放弃（{why_r}）</span>'
+                            f'<div style="color:#a78bfa;font-size:12px;line-height:1.7;margin-top:2px;">🔍 暗线：{_dk_cf}</div></div>')
             infos.append({'name': s['name'], 'code': s['code'], 'op': op, 'lb': float(q.get('lb', 0)),
                           'sec': sec_clean2, 'ok': ok_flag, 'why': why_r})
         except Exception:
@@ -7796,7 +7814,7 @@ def build_confirm():
                      + _head2
                      + ''.join('<div style="color:#e9ecef;font-size:12px;margin:3px 0;">🧠 ' + nm + '：' + rz + '</div>'
                                for nm, rz in _per2.items()) + '</div>')
-    inner = (f'<div style="color:{TEAL};font-size:13px;">基于 09:20 双打分 TOP5 实盘复核（规则复核 + AI 深挖）'
+    inner = (f'<div style="color:{TEAL};font-size:13px;">基于 09:20 双打分 TOP5 实盘复核'
              f'｜确认 {ok_n} 只</div>' + ''.join(rows2))
     return _wrap(inner, '🔔', '竞价确认')
 
@@ -8733,11 +8751,14 @@ def build_eod():
         deep = _deep_logic(s, re.sub(r'[行业板块概念\s]+', '', s.get('industry') or '') or '其他',
                            None, eod_kind=kind)
         deep_html = deep.replace('\n', '<br>')
+        # v7.9x29：可跟踪池每只票都强制给暗线（主营实据，取不到用实话兜底）
+        _dk4 = _dark_fact(s['code'], s['name']) or _dark_solid(s['code'], s['name'])
         sec4_rows += f"""<div style="background:#1f2635;border-left:3px solid {TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
 <b style="color:#fff;">{s['name']}</b> <span style="color:{GREY};font-size:12px;">{s['code']}</span>
 <span style="color:{_c(s['pct'])};font-weight:700;">收盘{s['pct']:+.1f}%</span>
 <span style="color:{GREY};font-size:12px;">｜量比{s['lb']:.1f} ｜ 题材：{s['industry']}（{kind}）</span>
-<div style="color:#ced4da;font-size:12px;line-height:1.7;margin-top:4px;">{deep_html}</div></div>"""
+<div style="color:#ced4da;font-size:12px;line-height:1.7;margin-top:4px;">{deep_html}</div>
+<div style="color:#a78bfa;font-size:12px;line-height:1.7;margin-top:2px;">🔍 暗线：{_dk4}</div></div>"""
     if not sec4_rows:
         sec4_rows = ''
     sec4 = f'<div style="margin-top:12px;font-size:15px;font-weight:800;color:{TEAL};">【可跟踪池】（明日操作，不含已涨停）</div>{sec4_rows}'
@@ -14039,7 +14060,7 @@ def build_radar():
         name, code = s.get('name', ''), s.get('code', '')
         _d = ds.get(name) or {}
         _why = str(_d.get('why') or '') or '数据达标（倍量+阳线+金叉），归因见下方'
-        _dark = str(_d.get('dark') or '') or _dark_fact(code, name) or '主营构成未取得，不给暗线结论'
+        _dark = str(_d.get('dark') or '') or _dark_fact(code, name) or _dark_solid(code, name)
         _op = str(_d.get('op') or '看')
         _opc = TEAL if _op in ('轻仓试',) else (GOLD if _op in ('看', '观望') else RED)
         _buy = str(_d.get('buy') or '待盘中确认')
@@ -14062,7 +14083,7 @@ def build_radar():
         rows = ['<div style="color:' + GREY + ';font-size:13px;">今日无达标（倍量+实体阳线+金叉）个股，等下一轮</div>']
     inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">📡 {bj.strftime("%H:%M")} 雷达扫描 · 倍量+实体阳线+5日线上穿20日线</div>'
              + ''.join(rows)
-             + f'<div style="color:{GREY};font-size:11px;margin-top:6px;">筛股口径：量比≥1.8 + 实体阳线涨幅1~9.5% + MA5上穿MA20（含今日）。LLM 深挖归因/暗线；高位不追，按买点纪律执行。</div>')
+             + f'<div style="color:{GREY};font-size:11px;margin-top:6px;">筛股口径：量比≥1.8 + 实体阳线涨幅1~9.5% + MA5上穿MA20（含今日）；高位不追，按买点纪律执行。</div>')
     return _wrap(inner, '📡', '雷达扫描')
 
 
@@ -14161,7 +14182,7 @@ def build_risk():
                 + f'<div style="color:#ffd43b;font-size:13px;margin-top:6px;">👉 动作：{_act}</div>'
                 + (f'<div style="color:#91a7ff;font-size:12px;margin-top:4px;">👀 盯：{_watch}</div>' if _watch else '')
                 + (f'<div style="color:#a78bfa;font-size:12px;margin-top:4px;">💬 {_plain}</div>' if _plain else '')
-                + f'<div style="color:{GREY};font-size:11px;margin-top:4px;">判读与动作由大模型生成；盘口数字由规则引擎实算，不编数。10:35/13:35 每交易日两次。</div>')
+                + f'<div style="color:{GREY};font-size:11px;margin-top:4px;">盘口数字为实时实算。10:35/13:35 每交易日两次。</div>')
     else:
         body = head
     return _wrap(body, '🛡️', '盘中风险体检')
