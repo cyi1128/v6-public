@@ -494,7 +494,8 @@ UA = {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://quote.eastmoney.com/'}
 RED, GREEN, GOLD, TEAL, GREY = '#c2504a', '#3e9863', '#b1852e', '#2f8fa1', '#6b7280'
 
 # ============ 小白友好版新增配置（可调） ============
-AUCTION_TOP_N = 10         # 竞价输出数量（v3：Top10）
+AUCTION_TOP_N = 10         # 竞价输出数量（v3：Top10，尾盘用）
+AUCTION_TOP_MAIN = 3      # 早盘竞价只出 Top3（用户指令：回到小白速判 TOP3 口径，因子加太多走势反而差）
 TRACK_POOL_N = 6           # 收盘可跟踪池数量（可配置）
 FOCUS_N = 6                # 盘前重点个股数（可配置）
 
@@ -4713,7 +4714,7 @@ def _auction_score_v3(s, heat, cnt, mem_days=None):
     # —— 题材分（100，云端 heat 体系：热度60+同题材≥5家10+主线持续20；co20 已按共振升级降为 co10）——
     ind = re.sub(r'[行业板块概念\s]+', '', s['industry']) or '其他'
     heat60 = min(60.0, heat.get(ind, 0.0) / 100.0 * 60.0)
-    co10 = 10.0 if cnt.get(ind, 0) >= 5 else 0.0
+    co10 = 20.0 if cnt.get(ind, 0) >= 5 else 0.0  # v80-A36：回 20（原共振升级降成 10）
     persist = 0.0
     if mem_days:
         for pd, pv in list(mem_days.items())[:3]:
@@ -4732,7 +4733,8 @@ def _auction_score_v3(s, heat, cnt, mem_days=None):
     # —— 反推修正 ——
     rv, rtag = _auction_revise(s, vr, pos60, bars)
     s['_revise'], s['_rtag'] = rv, rtag
-    total = base * 0.60 + theme_score_v * 0.20 + (s.get('_reson') or 0) * 0.20 - risk + rv
+    # v80-A36：回到小白速判原版权重（量价 0.72 / 题材 0.28），共振分不再参与排序
+    total = base * 0.72 + theme_score_v * 0.28 - risk + rv
     return round(total, 1)
 
 
@@ -6168,7 +6170,7 @@ def _pos_risk(sym, price):
 
 def build_auction(title='竞价观察'):
     """竞价观察 09:25（集合竞价最后阶段数据更可靠；数据延迟最多重试到 09:27，超时跳过不推空卡）：
-    持仓竞价诊断 + 全市场涨幅榜→硬过滤→双重打分→TOP8 + 行业风向 + DeepSeek 大白话总结。
+    持仓竞价诊断 + 全市场涨幅榜→硬过滤→双重打分→TOP3 + 行业风向 + 大模型大白话总结。
     title 参数：尾盘竞价筛选（14:55 触发）复用本函数，标题区分。"""
     # FIX18: 早触发等待——09:20-24 触发时等齐集合竞价(09:25)再取数，避免推数据不全的早卡
     _bj0 = _bj_now()
@@ -6239,7 +6241,7 @@ def build_auction(title='竞价观察'):
             _alt_note = ('<div style="color:#e6a23c;font-size:12px;margin-top:6px;">📌 竞价快照未就绪：以下为当日盘面数据（涨幅榜）生成，非实时竞价快照，仅供参考</div>')
         else:
             return _wrap(own_section + '<div style="color:#e2e8f0;font-size:13px;margin-top:8px;">⚠️ 全市场竞价数据未取得，本次不筛选股票；持仓诊断照常。下一时段：10:00 盘中解读。</div>', '🔔', title, show_reson=False)
-    # —— 全市场涨幅榜 → 硬过滤 → 双重打分 → TOP8 ——
+    # —— 全市场涨幅榜 → 硬过滤 → 双重打分 → TOP3 ——
     d = get_pools()
     # 行业补强：get_pools 已把涨停池股票行业写入 _IND_CACHE，替代源(新浪)无行业字段的用缓存补
     for _s in rows_all:
@@ -6253,16 +6255,13 @@ def build_auction(title='竞价观察'):
             zt_lbc[st.get('c')] = int(st.get('lbc') or 0)
     cands = _auction_filter(rows_all, zt_lbc)
     heat, cnt = _theme_heat(cands)
-    # 共振升级-弱共振剔除：同题材候选<2家 且 题材热度<50 的「独涨+冷题材」剔除（早盘口径）
-    cands = [s for s in cands
-             if not (cnt.get(_sec_clean(s['industry']) or '其他', 0) < 2
-                     and heat.get(_sec_clean(s['industry']) or '其他', 0) < 50)]
-    heat, cnt = _theme_heat(cands)
+    # v80-A36：弱共振剔除已取消（这条会把「同题材只有它一家、题材还没热」的独苗启动票砍掉，
+    # 而那恰恰是竞价最好做的形态）。热度/家数只作为加分项参与打分，不再一票否决。
     mem = load_memory()
     _calc_resonance(cands, heat, cnt, mem, is_tail=False)
     _score_dead = _bj_now().replace(hour=9, minute=25, second=50, microsecond=0)
     for i, s in enumerate(cands):
-        if _bj_now() >= _score_dead and i >= AUCTION_TOP_N:
+        if _bj_now() >= _score_dead and i >= AUCTION_TOP_MAIN:
             print(f'[auction] 打分截止 {_bj_now()}，已算 {i} 只，截断保证 09:27 前推送')
             break
         s['score'] = _auction_score_v3(s, heat, cnt, mem)
@@ -6270,7 +6269,7 @@ def build_auction(title='竞价观察'):
     for s in cands:
         s.setdefault('score', 0)
     cands.sort(key=lambda x: -x['score'])
-    tops = cands[:AUCTION_TOP_N]
+    tops = cands[:AUCTION_TOP_MAIN]
     # —— 并发：选股深挖 + 实盘确认深挖并行，压缩 LLM 串行耗时，保证 09:27 前推送 ——
     _cinfos = []
     for s in tops[:5]:
@@ -6417,8 +6416,7 @@ def build_auction(title='竞价观察'):
                     or _dark_solid(s_.get('code') or '', s_.get('name') or ''))
             _lg3 = str(_d3.get('logic') or '').strip() or str(_d3.get('why') or '').strip()
             _dk3_html = ('<div style="color:#a78bfa;font-size:13px;margin-top:2px;">🔍 暗线：%s</div>' % _dk3
-                         if _dk3 else
-                         '<div style="color:#f0a020;font-size:13px;margin-top:2px;">🔍 暗线：主营构成接口没取到，这只先放着别动</div>')
+                         if _dk3 else '')
             _t3.append('<div style="margin-top:7px;">'
                        + '<b style="color:%s;font-size:14px;">%d. %s</b>' % (_col, i, s_['name'])
                        + _dk3_html
@@ -6432,7 +6430,7 @@ def build_auction(title='竞价观察'):
         _pool_prev = _auction_pool_stats()
     except Exception:
         _pool_prev = ''
-    pick = f"""{top3_txt}<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 今日可关注 TOP{AUCTION_TOP_N}（综合评分排序）</div>
+    pick = f"""{top3_txt}<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 今日可关注 TOP{AUCTION_TOP_MAIN}（综合评分排序）</div>
 {rows or '<div style="color:' + GREY + ';font-size:13px;">今日无符合硬过滤条件的竞价票（涨幅榜未取得或全被过滤）</div>'}{_pool_prev}"""
     # —— 行业/题材风向（8项修复⑤：补涨停板块题材数据 + 最强/最弱暗线原因）——
     hot = sorted(heat.items(), key=lambda kv: -kv[1])[:3]
