@@ -55,5 +55,6 @@
  "factor_weekly|2026-11-08": true,
  "warn|2026-11-09": true,
  "pre|2026-11-09": true,
- "auction|2026-11-09": true
+ "auction|2026-11-09": true,
+ "hourly|2026-11-09|10": true
 }
