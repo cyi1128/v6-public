@@ -111,7 +111,35 @@ SESSIONS = [
 WATCH_WINDOWS = ((9 * 60 + 15, 11 * 60 + 30), (13 * 60, 15 * 60 + 5))  # 午休不扫
 WATCH_STEP = 15             # 每 15 分钟一次异动扫描
 
-SLOT_TIMEOUT = 900          # 单槽 15 分钟（主程序行情请求自带超时）
+SLOT_TIMEOUT = 900          # 全局兜底：单槽 15 分钟（主程序行情请求自带超时）
+
+# 每槽预算（2026-11-09 新增）：(LLM 总预算秒, 单模型超时秒, 子进程硬超时秒)
+# 依据：ModelScope 首轮全超时约 45s × 5 个备选 = 225s/次，串 3~4 个 purpose 就是 10~15 分钟。
+# 时限卡的槽（auction/pre/tail/eod）必须把 LLM 预算压到「一轮就够」，慢就降级成代码结论。
+SLOT_BUDGET = {
+    'auction': (60, 25, 200),     # 09:25 起跑，09:27~09:29 落地
+    'pre':     (240, 45, 420),    # 08:30 起跑，08:36 前落地
+    'warn':    (240, 45, 420),    # 08:20 起跑，08:26 前落地
+    'watch':   (120, 30, 300),    # 15 分钟一次扫描，绝不能占满 15 分钟
+    'hourly':  (300, 45, 540),
+    'tail':    (240, 45, 480),    # 14:55 起跑，15:03 前落地
+    'eod':     (900, 60, 1200),   # 收盘复盘数据量大，放宽但仍在 20 分钟内
+    'noon':    (300, 45, 600),
+    'news':    (300, 45, 600),
+    'news2h':  (300, 45, 600),
+    'newsfire': (300, 45, 600),
+    'risk':    (240, 45, 420),
+    'follow':  (300, 45, 600),
+    'cycle':   (300, 45, 600),
+    'ext':     (240, 45, 420),
+    'evening': (300, 45, 600),
+}
+DEFAULT_BUDGET = (300, 45, 600)
+
+
+def slot_budget(slot: str) -> tuple[int, int, int]:
+    """取该槽的 (LLM 总预算, 单模型超时, 子进程硬超时)。"""
+    return SLOT_BUDGET.get(slot, DEFAULT_BUDGET)
 SEG_ALIVE_GRACE = 600       # 正常退出会清 marker，这里只是兜住"被 timeout 杀掉"的情况
 ROLL_MINUTES = 350          # 滚动占段时长：一次触发覆盖未来 5.8 小时（+ 启动开销仍在 380 timeout 内）
 ROLL_TAIL_MINUTES = 45      # 段尾 45 分钟内若还能接上下一槽，就把终点延到那槽窗口末端
@@ -410,10 +438,16 @@ def backfill_pending(now: datetime.datetime, executed: set, done: dict | None = 
 def run_slot(slot: str) -> None:
     t0 = time.time()
     log(f'>>> 执行槽位 {slot} @ {bj_now():%H:%M:%S}')
+    llm_budget, ms_timeout, proc_cap = slot_budget(slot)
+    env = dict(os.environ)
+    env['LLM_TOTAL_BUDGET'] = str(llm_budget)
+    env['MS_TIMEOUT'] = str(ms_timeout)
+    env['V6_SLOT'] = slot
+    log(f'>>> 预算：LLM {llm_budget}s / 单模型 {ms_timeout}s / 子进程上限 {proc_cap}s')
     try:
         proc = subprocess.run(
             [PY, '-u', 'tools/cloud_daily_review.py', '--time', slot],
-            cwd=ROOT, capture_output=True, text=True, timeout=SLOT_TIMEOUT,
+            cwd=ROOT, capture_output=True, text=True, timeout=proc_cap, env=env,
         )
         tail = (proc.stdout or '').strip().splitlines()[-40:]
         for line in tail:
@@ -428,7 +462,7 @@ def run_slot(slot: str) -> None:
             for line in (proc.stderr or '').strip().splitlines()[-15:]:
                 print(f'    ! {line}', flush=True)
     except subprocess.TimeoutExpired:
-        log(f'槽位 {slot} 执行超时（{SLOT_TIMEOUT // 60} 分钟），跳过')
+        log(f'槽位 {slot} 撞到子进程硬上限 {proc_cap}s，跳过（下个槽不会被它拖住）')
     except Exception as exc:  # noqa: BLE001
         log(f'槽位 {slot} 异常: {exc}')
     try:
