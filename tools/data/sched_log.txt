@@ -724,3 +724,7 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-09 23:31:50 滚动段调度结束（23:31），退出
 11-09 23:31:50 退出原因：roll-end
 11-09 23:31:50 今日已过窗未推 10 个槽：10:35risk、10:00news2h、14:01news2h、10:35follow、13:35follow、18:00news2h、20:00news2h、22:00news2h、21:38ext、22:38ext
+11-09 23:32:23 启动调度器 v6，当前北京时间 2026-11-09 23:32:23 星期一
+11-09 23:32:23 接下来 23 分钟内已无待跑槽位，本 run 直接退出
+11-09 23:32:23 退出原因：idle
+11-09 23:32:23 今日已过窗未推 10 个槽：10:35risk、10:00news2h、14:01news2h、10:35follow、13:35follow、18:00news2h、20:00news2h、22:00news2h、21:38ext、22:38ext
