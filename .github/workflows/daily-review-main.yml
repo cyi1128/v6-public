@@ -64,11 +64,15 @@ jobs:
     # 本 job 现在只服务 workflow_dispatch 手动补推/单槽实测：
     #   · slot 留空 → 走下面的 case $H:$M 按当前时刻判槽（人工排障用）；
     #   · slot 指定 → --force 强制重推该槽（去重状态仍写回）。
+    # 2026-11-09 加：push 事件里 commit message 带 [run-now] 时，本 job 跑一轮指定卡实测，
+    # 用于「不依赖 page_dispatch、直接把改过的卡真推到微信验证」。
     if: >
-      github.event_name == 'workflow_dispatch' &&
-      github.event.inputs.slot != 'scheduler'
+      (github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.slot != 'scheduler') ||
+      (github.event_name == 'push' &&
+      contains(github.event.head_commit.message, '[run-now]'))
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: write
     steps:
@@ -138,6 +142,14 @@ jobs:
             07:*)        T=eod ;;       # 15:00-15:59 收盘复盘
             *)          T=watch ;;
           esac
+          # 2026-11-09：push 带 [run-now] 时，一次跑完这几张改造过的卡并真推送（--force 跳过去重）。
+          if [ "${{ contains(github.event.head_commit.message, '[run-now]') }}" = "true" ]; then
+            for SL in news2h risk newsfire follow noon pre; do
+              echo "===== RUN-NOW $SL =====" 2>&1 | tee -a $LOG
+              python3 -u tools/cloud_daily_review.py --time "$SL" --force "$SL" 2>&1 | tee -a $LOG
+            done
+            exit 0
+          fi
           FORCE="${{ github.event.inputs.slot }}"
           echo "H=$H M=$M T=$T FORCE=$FORCE" 2>&1 | tee -a $LOG
           set +e
