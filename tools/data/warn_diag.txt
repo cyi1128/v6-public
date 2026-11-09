@@ -640,6 +640,7 @@
 18:24:22 [ask_deepseek] ModelScope 两次尝试均失败，purpose=ext
 18:27:31 [ask_deepseek] 首轮无返回即止损 purpose=eve_news
 18:27:31 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eve_news
+<<<<<<< Updated upstream
 18:50:11 [反模板命中:signal_review] 没有安全垫 (try1)
 18:53:06 [ask_deepseek] 首轮无返回即止损 purpose=eod_review_ds
 18:53:06 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eod_review_ds
@@ -716,3 +717,8 @@
 22:06:35 [ask_deepseek] ModelScope 两次尝试均失败，purpose=ext_news
 22:10:06 [ask_deepseek] 首轮无返回即止损 purpose=eve_news
 22:10:06 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eve_news
+=======
+00:20:14 [build_warn] 进入；新闻条数=20
+00:20:14 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+>>>>>>> Stashed changes
+00:20:50 [build_warn] LLM 返回长度=1650
