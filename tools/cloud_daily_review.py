@@ -5781,15 +5781,19 @@ def build_pre():
     # ⑤ 重点个股参考（昨日主线龙头 + 新闻命中，带昨收/题材/操作提示）
     focus = _focus_stocks(d, news)
     _foc_map = _focus_deep(focus)
-    focus_rows = ''.join(
-        (lambda nm, code, prev, sec, plain, tip, role:
+    _hot_f = [str(x[0]) for x in (d.get('tops') or [])[:4] if x and x[0]]
+    _foc_rows = []
+    for nm, code, prev, sec, plain, tip, role in focus:
+        # 2026-11-09：每只票都常显主营实据暗线（模型回不回都出，不写「AI 未返回」）
+        _dk = _dark_fact(_pure_code(code) or code, nm, _hot_f)
+        _foc_rows.append(
             f"""<div style="background:#1f2635;border-left:3px solid {GOLD};border-radius:8px;padding:8px 10px;margin:6px 0;">
 <b style="color:#fff;">{nm}</b> <span style="color:{GREY};font-size:12px;">{code}</span>
 <span style="color:{GREY};font-size:12px;">昨收 {prev} ｜ 题材：{sec} ｜ 角色：<b style="color:{GOLD};">{role}</b></span>
+{f'<div style="color:#a78bfa;font-size:12px;margin-top:3px;line-height:1.55;">🔍 暗线（主营实据）：{_dk}</div>' if _dk else ''}
 <div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 {(_foc_map.get(nm) or {}).get("plain", "") or ''}</div>
-<div style="color:{TEAL};font-size:12px;margin-top:3px;">👉 {(_foc_map.get(nm) or {}).get("tip", "") or ''}</div></div>"""
-        )(nm, code, prev, sec, plain, tip, role)
-        for nm, code, prev, sec, plain, tip, role in focus)
+<div style="color:{TEAL};font-size:12px;margin-top:3px;">👉 {(_foc_map.get(nm) or {}).get("tip", "") or ''}</div></div>""")
+    focus_rows = ''.join(_foc_rows)
     focus_block = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">⑤ 重点个股参考（{len(focus)}只）</div>{focus_rows}'
                    if focus_rows else '<div style="margin-top:10px;font-size:13px;color:' + GREY + ';">代码筛选下今日无未涨停低位标的（昨日涨停票不列）</div>')
     g_rows = ''.join('<div style="margin:5px 0;font-size:13px;">🟢 ' + g + '</div>' for g in good)
