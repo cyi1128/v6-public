@@ -722,3 +722,13 @@
 00:20:14 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
 >>>>>>> Stashed changes
 00:20:50 [build_warn] LLM 返回长度=1650
+00:44:28 [ask_deepseek] 首轮无返回即止损 purpose=pre_news_deep
+00:44:28 [ask_deepseek] ModelScope 两次尝试均失败，purpose=pre_news_deep
+00:47:08 [ask_deepseek] 首轮无返回即止损 purpose=pre_news_deep
+00:47:08 [ask_deepseek] ModelScope 两次尝试均失败，purpose=pre_news_deep
+00:49:47 [ask_deepseek] 首轮无返回即止损 purpose=pre
+00:49:47 [ask_deepseek] ModelScope 两次尝试均失败，purpose=pre
+00:50:34 [反模板命中:focus_deep] 管住手 (try1)
+00:53:15 [ask_deepseek] ModelScope 两次尝试均失败，purpose=focus_deep
+00:55:57 [ask_deepseek] 首轮无返回即止损 purpose=brief_summary_v3
+00:55:57 [ask_deepseek] ModelScope 两次尝试均失败，purpose=brief_summary_v3
