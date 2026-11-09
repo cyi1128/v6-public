@@ -137,9 +137,9 @@ _MODELSCOPE_MODELS = ('Qwen/Qwen3.5-122B-A10B', 'Qwen/Qwen3.8-27B',
 DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions'
 # v7.9b 模型调用预算闸：单次 45s（原来 120s），整次调用总预算 180s。
 # 起因：11-08 demo-4 实测「超时×5 模型×2 轮」把 job 拖到 30 分钟 timeout 被砍。
-MS_TIMEOUT = int(os.environ.get('MS_TIMEOUT', '45'))
-# v7.9x30：两波并发最坏 2×180s，实测第二轮从未成功过，纯等超时把卡拖到 6 分钟。压到 70s。
-MS_BUDGET = int(os.environ.get('MS_BUDGET', '70'))
+MS_TIMEOUT = int(os.environ.get('MS_TIMEOUT', '60'))  # v7.9x31：45s 不够长正文生成，实测 27s 能回的小请求才通
+# v7.9x31：70s 会把第二波掐到 25s，等于自己把模型杀了。150s = 两波各 60~75s，卡仍在 3 分钟内。
+MS_BUDGET = int(os.environ.get('MS_BUDGET', '150'))
 # v7.9c 全局 LLM 墙钟预算：从进程启动算起，超了就不再调模型，保证推送一定跑得到。
 # 起因：11-08 demo-4 实测 ModelScope 34 次超时/429，LLM 段把 30 分钟 job 吃满，推送 0 条。
 LLM_TOTAL_BUDGET = int(os.environ.get('LLM_TOTAL_BUDGET', '1500'))
@@ -2487,7 +2487,8 @@ def _ms_one(model, msgs, purpose, timeout):
     """单模型单次请求：成功返回 (文本, 结束原因)，失败返回 (None, 错误标签)。"""
     body = json.dumps({'model': model, 'messages': msgs,
                        'temperature': 0.5,
-                       'max_tokens': (8000 if purpose == 'zforce_radar' else 6000)}).encode('utf-8')
+                       # v7.9x31：6000 让免费队列一辈子里跑不完，45s 必然 timeout。
+                       'max_tokens': (2400 if purpose == 'zforce_radar' else 1600)}).encode('utf-8')
     req = urllib.request.Request(MODELSCOPE_URL, data=body, headers={
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + MODELSCOPE_KEY,
