@@ -433,6 +433,24 @@ def pick_slot(now: datetime.datetime, executed: set) -> str | None:
     return None
 
 
+def plan_of(slot: str, now: datetime.datetime) -> tuple[int | None, int | None]:
+    """按当前时刻反查该槽的「计划时刻」。同一 slot 有多档（news2h 12:00/14:01/16:00、
+    hourly 多次）时，取当前落在其窗口内且离起点最近的那条。查不到返回 (None, None)。"""
+    minutes = minutes_of(now)
+    best = None
+    for hour, minute, s, window, _late in FIXED_SLOTS:
+        if s != slot:
+            continue
+        start = hour * 60 + minute
+        if start <= minutes <= start + window:
+            lag = minutes - start
+            if best is None or lag < best[0]:
+                best = (lag, hour, minute)
+    if best is None:
+        return None, None
+    return best[1], best[2]
+
+
 def pending_within(now: datetime.datetime, end: datetime.datetime, executed: set, done: dict | None = None) -> bool:
     """(now, end] 内是否还有待跑的槽位（含补跑宽容窗与异动扫描点）。
 
@@ -521,7 +539,7 @@ def backfill_pending(now: datetime.datetime, executed: set, done: dict | None = 
 
 
 # ---------------------------------------------------------------- 执行
-def run_slot(slot: str) -> None:
+def run_slot(slot: str, hour: int | None = None, minute: int | None = None) -> None:
     t0 = time.time()
     log(f'>>> 执行槽位 {slot} @ {bj_now():%H:%M:%S}')
     llm_budget, ms_timeout, proc_cap = slot_budget(slot)
@@ -529,6 +547,11 @@ def run_slot(slot: str) -> None:
     env['LLM_TOTAL_BUDGET'] = str(llm_budget)
     env['MS_TIMEOUT'] = str(ms_timeout)
     env['V6_SLOT'] = slot
+    # v10：把计划槽时刻交给主程序，去重键必须按计划槽写（否则迟到补跑写成实际时刻，
+    # 下一段查不到就再补跑一次——12:18 与 12:27 同一 12:00 news2h 推两张卡的根因）
+    if hour is not None and minute is not None:
+        env['V6_SLOT_AT'] = '%02d%02d' % (hour, minute)
+        log(f'>>> 计划槽时刻 {env["V6_SLOT_AT"]}（去重键按此生成，防补跑重复推）')
     log(f'>>> 预算：LLM {llm_budget}s / 单模型 {ms_timeout}s / 子进程上限 {proc_cap}s')
     try:
         proc = subprocess.run(
@@ -702,6 +725,9 @@ def _selftest() -> int:
     expect('13:00 整点让位 hourly', pick_slot(at(13, 0), set()), 'hourly')
     expect('15:00 整点让位 eod', pick_slot(at(15, 0), set()), 'eod')
     expect('12:21 不选槽（正点窗口空档）', pick_slot(at(12, 21), set()), None)
+    expect('12:18 反查 news2h 计划时刻', plan_of('news2h', at(12, 18)), (12, 0))
+    expect('14:03 反查 hourly 计划时刻', plan_of('hourly', at(14, 3)), (14, 0))
+    expect('14:03 反查 news2h 计划时刻', plan_of('news2h', at(14, 3)), (14, 1))
     expect('15:56 不选槽（news 窗口已过）', pick_slot(at(15, 56), set()), None)
 
     # 同一 run 内记忆防重
@@ -848,7 +874,7 @@ def main() -> int:
 
     # 启动补跑：先把本次触发之前漏掉的槽补上（受宽容窗约束，过窗不补）
     for _h, _m, slot in backfill_pending(bj_now(), executed):
-        run_slot(slot)
+        run_slot(slot, _h, _m)
 
     log(f'滚动段 {seg_name} 调度至 {end:%H:%M}，共可覆盖约 {(end - bj_now()).total_seconds() / 60:.0f} 分钟')
     last_chk = bj_now()
@@ -873,7 +899,8 @@ def main() -> int:
                 heartbeat()
         slot = pick_slot(now, executed)
         if slot:
-            run_slot(slot)
+            _ph, _pm = plan_of(slot, now)
+            run_slot(slot, _ph, _pm)
             continue
         if not pending_within(now, end, executed):
             log('本段剩余时间内已无待跑槽位，提前让位退出')

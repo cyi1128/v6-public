@@ -7683,6 +7683,11 @@ def build_cycle(title='多周期视角研判'):
                          f'💰 主力资金：当日净流入占成交额 {_fl:+.2f}%'
                          f'（净流入{(s.get("_flow_amt") or 0)/1e8:.2f}亿）</div>')
             deep_html = ''
+            # v7.9x27：模型回不回都要有真暗线（东财主营构成实据）
+            _hot_c = [str(x[0]) for x in (d.get('tops') or [])[:4]]
+            _dk_c = _dark_fact(s.get('code') or '', s.get('name') or '', _hot_c)
+            _dk_c_html = (f'<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线（主营实据）：{_dk_c}</div>'
+                          if _dk_c else '')
             if d_i and d_i.get('logic'):
                 _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(d_i.get('op', ''), GOLD)
                 deep_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线：{d_i.get('dark','')}（{d_i.get('reason','')}）</div>
@@ -7695,7 +7700,7 @@ def build_cycle(title='多周期视角研判'):
                      f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">⏱ {reason}</div>'
                      f'{flow_html}'
                      f'<div style="color:#e6a23c;font-size:11px;margin-top:2px;">仓位：{cap.get(g,"")}</div>'
-                     f'{deep_html}</div>')
+                     f'{_dk_c_html}{deep_html}</div>')
     if cap_advice:
         rows = (f'<div style="background:#1f2635;border-left:3px solid {GOLD};border-radius:8px;padding:8px 11px;margin:6px 0;">'
                 f'<div style="font-size:13px;font-weight:800;color:{GOLD};">💼 档位建议</div>'
@@ -8070,13 +8075,25 @@ def _track_pool(d):
 SLOT_DONE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'slot_done.json')
 
 
+def _plan_hm():
+    """调度器补跑时通过 V6_SLOT_AT 传计划槽时刻（HHMM）。去重键必须按计划槽，
+    否则「12:00 槽迟到 13 分钟补跑」会写成 1218，调度器查 1200 永远查不到 → 重复推。"""
+    _p = (os.environ.get('V6_SLOT_AT') or '').strip()
+    return _p if (len(_p) == 4 and _p.isdigit()) else ''
+
+
 def _slot_key(slot):
     """去重键：auction/pre/noon/warn 按天；hourly 按天+小时（10/11/13/14 各一次）；
     risk 按 10:35/13:35 两个盘口窗口（各推一次，跨窗口互不干扰）。"""
     today = _bj_now().strftime('%Y-%m-%d')
+    _ph = _plan_hm()
     if slot == 'hourly':
+        if _ph:
+            return 'hourly|%s|%02d' % (today, int(_ph[:2]))
         return 'hourly|%s|%02d' % (today, _bj_now().hour)
     if slot == 'risk':
+        if _ph in ('1035', '1335'):
+            return 'risk|%s|%s' % (today, _ph)
         hm = _bj_now().strftime('%H:%M')
         if '10:35' <= hm <= '10:39':
             return 'risk|%s|1035' % today
@@ -8091,6 +8108,9 @@ def _news_window_key():
     11:40 午间 / 15:10 尾盘 / 15:35 尾盘三窗口独立；其余时刻（手动触发）按当日+分钟兜底。"""
     today = _bj_now().strftime('%Y-%m-%d')
     hm = _bj_now().strftime('%H:%M')
+    _ph = _plan_hm()
+    if _ph in ('1140', '1510', '1535'):
+        return 'news|%s|%s' % (today, _ph)
     if '11:40' <= hm <= '11:44':
         return 'news|%s|1140' % today
     if '15:10' <= hm <= '15:14':
@@ -8107,19 +8127,26 @@ def _slot_window_key(slot):
     watch 为异动档（内容随行情逐次变化），不做窗口去重，靠交易日时段闸门兜底。"""
     today = _bj_now().strftime('%Y-%m-%d')
     hm = _bj_now().strftime('%H:%M')
+    _ph = _plan_hm()
     if slot == 'follow':
+        if _ph in ('1405', '1505'):
+            return 'follow|%s|%s' % (today, _ph)
         if '14:05' <= hm <= '14:07':
             return 'follow|%s|1405' % today
         if '15:05' <= hm <= '15:08':
             return 'follow|%s|1505' % today
         return 'follow|%s|%s' % (today, _bj_now().strftime('%H%M'))
     if slot == 'ext':
+        if _ph in ('2135', '2235'):
+            return 'ext|%s|%s' % (today, _ph)
         if '21:38' <= hm <= '21:39':
             return 'ext|%s|2135' % today
         if '22:38' <= hm <= '22:39':
             return 'ext|%s|2235' % today
         return 'ext|%s|%s' % (today, _bj_now().strftime('%H%M'))
     if slot == 'news2h':
+        if _ph in ('1200', '1400', '1600'):
+            return 'news2h|%s|%s' % (today, _ph)
         if '12:00' <= hm <= '12:04':
             return 'news2h|%s|1200' % today
         if '14:01' <= hm <= '14:04':
