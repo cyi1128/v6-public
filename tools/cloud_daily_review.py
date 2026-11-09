@@ -13987,6 +13987,225 @@ def _intra_parse_ds(txt, names):
     return out
 
 
+# ============ 实时盘面三连（v80-B1） ============
+def _live_snap():
+    """实时盘面快照（三张实时卡共用）：指数 / 涨停 / 炸板 / 跌停 / 板块 / 涨幅榜 / 情绪分 / 仓位仪表盘。"""
+    sn = {'idx': [], 'lu': 0, 'zb': 0, 'dt': 0, 'sectors': {}, 'rows': [],
+          'gauge': {}, 'tops': [], 'score': (50.0, '未知', ''), 'ok': False}
+    try:
+        sn['idx'] = get_indices() or []
+    except Exception:
+        pass
+    try:
+        d = get_pools()
+        sn['lu'], sn['zb'], sn['dt'] = d['lu'], d['zb'], d['dt']
+        sn['sectors'] = d['sectors'] or {}
+        sn['tops'] = d.get('tops') or []
+        sn['ok'] = bool((d.get('pool_ok') or {}).get('zt'))
+        try:
+            sn['score'] = market_score(sn['idx'], d)
+        except Exception:
+            pass
+    except Exception as e:
+        print('[live] 涨停池取数失败:', e)
+    try:
+        sn['rows'] = _clist_gainers() or []
+    except Exception:
+        pass
+    try:
+        sn['gauge'] = load_position_gauge() or {}
+    except Exception:
+        pass
+    return sn
+
+
+def _live_idx_line(sn):
+    try:
+        return '｜'.join('%s <b style="color:%s">%+.2f%%</b>'
+                        % (x['name'], RED if x['pct'] >= 0 else GREEN, x['pct'])
+                        for x in sn['idx'][:5])
+    except Exception:
+        return ''
+
+
+def _live_sec_top(sn, n=3):
+    """板块家数排行（涨停池口径）。"""
+    cnt = {}
+    for sec, lst in (sn['sectors'] or {}).items():
+        cnt[sec] = len(lst)
+    return sorted(cnt.items(), key=lambda kv: -kv[1])[:n]
+
+
+def _live_pool_names(sn, n=6):
+    """涨停池里连板最高、封得最早的那几只，用于点名。"""
+    xs = []
+    for sec, lst in (sn['sectors'] or {}).items():
+        for x in lst:
+            xs.append({'n': x.get('n') or '', 'c': x.get('c') or '',
+                       'sec': x.get('hybk') or sec, 'lbc': x.get('lbc') or 1})
+    xs.sort(key=lambda z: -(z['lbc'] or 1))
+    return xs[:n]
+
+
+def _auction_today_batch():
+    try:
+        data = json.load(open(AUCTION_POOL_PATH, encoding='utf-8'))
+        return data.get(_bj_now().strftime('%Y-%m-%d')) or []
+    except Exception:
+        return []
+
+
+def _live_fact_block(sn, extra=''):
+    """盘口事实区（只写数据，不下结论；结论全部交给大模型）。"""
+    _lu, _zb, _dt = sn['lu'], sn['zb'], sn['dt']
+    _zbr = (_zb / (_lu + _zb) * 100) if (_lu + _zb) else 0.0
+    _sec = _live_sec_top(sn, 3)
+    _sec_txt = '、'.join('%s(%d家)' % (k, v) for k, v in _sec) or '板块家数未取得'
+    return ('<div style="font-size:13px;color:#e9ecef;line-height:1.7;">%s</div>'
+            '<div style="font-size:13px;color:#e9ecef;line-height:1.7;margin-top:3px;">'
+            '涨停 <b style="color:%s">%d</b> 家 / 炸板 <b style="color:%s">%d</b> 家（炸板率 %.0f%%）'
+            '/ 跌停 <b style="color:%s">%d</b> 家 · 情绪 <b>%.0f</b> 分（%s）</div>'
+            '<div style="font-size:13px;color:#a78bfa;line-height:1.7;margin-top:3px;">板块在动：%s</div>%s'
+            % (_live_idx_line(sn), RED, _lu, GREEN, _zb, _zbr, GREEN, _dt,
+               sn['score'][0], sn['score'][1], _sec_txt, extra))
+
+
+def build_open_check():
+    """09:35 开盘验证·30分钟定调 —— 竞价票兑现度 + 今天这盘是什么性质。"""
+    sn = _live_snap()
+    if not sn['ok']:
+        print('[open] 涨停池未取得，跳过不推')
+        return ''
+    batch = _auction_today_batch()
+    chk, chk_txt = [], ''
+    if batch:
+        lines = []
+        for it in batch[:3]:
+            code = str(it.get('code') or '')
+            sym = ('sh' if code.startswith('6') else 'sz') + code
+            q = _qt(sym)
+            if not q or not q.get('prev'):
+                continue
+            now_pct = (q['price'] / q['prev'] - 1) * 100
+            bid_pct = float(it.get('pct') or 0)
+            chk.append({'n': it.get('name') or code, 'c': code,
+                        'bid': round(bid_pct, 2), 'now': round(now_pct, 2),
+                        'd': round(now_pct - bid_pct, 2)})
+            _col = RED if now_pct >= bid_pct else GREEN
+            lines.append('<div style="font-size:13px;color:#e9ecef;line-height:1.8;margin-top:3px;">'
+                         '· %s <span style="color:%s">%s</span>　竞价高开 %.2f%% → 现在 <b style="color:%s">%+.2f%%</b>'
+                         '（相对竞价 <b style="color:%s">%+.2f%%</b>）</div>'
+                         % (it.get('name') or code, GREY, code, bid_pct, _col, now_pct, _col, now_pct - bid_pct))
+        if lines:
+            chk_txt = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">'
+                       '🎯 09:25 竞价那张卡，开盘兑现了没有</div>' + ''.join(lines))
+    _fmt = (_TRADER_RULES + '\n'
+            + '现在是 09:35，开盘刚走 5 分钟。下面是竞价票的兑现情况和当前盘面，请按三段写，全大白话：\n'
+            + '【这盘是什么性质】高开是真强还是虚的，钱跟不跟，落到具体板块和最近的领涨票（点名+代码）\n'
+            + '【竞价给的那几张票】逐只判：是给面子的（高开低走）还是给钱的（越走越强），说清为什么\n'
+            + '【第一笔钱怎么下】仓位几成、买什么形态、今天什么绝对不能碰\n'
+            + '硬规矩：全篇不超过200字，三段各2-3句，段间必须真空行；禁自问自答、禁模板句、禁「注意风险」空话。')
+    payload = {'task': 'open_check',
+               'time': _bj_now().strftime('%H:%M'),
+               'idx': [{'n': x['name'], 'pct': x['pct']} for x in sn['idx'][:5]],
+               'lu': sn['lu'], 'zb': sn['zb'], 'dt': sn['dt'],
+               'mood': sn['score'][1], 'score': sn['score'][0],
+               'sectors': [{'n': k, 'cnt': v} for k, v in _live_sec_top(sn, 4)],
+               'pool': _live_pool_names(sn, 5),
+               'auction_checks': chk,
+               'gauge': sn['gauge'].get('suggest', ''),
+               'format': _fmt}
+    t = ask_deepseek(payload, purpose='open_check')
+    if not t:
+        print('[open] 模型未返回，不推送（不允许规则化兜底）')
+        return ''
+    return _wrap(_live_fact_block(sn, chk_txt) + md2html(t), '🕘', '开盘验证·30分钟定调')
+
+
+def build_pm_relay():
+    """13:05 午后接力·钱往哪去 —— 上午的强线还有没有气，午后资金换了哪条线。"""
+    sn = _live_snap()
+    if not sn['ok']:
+        print('[pmopen] 涨停池未取得，跳过不推')
+        return ''
+    _lc = 0
+    try:
+        _lc = max(int(float(x.get('lbc') or 0)) for sec in (sn['sectors'] or {}).values() for x in sec)
+    except Exception:
+        pass
+    _fmt = (_TRADER_RULES + '\n'
+            + '现在是 13:05，午休刚结束，午后第一波资金正在选方向。请按三段写，全大白话：\n'
+            + '【上午的强线现在还有没有气】点名板块 + 至少一只代表票（名称+代码），说清是继续加码还是在偷偷换人\n'
+            + '【午后的钱往哪去】新起的线是哪条、老线是不是在退潮，落到具体票和现在的价位\n'
+            + '【下午怎么下手】买哪一类、什么位置进、什么位置必须走，给到具体价位或百分比\n'
+            + '硬规矩：全篇不超过200字，三段各2-3句，段间必须真空行；禁自问自答、禁模板句、禁复述涨停家数当结论。')
+    payload = {'task': 'pm_relay',
+               'time': _bj_now().strftime('%H:%M'),
+               'idx': [{'n': x['name'], 'pct': x['pct']} for x in sn['idx'][:5]],
+               'lu': sn['lu'], 'zb': sn['zb'], 'dt': sn['dt'],
+               'max_lbc': _lc,
+               'mood': sn['score'][1], 'score': sn['score'][0],
+               'sectors': [{'n': k, 'cnt': v} for k, v in _live_sec_top(sn, 5)],
+               'pool': _live_pool_names(sn, 6),
+               'leaders': [{'n': r.get('name'), 'c': r.get('code'), 'pct': r.get('pct'), 'lb': r.get('lb')}
+                           for r in (sn['rows'] or [])[:6]],
+               'gauge': sn['gauge'].get('suggest', ''),
+               'format': _fmt}
+    t = ask_deepseek(payload, purpose='pm_relay')
+    if not t:
+        print('[pmopen] 模型未返回，不推送（不允许规则化兜底）')
+        return ''
+    _extra = ('<div style="font-size:13px;color:#a78bfa;line-height:1.7;margin-top:3px;">'
+              '最高连板 <b>%d</b> 板 · 午后第一波领涨：%s</div>'
+              % (_lc, '、'.join('%s(%+.1f%%)' % (r.get('name'), float(r.get('pct') or 0))
+                                for r in (sn['rows'] or [])[:4]) or '未取得'))
+    return _wrap(_live_fact_block(sn, _extra) + md2html(t), '🌤️', '午后接力·钱往哪去')
+
+
+def build_preclose():
+    """14:30 尾盘前决策·过不过夜 —— 封住的在守、炸的在跑，手里票留还是走。"""
+    sn = _live_snap()
+    if not sn['ok']:
+        print('[preclose] 涨停池未取得，跳过不推')
+        return ''
+    _cand, _cand_txt = [], ''
+    _rd = (sn['rows'] or [])[:6]
+    lines = []
+    for r in _rd:
+        code = str(r.get('code') or '')
+        pct = float(r.get('pct') or 0)
+        lb = float(r.get('lb') or 0)
+        _cand.append({'n': r.get('name') or code, 'c': code, 'pct': round(pct, 2), 'lb': round(lb, 2)})
+        lines.append('<div style="font-size:13px;color:#e9ecef;line-height:1.8;margin-top:3px;">'
+                     '· %s <span style="color:%s">%s</span> 现在 <b style="color:%s">%+.2f%%</b>'
+                     '　量比 %.2f</div>'
+                     % (r.get('name') or code, GREY, code, RED if pct >= 0 else GREEN, pct, lb))
+    if lines:
+        _cand_txt = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">'
+                     '💼 今天最强的这几只，尾盘还敢不敢带过夜</div>' + ''.join(lines))
+    _fmt = (_TRADER_RULES + '\n'
+            + '现在是 14:30，离收盘还有半小时，这是决定「过不过夜」的窗口。请按三段写，全大白话：\n'
+            + '【尾盘主力在干什么】封住的是在守还是在偷偷撤单，炸板的是不是真出货，点名具体票+代码\n'
+            + '【今天最强的这几只，值不值得带过夜】逐只给结论：能带、减半带、还是尾盘就走，落到价位（跌破哪里必须走）\n'
+            + '【最后半小时只做一件事】一句最该做的动作，带仓位数字\n'
+            + '硬规矩：全篇不超过200字，三段各2-3句，段间必须真空行；禁自问自答、禁模板句、禁「注意风险」。')
+    payload = {'task': 'preclose',
+               'time': _bj_now().strftime('%H:%M'),
+               'idx': [{'n': x['name'], 'pct': x['pct']} for x in sn['idx'][:5]],
+               'lu': sn['lu'], 'zb': sn['zb'], 'dt': sn['dt'],
+               'mood': sn['score'][1], 'score': sn['score'][0],
+               'sectors': [{'n': k, 'cnt': v} for k, v in _live_sec_top(sn, 4)],
+               'pool': _live_pool_names(sn, 6),
+               'held': _cand,
+               'gauge': sn['gauge'].get('suggest', ''),
+               'format': _fmt}
+    t = ask_deepseek(payload, purpose='preclose')
+    if not t:
+        print('[preclose] 模型未返回，不推送（不允许规则化兜底）')
+        return ''
+    return _wrap(_live_fact_block(sn, _cand_txt) + md2html(t), '🌙', '尾盘前决策·过不过夜')
+
+
 def build_intraday():
     """盘中异动监控（用户六步规格）：涨停池指纹门→情绪定性→新进涨停七段→主线→高位预警→持仓联动→纪律。
     大白话优先 DeepSeek 动态生成（每轮最多1次，计入当日≤8预算）；不可用/用尽自动回退规则模板并注明额度。
@@ -15563,6 +15782,29 @@ if __name__ == '__main__':
                     print('[radar] 无达标个股或构建失败，不推送雷达扫描')
         except Exception as e:
             print('[radar] build/push exception:', e)
+        sys.exit(0)
+    # —— 实时盘面三连（v80-B1）：机构/游资/庄家三张卡，模型不回就不推 ——
+    if slot in ('open', 'pmopen', 'preclose'):
+        _lab = {'open': ('🕘', '开盘验证·30分钟定调'),
+                'pmopen': ('🌤️', '午后接力·钱往哪去'),
+                'preclose': ('🌙', '尾盘前决策·过不过夜')}[slot]
+        _fn = {'open': build_open_check, 'pmopen': build_pm_relay, 'preclose': build_preclose}[slot]
+        _k = _slot_window_key(slot)
+        if not force and _slot_done(_k):
+            print('SLOT %s 本窗口已推（slot_done 去重），跳过' % slot)
+            sys.exit(0)
+        try:
+            html = _fn()
+        except Exception as e:
+            print('[%s] build exception: %s' % (slot, e))
+            html = ''
+        if not html:
+            print('SLOT %s 无内容（模型未返回或数据不可用），不推送' % slot)
+            sys.exit(0)
+        ok, msg = push(html, '%s %s %s' % (_lab[0], _lab[1], _bj_now().strftime('%H:%M')))
+        print('SLOT %s PUSH' % slot, ok, msg)
+        if ok:
+            _mark_slot_done(_k)
         sys.exit(0)
     # 新闻发酵（11-05 指令⑧）：盘中 10 条消息汇总，窗口去重
     if slot == 'newsfire':
