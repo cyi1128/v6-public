@@ -964,3 +964,11 @@
 05:18:13 [llm] 全局预算用尽 used=185s purpose=board_why
 05:18:13 [llm] 全局预算用尽 used=185s purpose=board_watch
 05:18:13 [board_watch_ds] LLM 返回空，回退规则模板
+05:35:48 [llm] 未返回 purpose=risk_card model=Qwen/Qwen3.5-122B-A10B tag=http_429
+05:36:31 [llm] 未返回 purpose=risk_card model=Qwen/Qwen3.5-35B-A3B tag=timeout
+05:36:31 [llm] 未返回 purpose=risk_card model=Qwen/Qwen3.8-27B tag=timeout
+05:36:32 [llm] 未返回 purpose=risk_card model=ZhipuAI/GLM-4.7-Flash tag=http_429
+05:36:56 [llm] 未返回 purpose=risk_card model=Qwen/Qwen3.8-Flash-Next tag=timeout
+05:36:56 [llm] 两波并发均无返回 purpose=risk_card
+05:36:56 [ask_deepseek] 首轮无返回即止损 purpose=risk_card
+05:36:56 [ask_deepseek] ModelScope 两次尝试均失败，purpose=risk_card
