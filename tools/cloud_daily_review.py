@@ -848,8 +848,41 @@ def coarse_linkage(d):
         prev |= set(mem.get(pd, {}).keys())
     now = [n for n, _ in d['tops'][:5]]
     new = [n for n in now if n not in prev]
+    # v80-A23（用户指令「精确到题材个股，选择这个股票逻辑暗线」）：
+    # 原来只吐三个板块名，现在每个新点火板块点名今天真正在拉的那只票，并给一条暗线。
+    _sec_map = {n: s for n, s in (d.get('tops') or [])}
     if new:
-        return f'🆕 新点火：{"、".join(new[:3])}（昨日无记录，观察跟风是否持续）'
+        _its = []
+        for sec in new[:3]:
+            sts = _sec_map.get(sec) or []
+            _st1 = sts[0] if sts else {}
+            _its.append({'s': sec, 'n': str(_st1.get('n') or ''),
+                         'lbc': int(_st1.get('lbc') or 0)})
+        _dks = []
+        try:
+            _nr = ask_deepseek({
+                'task': 'newfire_dark',
+                'items': _its,
+                'format': ('你是A股一线游资。下面几个板块是今天「新点火」的（昨天它们还没进涨停榜前列）。'
+                           '给每个板块写一条暗线：今天是谁把火点起来的、这个板块里真正被买的是哪个产业链环节、'
+                           '点名那只票并说清资金为什么选它而不是同板块别的，50-75字，落到具体名字。'
+                           '禁止万能句（值得关注/注意风险）、禁止设问句、禁止列表符号。'
+                           '只输出JSON：{"darks":["第1条","第2条",...]}，条数必须等于输入条数。'),
+            }, purpose='newfire_dark')
+            if _nr:
+                _nj2 = json.loads(_nr[_nr.find('{'):_nr.rfind('}') + 1])
+                _dks = [str(z).strip() for z in (_nj2.get('darks') or [])]
+                print('[link] 新点火暗线=%d' % len(_dks))
+        except Exception as _lke:
+            print('[link] 新点火暗线异常:', repr(_lke)[:80])
+        _rows = ''.join(
+            '<div style="font-size:12.5px;color:#ff922b;margin-top:4px;">' + x['s']
+            + (' · ' + x['n'] if x['n'] else '')
+            + ('<div style="color:#a78bfa;font-size:12px;line-height:1.6;margin:1px 0 0 10px;">🔍 ' + _dks[i] + '</div>'
+               if i < len(_dks) and _dks[i] else '')
+            + '</div>'
+            for i, x in enumerate(_its))
+        return '🆕 新点火（昨日还没有它们）' + _rows
     return f'🔁 主线延续：{"、".join(now[:3])}（昨日已活跃）'
 
 
@@ -2144,7 +2177,8 @@ def build_events(slot, news=None, cap=12, light=False):
                 if kw in text:
                     rel.append(bd)
                     break
-        rel_s = '、'.join(rel[:3]) or '暂看不出直接板块影响'
+        # v80-A24（用户指令「影响点明主题，大模型参与」）：模型没给就留空，不印「暂看不出」占位行
+        rel_s = '、'.join(rel[:3])
         out.append({'tag': tag, 'color': color, 'title': nw['title'][:60],
                     'time': (nw.get('ts') or '')[-8:-3] or '', 'rel': rel_s})
     # —— 事件简报改版（11-05 指令④）：按利好→利空→中性排序（段落排序），最多12条（内容紧密）——
@@ -2184,7 +2218,7 @@ def build_events(slot, news=None, cap=12, light=False):
 <div style="flex:1 1 auto;min-width:0;">
 <div style="color:#fff;font-size:13px;line-height:1.5;"><span style="font-weight:800;color:{x['color']};">{x['tag']}</span>　{x['title']}</div>
 <div style="color:#a78bfa;font-size:13px;margin-top:4px;line-height:1.6;">🔍 暗线：{(_darks[i - 1] if i - 1 < len(_darks) else '') or _news_dark(x['title']) or '这条属消息面，暂时落不到具体个股，先看板块反应'}</div>
-<div style="color:{GREY};font-size:12px;margin-top:3px;">{x['time'] or ''}｜影响：{x['rel']}</div></div></div>""")
+<div style="color:{GREY};font-size:12px;margin-top:3px;">{x['time'] or ''}{('｜影响：' + str(x['rel'])) if x.get('rel') else ''}</div></div></div>""")
     cards = ''.join(cards)
     head = {'pre': '📰 早盘事件汇总', 'noon': '📰 午间事件汇总', 'eod': '📰 尾盘事件汇总'}[slot]
     # 写入事件日志
@@ -2352,12 +2386,45 @@ def mainline_health(idx, d, fin, fout):
 
 
 def health_bar(idx, d, fin, fout):
-    """主线健康度状态条 HTML（noon/eod 顶部 + 底部仓位建议行）。"""
+    """主线健康度状态条 HTML（noon/eod 顶部 + 底部仓位建议行）。
+
+    v80-A23（用户指令「只显示评分主线题材板块个股在逻辑暗线，其他隐藏」）：
+    五因子括号（连续18/封板20/溢价12/资金15/炸板0）全部收掉，只留
+    「评分 + 主线是哪些板块 + 每个板块的暗线」，其余数据交给下面的涨停/炸板行。
+    """
     hs, hl, ha, subs = mainline_health(idx, d, fin, fout)
     hc = RED if hl == '主线仍强' else (GOLD if hl == '开始分化' else GREEN)
+    _its, _dks = [], []
+    try:
+        for sec, st in (d.get('tops') or [])[:3]:
+            sts = st or []
+            _its.append({'s': sec, 'n': len(sts),
+                         'names': [str(x.get('n') or '') for x in sts[:3] if x and x.get('n')]})
+        if _its:
+            _hr = ask_deepseek({
+                'task': 'health_dark',
+                'score': hs, 'label': hl, 'items': _its,
+                'format': ('你是A股一线游资。给下面每个「今天涨停最集中的板块」各写一条暗线：'
+                           '资金今天在这个板块里真正买的是什么环节、哪几只票在接、这个板块明天最可能怎么分化，'
+                           '50-75字。必须落到具体票名。'
+                           '禁止万能句（值得关注/注意风险）、禁止设问句、禁止列表符号。'
+                           '只输出JSON：{"darks":["第1条","第2条",...]}，条数必须等于输入条数。'),
+            }, purpose='health_dark')
+            if _hr:
+                _hj = json.loads(_hr[_hr.find('{'):_hr.rfind('}') + 1])
+                _dks = [str(z).strip() for z in (_hj.get('darks') or [])]
+                print('[health] 主线暗线=%d' % len(_dks))
+    except Exception as _he:
+        print('[health] 主线暗线异常:', repr(_he)[:80])
+    _main = '、'.join('%s(%d家)' % (x['s'], x['n']) for x in _its) if _its else ''
+    _dk_html = ''.join(
+        f'<div style="color:#a78bfa;font-size:12px;line-height:1.6;margin-top:3px;margin-left:4px;">'
+        f'🔍 {_its[i]["s"]}：{_dks[i]}</div>'
+        for i in range(len(_its)) if i < len(_dks) and _dks[i])
     return (f'<div style="margin-top:6px;background:#232a3a;border-left:4px solid {hc};border-radius:8px;'
             f'padding:8px 11px;font-size:13px;">🧭 主线健康度 <b style="color:{hc}">{hs}/100</b>（{hl}）'
-            f'｜{ha}<span style="color:{GREY};font-size:12px;">（连续{subs["continuity"]}/封板{subs["lead"]}/溢价{subs["premium"]}/资金{subs["fund"]}/炸板{subs["zbr"]}）</span></div>')
+            + (f'<div style="color:#ff922b;font-size:12.5px;margin-top:4px;">🎯 今日主线：{_main}</div>' if _main else '')
+            + _dk_html + '</div>')
 
 
 # ============ 模块6：动态仓位建议引擎 ============
@@ -2951,11 +3018,12 @@ def _sector_cards(tops, zb_names=None):
         if zb_names and lead.get('n') in zb_names:
             div = ' <span style="color:' + GREEN + ';">⚠️龙头分歧（炸板）</span>'
         _dp = _dm.get(name)
+        # v80-A21（用户指令「废话太多，直接点明主题逻辑暗线」）：
+        # 「🧠逻辑 / 👍大白话 / 🎯操作」三段并列收掉，只留一段暗线。
         _dp_html = ''
-        if _dp and _dp.get('why'):
-            _dp_html = (f'<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🧠 逻辑：{_dp.get("logic", "")}</div>'
-                        f'<div style="color:#e9ecef;font-size:12px;margin-top:2px;">👉 大白话：{_dp.get("why", "")}</div>'
-                        + (f'<div style="color:{TEAL};font-size:12px;margin-top:2px;">🎯 操作：{_dp.get("act", "")}</div>' if _dp.get('act') else ''))
+        if _dp and (_dp.get('logic') or _dp.get('why')):
+            _dp_html = (f'<div style="color:#a78bfa;font-size:12.5px;margin-top:4px;line-height:1.62;">'
+                        f'🔍 暗线：{_dp.get("logic") or _dp.get("why")}</div>')
         out.append(f"""<div style="background:#1f2635;border-left:4px solid {GOLD};border-radius:10px;padding:10px 12px;margin:7px 0;">
 <div style="font-size:14px;font-weight:700;color:{GOLD};">{i}. {name} <span style="color:{RED};">涨停{n}只</span> <span style="color:{TEAL};font-size:12px;">强度{strength:.0f}</span> <span style="color:{TEAL};font-size:12px;">{tag}</span></div>
 <div style="color:#ced4da;font-size:13px;margin-top:4px;">👑 {lt}{div}</div>
@@ -5036,18 +5104,15 @@ def _pre_ds(news, intel=None):
     t = ask_deepseek({'task': 'pre_news_summary', 'news': brief, 'judgment': jc,
                       'events': ev_lines or '（今日暂无高情绪事件）',
                       'format': (_TRADER_RULES + '\n'
-                                + (('昨日判断（开盘前先对照它，别重复昨天的错）：\n{judgment}\n' if jc else '昨日判断：无（今日首卡）\n')
-                                   + '【事件驱动主线·量化评分】（板块事件数/净情绪分/最新时间，权重最高的排前面，这是今日最可能被资金点火的候选）：\n{events}\n'
-                                   + '今日新闻（12条）：\n{news}\n'
-                                   + '请严格按以下格式输出，不许加其他板块、不许打乱：\n'
-                                   + '① 今日一句话总判断（今日情绪：强势/震荡/偏空/冰点 + 建议总仓位：空仓/1成试探/2成/半仓 + 主基调：进攻/防守/观望/做分歧）\n'
-                                   + '② 今日主线预判：只给【1个主攻方向+最多2个备选】，优先从「事件驱动主线·量化评分」里选（方向名+驱动(用新闻数据)+代表股+为什么现在值得做(禁万能句)+放弃条件）；评分里没有明确主线就写「今日无明确主线，只做观察」，禁止硬凑、禁止罗列式废话\n'
-                                   + '③ 重点标的（最多2只；没有就写「今日无强推」并说明缺哪项共振；昨日涨停/连板票禁止列入）\n'
-                                   + '每只格式：名称 代码 | 阶段(启动/中段/高位) | 共振x/4 | 为什么现在值得看(禁万能句) | 关键位置：支撑X/阻力X | 买入条件 | 放弃条件 | 仓位(仅1成试探/2成/半仓) | 唯一主风险\n'
-                                   + '④ 今日最大风险（一句话，必须是具体的：哪个板块/哪类票/哪个消息会砸盘）\n'
-                                   + '【昨日复盘】若给了昨日判断：用今日新闻对照它，先写一句哪些说对了/哪些说错了（最多3条）\n'
-                                   + '【仓位仪表盘】今日建议总仓位一档（空仓/1成试探/2成/半仓）+ 一句理由（供全天其他模块引用）' + '\n【自检】输出前自查：是否违反高位连板别追？是否缺止损？是否有万能句（值得关注/建议留意/具备投资价值）？是否与仓位仪表盘矛盾？有问题降级改写；无问题结尾写「自检通过」。'))},
-                     purpose='pre')
+                + (('昨日判断（开盘前先对照它，别重复昨天的错）：\n{judgment}\n' if jc else '昨日判断：无（今日首卡）\n')
+                + '【事件驱动主线·量化评分】（板块事件数/净情绪分/最新时间，权重最高的排前面）：\n{events}\n'
+                + '今日新闻（12条）：\n{news}\n'
+                + '只写两段，不许有编号以外的任何内容，不许一问一答：\n'
+                + '① 今日主题：一句话点明今天该做哪个方向（板块 + 1-2只代表股 + 凭什么，必须用新闻里的具体数据说话）\n'
+                + '② 暗线：这条线背后真正在动的是什么——资金认的是产业趋势、业绩兑现还是政策，落到产业链哪个环节、'
+                + '具体哪几只票，说清为什么选这几只而不是同板块别的，80-120字一气写下来不许拆行\n'
+                + '禁止万能句（值得关注/注意风险/控制仓位）、禁止设问句、禁止列表符号、禁止自己提问自己回答。'))},
+        purpose='pre')
     return md2html(t) if t else ''
 
 
@@ -5175,8 +5240,13 @@ def _focus_deep(focus):
     fmt = ('你是一线游资，盘前重点个股参考，对下面每只深挖（严格按主力游资五步铁律）：\n'
            + FIVE_BRIEF + '\n'
            + '只推有明显前期建仓痕迹、位置不高的票。共振不足3项或高位直接写「今日无买点」。昨日涨停/连板票禁止推荐（一律写「昨日已涨停，今日只观察不操作」）。\n'
-           + '【深挖铁律·每只票必做】完整执行「股票深挖铁律」：本质（一句话大白话）+暗线业务（具体产品+进展阶段+对业绩真实贡献，写不出写「未见明确暗线业务」，禁「相关/涉及/布局/受益于」糊弄）+真实关联与弹性（实受益/沾边/纯蹭+弹性大小）+为什么是它+破灭点+动作。没有清晰暗线业务或弹性不足的写「今日无买点」，禁止硬推。\n个股：\n' + lines + '\n'
-           + '只输出 JSON：{"per":[{"nm":"股票名(照抄)","stage":"启动/中段/高位","resonance":"满足共振几项(题材/资金/位置/买点, x/4)","plain":"本质+暗线业务+真实关联与弹性+为什么是它+破灭点(≥30字)","tip":"操作建议：买点+止损+仓位档(仅1成试探/2成/半仓)(≥20字)；不满足3项共振或无建仓痕迹或逻辑不硬则写「今日无买点」"}]}，必须覆盖每只。')
+           + '【每只票的暗线·强制写成一段话】按这个顺序一口气连下来，不许分行、不许编小标题：'
+           + '①它到底是干什么的（用刚炒股的人能听懂的话，别堆术语）②暗线业务是什么、做到哪一步、对业绩真实贡献多少'
+           + '（写不出就写「未见明确暗线业务」，禁用「相关/涉及/布局/受益于」糊弄）③资金今天为什么选它而不是同板块别的票'
+           + '④弹性多大、什么情况逻辑就破。全部串成一段 70-110 字的大白话。\n'
+           + '【绝对禁止】设问句、反问句、自己提问自己回答（例如「资金凭什么选它。就因为……」这种写法一律不要，'
+           + '直接把原因陈述出来）；禁止模板句（值得关注/建议留意/具备投资价值）；禁止列表符号。\n个股：\n' + lines + '\n'
+           + '只输出 JSON：{"per":[{"nm":"股票名(照抄)","stage":"启动/中段/高位","resonance":"满足共振几项(题材/资金/位置/买点, x/4)","plain":"上面要求的那一段话(70-110字,不分行)","tip":"操作建议：买点+止损+仓位档(仅1成试探/2成/半仓)(≥20字)；不满足3项共振或无建仓痕迹或逻辑不硬则写「今日无买点」"}]}，必须覆盖每只。')
     t = ask_deepseek({'task': 'focus_deep', 'items': [{'nm': x[0], 'code': x[1], 'prev': x[2], 'sec': x[3], 'role': x[6]} for x in focus[:8]],
                       'format': fmt}, purpose='focus_deep')
     out = {}
@@ -5622,8 +5692,11 @@ def _mainline_3(gl_avg, news, d):
     return w1, w2, w3
 
 
+_SW_DARK = {}
+
+
 def _sector_wind(d, news):
-    """③ 板块风向标：强势/弱势只列代码实算数据，不写"可关注/今天别碰"这类判读。"""
+    """③ 板块风向标：强弱两侧互斥（同一板块不许既进强势又进弱势），每条带暗线。"""
     strong = []
     for sec, sts in (d.get('tops') or [])[:3]:
         lu = len(sts)
@@ -5649,7 +5722,37 @@ def _sector_wind(d, news):
                 if any(k in text for k in kws) and sec not in [w[0] for w in weak]:
                     weak.append((sec, '利空消息：' + str(nw.get('title') or '')[:24]))
                     break
-    return strong[:3], weak[:3]
+    # v80-A18：同一板块不能同时进「强势可关注」和「弱势回避」（11/09 实测通用设备两边都出现），
+    # 强势侧优先，弱势侧剔除；剔空后给一条整体回避说明，不出空段。
+    _sset2 = {s for s, _ in strong}
+    weak = [w for w in weak if w[0] not in _sset2]
+    if not weak:
+        weak = [('整体', '昨日强弱分化不明显，回避高位连板与炸板集中票')]
+    strong, weak = strong[:3], weak[:3]
+    # 每条一份暗线（模型给不出就空着，不拼规则句）
+    try:
+        _SW_DARK.clear()
+        _its = ([{'s': s, 'w': w, 'k': '强'} for s, w in strong]
+                + [{'s': s, 'w': w, 'k': '弱'} for s, w in weak])
+        _fr = ask_deepseek({
+            'task': 'sec_wind_dark',
+            'items': _its,
+            'format': ('你是A股一线游资。给下面每个板块写一条「暗线」：这个板块里资金真正在买、或者在撤的是什么，'
+                       '落到具体产业链环节和代表个股（能给名字就给），说清为什么强、为什么弱。'
+                       '同一天里强和弱必须写出不同的东西，不许两边说同一句话。每条40-70字。'
+                       '禁止万能句（值得关注/注意风险）、禁止设问句、禁止列表符号。'
+                       '只输出JSON：{"darks":["第1条","第2条",...]}，条数必须等于输入条数。'),
+        }, purpose='sec_wind_dark')
+        if _fr:
+            _fj = json.loads(_fr[_fr.find('{'):_fr.rfind('}') + 1])
+            _dl = [str(z).strip() for z in (_fj.get('darks') or [])]
+            for _i2, _it2 in enumerate(_its):
+                if _i2 < len(_dl) and _dl[_i2]:
+                    _SW_DARK[(_it2['k'], _it2['s'])] = _dl[_i2]
+            print('[pre] 风向标暗线 %d/%d' % (len(_SW_DARK), len(_its)))
+    except Exception as _sw:
+        print('[pre] 风向标暗线异常:', repr(_sw)[:80])
+    return strong, weak
 
 
 def _goodbad_action(news, pre_map=None):
@@ -5811,18 +5914,47 @@ def build_pre():
     watch, avoid, hold_rows = _action_list(news, d, gl_avg, _pre_news_map)
     ds_html = _pre_ds(news, intel)
     # —— 事件驱动主线小节（量化评分 Top3，紧跟时事核心）——
+    # v80-A18（用户指令「驱动主线展示暗线逻辑」）：每条事件主线补一条暗线，一次批量调用
+    _ev_darks = []
+    try:
+        _ml3 = (intel.get('mainlines') or [])[:3]
+        if _ml3:
+            _frE = ask_deepseek({
+                'task': 'pre_main_dark',
+                'items': [{'s': m['sec'], 't': '；'.join(m['tops'][:2]), 'd': m.get('latest', '')}
+                          for m in _ml3],
+                'format': ('你是A股一线游资。给下面每条「事件驱动主线」写一条暗线：这条消息背后资金真正要买的是什么，'
+                           '落到产业链的哪个环节、哪几只票，说清为什么是这些票而不是同板块别的。每条50-80字。'
+                           '禁止万能句（值得关注/注意风险）、禁止设问句、禁止列表符号。'
+                           '只输出JSON：{"darks":["第1条","第2条",...]}，条数必须等于输入条数。'),
+            }, purpose='pre_main_dark')
+            if _frE:
+                _fjE = json.loads(_frE[_frE.find('{'):_frE.rfind('}') + 1])
+                _ev_darks = [str(z).strip() for z in (_fjE.get('darks') or [])]
+                print('[pre] 主线暗线 条数=%d' % len(_ev_darks))
+    except Exception as _ee:
+        print('[pre] 主线暗线异常:', repr(_ee)[:80])
     _ev_rows = ''
-    for m in intel.get('mainlines') or []:
+    for _im, m in enumerate(intel.get('mainlines') or []):
         _lt = m['latest'][11:16] if len(m.get('latest', '')) >= 16 else m.get('latest', '')
+        _evd = _ev_darks[_im] if _im < len(_ev_darks) else ''
         _ev_rows += ('<div style="background:#1f2635;border-left:3px solid ' + GOLD + ';border-radius:6px;padding:6px 8px;margin:5px 0;">'
                      '<div style="font-size:13px;color:#fff;"><b>' + m['sec'] + '</b> '
                      '<span style="color:' + GREY + ';font-size:12px;">事件' + str(m['n']) + '条 ｜ 净情绪' + ('+' if m['net'] > 0 else '') + str(m['net']) + ' ｜ 最新' + _lt + '</span></div>'
-                     '<div style="font-size:12px;color:' + TEAL + ';">代表：' + '；'.join(m['tops'][:2]) + '</div></div>')
+                     '<div style="font-size:12px;color:' + TEAL + ';">代表：' + '；'.join(m['tops'][:2]) + '</div>'
+                     + (('<div style="font-size:12px;color:#a78bfa;line-height:1.6;margin-top:2px;">🔍 暗线：' + _evd + '</div>') if _evd else '')
+                     + '</div>')
     if not _ev_rows:
         _ev_rows = '<div style="color:' + GREY + ';font-size:13px;">今天没有能带动板块的硬事件，消息面偏散，等明天的新催化</div>'
     _ev_block = ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">📡 事件驱动主线（量化评分·紧跟时事）</div>' + _ev_rows)
-    s_strong = ''.join('<div style="margin:4px 0;font-size:13px;">🟢 <b>' + sec + '</b> — ' + why + '</div>' for sec, why in strong)
-    s_weak = ''.join('<div style="margin:4px 0;font-size:13px;">🔴 <b>' + sec + '</b> — ' + why + '</div>' for sec, why in weak)
+    def _sw_line(mark, col, sec, why, kind):
+        _dk2 = _SW_DARK.get((kind, sec), '')
+        return ('<div style="margin:5px 0;font-size:13px;">' + mark + ' <b style="color:' + col + ';">' + sec + '</b>'
+                + ' <span style="color:' + GREY + ';font-size:12px;">— ' + why + '</span>'
+                + (('<div style="color:#a78bfa;font-size:12px;line-height:1.6;margin:2px 0 0 16px;">🔍 暗线：' + _dk2 + '</div>') if _dk2 else '')
+                + '</div>')
+    s_strong = ''.join(_sw_line('🟢', RED, sec, why, '强') for sec, why in strong)
+    s_weak = ''.join(_sw_line('🔴', GREEN, sec, why, '弱') for sec, why in weak)
     news_rows = ''
     _hot_nm = []
     for cat in ('政策/监管', '产业/行业', '公司大事', '国际/外围'):
@@ -5836,9 +5968,13 @@ def build_pre():
                 _gd, _bd = _dn.get('good') or '', _dn.get('bad') or ''
                 _lg, _wh, _ac = _dn.get('logic') or '', _dn['why'], _dn.get('act') or ''
                 _sec2 = _dn.get('sec') or ''
-                plain = ('✅ ' + _gd + '<br>⚠️ ' + _bd + '<br>🧠 逻辑：' + _lg + '<br>👉 大白话：' + _wh
-                         + ('<br>💡 操作：' + _ac if _ac else '')
-                         + (('｜板块：' + _sec2) if _sec2 else ''))
+                # v80-A18：产业/行业、国际/外围这两类只留一段暗线（利好/利空/大白话/操作/板块括注全砍）
+                if cat in ('产业/行业', '国际/外围'):
+                    plain = '🔍 暗线：' + (_lg or _wh)
+                else:
+                    plain = ('✅ ' + _gd + '<br>⚠️ ' + _bd + '<br>🧠 逻辑：' + _lg + '<br>👉 大白话：' + _wh
+                             + ('<br>💡 操作：' + _ac if _ac else '')
+                             + (('｜板块：' + _sec2) if _sec2 else ''))
                 _rg2 = bool(_gd) and ('无明显' not in _gd)
                 _rb2 = bool(_bd) and ('无明显' not in _bd)
                 tag = '利好' if (_rg2 and not _rb2) else ('利空' if (_rb2 and not _rg2) else ('双向' if (_rg2 and _rb2) else ''))
@@ -5870,7 +6006,22 @@ def build_pre():
         _fp = _pure_code(code) or code
         _dk = _dk or _dark_solid(_fp, nm)
         _fc5 = _chg5_of(_fp, prev)
-        if isinstance(_fc5, (int, float)):
+        _fcd = _chg5_daily(_fp)
+        # v80-A19（用户指令「把每天收盘涨跌幅展示出来」）：逐日摆开，不再只给一个累计数
+        if _fcd:
+            _days = ' ｜ '.join('%s %+.2f%%' % (x['d'], x['p']) for x in _fcd)
+            if isinstance(_fc5, (int, float)):
+                _cum = float(_fc5)
+            else:
+                _cum = 1.0
+                for x in _fcd:
+                    _cum *= (1.0 + x['p'] / 100.0)
+                _cum = round((_cum - 1) * 100, 2)
+            _fc5_html = ('<div style="color:#ced4da;font-size:12.5px;margin-top:5px;line-height:1.62;">'
+                         '📈 近5日收盘涨跌幅<br>' + _days
+                         + '<br><span style="color:%s;font-weight:700;">5日累计 %+.2f%%</span></div>'
+                         % (_c(_cum), _cum))
+        elif isinstance(_fc5, (int, float)):
             _fc5_html = ('<div style="color:%s;font-size:13px;font-weight:700;margin-top:4px;">'
                          '📈 近5日收盘涨幅 %+.2f%%</div>' % (_c(float(_fc5)), float(_fc5)))
         else:
@@ -5878,13 +6029,15 @@ def build_pre():
                          '📈 近5日收盘涨幅：数据未取得</div>' % GREY)
         _fpl = str((_foc_map.get(nm) or {}).get('plain', '') or '').strip()
         _ftip = str((_foc_map.get(nm) or {}).get('tip', '') or '').strip()
+        # v80-A19：本质与暗线不再是两行——模型那段（本质→暗线业务→为什么是它→弹性风险）直接当暗线主体，
+        # 主营构成只有在模型没回时才补上来；「👉」独立行取消。
+        _ess = _fpl or _dk or '主营构成未取得，不给暗线结论'
         _foc_rows.append(
             f"""<div style="background:#1f2635;border-left:3px solid #a78bfa;border-radius:8px;padding:10px 12px;margin:7px 0;">
 <b style="color:#fff;font-size:14px;">{nm}</b> <span style="color:{GREY};font-size:12px;">{code}</span>
 {_fc5_html}
-<div style="color:#a78bfa;font-size:13px;margin-top:4px;line-height:1.55;">🔍 暗线：{_dk or '主营构成未取得，不给暗线结论'}</div>
-{('<div style="color:#e9ecef;font-size:13px;margin-top:3px;">👉 ' + _fpl + '</div>') if _fpl else ''}
-{('<div style="color:#94d4d0;font-size:13px;margin-top:3px;">🎯 ' + _ftip + '</div>') if _ftip else ''}</div>""")
+<div style="color:#a78bfa;font-size:13px;margin-top:5px;line-height:1.66;">🔍 暗线：{_ess}</div>
+{('<div style="color:#94d4d0;font-size:13px;margin-top:4px;">🎯 ' + _ftip + '</div>') if _ftip else ''}</div>""")
     focus_rows = ''.join(_foc_rows)
     focus_block = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">⑤ 重点个股参考（{len(focus)}只）</div>{focus_rows}'
                    if focus_rows else '<div style="margin-top:10px;font-size:13px;color:' + GREY + ';">代码筛选下今日无未涨停低位标的（昨日涨停票不列）</div>')
@@ -5894,10 +6047,12 @@ def build_pre():
         return (x or '').split('（')[0].split('(')[0].strip()
 
     def _op_line(mark, nm, why, tail=''):
+        # v80-A18（用户指令「废话太多，只粘下逻辑暗线连贯成一段话」）：
+        # 「昨日涨6.9%、量比2.2、换手4.6%、位置不高｜仓位」这类量价碎数全部不印，只留名称 + 暗线。
         _c = _name_to_code(_plain_nm(nm))
         _dk = _dark_fact(_c, _plain_nm(nm), _hot_f) if _c else ''
-        _dkl = (f'<div style="color:#a78bfa;font-size:12px;margin-top:2px;line-height:1.5;">🔍 暗线（主营实据）：{_dk}</div>' if _dk else '')
-        return ('<div style="margin:5px 0;font-size:13px;">' + mark + ' <b>' + nm + '</b> — ' + why + tail + _dkl + '</div>')
+        _dkl = (f'<div style="color:#a78bfa;font-size:12.5px;margin:2px 0 0 14px;line-height:1.62;">🔍 暗线：{_dk}</div>' if _dk else '')
+        return ('<div style="margin:7px 0;font-size:13px;">' + mark + ' <b>' + nm + '</b>' + _dkl + '</div>')
 
     w_rows = ''.join(_op_line('✅', nm, why, '｜<span style="color:' + GOLD + ';">仓位 ' + pos + '</span>') for nm, why, pos in watch)
     a_rows = ''.join(_op_line('⛔', nm, why) for nm, why in avoid)
@@ -7781,31 +7936,31 @@ def build_cycle(title='多周期视角研判'):
         rows += f'<div style="color:{_gc};font-size:14px;font-weight:800;margin:10px 0 4px;">{g}（{len(items)}）</div>'
         for s, reason in items:
             d_i = per.get(s['name'])
-            _fl = s.get('_flow')
-            flow_html = (''
-                         if _fl is None else
-                         f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">'
-                         f'💰 主力资金：当日净流入占成交额 {_fl:+.2f}%'
-                         f'（净流入{(s.get("_flow_amt") or 0)/1e8:.2f}亿）</div>')
-            deep_html = ''
-            # v7.9x27：模型回不回都要有真暗线（东财主营构成实据）
+            # v80-A17（用户指令「两个暗线分析然后又加一个深挖，又大白话又建议」）：
+            # 每只票只留三行——是谁（含题材）/ 暗线一段（主题+逻辑+原因揉成一气）/ 怎么动。
+            # 量比换手市值、主力资金、仓位模板、独立的大白话行全部收掉。
             _hot_c = [str(x[0]) for x in (d.get('tops') or [])[:4]]
             _dk_c = _dark_fact(s.get('code') or '', s.get('name') or '', _hot_c)
-            _dk_c_html = (f'<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线（主营实据）：{_dk_c}</div>'
-                          if _dk_c else '')
-            if d_i and d_i.get('logic'):
+            _seg = []
+            if d_i:
+                for _k in ('dark', 'reason', 'logic'):
+                    _v = str(d_i.get(_k, '') or '').strip()
+                    if _v and _v not in _seg:
+                        _seg.append(_v)
+            if not _seg and _dk_c:
+                _seg = [_dk_c]
+            _dark_html = (f'<div style="color:#a78bfa;font-size:12.5px;margin-top:3px;line-height:1.68;">'
+                          f'🔍 暗线：{"；".join(_seg)}</div>' if _seg else '')
+            _op_html = ''
+            if d_i and d_i.get('op'):
                 _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(d_i.get('op', ''), GOLD)
-                deep_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线：{d_i.get('dark','')}（{d_i.get('reason','')}）</div>
-<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🧠 深挖：{d_i.get('logic','')}</div>
-<div style="color:#e9ecef;font-size:12px;margin-top:2px;">👉 大白话：{d_i.get('why','')}</div>
-<div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 建议：<b style="color:{_opcol};">{d_i.get('op','')}</b> ｜ 买点：{d_i.get('buy','')} ｜ 止损：{d_i.get('stop','')} ｜ 放弃：{d_i.get('drop','')}</div>""")
+                _op_html = (f'<div style="color:#ced4da;font-size:12px;margin-top:3px;">'
+                            f'🎯 <b style="color:{_opcol};">{d_i.get("op")}</b>'
+                            f' ｜ 买点 {d_i.get("buy","")} ｜ 止损 {d_i.get("stop","")}</div>')
             rows += (f'<div style="background:#1f2635;border-left:3px solid {_gc};border-radius:8px;padding:8px 11px;margin:5px 0;">'
-                     f'<div style="font-size:13px;font-weight:700;color:#fff;">{s["name"]} <span style="color:{GREY};font-size:11px;">{s.get("code","")}</span> <span style="color:{_c(s["pct"])};font-size:12px;">{s["pct"]:+.2f}%</span></div>'
-                     f'<div style="color:{GREY};font-size:11px;">量比{s["lb"]:.1f} ｜ 换手{s.get("turn",0):.1f}% ｜ 市值{s.get("mv",0):.0f}亿 ｜ 题材:{s.get("industry","")}</div>'
-                     f'<div style="color:#8bd3c7;font-size:12px;margin-top:2px;">⏱ {reason}</div>'
-                     f'{flow_html}'
-                     f'<div style="color:#e6a23c;font-size:11px;margin-top:2px;">仓位：{cap.get(g,"")}</div>'
-                     f'{_dk_c_html}{deep_html}</div>')
+                     f'<div style="font-size:13px;font-weight:700;color:#fff;">{s["name"]} <span style="color:{GREY};font-size:11px;">{s.get("code","")}</span> <span style="color:{_c(s["pct"])};font-size:12px;">{s["pct"]:+.2f}%</span>'
+                     f' <span style="color:#8bd3c7;font-size:11px;">{s.get("industry","")}</span></div>'
+                     f'{_dark_html}{_op_html}</div>')
     if cap_advice:
         rows = (f'<div style="background:#1f2635;border-left:3px solid {GOLD};border-radius:8px;padding:8px 11px;margin:6px 0;">'
                 f'<div style="font-size:13px;font-weight:800;color:{GOLD};">💼 档位建议</div>'
@@ -7940,26 +8095,101 @@ def build_noon():
     mem = load_memory()
     days = sorted(mem.keys(), reverse=True)
     bits = '<span style="color:#495057">｜</span>'.join(f"<span style='color:{_c(x['pct'])};font-weight:700'>{x['name']}{x['pct']:+.2f}%</span>" for x in idx)
+    # v80-A21（用户指令「加速器和连板梯队过于简单」）：梯队每只票、加速期每个板块各配一条暗线。
+    _lad_dk, _acc_dk = {}, {}
+    try:
+        _ldin = [{'n': nm, 'b': int(n)} for n, s in (d.get('ladder') or []) for nm in (s or [])[:8]]
+        _acin = [sec for sec, st in (d.get('tops') or [])[:3]]
+        if _ldin or _acin:
+            _exr = ask_deepseek({
+                'task': 'noon_extra_dark',
+                'ladder': _ldin,
+                'accel': _acin,
+                'format': (
+                    '你是A股一线游资，现在是午间。'
+                    '① ladder 是连板梯队里的票（b=当前连板数，数字越大越危险），给每只票写一句暗线：'
+                    '它靠什么在连板、主营和产业链位置是什么、为什么资金愿意继续接它，35-55字；'
+                    '高连板（b>=4）要直接点出分歧风险在哪，别美化。'
+                    '② accel 是今天已经加速的板块，给每个板块写一句暗线：板块里今天真正被买的是什么环节、'
+                    '哪类票在接、接下来最可能怎么分化，40-60字。每条都必须落到具体名字，不许只说板块泛话。'
+                    '禁止万能句（值得关注/注意风险）、禁止设问句、禁止列表符号。'
+                    '只输出JSON：{"ladder":[{"n":"股票名照抄","dark":"..."}],'
+                    '"accel":[{"s":"板块名照抄","dark":"..."}]}，条数必须分别等于输入条数。'),
+            }, purpose='noon_extra_dark')
+            if _exr:
+                _exj = json.loads(_exr[_exr.find('{'):_exr.rfind('}') + 1])
+                for z in (_exj.get('ladder') or []):
+                    if isinstance(z, dict) and str(z.get('n') or '').strip() and str(z.get('dark') or '').strip():
+                        _lad_dk[str(z['n']).strip()] = str(z['dark']).strip()
+                for z in (_exj.get('accel') or []):
+                    if isinstance(z, dict) and str(z.get('s') or '').strip() and str(z.get('dark') or '').strip():
+                        _acc_dk[str(z['s']).strip()] = str(z['dark']).strip()
+                print('[noon] 梯队暗线=%d 加速期暗线=%d' % (len(_lad_dk), len(_acc_dk)))
+    except Exception as _exe:
+        print('[noon] 梯队暗线异常:', repr(_exe)[:80])
     lad = ''
     for n, s in d['ladder']:
-        names = '、'.join(s)
+        _nm_html = '、'.join(
+            f'<span style="color:#fff;">{nm}</span>'
+            + (f'<div style="color:#a78bfa;font-size:12px;margin:1px 0 0 12px;line-height:1.58;">🔍 {_lad_dk[nm]}</div>'
+               if _lad_dk.get(nm) else '')
+            for nm in s)
         if n >= 3:
-            lad += f'<div style="color:{GREEN};font-size:13px;"><b style="color:{RED}">{n}板</b>（高度板·分歧风险）：{names}</div>'
+            lad += f'<div style="color:{GREEN};font-size:13px;margin:4px 0;"><b style="color:{RED}">{n}板</b>（高度板·分歧风险）：{_nm_html}</div>'
         else:
-            lad += f'<div style="color:{GREY};font-size:13px;"><b style="color:{GOLD}">{n}板</b>：{names}</div>'
+            lad += f'<div style="color:{GREY};font-size:13px;margin:4px 0;"><b style="color:{GOLD}">{n}板</b>：{_nm_html}</div>'
+    _acc_html = ''.join(
+        f'<div style="margin:4px 0;font-size:12px;color:{GREY};">{life_badge(sec, d, mem, days)} '
+        f'<b style="color:#ff922b;">{sec}</b>（今日{len(st)}家）'
+        + (f'<div style="color:#a78bfa;font-size:12px;margin:1px 0 0 12px;line-height:1.58;">🔍 {_acc_dk[sec]}</div>'
+           if _acc_dk.get(sec) else '')
+        + '</div>'
+        for sec, st in (d.get('tops') or [])[:3] if len(st) >= 1)
     # —— 资金博弈（新浪资金流）——
     mf = ''
     fin, fout = _money_flow_top(5)
     if fin and fout:
-        fin_r = '、'.join(f"{nm}{v/1e8:+.1f}亿" for nm, v in fin[:5])
-        fout_r = '、'.join(f"{nm}{v/1e8:+.1f}亿" for nm, v in fout[:5])
-        net_total = sum(v for _, v in fin[:5]) + sum(v for _, v in fout[:5])
-        judge = '主力净流入>净流出，真强概率大，午后可跟主线。' if net_total > 0 else '净流出占优，警惕诱多/资金离场，午后防守。'
+        # v80-A20（用户指令「内容太乱，资金选这个股票的逻辑暗线，但你要分清因为股价高所以净流入大」）：
+        # 每只票给一条暗线，并单独一条判断「谁是真抢筹、谁只是盘子大数字好看」。
+        _fin_dk, _fout_dk, _vd = [], [], ''
+        try:
+            _mfp = {
+                'task': 'mf_dark',
+                'in': [{'n': nm, 'v': round(v / 1e8, 2)} for nm, v in fin[:5]],
+                'out': [{'n': nm, 'v': round(v / 1e8, 2)} for nm, v in fout[:5]],
+                'format': (
+                    '你是A股一线游资。上面是上午主力资金净流入/流出前5（单位亿）。'
+                    '① 每只票写一句暗线：资金为什么砸它或者撤它，落到它的主业、在产业链的位置，40-60字，'
+                    '禁止万能句、禁止设问句、禁止列表符号。'
+                    '①.5 必须先把一件事判断清楚：这些净流入数字大，到底是真的有主力在抢筹码，'
+                    '还是仅仅因为这只票盘子大、股价高、当天成交额本来就大，金额自然好看——'
+                    '落到具体票名上说谁是真抢筹、谁只是数值大，不许讲抽象原理、不许两边都说。'
+                    '只输出JSON：{"verdict":"区分判断，60-90字，点名到票","in":["第1只暗线","第2只暗线",...],'
+                    '"out":["第1只暗线",...]}，in/out 条数必须分别等于输入条数。'),
+            }
+            _mfr = ask_deepseek(_mfp, purpose='mf_dark')
+            if _mfr:
+                _mfj = json.loads(_mfr[_mfr.find('{'):_mfr.rfind('}') + 1])
+                _fin_dk = [str(z).strip() for z in (_mfj.get('in') or [])]
+                _fout_dk = [str(z).strip() for z in (_mfj.get('out') or [])]
+                _vd = str(_mfj.get('verdict') or '').strip()
+                print('[noon] 资金暗线 in=%d out=%d verdict=%d' % (len(_fin_dk), len(_fout_dk), len(_vd)))
+        except Exception as _mfe:
+            print('[noon] 资金暗线异常:', repr(_mfe)[:80])
+
+        def _mf_line(i, nm, v, col, dks):
+            _d = dks[i] if i < len(dks) else ''
+            return (f'<div style="font-size:12.5px;color:{col};line-height:1.72;margin-top:2px;">'
+                    f'{nm} <b>{v / 1e8:+.1f}亿</b>'
+                    + (f'<div style="color:#a78bfa;font-size:12px;margin:1px 0 0 12px;line-height:1.6;">🔍 {_d}</div>' if _d else '')
+                    + '</div>')
+        _fin_html = ''.join(_mf_line(i, nm, v, RED, _fin_dk) for i, (nm, v) in enumerate(fin[:5]))
+        _fout_html = ''.join(_mf_line(i, nm, v, GREEN, _fout_dk) for i, (nm, v) in enumerate(fout[:5]))
         mf = f"""<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">💰 资金博弈结果</div>
 <div style="background:#1f2635;border-radius:10px;padding:10px 12px;margin-top:5px;">
-<div style="font-size:13px;color:{RED};">主力净流入前5：{fin_r}</div>
-<div style="font-size:13px;color:{GREEN};margin-top:3px;">主力净流出前5：{fout_r}</div>
-<div style="font-size:13px;color:{TEAL};margin-top:5px;">👉 {judge}</div></div>"""
+<div style="font-size:12.5px;color:{GREY};margin-bottom:2px;">主力净流入前5（按金额排）</div>{_fin_html}
+<div style="font-size:12.5px;color:{GREY};margin:7px 0 2px;">主力净流出前5（按金额排）</div>{_fout_html}
+{('<div style="color:#a78bfa;font-size:13px;line-height:1.7;margin-top:8px;">🔍 区分：' + _vd + '</div>') if _vd else ''}</div>"""
     else:
         mf = '<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">💰 资金博弈结果</div><div style="color:' + GREY + ';font-size:13px;">主力资金流接口未取得（免费接口被墙），不编造</div>'
     # —— DeepSeek 午间定性 + 下午作战计划 ——
@@ -8015,7 +8245,11 @@ def build_noon():
                 print('[noon] 模型研判 theme=%d dark=%d stocks=%d' % (len(_th), len(_dk), len(_sk)))
         except Exception as _ne:
             print('[noon] 研判 LLM 异常:', repr(_ne)[:80])
-    inner = f"""{ds_block}{_nd_html}{build_events('noon', _nw)}
+    # v80-A20（用户指令「午间研判废话太多，直接点明主题逻辑暗线」）：
+    # A11 产出的「上午主线 / 暗线 / 个股暗线」结构化段优先；只有它完全没出来时，
+    # 才把模型那段长文顶上（避免研整段消失）。
+    _ds_show = '' if _nd_html else ds_block
+    inner = f"""{_ds_show}{_nd_html}{build_events('noon', _nw)}
 <div style="font-size:14px;">{bits}</div>{health_bar(idx, d, fin, fout)}
 <div style="margin-top:6px;font-size:14px;">🔴涨停<b style="color:{RED}">{d['lu']}</b> 🟢炸板<b style="color:{GREEN}">{d['zb']}</b> 🟢跌停<b style="color:{GREEN}">{d['dt']}</b> 最高<b style="color:{GOLD}">{d['max_lbc']}板</b></div>
 <div style="margin-top:6px;font-size:13px;">{yesterday_premium()}</div>
@@ -8023,7 +8257,7 @@ def build_noon():
 <div style="margin-top:4px;font-size:13px;color:{TEAL};">🔗 {coarse_linkage(d)}</div>
 {leader_divergence(d)}{mf}
 <div style="margin-top:10px;font-size:16px;font-weight:800;color:#ff922b;">🔥 上午最强方向 TOP15</div>{_sector_cards(d['tops'][:15], d['zb_names'])}
-{''.join(f'<div style="margin:3px 0;font-size:12px;color:{GREY};">{life_badge(sec, d, mem, days)} {sec}（今日{len(st)}家）</div>' for sec, st in d['tops'][:3] if len(st) >= 1)}
+{_acc_html}
 <div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🪜 连板梯队（3板以上=高度板，谨慎）</div>
 <div style="background:#1f2635;border-radius:10px;padding:10px;margin-top:5px;">{lad}</div>{pos_cap_line(sentiment(idx, d)[0], mainline_health(idx, d, fin, fout)[1])}"""
     return _wrap(inner, '☀️', '午间作战')
@@ -10729,7 +10963,8 @@ FOLLOW_V2_PROMPT = """你是一线游资，现在是收盘后或盘中，任务�
 候选池(系统已算好分项)：{candidates}
 埋伏铁律：
 1. 【当日未涨停】才叫埋伏
-2. 【共振传导链】：why必须写完整三段——"龙头XX涨停封板 → 资金沿产业链/同题材外溢 → 它是下一个被盯上的，因为(位置低/贴5日线/有建仓痕迹/筹码真空，至少两条实证)"，用连贯大白话写，不要条目堆砌
+2. 【why 只准写成一段话】：把「这个板块今天为什么被点火」「它在这个链条的哪个环节」「资金为什么选它而不是同板块别的票」「什么情况这逻辑就破」四件事连成一段 60-90 字大白话，一口气写下来，不许分行、不许编小标题。
+2.5 【绝对禁止自问自答】：不许出现设问句、反问句、自己提问自己回答——例如「资金凭什么选它。就因为……」「那为什么不买龙头呢？」「凭什么不是别的票」这类写法一律不要，把原因直接陈述出来。禁止模板句（值得关注/注意风险/具备投资价值）、禁止列表符号。
 3. 【低位优先 + 建仓痕迹优先】：龙头≥4板高位时，picks必须全是未涨停的低位有建仓痕迹的补涨票；无建仓痕迹的降为第二优先级或否决
 4. 【底仓逻辑关·强制】：候选票必须先过深挖铁律关——本质（一句话大白话）+暗线业务（具体产品+阶段+对业绩真实贡献，写不出写「未见明确暗线业务」，禁「相关/涉及/布局/受益于」糊弄）+真实关联与弹性（与龙头同链实受益/沾边/纯蹭+弹性大小）+为什么是它+破灭点+动作。没有清晰暗线业务或弹性不足的票直接否决，不进picks。picks里每只先写底仓逻辑，再写买点止损。
 5. 【禁止偷懒】：哪怕分数不高，也要挑出相对最值得埋伏的1-2只写全方案
@@ -10757,13 +10992,18 @@ def _render_follow_v2(sec, li, data, cand_payload):
     risk = data.get('risk') or ''
     lt = {'emotion': '短线情绪龙头', 'capacity': '板块容量核心', 'divergence': '龙头存在分歧'}.get(li['ltype'], li['ltype'])
     d5map = {str(cd.get('code')): cd.get('d5') or [] for cd in cand_payload}
-    b = [f'<div style="font-size:15px;font-weight:800;color:#ffd43b;">🎯 埋伏方向：{sec}板块（龙头已涨停·仅作方向参考）</div>']
-    b.append(f'<div style="margin-top:3px;font-size:12px;color:#66d9e8;">🏷️ 类型：{lt} ｜ 板块：{sec}（涨停{len(li["feat"])}只）</div>')
-    # v80-A10（用户指令「废话多，直接点明主题和暗线」）：判定依据/封板质量/板块强度/已错过涨停
-    # 四个规则段全部收掉；埋伏窗口只保留「现在能不能动」这一句结论，其余全交给暗线。
+    # v80-A22（用户指令「废话太多，直接点明主题逻辑暗线原因」）：
+    # 「🎯埋伏方向 / 🏷类型 / ⏰现在能不能动」三行壳子合并成一行，剩下的位置全部交给下面的暗线。
     _w = str(bh.get('window') or '')
-    if _w and ('不可' in _w or '轻仓' in _w):
-        b.append(f'<div style="margin-top:4px;font-size:13px;color:#ffd43b;">🚪 现在能不能动：{_w}</div>')
+    _whint = ''
+    if _w:
+        if '不可' in _w:
+            _whint = ' <span style="color:#ff6b6b;font-size:12px;">今天只能看，别动手</span>'
+        elif '轻仓' in _w:
+            _whint = ' <span style="color:#ffd43b;font-size:12px;">只可轻仓试</span>'
+        else:
+            _whint = ' <span style="color:#66d9e8;font-size:12px;">可埋伏</span>'
+    b = [f'<div style="font-size:15px;font-weight:800;color:#ffd43b;">🎯 {sec}（今日涨停{len(li["feat"])}只，龙头已封，下面这些都是还没动的）{_whint}</div>']
     if picks:
         b.append(f'<div style="margin-top:8px;font-size:13px;font-weight:800;color:#ff6b6b;">🎯 待涨埋伏票·介入方案（龙头已涨停，埋伏这些还没涨的）</div>')
         for p in picks:
@@ -13440,6 +13680,35 @@ def _chg5_of(code, price):
     return None
 
 
+def _chg5_daily(code):
+    """近5个交易日「每天」的收盘涨跌幅（%），按时间顺序返回 [{'d':'11-03','p':2.1}]。
+
+    用户要求把每天的数字摆出来，不要只给一个累计。取不到返回 []，调用方降级为累计值。
+    """
+    try:
+        sym = ('sh' if code.startswith('6') else 'sz') + code
+        arr = get_klines(sym, 40)
+        if arr and len(arr) >= 6:
+            today_s = _bj_now().strftime('%Y-%m-%d')
+            b = arr[:-1] if str(arr[-1][0]) == today_s else arr
+            if len(b) >= 6:
+                out = []
+                for i in range(-5, 0):
+                    try:
+                        _pp = float(b[i - 1][2])
+                        _cc = float(b[i][2])
+                        if _pp > 0:
+                            out.append({'d': str(b[i][0])[5:10],
+                                        'p': round((_cc / _pp - 1) * 100, 2)})
+                    except Exception:
+                        continue
+                if out:
+                    return out
+    except Exception:
+        pass
+    return []
+
+
 def _intra_ma5_price(code, price):
     """MA5 与现价相对位置（近5日收盘均线，不含今日未收盘根）。返回 (ma5, 是否贴近)。"""
     try:
@@ -14295,16 +14564,14 @@ def build_risk():
         'evid': [str(e) for e in (r.get('evid') or [])][:6],
         'format': (
             '你是A股盘中风控交易员。上面盘口数字是程序实算的事实，只许引用、不许改、不许编新数字。'
-            '按这些事实写当前风险判读，只输出 JSON，不要任何其他文字：'
-            '{"verdict":"一句话判读：现在盘面处在什么状态、危险具体在哪（必须引用数字），至少20字",'
-            '"chain":"风险链：把这些盘口数字串成因果链，说清风险怎么一步步形成、现在走到第几步，至少60字",'
-            '"act":"具体动作：现在该做什么——仓位降到几成、哪些票必须走、现金留多少、还能不能接新票，必须落到数字，至少30字",'
-            '"watch":"接下来30分钟盯什么：具体到哪个数字或信号会升级、哪个会解除，至少25字",'
-            '"theme":"今日主线一句话：现在盘面是哪个板块在带节奏、为什么是它，必须落到具体板块名",'
-            '"dark":"暗线：这条主线背后真正在涨的是什么——资金认的是产业趋势、业绩兑现还是政策，'
-            '把看不见的那层逻辑讲透，至少40字",'
-            '"plain":"一句大白话给散户：说人话不带术语，至少20字"}'
-            '禁止万能句（注意风险/控制仓位/谨慎操作这类）、禁止设问句、禁止列表符号、禁止可能/或许/建议关注这类含糊词；'
+            '只输出 JSON，不要任何其他文字，只写这四段：'
+            '{"theme":"今日主线：哪个板块题材在带节奏，必须点名板块+至少1只代表个股，说清它凭什么带",'
+            '"dark":"暗线：这条线背后真正在动的是什么——资金认的是产业趋势、业绩兑现还是政策，'
+            '落到具体题材环节和个股身上，说清主力为什么选这几只而不是别的，至少60字",'
+            '"verdict":"原因：现在这个风险是怎么来的，落到具体板块题材个股（谁在退、谁被抛、谁最危险），'
+            '不许复述数字、不许讲评级方法，至少50字",'
+            '"act":"动作：仓位降到几成、哪些票必须走、还能不能接新票，必须落到数字"}'
+            '禁止万能句（注意风险/控制仓位/谨慎操作）、禁止设问句、禁止列表符号、禁止可能/或许/建议关注这类含糊词；'
             '判断要一口咬定，错也错得干脆。'),
     }
     _rt = ask_deepseek(_rp, purpose='risk_card')
@@ -14320,23 +14587,19 @@ def build_risk():
             _dark = str(_j.get('dark') or '').strip()
         except Exception as e:
             print('[risk] LLM JSON 解析失败:', e)
-    ev = '<br>'.join(f'<span style="color:#e9ecef;">• {e}</span>' for e in r['evid'])
+    # v80-A16（用户指令「废话太多，直接点明主题逻辑暗线原因板块题材个股」）：
+    # 盘口实况、证据行、风险链、盯盘、大白话全部收掉，只留 主题 / 暗线 / 原因 / 动作 四段。
     head = (f'<div style="color:{RED};font-size:14px;font-weight:700;">🛡️ {bj.strftime("%H:%M")} 盘中风险体检 · '
-            f'风险等级：<b style="color:{col};">{r["level"]}</b>（{r["score"]:.0f}/100）</div>'
-            f'<div style="color:#e2e8f0;font-size:13px;line-height:1.8;margin-top:6px;">'
-            f'盘口实况：涨停{r["lu"]} 炸板{r["zb"]}（{r["zbr"]:.0f}%） 跌停{r["dt"]} 最高{r["max_lbc"]}板 ｜ '
-            f'情绪分{int(_mscore)}（{_mlabel}）<br>{ev}</div>')
-    if _act:
+            f'风险等级：<b style="color:{col};">{r["level"]}</b></div>')
+    if _act or _dark:
         body = (head
-                + f'<div style="color:#e2e8f0;font-size:13px;line-height:1.8;margin-top:8px;">🧠 判读：{_verdict}</div>'
-                + (f'<div style="color:#ced4da;font-size:12px;margin-top:4px;">🔗 风险链：{_chain}</div>' if _chain else '')
                 + (f'<div style="color:#ff922b;font-size:13px;margin-top:6px;">🎯 今日主线：{_theme}</div>' if _theme else '')
-                + (f'<div style="color:#a78bfa;font-size:13px;margin-top:4px;line-height:1.6;">🔍 暗线：{_dark}</div>' if _dark else '')
-                + f'<div style="color:#ffd43b;font-size:13px;margin-top:6px;">👉 动作：{_act}</div>'
-                + (f'<div style="color:#91a7ff;font-size:12px;margin-top:4px;">👀 盯：{_watch}</div>' if _watch else '')
-                + (f'<div style="color:#94d4d0;font-size:13px;margin-top:4px;">💬 {_plain}</div>' if _plain else ''))
+                + (f'<div style="color:#a78bfa;font-size:13px;margin-top:4px;line-height:1.65;">🔍 暗线：{_dark}</div>' if _dark else '')
+                + (f'<div style="color:#e2e8f0;font-size:13px;margin-top:6px;line-height:1.65;">🧠 原因：{_verdict}</div>' if _verdict else '')
+                + (f'<div style="color:#ffd43b;font-size:13px;margin-top:6px;">👉 动作：{_act}</div>' if _act else ''))
     else:
-        body = head
+        body = (head + f'<div style="color:#e2e8f0;font-size:13px;margin-top:6px;">'
+                f'涨停{r["lu"]} 炸板{r["zb"]}（{r["zbr"]:.0f}%） 最高{r["max_lbc"]}板</div>')
     return _wrap(body, '🛡️', '盘中风险体检')
 
 
