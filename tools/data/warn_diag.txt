@@ -1002,3 +1002,5 @@
 06:49:52 [llm] OK purpose=board_why len=361
 06:51:22 [llm] OK purpose=board_watch len=2549
 06:51:22 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在是上午 10 点 30 分，盘面数据基于实时行情。市场情绪分 55.2 分，标签震荡分化，这个分数说明多空在打架，不是单边行情。龙
+07:00:56 [llm] OK purpose=tail len=1394
+07:02:07 [llm] OK purpose=tail len=999
