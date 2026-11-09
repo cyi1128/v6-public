@@ -379,6 +379,7 @@
 11-09 12:22:53 >>> 执行槽位 news2h @ 12:22:53
 11-09 12:22:53 >>> 预算：LLM 360s / 单模型 45s / 子进程上限 600s
 11-09 12:27:44     news2h| SLOT news2h PUSH True 执行成功
+<<<<<<< Updated upstream
 11-09 12:27:45 持久化(news2h)：已推送
 11-09 12:27:45 <<< 完成槽位 news2h，用时 292.2s
 11-09 12:27:45 滚动段 roll-1222 调度至 18:12，共可覆盖约 345 分钟
@@ -388,3 +389,9 @@
 11-09 13:00:05 >>> 执行槽位 hourly @ 13:00:05
 11-09 13:00:05 >>> 预算：LLM 360s / 单模型 45s / 子进程上限 540s
 11-09 13:06:08     hourly| SLOT hourly PUSH True 执行成功
+=======
+11-09 13:10:33 启动调度器 v6，当前北京时间 2026-11-09 13:10:33 星期一
+>>>>>>> Stashed changes
+11-09 13:10:35 发现 2026-11-09 段的过期标记（roll-dead 止于 2026-11-09T09:05:00+08:00），接管
+11-09 13:10:35 pull 失败，自愈：error: Pulling is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'git ad
