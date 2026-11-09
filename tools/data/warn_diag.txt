@@ -994,3 +994,7 @@
 06:02:45 [反模板命中:batch_deep] 资金认可 (try1)
 06:04:03 [llm] 输出截断 purpose=batch_deep len=3192
 06:09:56 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.5-122B-A10B tag=http_429
+06:33:55 [llm] OK purpose=news2h_good len=1459
+06:34:56 [llm] OK purpose=news2h_bad len=276
+06:36:16 [反模板放行:news2h] 管住手
+06:36:16 [llm] OK purpose=news2h len=679
