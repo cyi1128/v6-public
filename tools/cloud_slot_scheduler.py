@@ -142,16 +142,13 @@ def log(msg: str) -> None:
     print(f'[SCHED] {msg}', flush=True)
     if not LOG_TO_FILE:
         return
+    # 2026-11-09 改追加写：原「内存缓冲整体覆写」在多 run 并发时互相抹行，
+    # auction / warn 这类关键执行痕迹在仓库里查不到。追加单行不会互删。
     try:
-        if not _LOG_INITED:
-            if os.path.exists(LOG_PATH):
-                with open(LOG_PATH, encoding='utf-8') as fh:
-                    _LOG_BUF.extend(fh.readlines())
-            _LOG_INITED = True
-        _LOG_BUF.append(f'{stamp} {msg}\n')
-        del _LOG_BUF[:-LOG_KEEP]
-        with open(LOG_PATH, 'w', encoding='utf-8') as fh:
-            fh.writelines(_LOG_BUF)
+        with open(LOG_PATH, 'a', encoding='utf-8') as fh:
+            fh.write(f'{stamp} {msg}\n')
+        _LOG_INITED = True
+        _trim_log()
     except Exception:  # noqa: BLE001  日志落盘失败绝不能影响调度
         pass
 
@@ -179,12 +176,28 @@ def pull_latest() -> None:
     git('pull', '--rebase', '--autostash')
 
 
-def _flush_log() -> None:
-    """用内存 _LOG_BUF 整体覆写日志文件（它是唯一真源）。"""
+def _trim_log() -> None:
+    """日志超长时只保留最近 LOG_KEEP 行；读全量再写回，失败就算了。"""
     try:
-        if LOG_TO_FILE:
-            with open(LOG_PATH, 'w', encoding='utf-8') as fh:
+        if os.path.getsize(LOG_PATH) <= 160000:
+            return
+        with open(LOG_PATH, encoding='utf-8') as fh:
+            lines = fh.readlines()
+        if len(lines) <= LOG_KEEP:
+            return
+        with open(LOG_PATH, 'w', encoding='utf-8') as fh:
+            fh.writelines(lines[-LOG_KEEP:])
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _flush_log() -> None:
+    """把缓冲里剩下的行补写进文件（追加模式下缓冲基本为空，仅作兜底）。"""
+    try:
+        if LOG_TO_FILE and _LOG_BUF:
+            with open(LOG_PATH, 'a', encoding='utf-8') as fh:
                 fh.writelines(_LOG_BUF)
+            _LOG_BUF.clear()
     except Exception:  # noqa: BLE001  日志落盘失败绝不能影响调度
         pass
 
@@ -343,6 +356,30 @@ def pending_within(now: datetime.datetime, end: datetime.datetime, executed: set
                 return True
             t += WATCH_STEP
     return False
+
+
+def report_new_misses(executed: set, missed: set, done: dict | None = None) -> None:
+    """跑的过程中就把「已过宽容窗还没推」的槽记下来。
+
+    旧版只在进程退出时统计一次，上午漏了 hourly 要等到下午收盘退出才看得见；
+    用户问「到底按时没按时」，要能在当场留下痕迹。
+    """
+    now = bj_now()
+    m = minutes_of(now)
+    day = now.strftime('%Y-%m-%d')
+    if done is None:
+        done = _read_json(SLOT_DONE)
+    for hour, minute, slot, _window, late in FIXED_SLOTS:
+        start = hour * 60 + minute
+        if start + late >= m:
+            continue                      # 仍在宽容窗内，不算漏
+        token = f'{day}|{slot}|{hour:02d}{minute:02d}'
+        if token in missed or token in executed:
+            continue
+        missed.add(token)
+        if is_done(hour, minute, slot, done):
+            continue
+        log('漏推留痕：%02d:%02d %s 已过宽容窗 %d 分钟仍未推送' % (hour, minute, slot, late))
 
 
 def backfill_pending(now: datetime.datetime, executed: set, done: dict | None = None) -> list[tuple[int, int, str]]:
@@ -591,6 +628,9 @@ def report_gaps() -> None:
         now = bj_now()
         minutes = minutes_of(now)
         done = _read_json(SLOT_DONE)
+        if now.weekday() >= 5:
+            log('休市日：按各槽 holiday_slot 走，不统计工作日缺口')
+            return
         gaps = []
         for hour, minute, slot, _window, late in FIXED_SLOTS:
             start = hour * 60 + minute
@@ -653,6 +693,7 @@ def main() -> int:
     #   一旦启动就吃满随后 300 分钟（段尾 45 分钟内能接上下一槽再顺延）。
     # 副产物：凌晨触发的 run 会一路守到早盘第一个槽（省得早盘再赌一次 cron）。
     executed: set = set()
+    missed: set = set()
     end = rolling_end(bj)
     if not pending_within(bj, end, executed):
         log(f'接下来 {(end - bj).total_seconds() / 60:.0f} 分钟内已无待跑槽位，本 run 直接退出')
@@ -677,6 +718,7 @@ def main() -> int:
         if not pending_within(now, end, executed):
             log('本段剩余时间内已无待跑槽位，提前让位退出')
             break
+        report_new_misses(executed, missed)
         time.sleep(15)
 
     release_segment()
