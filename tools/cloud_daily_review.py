@@ -5847,13 +5847,25 @@ def build_pre():
     for nm, code, prev, sec, plain, tip, role in focus:
         # 2026-11-09：每只票都常显主营实据暗线（模型回不回都出，不写「AI 未返回」）
         _dk = _dark_fact(_pure_code(code) or code, nm, _hot_f)
+        # v80-A5（用户指令）：只留暗线 + 近五日收盘涨幅，昨收/题材/角色/空 emoji 全部隐藏
+        _fp = _pure_code(code) or code
+        _dk = _dk or _dark_solid(_fp, nm)
+        _fc5 = _chg5_of(_fp, prev)
+        if isinstance(_fc5, (int, float)):
+            _fc5_html = ('<div style="color:%s;font-size:13px;font-weight:700;margin-top:4px;">'
+                         '📈 近5日收盘涨幅 %+.2f%%</div>' % (_c(float(_fc5)), float(_fc5)))
+        else:
+            _fc5_html = ('<div style="color:%s;font-size:12px;margin-top:4px;">'
+                         '📈 近5日收盘涨幅：数据未取得</div>' % GREY)
+        _fpl = str((_foc_map.get(nm) or {}).get('plain', '') or '').strip()
+        _ftip = str((_foc_map.get(nm) or {}).get('tip', '') or '').strip()
         _foc_rows.append(
-            f"""<div style="background:#1f2635;border-left:3px solid {GOLD};border-radius:8px;padding:8px 10px;margin:6px 0;">
-<b style="color:#fff;">{nm}</b> <span style="color:{GREY};font-size:12px;">{code}</span>
-<span style="color:{GREY};font-size:12px;">昨收 {prev} ｜ 题材：{sec} ｜ 角色：<b style="color:{GOLD};">{role}</b></span>
-{f'<div style="color:#a78bfa;font-size:12px;margin-top:3px;line-height:1.55;">🔍 暗线（主营实据）：{_dk}</div>' if _dk else ''}
-<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 {(_foc_map.get(nm) or {}).get("plain", "") or ''}</div>
-<div style="color:{TEAL};font-size:12px;margin-top:3px;">👉 {(_foc_map.get(nm) or {}).get("tip", "") or ''}</div></div>""")
+            f"""<div style="background:#1f2635;border-left:3px solid #a78bfa;border-radius:8px;padding:10px 12px;margin:7px 0;">
+<b style="color:#fff;font-size:14px;">{nm}</b> <span style="color:{GREY};font-size:12px;">{code}</span>
+{_fc5_html}
+<div style="color:#a78bfa;font-size:13px;margin-top:4px;line-height:1.55;">🔍 暗线：{_dk or '主营构成未取得，不给暗线结论'}</div>
+{('<div style="color:#e9ecef;font-size:13px;margin-top:3px;">👉 ' + _fpl + '</div>') if _fpl else ''}
+{('<div style="color:#94d4d0;font-size:13px;margin-top:3px;">🎯 ' + _ftip + '</div>') if _ftip else ''}</div>""")
     focus_rows = ''.join(_foc_rows)
     focus_block = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">⑤ 重点个股参考（{len(focus)}只）</div>{focus_rows}'
                    if focus_rows else '<div style="margin-top:10px;font-size:13px;color:' + GREY + ';">代码筛选下今日无未涨停低位标的（昨日涨停票不列）</div>')
@@ -13370,8 +13382,12 @@ def _chg5_of(code, price):
             b = arr[:-1] if str(arr[-1][0]) == today_s else arr
             if len(b) >= 6:
                 c6 = float(b[-6][2])
-                if c6 > 0 and price:
-                    return round((float(price) / c6 - 1) * 100, 2)
+                try:
+                    _px = float(price) if price not in (None, '', 0, 0.0) else float(b[-1][2])
+                except Exception:
+                    _px = float(b[-1][2])
+                if c6 > 0 and _px > 0:
+                    return round((_px / c6 - 1) * 100, 2)
     except Exception:
         pass
     return None
