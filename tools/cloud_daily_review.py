@@ -2890,6 +2890,9 @@ def _wrap(inner, emoji, title, show_reson=False):
     出口统一过 _strip_meta：卡面不出现规则性元说明。"""
     # v80-A3（用户指令）：卡面不再拼模型状态自述、数据源健康、免责口径三样尾巴。
     _body = _strip_meta(_strip_bracket_heads(inner or ''))
+    # v80-A6：出口统一清掉免责口径词汇（用户反复要求卡面不出现口径/免责）
+    for _kw in ('不构成投资建议', '（仅供参考）', '仅供参考'):
+        _body = _body.replace(_kw, '')
     return f"""<div style="background:#161b26;color:#e9ecef;font-family:-apple-system,'Microsoft YaHei',sans-serif;padding:14px;border-radius:12px;">
 <div style="font-size:20px;font-weight:800;color:{GOLD};">{emoji} {title} · {_bj_now().strftime('%m/%d %H:%M')}</div>
 {_reson_head() if show_reson else ''}{_body}</div>"""
