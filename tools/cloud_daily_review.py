@@ -190,6 +190,90 @@ def _llm_reopen(share=0.55, cap=480.0, floor=60.0):
         return _llm_deadline()
 
 
+# —— 2026-11-09 (v7.9x13)：主营实据暗线 ——
+# 起因：ModelScope 全天候 timeout/429，LLM 段拿不到内容，卡片只剩代码数据行（用户判定为「规则化」）。
+# 暗线不能只挂在模型上：东财 F10 主营构成是真实披露数据，直接按产品收入占比写成暗线实据。
+_MAINOP_CACHE = {}
+
+
+def _mainop_of(code):
+    """拉最新报告期「主营构成（按产品/业务）」。返回 (报告期, [(项目, 占比%)...])，失败 ('', [])。"""
+    _c6 = ''.join(ch for ch in str(code or '') if ch.isdigit())[-6:]
+    if not _c6:
+        return ('', [])
+    if _c6 in _MAINOP_CACHE:
+        return _MAINOP_CACHE[_c6]
+    _suf = 'SH' if _c6[0] == '6' else ('BJ' if _c6[0] in '48' else 'SZ')
+    _u = ('https://datacenter.eastmoney.com/securities/api/data/v1/get?reportName=RPT_F10_FN_MAINOP'
+          '&columns=SECUCODE,REPORT_DATE,MAINOP_TYPE,ITEM_NAME,MBI_RATIO'
+          '&filter=(SECUCODE%3D%22' + _c6 + '.' + _suf + '%22)'
+          '&pageNumber=1&pageSize=80&sortColumns=REPORT_DATE%2CMBI_RATIO&sortTypes=-1%2C-1'
+          '&source=HSF10&client=PC')
+    try:
+        _rq = urllib.request.Request(_u, headers={'User-Agent': 'Mozilla/5.0',
+                                                  'Referer': 'https://emweb.securities.eastmoney.com/'})
+        _j = json.loads(urllib.request.urlopen(_rq, timeout=8).read().decode('utf-8'))
+    except Exception:
+        _MAINOP_CACHE[_c6] = ('', [])
+        return ('', [])
+    _rows = ((_j.get('result') or {}).get('data') or [])
+    _biz = [x for x in _rows if str(x.get('MAINOP_TYPE')) == '2' and x.get('ITEM_NAME')]
+    if not _biz:
+        _biz = [x for x in _rows if x.get('ITEM_NAME')]
+    if not _biz:
+        _MAINOP_CACHE[_c6] = ('', [])
+        return ('', [])
+    _date = max(str(x.get('REPORT_DATE') or '') for x in _biz)[:7]
+    _items = []
+    for x in _biz:
+        if str(x.get('REPORT_DATE') or '')[:7] != _date:
+            continue
+        try:
+            _rt = float(x.get('MBI_RATIO') or 0)
+        except Exception:
+            _rt = 0.0
+        _items.append((str(x.get('ITEM_NAME')).strip()[:18], _rt * 100.0))
+    _items.sort(key=lambda kv: -kv[1])
+    _items = [kv for kv in _items if kv[1] >= 1.0][:3]
+    _MAINOP_CACHE[_c6] = (_date, _items)
+    return (_date, _items)
+
+
+def _bigram_hit(a, b):
+    """两串中文有没有 >=2 字连续重合（主营项目 vs 今日主线板块对不上的判定）。"""
+    a = str(a or '')
+    b = str(b or '')
+    for _i in range(len(a) - 1):
+        if a[_i:_i + 2] in b:
+            return True
+    return False
+
+
+def _dark_fact(code, name, hot=None):
+    """用真实主营构成写暗线（模型不可用也必须有真东西，不许「AI 未返回」或套话）。"""
+    _d, _it = _mainop_of(code)
+    if not _it:
+        return ''
+    _txt = '、'.join('%s%.0f%%' % (n, r) for n, r in _it)
+    _r0 = _it[0][1]
+    if _r0 >= 50:
+        _stage = '基本盘就是它，收入实打实进来的'
+    elif _r0 >= 15:
+        _stage = '已经是第二增长曲线，收入开始起量'
+    else:
+        _stage = '占比还小，业绩主要靠别处，这块更多是预期'
+    _rel = ''
+    for _h in (hot or [])[:4]:
+        if not _h:
+            continue
+        if _bigram_hit(_h, _it[0][0]) or any(_bigram_hit(_h, n) for n, _r in _it[1:]):
+            _rel = '，和今天最强主线【%s】直接对口' % _h
+            break
+    if not _rel and hot:
+        _rel = '，和今天最强那几个板块没直接交集，靠自己的业务'
+    return '主营 %s（%s）——%s%s' % (_txt, _d or '最新报告期', _stage, _rel)
+
+
 HOLDINGS = [
     {'code': 'sz002838', 'name': '道恩股份', 'cost': 25.823, 'qty': 8500, 'sector': '塑料'},
     {'code': 'sz000811', 'name': '冰轮环境', 'cost': 37.571, 'qty': 4300, 'sector': '通用设备'},
@@ -4616,7 +4700,9 @@ def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, 
         'stocks': [{'name': s['name'], 'code': s['code'], 'score': round(float(s['score']), 1),
                     'pct': s['pct'], 'industry': s['industry'],
                     'vr': round(float(s.get('_vr') or 0), 1), 'revise': round(float(s.get('_revise') or 0), 1),
-                    'rtag': s.get('_rtag', '')} for s in tops],
+                    'rtag': s.get('_rtag', ''),
+                    'biz': _dark_fact(s.get('code') or '', s.get('name') or '',
+                                      [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]])} for s in tops],
         'hot_sectors': sorted(heat.items(), key=lambda kv: -kv[1])[:6],
         'zt_themes': _zt_txt,
         'mkt_ctx': _mkt,
@@ -5810,6 +5896,7 @@ def build_auction(title='竞价观察'):
                                         yest_premium_pct=None)
         except Exception as _je:
             print(f'[factor-auction] 情绪分异常 {str(_je)[:60]}')
+    _hot_names = [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]]
     rows = ''
     for i, s in enumerate(tops, 1):
         buy_low = round(max(0.0, s['price'] * 0.995), 2)
@@ -5819,22 +5906,24 @@ def build_auction(title='竞价观察'):
         _deep = (ds_map or {}).get(s['name'])
         if _deep and _deep.get('logic'):
             _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(_deep.get('op', ''), GOLD)
-            _deep_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线：{_deep.get('dark','')}（{_deep.get('reason','')}）</div>
+            _dk = str(_deep.get('dark') or '').strip() or _dark_fact(s.get('code') or '', s.get('name') or '', _hot_names)
+            _rsn = str(_deep.get('reason') or '').strip()
+            _deep_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线：{_dk or '主营构成未取得，不给暗线结论'}{('（' + _rsn + '）') if _rsn else ''}</div>
 <div style="color:#a78bfa;font-size:12px;margin-top:2px;">🧠 题材深挖：{_deep.get('logic','')}</div>
 <div style="color:#e9ecef;font-size:12px;margin-top:2px;">👉 大白话：{_deep.get('why','')}</div>
 <div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 建议：<b style="color:{_opcol};">{_deep.get('op','')}</b> ｜ 买点：{_deep.get('buy','')} ｜ 止损：{_deep.get('stop','')} ｜ 放弃：{_deep.get('drop','')}</div>""")
         else:
-            # LLM 未返回时给一句盘口判断：不暴露模型状态、不落规则模板句
-            _deep_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">📊 竞价：高开{s['pct']:+.1f}%、量比{s['lb']:.1f}、{brk_txt}——{_auction_fact_read(s)}</div>""")
+            # 模型没回来也要给真暗线：主营构成实据（不是模板句、不写「AI 未返回」）
+            _dz = _dark_fact(s.get('code') or '', s.get('name') or '', _hot_names)
+            _deep_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线（主营实据）：{_dz or '主营构成未取得，不给暗线结论'}</div>
+<div style="color:#ced4da;font-size:12px;margin-top:2px;">📊 竞价：高开{s['pct']:+.1f}%、量比{s['lb']:.1f}、{brk_txt}——{_auction_fact_read(s)}</div>""")
         _fl_line = ''
         if _FACTOR_OK and _jq_res is not None:
             _fres = _factor_for_auction(s, heat, cnt, _jq_res)
             if _fres:
                 s['_factor'] = _fres  # 供 signal_log.csv 落库（不改变卡片渲染）
-                _fcol = '#ff6b6b' if _fres.get('vetoed') else '#8ce99a'
-                _fwt = '700' if _fres.get('vetoed') else '400'
-                _fl_line = (f'<div style="color:{_fcol};font-size:12px;margin-top:4px;font-weight:{_fwt};">'
-                            f'🔬 因子：{_fres["line"]}</div>')
+                # 用户指令（2026-11-09）：因子只当评分用，卡面隐藏因子明细，每只只留暗线
+                _fl_line = ''
         rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD if s['score'] >= 70 else TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
 <div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分</span></div>
 <div style="color:{GREY};font-size:12px;">竞价高开 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 竞价量比(归一) {s.get('_vr', 0):.2f} ｜ 题材：{s['industry']}{f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else ''}</div>
@@ -5869,7 +5958,8 @@ def build_auction(title='竞价观察'):
         for i, s_ in enumerate(tops[:3], 1):
             _a, _col = _quick_act(s_)
             _d3 = (ds_map or {}).get(s_['name']) or {}
-            _dark_txt = (f'｜🔍暗线:{_d3.get("dark","")}' if _d3.get('dark') else '')
+            _dk3 = str(_d3.get('dark') or '').strip() or _dark_fact(s_.get('code') or '', s_.get('name') or '', _hot_names)
+            _dark_txt = (f'｜🔍暗线:{_dk3}' if _dk3 else '')
             _t3.append(f'<b style="color:{_col}">{i}.{s_["name"]} {_a}</b>{_dark_txt}')
         top3_txt = (f'<div style="margin-top:10px;padding:9px 11px;background:#1c2830;border-left:4px solid #a78bfa;'
                     f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 Top3 速判（小白版{"·含暗线" if _dark_any else ""}）：</b>'
@@ -6717,7 +6807,9 @@ def _tail_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=
                         'ma5_up': bool(s.get('_ma5_up')),
                         'track': s.get('track') or 'A',
                         'zt_n': int(s.get('_zt_n') or 0),
-                        'chg5': s.get('_chg5')} for s in _bt],
+                        'chg5': s.get('_chg5'),
+                        'biz': _dark_fact(s.get('code') or '', s.get('name') or '',
+                                          [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]])} for s in _bt],
             'hot_sectors': sorted(heat.items(), key=lambda kv: -kv[1])[:6],
             'zt_themes': _zt_txt,
             'mkt_ctx': _mkt,
@@ -7118,13 +7210,20 @@ def build_tail(title='尾盘竞价筛选'):
                 _form_html = ''
         if _deep and _deep.get('logic'):
             _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(_deep.get('op', ''), GOLD)
-            _rows_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线：{_deep.get('dark','')}（{_deep.get('reason','')}）</div>
+            _dk = str(_deep.get('dark') or '').strip() or _dark_fact(
+                s.get('code') or '', s.get('name') or '',
+                [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]])
+            _rsn = str(_deep.get('reason') or '').strip()
+            _rows_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线：{_dk or '主营构成未取得，不给暗线结论'}{('（' + _rsn + '）') if _rsn else ''}</div>
 <div style="color:#a78bfa;font-size:12px;margin-top:2px;">🧠 题材深挖：{_deep.get('logic','')}</div>
 <div style="color:#e9ecef;font-size:12px;margin-top:2px;">👉 大白话：{_deep.get('why','')}</div>
 <div style="color:#ffd43b;font-size:12px;margin-top:2px;">🔮 次日竞价预期：{_deep.get('next','')}</div>
 <div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 建议：<b style="color:{_opcol};">{_deep.get('op','')}</b> ｜ 买点：{_deep.get('buy','')} ｜ 止损：{_deep.get('stop','')} ｜ 放弃：{_deep.get('drop','')}</div>""")
         else:
-            _rows_html = (f"""<div style="color:#ced4da;font-size:12px;margin-top:3px;">📊 盘口：涨幅{s['pct']:+.1f}%、量比{s['lb']:.1f}、换手{s['turn']:.1f}%、市值{s.get('mv',0):.0f}亿——{_tail_fact_read(s)}</div>""")
+            _dz = _dark_fact(s.get('code') or '', s.get('name') or '',
+                             [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]])
+            _rows_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线（主营实据）：{_dz or '主营构成未取得，不给暗线结论'}</div>
+<div style="color:#ced4da;font-size:12px;margin-top:2px;">📊 盘口：涨幅{s['pct']:+.1f}%、量比{s['lb']:.1f}、换手{s['turn']:.1f}%、市值{s.get('mv',0):.0f}亿——{_tail_fact_read(s)}</div>""")
         _btrk = (s.get('track') == 'B')
         _trk_tag = ('<span style="color:#ff922b;font-size:11px;border:1px solid #ff922b;border-radius:4px;padding:0 4px;margin-left:4px;">强势二波</span>'
                     if _btrk else
@@ -7156,7 +7255,10 @@ def build_tail(title='尾盘竞价筛选'):
         for i, s_ in enumerate(tops[:3], 1):
             _a, _col = _quick_act_tail(s_)
             _d3 = ds_map.get(s_['name']) or {}
-            _dark_txt = (f'｜🔍暗线:{_d3.get("dark","")}' if _d3.get('dark') else '')
+            _dk3 = (str(_d3.get('dark') or '').strip()
+                    or _dark_fact(s_.get('code') or '', s_.get('name') or '',
+                                  [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]]))
+            _dark_txt = (f'｜🔍暗线:{_dk3}' if _dk3 else '')
             _t3.append(f'<b style="color:{_col}">{i}.{s_["name"]} {_a}</b>{_dark_txt}')
         top3_txt = (f'<div style="margin-top:10px;padding:9px 11px;background:#1c2830;border-left:4px solid #a78bfa;'
                     f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 尾盘 Top3 速判{"（含暗线）" if _dark_any else ""}：</b>'
@@ -8094,10 +8196,13 @@ def _eod_elite_pick(scored, tpool):
         if _bad:
             _warn = ('<div style="color:%s;font-size:12px;margin-top:2px;">⚠ 放宽入榜：%s</div>'
                      % ('#ff9f43', '、'.join(_bad)))
+        _dz = _dark_fact(s.get('code') or '', s.get('name') or '')
+        _dz_line = ('<div style="color:#a78bfa;font-size:12px;margin-top:2px;line-height:1.7;">🕳️ 暗线（主营实据）：%s</div>'
+                    % _dz) if _dz else ''
         _rows.append('<div style="background:#1f2635;border-left:3px solid %s;border-radius:8px;padding:8px 11px;margin:5px 0;">'
-                     '%s<div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.8;">%s</div>%s'
+                     '%s<div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.8;">%s</div>%s%s'
                      '<div style="color:%s;font-size:12px;margin-top:2px;">买点 %.2f~%.2f ｜ 止损 %.2f（-3%%）｜ 仓位 1 成</div></div>'
-                     % (TEAL if not _bad else '#ff9f43', _head, ' ｜ '.join(_gts), _warn, GOLD,
+                     % (TEAL if not _bad else '#ff9f43', _head, ' ｜ '.join(_gts), _warn, _dz_line, GOLD,
                         _p * 0.99, _p * 1.01, _p * 0.97))
     _cnt = len(_hard)
     print('[eod] 量化入榜 %d 只%s：%s'
@@ -13678,7 +13783,7 @@ def build_radar():
         name, code = s.get('name', ''), s.get('code', '')
         _d = ds.get(name) or {}
         _why = str(_d.get('why') or '') or '数据达标（倍量+阳线+金叉），归因见下方'
-        _dark = str(_d.get('dark') or '') or '未见明确暗线业务'
+        _dark = str(_d.get('dark') or '') or _dark_fact(code, name) or '主营构成未取得，不给暗线结论'
         _op = str(_d.get('op') or '看')
         _opc = TEAL if _op in ('轻仓试',) else (GOLD if _op in ('看', '观望') else RED)
         _buy = str(_d.get('buy') or '待盘中确认')
