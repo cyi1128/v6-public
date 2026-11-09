@@ -890,3 +890,27 @@
 04:04:51 [ask_deepseek] 首轮无返回即止损 purpose=news2h
 04:04:51 [ask_deepseek] ModelScope 两次尝试均失败，purpose=news2h
 >>>>>>> Stashed changes
+04:14:13 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.8-27B tag=timeout
+04:14:13 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.5-35B-A3B tag=timeout
+04:14:13 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.5-122B-A10B tag=timeout
+04:14:58 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.8-Flash-Next tag=timeout
+04:14:58 [llm] 未返回 purpose=news2h_good model=ZhipuAI/GLM-4.7-Flash tag=timeout
+04:14:58 [llm] 两波并发均无返回 purpose=news2h_good
+04:14:58 [ask_deepseek] 首轮无返回即止损 purpose=news2h_good
+04:14:58 [ask_deepseek] ModelScope 两次尝试均失败，purpose=news2h_good
+04:15:44 [llm] 未返回 purpose=news2h_bad model=Qwen/Qwen3.5-122B-A10B tag=timeout
+04:15:44 [llm] 未返回 purpose=news2h_bad model=Qwen/Qwen3.5-35B-A3B tag=timeout
+04:15:44 [llm] 未返回 purpose=news2h_bad model=Qwen/Qwen3.8-27B tag=timeout
+04:15:46 [llm] 未返回 purpose=news2h_bad model=ZhipuAI/GLM-4.7-Flash tag=http_429
+04:16:30 [llm] 未返回 purpose=news2h_bad model=Qwen/Qwen3.8-Flash-Next tag=timeout
+04:16:30 [llm] 两波并发均无返回 purpose=news2h_bad
+04:16:30 [ask_deepseek] 首轮无返回即止损 purpose=news2h_bad
+04:16:30 [ask_deepseek] ModelScope 两次尝试均失败，purpose=news2h_bad
+04:17:16 [llm] 未返回 purpose=news2h model=Qwen/Qwen3.5-122B-A10B tag=timeout
+04:17:16 [llm] 未返回 purpose=news2h model=Qwen/Qwen3.8-27B tag=timeout
+04:17:16 [llm] 未返回 purpose=news2h model=Qwen/Qwen3.5-35B-A3B tag=timeout
+04:17:17 [llm] 未返回 purpose=news2h model=ZhipuAI/GLM-4.7-Flash tag=http_429
+04:18:01 [llm] 未返回 purpose=news2h model=Qwen/Qwen3.8-Flash-Next tag=timeout
+04:18:01 [llm] 两波并发均无返回 purpose=news2h
+04:18:01 [ask_deepseek] 首轮无返回即止损 purpose=news2h
+04:18:01 [ask_deepseek] ModelScope 两次尝试均失败，purpose=news2h
