@@ -93,10 +93,10 @@ FIXED_SLOTS = [
     (13, 35, 'risk', 20, 60),
     (14, 0, 'hourly', 20, 60),
     (14, 1, 'news2h', 4, 60),      # 两小时消息汇总（午后，窗口窄防抢 hourly）
-    (14, 5, 'follow', 20, 60),     # 跟涨三步走·盘中
+    (10, 35, 'follow', 20, 40),    # 跟涨三步走·盘中一档（开盘一小时后首批补涨刚启动，埋伏来得及）
     (14, 55, 'tail', 20, 60),      # 尾盘竞价筛选
     (15, 0, 'eod', 45, 120),       # 收盘复盘（窗口长，允许补跑）
-    (15, 5, 'follow', 20, 60),     # 跟涨三步走·收盘
+    (13, 35, 'follow', 20, 40),    # 跟涨三步走·盘中二档（午后第一波，收盘后不再推：过了买点是废话）
     (15, 10, 'news', 20, 60),      # 尾盘事件简报
     (15, 20, 'cycle', 20, 60),     # 多周期视角研判
     (15, 35, 'news', 20, 60),      # 尾盘事件简报
@@ -389,7 +389,7 @@ def slot_done_key(hour: int, minute: int, slot: str) -> str | None:
         tag = {(11, 40): '1140', (15, 10): '1510', (15, 35): '1535'}.get((hour, minute))
         return 'news|%s|%s' % (today, tag) if tag else None
     if slot == 'follow':
-        tag = {(14, 5): '1405', (15, 5): '1505'}.get((hour, minute))
+        tag = {(10, 35): '1035', (13, 35): '1335'}.get((hour, minute))
         return 'follow|%s|%s' % (today, tag) if tag else None
     if slot == 'ext':
         tag = {(21, 38): '2135', (22, 38): '2235'}.get((hour, minute))
@@ -793,7 +793,7 @@ def _selftest() -> int:
     expect('hourly 键', slot_done_key(10, 0, 'hourly'), f'hourly|{_t}|10')
     expect('news 11:40 键', slot_done_key(11, 40, 'news'), f'news|{_t}|1140')
     expect('news 15:35 键', slot_done_key(15, 35, 'news'), f'news|{_t}|1535')
-    expect('follow 14:05 键', slot_done_key(14, 5, 'follow'), f'follow|{_t}|1405')
+    expect('follow 10:35 键', slot_done_key(10, 35, 'follow'), f'follow|{_t}|1035')
     expect('ext 21:38 键', slot_done_key(21, 38, 'ext'), f'ext|{_t}|2135')
     expect('news2h 14:01 键', slot_done_key(14, 1, 'news2h'), f'news2h|{_t}|1400')
 
