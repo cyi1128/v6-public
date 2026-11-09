@@ -206,7 +206,9 @@ def git(*args: str, check: bool = False) -> subprocess.CompletedProcess:
     try:
         return subprocess.run(
             ['git'] + list(args), cwd=ROOT, capture_output=True,
-            text=True, timeout=120,
+            # v13：原 120s。状态推送失败会重试多轮，120s 一轮能把整个时刻表卡死
+            # （实测 13:56:53 接管后零日志 10 分钟，14:00 hourly 整槽消失）。
+            text=True, timeout=25,
         )
     except Exception as exc:  # noqa: BLE001
         log(f'git {" ".join(args)} 异常: {exc}')
@@ -346,8 +348,9 @@ def persist_state(tag: str) -> None:
     if c.returncode != 0:
         log(f'持久化({tag})：提交失败 {((c.stderr or c.stdout or "").strip())[:140]}')
         return
-    # 状态写回可能撞上别的 run 刚推的提交，rebase 后重试，最多 3 轮
-    for attempt in range(1, 4):
+    # v13：重试 3 轮 -> 1 轮。写一个心跳不值得把下一张卡拖掉；
+    # 失败就返回，主循环的下一个 tick（每 15 秒）会再试一次。
+    for attempt in range(1, 2):
         r = git('push', 'origin', 'HEAD:main')
         out = ((r.stdout or '') + (r.stderr or '')).strip()
         if r.returncode == 0 and 'Everything up-to-date' not in out:
