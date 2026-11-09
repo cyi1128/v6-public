@@ -805,3 +805,7 @@
 03:07:19 [llm] 两波并发均无返回 purpose=auction
 03:07:19 [ask_deepseek] 首轮无返回即止损 purpose=auction
 03:07:19 [ask_deepseek] ModelScope 两次尝试均失败，purpose=auction
+03:18:53 [llm] 未返回 purpose=risk_card model=Qwen/Qwen3.8-27B tag=timeout
+03:18:53 [llm] 未返回 purpose=risk_card model=Qwen/Qwen3.5-122B-A10B tag=timeout
+03:18:53 [llm] 未返回 purpose=risk_card model=Qwen/Qwen3.5-35B-A3B tag=timeout
+03:18:55 [llm] 未返回 purpose=risk_card model=ZhipuAI/GLM-4.7-Flash tag=http_429
