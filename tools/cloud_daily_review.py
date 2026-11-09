@@ -130,7 +130,16 @@ _DEEP_DIG_RULE = ('【暗线业务深挖铁律·全场强制】凡提到任何�
                   '预期差、事件催化、资金为什么在这个时点选它，而不是它主营业务是什么。'
                   '禁止出现「主营XX业务占XX%」「主营构成」「基本盘就是它」「收入主要靠这块」这类明面介绍；'
                   '主营业务最多用半句话做反衬（例如「主业跟这条线只沾边」），绝不许展开罗列、不许报占比、不许报报告期。'
-                  '一句话检验：写出来的这句，如果把它换成「这家公司是干什么的」的答案，就是错的，重写。')
+                  '一句话检验：写出来的这句，如果把它换成「这家公司是干什么的」的答案，就是错的，重写。'
+                  '【着火三角·强制自查】任何一只票能涨，必须三个东西同时成立，缺一个就是假行情：'
+                  '①火药——背后得有一个还没解决的大矛盾（产能跟不上、订单没落地、政策没出、技术没突破、亏损没修复、缺口没补上）；'
+                  '②火星——今天究竟是哪件事把它点着的（消息/公告/数据/事件）；'
+                  '③氧气——有没有增量资金真金白银进来（换手、量比、封单、板块合力）。'
+                  '三样凑不齐就明确写「不碰」，绝不许硬推；只能说得出火药、找不出火星的，是死票。'
+                  '【矛盾一旦解决＝终点】如果那个大矛盾今天已经被解决（政策落地了、订单签完了、产能放出来了、业绩兑现了），'
+                  '那不是利好是终点，橡皮筋已经松了，行情到此为止；这类消息只许写「兑现了，别接盘」，绝不许当利好推荐买入。'
+                  '【收敛顺序】判断顺序固定：大环境能不能做→钱在不在这个方向→现在是主升还是退潮→这只票合不合格→怎么走；'
+                  '前面任何一步不成立，后面直接终止，不许跳步硬凑一只票出来。')
 _FIVE_BRIEF_OLD = ('【大白话五步铁律】第一步·先干活后说话：先把数据事实说清，不许上来就喊涨跌；'
                    '第二步·问三个问题：①为什么涨/跌——驱动是政策/业绩/资金/纯情绪，给依据；②跟我什么关系——能买吗、踩雷吗；③风险藏在哪——位置/业绩/暗雷（解禁/担保/减持）；'
                    '第三步·翻译成人话：术语必须配翻译，打比方优先（击鼓传花/接飞刀/烧到头的鞭炮/装死/开奖日），结论先行+动作可执行；'
@@ -11036,6 +11045,7 @@ FOLLOW_V2_PROMPT = """你是一线游资，现在是收盘后或盘中，任务�
 4. 【底仓逻辑关·强制】：候选票必须先过深挖铁律关——本质（一句话大白话）+暗线业务（具体产品+阶段+对业绩真实贡献，写不出写「未见明确暗线业务」，禁「相关/涉及/布局/受益于」糊弄）+真实关联与弹性（与龙头同链实受益/沾边/纯蹭+弹性大小）+为什么是它+破灭点+动作。没有清晰暗线业务或弹性不足的票直接否决，不进picks。picks里每只先写底仓逻辑，再写买点止损。
 5. 【禁止偷懒】：哪怕分数不高，也要挑出相对最值得埋伏的1-2只写全方案
 6. 【输出前自问】：如果不推这只票，最硬的理由是什么？理由成立就否决。没有符合条件的标的时明确写「当前无符合条件的埋伏标的」，禁止硬凑。空推送是正确行为。
+7. 【补涨空间铁律·行业口径】：龙头高度决定补涨上限，补涨一般只能打到龙头的 7~9 折。先用龙头从起涨到现在的累计涨幅当标尺，再看候选已经走了多少：走得不到龙头一半→空间充足；走到 50%~75%→空间收窄只可轻仓；已经到龙头 80% 以上（逼近 9 折）→补涨基本走完，直接 veto 不进 picks。why 里必须带一句「对照龙头还差多少」，把剩下几成空间说清楚。
 每只候选输出字段(全必填)：name/code/rel/d5_read/why/confirm/buy/stop/grade/pos_score
 picks最多2只；veto非空的候选不进picks。
 ━━━ 输出 JSON(不要其他文字) ━━━
@@ -14045,6 +14055,25 @@ def _live_snap():
     return sn
 
 
+def _cycle_stage(sn):
+    """大盘周期位置（龙字诀口径，用情绪分+涨停/炸板映射，纯事实不含结论）：
+    冰点＝过冷等修复；修复＝冰点往沸点修、容错率最高；过热＝该兑现不该追；退潮＝钱在撤、只做减法。"""
+    s = float(sn.get('score', (50, '', ''))[0] or 0)
+    lu, zb, dt = sn['lu'], sn['zb'], sn['dt']
+    zbr = (zb / (lu + zb)) if (lu + zb) else 0.0
+    asc = sum(1 for x in sn['idx'] if x['pct'] > 0)
+    if lu >= 80 and zbr < 0.20:
+        stage = '过热'
+    elif lu >= 40 and zbr < 0.35:
+        stage = '修复'
+    elif s < 40 or (zbr >= 0.45 and lu < 40):
+        stage = '冰点'
+    else:
+        stage = '退潮'
+    return {'stage': stage, 'score': round(s, 1), 'zbr': round(zbr * 100, 1),
+            'lu': lu, 'zb': zb, 'dt': dt, 'idx_up': asc, 'idx_n': len(sn['idx'])}
+
+
 def _live_idx_line(sn):
     try:
         return '｜'.join('%s <b style="color:%s">%+.2f%%</b>'
@@ -14087,12 +14116,16 @@ def _live_fact_block(sn, extra=''):
     _zbr = (_zb / (_lu + _zb) * 100) if (_lu + _zb) else 0.0
     _sec = _live_sec_top(sn, 3)
     _sec_txt = '、'.join('%s(%d家)' % (k, v) for k, v in _sec) or '板块家数未取得'
-    return ('<div style="font-size:13px;color:#e9ecef;line-height:1.7;">%s</div>'
+    _cyc = _cycle_stage(sn)
+    _cyc_txt = ('<div style="font-size:13px;color:%s;line-height:1.7;margin-top:3px;">'
+                '📉 周期位置：<b>%s</b>　情绪 %.0f 分</div>'
+                % (GOLD, _cyc['stage'], _cyc['score']))
+    return ('<div style="font-size:13px;color:#e9ecef;line-height:1.7;">%s</div>%s'
             '<div style="font-size:13px;color:#e9ecef;line-height:1.7;margin-top:3px;">'
             '涨停 <b style="color:%s">%d</b> 家 / 炸板 <b style="color:%s">%d</b> 家（炸板率 %.0f%%）'
             '/ 跌停 <b style="color:%s">%d</b> 家 · 情绪 <b>%.0f</b> 分（%s）</div>'
             '<div style="font-size:13px;color:#a78bfa;line-height:1.7;margin-top:3px;">板块在动：%s</div>%s'
-            % (_live_idx_line(sn), RED, _lu, GREEN, _zb, _zbr, GREEN, _dt,
+            % (_live_idx_line(sn), _cyc_txt, RED, _lu, GREEN, _zb, _zbr, GREEN, _dt,
                sn['score'][0], sn['score'][1], _sec_txt, extra))
 
 
@@ -14129,7 +14162,7 @@ def build_open_check():
             + '现在是 09:35，开盘刚走 5 分钟。下面是竞价票的兑现情况和当前盘面，请按三段写，全大白话：\n'
             + '【这盘是什么性质】高开是真强还是虚的，钱跟不跟，落到具体板块和最近的领涨票（点名+代码）\n'
             + '【竞价给的那几张票】逐只判：是给面子的（高开低走）还是给钱的（越走越强），说清为什么\n'
-            + '【第一笔钱怎么下】仓位几成、买什么形态、今天什么绝对不能碰\n'
+            + '【第一笔钱怎么下】先说今天处在哪一档（冰点：空仓不算错；修复：容错率最高可以做；过热：该兑现不该追高；退潮：只做减法），再给仓位几成、买什么形态、今天什么绝对不能碰\n'
             + '硬规矩：全篇不超过200字，三段各2-3句，段间必须真空行；禁自问自答、禁模板句、禁「注意风险」空话。')
     payload = {'task': 'open_check',
                'time': _bj_now().strftime('%H:%M'),
@@ -14140,6 +14173,7 @@ def build_open_check():
                'pool': _live_pool_names(sn, 5),
                'auction_checks': chk,
                'gauge': sn['gauge'].get('suggest', ''),
+               'cycle': _cycle_stage(sn),
                'format': _fmt}
     t = ask_deepseek(payload, purpose='open_check')
     if not t:
