@@ -5798,8 +5798,17 @@ def build_pre():
                    if focus_rows else '<div style="margin-top:10px;font-size:13px;color:' + GREY + ';">代码筛选下今日无未涨停低位标的（昨日涨停票不列）</div>')
     g_rows = ''.join('<div style="margin:5px 0;font-size:13px;">🟢 ' + g + '</div>' for g in good)
     b_rows = ''.join('<div style="margin:5px 0;font-size:13px;">🔴 ' + b + '</div>' for b in bad)
-    w_rows = ''.join('<div style="margin:5px 0;font-size:13px;">✅ <b>' + nm + '</b> — ' + why + '｜<span style="color:' + GOLD + ';">仓位 ' + pos + '</span></div>' for nm, why, pos in watch)
-    a_rows = ''.join('<div style="margin:5px 0;font-size:13px;">⛔ <b>' + nm + '</b> — ' + why + '</div>' for nm, why in avoid)
+    def _plain_nm(x):
+        return (x or '').split('（')[0].split('(')[0].strip()
+
+    def _op_line(mark, nm, why, tail=''):
+        _c = _name_to_code(_plain_nm(nm))
+        _dk = _dark_fact(_c, _plain_nm(nm), _hot_f) if _c else ''
+        _dkl = (f'<div style="color:#a78bfa;font-size:12px;margin-top:2px;line-height:1.5;">🔍 暗线（主营实据）：{_dk}</div>' if _dk else '')
+        return ('<div style="margin:5px 0;font-size:13px;">' + mark + ' <b>' + nm + '</b> — ' + why + tail + _dkl + '</div>')
+
+    w_rows = ''.join(_op_line('✅', nm, why, '｜<span style="color:' + GOLD + ';">仓位 ' + pos + '</span>') for nm, why, pos in watch)
+    a_rows = ''.join(_op_line('⛔', nm, why) for nm, why in avoid)
     h_rows = ''
     if hold_rows:
         h_rows = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">▍已持仓提示</div>'
@@ -9953,8 +9962,10 @@ def build_ext():
                           'format': fmt}, purpose='ext')
         ds_html = md2html(t) if t else ''
     if not ds_html:
-        print('[ext] LLM 未返回且已禁规则版兜底，不推外盘卡')
-        return None
+        # 2026-11-09：模型不回不再丢整张卡。全球行情与消息速览都是真实数据，
+        # 只把模型那段大白话留空，绝不写规则化结论。
+        print('[ext] LLM 未返回，改出数据版（全球行情+消息速览）')
+        ds_html = ''
     news_rows, _used_ds = _news_html_lines(news, n=8, purpose_key='ext_news', max_show=10)
     inner = (f'<div style="font-size:15px;font-weight:800;color:#ff922b;">🌐 全球行情（红涨绿跌）</div>'
              + _global_markets_html(gl)
@@ -10988,15 +10999,22 @@ def build_news2h():
             return '<div style="color:' + GREY + ';font-size:12px;">今日无明显' + ('利好' if is_good else '利空') + '消息</div>'
         out = []
         for it in pairs:
-            t0 = it[0]
-            i, s2, w, a = (it[1], it[2], it[3], it[4]) if len(it) >= 5 else (it[1], '', it[2] if len(it) > 2 else '', it[3] if len(it) > 3 else '')
+            t0 = str(it[0] if len(it) > 0 else '')
+            if not t0:
+                continue
+            i = str(it[1]) if len(it) > 1 else ''
+            s2 = str(it[2]) if len(it) > 2 else ''
+            w = str(it[3]) if len(it) > 3 else ''
+            a = str(it[4]) if len(it) > 4 else ''
             i = _strip_pre(i, ('影响：', '影响:'))
             s2 = _strip_pre(s2, ('代表个股：', '代表个股:', '个股：', '个股:'))
             w = _strip_pre(w, ('大白话：', '大白话:', '人话：', '解读：'))
             a = _strip_pre(a, ('操作：', '操作:'))
             _sum = _brief_sum.get(t0, '')
+            _dk2h = _news_dark(t0 + ' ' + _sum)
             out.append(f'<div style="color:#fff;font-size:13px;margin:8px 0 0 0;">· {t0}</div>'
                        + (f'<div style="margin:2px 0 0 16px;color:{GREY};font-size:11px;">📰 {_sum}</div>' if _sum else '')
+                       + (f'<div style="margin:2px 0 0 16px;color:#a78bfa;font-size:12px;line-height:1.55;">🔍 暗线（主营实据）：{_dk2h}</div>' if _dk2h else '')
                        + (f'<div style="margin:2px 0 0 16px;color:{GOLD};font-size:12px;">🎯 影响：{i}</div>' if i else '')
                        + (f'<div style="margin:2px 0 0 16px;color:#b197fc;font-size:12px;">🏆 代表个股：{s2}</div>' if s2 else '')
                        + (f'<div style="margin:2px 0 0 16px;color:{TEAL};font-size:12px;">🧠 大白话：{w}</div>' if w else '')
@@ -11023,8 +11041,10 @@ def build_news2h():
         if t:
             ds_html = md2html(t)
         else:
-            print('[news2h] LLM 未返回且已禁规则版兜底，不推两小时消息卡')
-            return None
+            # 2026-11-09：模型不回不再整卡丢弃（12:00 news2h 整槽消失的直接原因）。
+            # 出数据版：真实标题 + 真实摘要 + 主营实据暗线，不写任何规则化结论。
+            print('[news2h] LLM 未返回，改出数据版（标题+摘要+主营实据暗线）')
+            ds_html = ''
     inner = (_hold_conflict_html(bad)
              + f'<div style="font-size:15px;font-weight:800;color:{RED};">🔴 今日利好（{len(good_pairs)}条）</div>'
              + _rows(good_pairs, True)
