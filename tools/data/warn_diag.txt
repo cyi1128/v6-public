@@ -1024,3 +1024,19 @@
 08:04:17 [反模板放行:news2h] 管住手
 08:04:18 [llm] OK purpose=news2h len=895
 08:10:39 [llm] OK purpose=cycle len=3378
+09:11:20 [llm] OK purpose=news2h_good len=1187
+09:12:47 [llm] OK purpose=news2h_bad len=1240
+09:13:50 [llm] OK purpose=news2h len=380
+09:18:02 [llm] OK purpose=risk_card len=431
+09:19:41 [llm] OK purpose=warn_news_ds len=376
+09:25:56 [llm] OK purpose=follow len=1005
+09:27:34 [llm] OK purpose=follow len=717
+09:32:10 [llm] OK purpose=noon_v4 len=224
+09:33:31 [llm] OK purpose=event_dark len=719
+09:35:38 [llm] OK purpose=batch_deep len=2451
+09:39:54 [llm] OK purpose=pre_news_deep len=1820
+09:41:32 [llm] OK purpose=pre_news_deep len=1759
+09:42:45 [反模板放行:pre] 值得关注/建议留意
+09:42:45 [llm] OK purpose=pre len=1073
+09:44:01 [llm] OK purpose=focus_deep len=1972
+09:45:42 [llm] OK purpose=event_dark len=648
