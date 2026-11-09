@@ -478,3 +478,11 @@ hint: Fix them up in the work tree, and then use 'git ad
 11-09 14:09:49 发现 2026-11-09 段的过期标记（roll-dead 止于 2026-11-09T09:05:00+08:00），接管
 11-09 14:09:49 pull 失败，自愈：error: Pulling is not possible because you have unmerged files.
 hint: Fix them up in the work tree, and then use 'git ad
+11-09 14:09:50 持久化(sched-active)：已推送
+11-09 14:09:50 已占用 2026-11-09 roll-1409 段调度权（至 19:59）
+11-09 14:09:50 补跑待执行：14:01 news2h（已迟到 8 分钟）
+11-09 14:09:50 补跑待执行：14:05 follow（已迟到 4 分钟）
+11-09 14:09:50 >>> 执行槽位 news2h @ 14:09:50
+11-09 14:09:50 >>> 计划槽时刻 1401（去重键按此生成，防补跑重复推）
+11-09 14:09:50 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
+11-09 14:17:01     news2h| SLOT news2h PUSH True 执行成功
