@@ -86,6 +86,7 @@ FIXED_SLOTS = [
     (11, 0, 'hourly', 20, 60),
     (11, 30, 'noon', 20, 60),      # 午间作战
     (11, 40, 'news', 20, 60),      # 午间事件简报
+    (10, 0, 'news2h', 20, 60),     # 两小时消息汇总（上午首档，v80-A13 补：全天每 2 小时）
     (12, 0, 'news2h', 20, 60),     # 两小时消息汇总（午间，原先裸靠 cron）
     (13, 0, 'hourly', 20, 60),
     (13, 30, 'newsfire', 20, 60),
@@ -100,6 +101,9 @@ FIXED_SLOTS = [
     (15, 20, 'cycle', 20, 60),     # 多周期视角研判
     (15, 35, 'news', 20, 60),      # 尾盘事件简报
     (16, 0, 'news2h', 20, 90),     # 16:00 两小时消息汇总（原先裸靠 cron）
+    (18, 0, 'news2h', 20, 90),     # 18:00 两小时消息汇总（v80-A13 补）
+    (20, 0, 'news2h', 20, 90),     # 20:00 两小时消息汇总（v80-A13 补）
+    (22, 0, 'news2h', 20, 90),     # 22:00 两小时消息汇总（v80-A13 补）
     (21, 38, 'ext', 10, 40),       # 外盘窗口（原先裸靠 cron）
     (22, 38, 'ext', 10, 40),
     (22, 50, 'evening', 20, 60),   # 晚间消息汇总（原先裸靠 cron）
@@ -750,10 +754,10 @@ def _selftest() -> int:
 
     # 补跑宽容窗（warn 8:20+60=09:20 已过窗，故 09:30 只补 pre）
     expect('09:30 补跑清单', [x[2] for x in backfill_pending(at(9, 30), set(), done={})], ['pre'])
-    expect('10:05 补跑清单', [x[2] for x in backfill_pending(at(10, 5), set(), done={})], ['hourly'])
+    expect('10:05 补跑清单', [x[2] for x in backfill_pending(at(10, 5), set(), done={})], ['hourly', 'news2h'])
     _today = datetime.datetime.now(BJ).strftime('%Y-%m-%d')
     expect('10:05 已完成不补',
-           [x[2] for x in backfill_pending(at(10, 5), set(), done={f'hourly|{_today}|10': True})], [])
+           [x[2] for x in backfill_pending(at(10, 5), set(), done={f'hourly|{_today}|10': True})], ['news2h'])
     expect('21:50 补跑清单', [x[2] for x in backfill_pending(at(21, 50), set(), done={})], ['ext'])
 
     # 班次判定
@@ -767,16 +771,16 @@ def _selftest() -> int:
     # 滚动占段：段尾无槽时提前让位（否则一个 run 白占 5 小时 runner）
     expect('09:59 段内仍有待跑槽', pending_within(at(9, 59), at(14, 59), set(), done={}), True)
     expect('17:20 仍在 news2h 宽容窗内', pending_within(at(17, 20), at(19, 0), set(), done={}), True)
-    expect('17:40 段内已无槽（16:00 宽容窗已过）', pending_within(at(17, 40), at(19, 0), set(), done={}), False)
+    expect('17:40 段内仍有 18:00 news2h', pending_within(at(17, 40), at(19, 0), set(), done={}), True)
     _seed_day = datetime.datetime.now(BJ).strftime('%Y-%m-%d')   # slot_done_key 取的是"今天"，注入日期不参与
     expect('23:05 evening 与 ext 都已推过则无槽', pending_within(at(23, 5), at(23, 10), set(),
-             done={f'evening|{_seed_day}': True, f'ext|{_seed_day}|2235': True}), False)
+             done={f'evening|{_seed_day}': True, f'ext|{_seed_day}|2235': True}), True)
 
     # 滚动段终点（300 分钟 + 段尾 45 分钟延伸，杜绝"恰好把下一槽截在段外"）
     expect('10:00 启动终点（350 分钟+段尾延伸到 16:00 news2h）',
            rolling_end(at(10, 0)).strftime('%H:%M'), '16:20')
-    expect('13:30 启动终点（350 分钟，不空等 21:38）',
-           rolling_end(at(13, 30)).strftime('%H:%M'), '19:20')
+    expect('13:30 启动终点（350 分钟，段尾延伸到 20:00 news2h）',
+           rolling_end(at(13, 30)).strftime('%H:%M'), '20:20')
     expect('17:45 启动终点（350 分钟，已过 22:50 故不延伸）',
            rolling_end(at(17, 45)).strftime('%H:%M'), '23:35')
     # 凌晨命中必须守到早盘，不许秒退（11-06 早盘整段丢失的根因）
