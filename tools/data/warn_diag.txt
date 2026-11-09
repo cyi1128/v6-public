@@ -1019,3 +1019,7 @@
 07:44:49 [llm] OK purpose=eod len=848
 07:50:06 [llm] OK purpose=brief_summary_v3 len=619
 07:55:27 [llm] OK purpose=brief_summary_v3 len=690
+08:01:29 [llm] OK purpose=news2h_good len=1339
+08:03:03 [llm] OK purpose=news2h_bad len=1692
+08:04:17 [反模板放行:news2h] 管住手
+08:04:18 [llm] OK purpose=news2h len=895
