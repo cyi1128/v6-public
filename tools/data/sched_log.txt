@@ -395,3 +395,10 @@
 11-09 13:10:35 发现 2026-11-09 段的过期标记（roll-dead 止于 2026-11-09T09:05:00+08:00），接管
 11-09 13:10:35 pull 失败，自愈：error: Pulling is not possible because you have unmerged files.
 hint: Fix them up in the work tree, and then use 'git ad
+11-09 13:10:36 持久化(sched-active)：已推送
+11-09 13:10:36 已占用 2026-11-09 roll-1310 段调度权（至 19:00）
+11-09 13:10:36 滚动段 roll-1310 调度至 19:00，共可覆盖约 350 分钟
+11-09 13:10:36 >>> 执行槽位 hourly @ 13:10:36
+11-09 13:10:36 >>> 计划槽时刻 1300（去重键按此生成，防补跑重复推）
+11-09 13:10:36 >>> 预算：LLM 360s / 单模型 45s / 子进程上限 540s
+11-09 13:10:36     hourly| SLOT hourly 今日已推（slot_done.json 去重），跳过
