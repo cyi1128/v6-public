@@ -140,7 +140,10 @@ DEFAULT_BUDGET = (300, 45, 600)
 def slot_budget(slot: str) -> tuple[int, int, int]:
     """取该槽的 (LLM 总预算, 单模型超时, 子进程硬超时)。"""
     return SLOT_BUDGET.get(slot, DEFAULT_BUDGET)
-SEG_ALIVE_GRACE = 600       # 正常退出会清 marker，这里只是兜住"被 timeout 杀掉"的情况
+SEG_ALIVE_GRACE = 600
+# 2026-11-09：段心跳。调度器每落地一个槽就刷新 hb；hb 超过这个秒数没动就判死段。
+# 45 分钟 = 最长槽间隔（16:00 -> 次日 08:20 之外，最长的盘中空档约 30 分钟）的两倍余量。
+SEG_HB_STALE = 2700       # 正常退出会清 marker，这里只是兜住"被 timeout 杀掉"的情况
 ROLL_MINUTES = 350          # 滚动占段时长：一次触发覆盖未来 5.8 小时（+ 启动开销仍在 380 timeout 内）
 ROLL_TAIL_MINUTES = 45      # 段尾 45 分钟内若还能接上下一槽，就把终点延到那槽窗口末端
 DAY_END = (23, 55)          # 今日收工时刻（之后不再占段）
@@ -230,6 +233,23 @@ def _flush_log() -> None:
         pass
 
 
+def _touch_marker() -> None:
+    """刷新段标记心跳：这段还活着，别被后来者判成死段。
+
+    只在持久化时调用（每次跑完一个槽一次），成本几乎为零：
+    标记文件本来就在 tools/data/ 下，跟着同一次 commit 一起上去。
+    """
+    try:
+        m = _read_json(MARKER)
+        if not m.get('seg'):
+            return
+        m['hb'] = bj_now().isoformat(timespec='seconds')
+        with open(MARKER, 'w', encoding='utf-8') as fh:
+            json.dump(m, fh, ensure_ascii=False)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def persist_state(tag: str) -> None:
     """把工具写出的状态文件提交回仓库，保证跨 run 去重一致。
 
@@ -239,6 +259,7 @@ def persist_state(tag: str) -> None:
     「退出原因」「今日缺口」这类关键判定行就永远进不了仓库。
     """
     _flush_log()
+    _touch_marker()
     git('add', 'tools/data/')
     diff = git('diff', '--cached', '--quiet')
     if diff.returncode == 0:
@@ -493,9 +514,18 @@ def acquire_segment(bj: datetime.datetime, seg: str, seg_end: datetime.datetime)
     # （roll-0841 / roll-1002），两个 run 永远对不上，等于「谁都能占段」，
     # 结果 08:41 与 10:02 两个调度同时驱动时刻表 → 同槽重复推送。
     # 现在只看「同一天 + 段还没过期」。
-    if mday == day and end_ts and time.time() < end_ts + SEG_ALIVE_GRACE:
-        log(f'{day} 已有调度在运行（{marker.get("seg")} 止于 {raw_end}），本 run 退出以免并发双推')
+    hb_raw = marker.get('hb') or ''
+    try:
+        hb_ts = datetime.datetime.fromisoformat(hb_raw).timestamp()
+    except Exception:  # noqa: BLE001
+        hb_ts = 0
+    in_window = bool(mday == day and end_ts and time.time() < end_ts + SEG_ALIVE_GRACE)
+    dead = bool(in_window and hb_ts and (time.time() - hb_ts) > SEG_HB_STALE)
+    if in_window and not dead:
+        log(f'{day} 已有调度在运行（{marker.get("seg")} 止于 {raw_end}，心跳 {hb_raw or "无"}），本 run 退出以免并发双推')
         return False
+    if dead:
+        log(f'{day} 段 {marker.get("seg")} 心跳停在 {hb_raw}（超过 {SEG_HB_STALE // 60} 分钟），判定死段，接管')
     if mday == day and raw_end:
         log(f'发现 {day} 段的过期标记（{marker.get("seg")} 止于 {raw_end}），接管')
 
@@ -504,6 +534,7 @@ def acquire_segment(bj: datetime.datetime, seg: str, seg_end: datetime.datetime)
         'seg': seg,
         'started': bj.isoformat(timespec='seconds'),
         'seg_end': seg_end.isoformat(timespec='seconds'),
+        'hb': bj.isoformat(timespec='seconds'),
     }
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(MARKER, 'w', encoding='utf-8') as fh:
@@ -695,7 +726,7 @@ def finish(tag: str) -> int:
     """
     log(f'退出原因：{tag}')
     report_gaps()
-    if tag in ('weekend-end', 'roll-end', 'idle'):
+    if tag in ('weekend-end', 'roll-end', 'idle', 'preempted'):
         try:
             persist_state(tag)
         except Exception as exc:  # noqa: BLE001
@@ -708,7 +739,7 @@ def main() -> int:
         return _selftest()
 
     bj = bj_now()
-    log(f'启动调度器 v2，当前北京时间 {bj:%Y-%m-%d %H:%M:%S} 星期{"一二三四五六日"[bj.weekday()]}')
+    log(f'启动调度器 v6，当前北京时间 {bj:%Y-%m-%d %H:%M:%S} 星期{"一二三四五六日"[bj.weekday()]}')
 
     # ---- 周末/休市日：快跑一次休市新闻汇总即退出（不占长班次） ----
     if bj.weekday() >= 5:
@@ -748,8 +779,21 @@ def main() -> int:
         run_slot(slot)
 
     log(f'滚动段 {seg_name} 调度至 {end:%H:%M}，共可覆盖约 {(end - bj_now()).total_seconds() / 60:.0f} 分钟')
+    last_chk = bj_now()
     while bj_now() < end:
         now = bj_now()
+        # 2026-11-09：每 4 分钟复查一次段标记。如果段已被别的 run 接管（本段被判死），
+        # 立刻让位，绝不能让两个 run 同时按时刻表推同一槽（重复推送）。
+        if (now - last_chk).total_seconds() >= 240:
+            last_chk = now
+            try:
+                pull_latest()
+                m_now = _read_json(MARKER)
+                if (m_now.get('seg') or '') != seg_name:
+                    log(f'段标记已切到 {m_now.get("seg") or "空"}，本 run 让位退出')
+                    return finish('preempted')
+            except Exception:  # noqa: BLE001
+                pass
         slot = pick_slot(now, executed)
         if slot:
             run_slot(slot)
