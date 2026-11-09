@@ -768,3 +768,21 @@
 02:47:02 [ask_deepseek] ModelScope 两次尝试均失败，purpose=board_deep
 02:47:03 [llm] 全局预算用尽 used=123s purpose=board_why
 02:47:05 [llm] 全局预算用尽 used=124s purpose=board
+03:01:07 [llm] 未返回 purpose=hourly_ds model=Qwen/Qwen3.5-35B-A3B tag=timeout
+03:01:07 [llm] 未返回 purpose=hourly_ds model=Qwen/Qwen3.8-27B tag=timeout
+03:01:07 [llm] 未返回 purpose=hourly_ds model=Qwen/Qwen3.5-122B-A10B tag=timeout
+03:01:09 [llm] 未返回 purpose=hourly_ds model=ZhipuAI/GLM-4.7-Flash tag=http_429
+03:01:53 [llm] 未返回 purpose=hourly_ds model=Qwen/Qwen3.8-Flash-Next tag=timeout
+03:01:53 [llm] 两波并发均无返回 purpose=hourly_ds
+03:01:53 [ask_deepseek] 首轮无返回即止损 purpose=hourly_ds
+03:01:53 [ask_deepseek] ModelScope 两次尝试均失败，purpose=hourly_ds
+03:02:57 [llm] 未返回 purpose=batch_deep model=Qwen/Qwen3.5-35B-A3B tag=timeout
+03:02:57 [llm] 未返回 purpose=batch_deep model=Qwen/Qwen3.5-122B-A10B tag=timeout
+03:02:57 [llm] 未返回 purpose=batch_deep model=Qwen/Qwen3.8-27B tag=timeout
+03:03:42 [llm] 未返回 purpose=batch_deep model=Qwen/Qwen3.8-Flash-Next tag=timeout
+03:03:42 [llm] 未返回 purpose=batch_deep model=ZhipuAI/GLM-4.7-Flash tag=timeout
+03:03:42 [llm] 两波并发均无返回 purpose=batch_deep
+03:03:42 [ask_deepseek] 首轮无返回即止损 purpose=batch_deep
+03:03:42 [ask_deepseek] ModelScope 两次尝试均失败，purpose=batch_deep
+03:06:10 [llm] 全局预算用尽 used=357s purpose=health
+03:06:13 [llm] 全局预算用尽 used=360s purpose=brief_summary_v3
