@@ -1044,8 +1044,36 @@
 10:02:42 [llm] OK purpose=news2h_bad len=291
 10:03:56 [反模板放行:news2h] 没有安全垫/管住手
 10:03:57 [llm] OK purpose=news2h len=600
+<<<<<<< Updated upstream
 11:03:06 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.5-35B-A3B tag=http_502
 11:03:14 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.8-27B tag=http_502
 11:03:33 [反模板放行:news2h_good] 管住手
 11:03:33 [llm] OK purpose=news2h_good len=1238
 11:04:39 [llm] OK purpose=news2h len=730
+=======
+10:53:13 [llm] OK purpose=news2h_good len=918
+10:54:14 [反模板放行:news2h] 管住手
+10:54:14 [llm] OK purpose=news2h len=645
+10:59:18 [llm] OK purpose=risk_card len=401
+11:02:01 [llm] OK purpose=warn_news_ds len=215
+11:02:51 [llm] OK purpose=news_dark len=332
+11:06:18 [llm] OK purpose=follow len=530
+>>>>>>> Stashed changes
+11:07:31 [llm] OK purpose=follow len=351
+11:13:04 [llm] OK purpose=noon_extra_dark len=1204
+11:14:05 [llm] OK purpose=mf_dark len=741
+11:15:22 [llm] OK purpose=noon_v4 len=223
+11:16:34 [llm] OK purpose=noon_dark len=380
+11:17:35 [llm] OK purpose=event_dark len=759
+11:18:32 [llm] OK purpose=health_dark len=192
+11:19:32 [llm] OK purpose=newfire_dark len=248
+11:20:38 [反模板放行:batch_deep] 没有安全垫
+11:20:38 [llm] OK purpose=batch_deep len=2062
+11:25:54 [llm] OK purpose=sec_wind_dark len=367
+11:26:55 [llm] OK purpose=pre_news_deep len=1651
+11:28:09 [llm] OK purpose=pre_news_deep len=1892
+11:29:19 [llm] OK purpose=sec_wind_dark len=292
+11:30:25 [llm] OK purpose=pre len=641
+11:31:22 [llm] OK purpose=pre_main_dark len=143
+11:33:10 [llm] OK purpose=focus_deep len=1650
+11:34:37 [llm] OK purpose=event_dark len=689
