@@ -960,3 +960,7 @@
 05:06:06 [llm] 截止已过停产 purpose=brief_summary_v3
 05:06:06 [ask_deepseek] 首轮无返回即止损 purpose=brief_summary_v3
 05:06:06 [ask_deepseek] ModelScope 两次尝试均失败，purpose=brief_summary_v3
+05:18:11 [llm] 全局预算用尽 used=183s purpose=board_deep
+05:18:13 [llm] 全局预算用尽 used=185s purpose=board_why
+05:18:13 [llm] 全局预算用尽 used=185s purpose=board_watch
+05:18:13 [board_watch_ds] LLM 返回空，回退规则模板
