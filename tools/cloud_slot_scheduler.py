@@ -62,6 +62,10 @@ BJ = datetime.timezone(datetime.timedelta(hours=8))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT, 'tools', 'data')
 MARKER = os.path.join(DATA_DIR, 'sched_active.json')
+# 本 run 的段名（acquire_segment 成功后写入）；_touch_marker 靠它判断
+# 「这份标记还是我的吗」——不是我的就一个字节都不许改。
+_CUR_SEG = ''
+_CUR_DATE = ''
 SLOT_DONE = os.path.join(DATA_DIR, 'slot_done.json')
 # 收盘复盘另用一套去重：主程序 eod_push_done() 读的是仓库根 data/eod_status.json
 # （结构 {"date": "YYYY-MM-DD", "pushed_at": ...}），不是 tools/data/slot_done.json。
@@ -234,14 +238,19 @@ def _flush_log() -> None:
 
 
 def _touch_marker() -> None:
-    """刷新段标记心跳：这段还活着，别被后来者判成死段。
+    """刷新段标记心跳——只在本段还持有该标记时才改。
 
-    只在持久化时调用（每次跑完一个槽一次），成本几乎为零：
-    标记文件本来就在 tools/data/ 下，跟着同一次 commit 一起上去。
+    2026-11-09 事故修复：原来不看归属，run 本地读到的是自己启动时留下的旧 seg，
+    一路把接管者的 seg 覆盖回自己，两个段互相踩、双双退出，整段时间表空转
+    （11:30 noon / 11:40 news 就是这样丢的）。现在先拿远端最新标记，
+    只要 seg 不是本段就原样不动。
     """
     try:
+        if not _CUR_SEG:
+            return
+        pull_latest()
         m = _read_json(MARKER)
-        if not m.get('seg'):
+        if (m.get('seg') or '') != _CUR_SEG or (m.get('date') or '') != _CUR_DATE:
             return
         m['hb'] = bj_now().isoformat(timespec='seconds')
         with open(MARKER, 'w', encoding='utf-8') as fh:
@@ -539,6 +548,8 @@ def acquire_segment(bj: datetime.datetime, seg: str, seg_end: datetime.datetime)
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(MARKER, 'w', encoding='utf-8') as fh:
         json.dump(marker, fh, ensure_ascii=False)
+    global _CUR_SEG, _CUR_DATE
+    _CUR_SEG, _CUR_DATE = seg, day
     persist_state('sched-active')
     log(f'已占用 {day} {seg} 段调度权（至 {seg_end:%H:%M}）')
     return True
@@ -726,7 +737,12 @@ def finish(tag: str) -> int:
     """
     log(f'退出原因：{tag}')
     report_gaps()
-    if tag in ('weekend-end', 'roll-end', 'idle', 'preempted'):
+    if tag == 'preempted':
+        # 让位者的本地 marker 可能是过期的旧段：再推一次就会把接管者覆盖掉。
+        # 让位只写本地日志，不碰仓库状态。
+        _flush_log()
+        return 0
+    if tag in ('weekend-end', 'roll-end', 'idle'):
         try:
             persist_state(tag)
         except Exception as exc:  # noqa: BLE001
