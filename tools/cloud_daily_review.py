@@ -42,7 +42,7 @@ except Exception as _fe_err:
     _fe = None
     _FACTOR_OK = False   # 因子引擎缺失时因子行静默不显示，不阻断推送
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
 MEM_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'theme_memory.json')
@@ -2201,10 +2201,37 @@ def _ds_daily_inc():
         print('[ds-count] 当日计数写入失败（不影响推送，gateway 金额闸门仍兜底）:', e)
 
 
+def _ms_one(model, msgs, purpose, timeout):
+    """单模型单次请求：成功返回 (文本, 结束原因)，失败返回 (None, 错误标签)。"""
+    body = json.dumps({'model': model, 'messages': msgs,
+                       'temperature': 0.5,
+                       'max_tokens': (8000 if purpose == 'zforce_radar' else 6000)}).encode('utf-8')
+    req = urllib.request.Request(MODELSCOPE_URL, data=body, headers={
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + MODELSCOPE_KEY,
+        'User-Agent': 'quantmonitor/1.0'})
+    try:
+        raw = urllib.request.urlopen(req, timeout=timeout).read().decode('utf-8')
+        _r = json.loads(raw)
+    except urllib.error.HTTPError as e:
+        return None, 'http_%d' % e.code
+    except Exception as e:  # noqa: BLE001
+        if 'timed out' in str(e).lower() or isinstance(e, TimeoutError):
+            return None, 'timeout'
+        return None, str(e)[:60]
+    _ch = (_r.get('choices') or [{}])[0]
+    _txt = ((_ch.get('message') or {}).get('content') or '').strip()
+    return (_txt or None), (_ch.get('finish_reason') or '')
+
+
 def _modelscope_chat(payload, purpose, system_text):
-    """魔搭免费通道（OpenAI 兼容端点，urllib 原生零依赖）。
-    成功返回文本；401/403/429/404/网络失败返回 None（调用方降级 DeepSeek 付费网关）。
-    429/404 自动轮换备选模型（最多试完 _MODELSCOPE_MODELS 全部）。"""
+    """魔搭免费通道：多模型并发竞速，谁先给出非空正文就用谁。
+
+    2026-11-09 改造原因：原实现 5 个候选模型串行、超时 45/37/29/22/22，
+    一次全超时要烧 155~225 秒；一个槽叠两三个 purpose 就是十几分钟，
+    卡片只能靠代码数据拼，暗线全丢、读起来像规则表。
+    并发后：一轮最坏 = 一次超时（约 45s），先到先用，成功率同时更高。
+    """
     models = list(_MODELSCOPE_MODELS)
     override = os.environ.get('MODELSCOPE_MODEL', '')
     if override and override not in models:
@@ -2212,71 +2239,65 @@ def _modelscope_chat(payload, purpose, system_text):
     msgs = [{'role': 'system', 'content': system_text or _ASK_DS_SYS},
             {'role': 'user', 'content': json.dumps(payload, ensure_ascii=False)}]
     _t_start = time.time()
-    # v7.9t：关键段（卡面主干）多给 60s，让递减链跑满 6 个候选模型
     _mb = MS_BUDGET + 60 if purpose in ('eod', 'eod_review_ds', 'brief_summary_v3') else MS_BUDGET
-    for _mi, m in enumerate(models):
-        _used = time.time() - _t_start
+    for _wave in range(2):
+        _batch = models[_wave * 3:(_wave + 1) * 3]
+        if not _batch:
+            break
         try:
-            # v7.9m：全局（或本模块）截止时刻已过就不要再换模型，
-            # 一次换模型最坏 45s，会把后面几段（复盘主解读/错过深挖/事件汇总）的额度吃干净。
             _dl = _llm_deadline()
             if time.time() > _dl:
-                print('[LLM] 截止时刻已过 停止轮换 %.0fs>剩余%.0fs purpose=%s'
-                      % (_used, _dl - time.time(), purpose))
-                _diag_append('[llm] 截止已过停产 purpose=%s used=%.0fs' % (purpose, _used))
+                print('[LLM] 截止时刻已过 停止轮换 %.0fs purpose=%s'
+                      % (time.time() - _t_start, purpose))
+                _diag_append('[llm] 截止已过停产 purpose=%s' % purpose)
                 return None
-        except Exception:
-            pass
+        except Exception:  # noqa: BLE001
+            _dl = _t_start + 600
+        _used = time.time() - _t_start
         if _used > _mb:
-            print('[LLM] ModelScope 总预算用尽 %.0fs>%ds purpose=%s，停止轮换（调用方降级）'
+            print('[LLM] ModelScope 总预算用尽 %.0fs>%ds purpose=%s，停止轮换'
                   % (_used, _mb, purpose))
             _diag_append('[llm] 总预算用尽 purpose=%s used=%.0fs' % (purpose, _used))
             return None
+        _to = max(15.0, float(MS_TIMEOUT))
+        _room = max(5.0, min(_to, _mb - _used, max(5.0, _dl - time.time())))
+        ex = ThreadPoolExecutor(max_workers=len(_batch))
+        futs = {ex.submit(_ms_one, m, msgs, purpose, _room): m for m in _batch}
+        got = None
         try:
-            body = json.dumps({'model': m, 'messages': msgs,
-                              'temperature': 0.5,
-                              'max_tokens': (8000 if purpose == 'zforce_radar' else 6000)}).encode('utf-8')
-            req = urllib.request.Request(MODELSCOPE_URL, data=body, headers={
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + MODELSCOPE_KEY,
-                'User-Agent': 'quantmonitor/1.0'})
-            # v7.9t 超时递减：45/37/29/22/22，5~6 个候选模型合计 155s，都在预算内轮到
-            _to = MS_TIMEOUT if _mi == 0 else max(22, MS_TIMEOUT - 8 * _mi)
-            r = json.loads(urllib.request.urlopen(req, timeout=_to).read().decode('utf-8'))
-            _ch = (r.get('choices') or [{}])[0]
-            txt = (_ch.get('message') or {}).get('content') or ''
-            _fin = _ch.get('finish_reason') or ''
-            if txt.strip():
-                if _fin == 'length':
-                    print('[LLM] 输出被截断 model=%s purpose=%s len=%d' % (m, purpose, len(txt)))
-                    _diag_append('[llm] 输出截断 purpose=%s len=%d finish=length' % (purpose, len(txt)))
-                print(f'[LLM] ModelScope OK model={m} purpose={purpose} finish={_fin}')
+            for f in as_completed(futs, timeout=_room + 5):
+                winner = futs.get(f)
                 try:
-                    _oq = txt.count('？')
-                    _head = re.sub(r'\s+', ' ', txt.strip())[:60]
-                    print('[LLM] OUT purpose=%s len=%d q=%d head=%s' % (purpose, len(txt), _oq, _head))
-                except Exception as _oe:
-                    print('[LLM] OUT 审计行失败:', type(_oe).__name__)
-                return txt.strip()
-            _diag_append('[llm] 空回复 purpose=%s finish=%s' % (purpose, _fin))
-            print(f'[LLM] ModelScope 空回复 model={m} finish={_fin}，试下一个')
-        except urllib.error.HTTPError as e:
-            code = e.code
-            if code in (401, 403):
-                print(f'[LLM] ModelScope 认证失败({code})：需绑定阿里云+实名 或 token 无效')
-                return None
-            if code in (429, 404):
-                print(f'[LLM] ModelScope {code} model={m} 额度/模型不可用，换备选')
-                continue
-            print(f'[LLM] ModelScope http_{code} model={m}')
-            return None
-        except Exception as e:
-            if 'timed out' in str(e).lower() or isinstance(e, TimeoutError):
-                print(f'[LLM] ModelScope 超时 model={m}，换备选重试')
-                continue
-            print(f'[LLM] ModelScope 异常: {str(e)[:120]}')
-            return None
-    print('[LLM] ModelScope 全部模型不可用，规则兜底')
+                    txt, tag = f.result()
+                except Exception as e:  # noqa: BLE001
+                    print('[LLM] ModelScope 异常 model=%s %s' % (winner, str(e)[:60]))
+                    continue
+                if txt:
+                    got = (winner, txt, tag)
+                    break
+                print('[LLM] ModelScope 未返回 model=%s tag=%s，继续等其它' % (winner, tag))
+                _diag_append('[llm] 未返回 purpose=%s model=%s tag=%s' % (purpose, winner, tag))
+        except Exception:  # noqa: BLE001
+            print('[LLM] ModelScope 本轮并发超时 %.0fs purpose=%s，进下一波'
+                  % (_room, purpose))
+        finally:
+            ex.shutdown(wait=False)
+        if got:
+            winner, txt, tag = got
+            if tag == 'length':
+                print('[LLM] 输出被截断 model=%s purpose=%s len=%d' % (winner, purpose, len(txt)))
+                _diag_append('[llm] 输出截断 purpose=%s len=%d' % (purpose, len(txt)))
+            print('[LLM] ModelScope OK model=%s purpose=%s finish=%s 用时%.0fs'
+                  % (winner, purpose, tag, time.time() - _t_start))
+            try:
+                _oq = txt.count('？')
+                _head = re.sub(r'\s+', ' ', txt.strip())[:60]
+                print('[LLM] OUT purpose=%s len=%d q=%d head=%s' % (purpose, len(txt), _oq, _head))
+            except Exception as _oe:  # noqa: BLE001
+                print('[LLM] OUT 审计行失败:', type(_oe).__name__)
+            return txt
+    print('[LLM] ModelScope 两波并发均无返回，调用方只出数据事实')
+    _diag_append('[llm] 两波并发均无返回 purpose=%s' % purpose)
     return None
 
 
