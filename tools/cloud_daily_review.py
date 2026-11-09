@@ -2386,10 +2386,12 @@ def pos_cap_line(emotion, health_label, mscore=None):
     if health_label is None and mscore is not None:
         health_label = _health_from_mscore(mscore)
     cap = dynamic_pos_cap(emotion, health_label or '开始分化')
-    tip = '⚠ 注意兑现' if (emotion == '偏多' and cap >= 8) else ''
-    hl_txt = health_label if health_label else '—（noon/eod 实算）'
+    tip = '，涨了先落袋，别贪' if (emotion == '偏多' and cap >= 8) else ''
+    _why = {'偏多': '情绪在往上走，敢买但别追高',
+            '偏空': '情绪在退，少动手，先保住本金',
+            '中性': '情绪一般，赚了就跑'}.get(emotion, '情绪一般，赚了就跑')
     return (f'<div style="margin-top:8px;font-size:13px;color:#adb5bd;border-top:1px dashed #444;padding-top:6px;">'
-            f'📊 当前建议总仓位上限：<b style="color:{GOLD}">{cap}成</b>（情绪={emotion} · 主线={hl_txt}）{tip}</div>')
+            f'📊 今天最多用 <b style="color:{GOLD}">{cap} 成仓位</b>——{_why}{tip}</div>')
 
 
 def theme_score(name, stocks, cont):
@@ -2886,11 +2888,11 @@ def _wrap(inner, emoji, title, show_reson=False):
     """通用卡片壳。共振只作内部因子参与判定/打分，一律不上卡片（2026-11-07 用户指令）。
     参数 show_reson 仅为兼容历史调用保留，默认 False 即不渲染头部共振档位行。
     出口统一过 _strip_meta：卡面不出现规则性元说明。"""
-    _body = _strip_meta(_strip_bracket_heads(_ds_status_banner() + (inner or '')))
+    # v80-A3（用户指令）：卡面不再拼模型状态自述、数据源健康、免责口径三样尾巴。
+    _body = _strip_meta(_strip_bracket_heads(inner or ''))
     return f"""<div style="background:#161b26;color:#e9ecef;font-family:-apple-system,'Microsoft YaHei',sans-serif;padding:14px;border-radius:12px;">
 <div style="font-size:20px;font-weight:800;color:{GOLD};">{emoji} {title} · {_bj_now().strftime('%m/%d %H:%M')}</div>
-{_reson_head() if show_reson else ''}{_body}{health_footer()}
-<div style="margin-top:14px;font-size:12px;color:{GREY};">— 清一盘 · 公开行情，仅供参考 —</div></div>"""
+{_reson_head() if show_reson else ''}{_body}</div>"""
 
 
 
@@ -6138,15 +6140,14 @@ def build_auction(title='竞价观察'):
             _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(_deep.get('op', ''), GOLD)
             _dk = str(_deep.get('dark') or '').strip() or _dark_fact(s.get('code') or '', s.get('name') or '', _hot_names)
             _rsn = str(_deep.get('reason') or '').strip()
-            _deep_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线：{_dk or '主营构成未取得，不给暗线结论'}{('（' + _rsn + '）') if _rsn else ''}</div>
-<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🧠 题材深挖：{_deep.get('logic','')}</div>
-<div style="color:#e9ecef;font-size:12px;margin-top:2px;">👉 大白话：{_deep.get('why','')}</div>
-<div style="color:#ced4da;font-size:12px;margin-top:2px;">🎯 建议：<b style="color:{_opcol};">{_deep.get('op','')}</b> ｜ 买点：{_deep.get('buy','')} ｜ 止损：{_deep.get('stop','')} ｜ 放弃：{_deep.get('drop','')}</div>""")
+            _deep_html = (f"""<div style="color:#a78bfa;font-size:13px;margin-top:4px;">🔍 暗线：{_dk or '主营构成未取得，不给暗线结论'}</div>
+<div style="color:#a78bfa;font-size:13px;margin-top:3px;">🧠 {_deep.get('logic','')}</div>
+<div style="color:#e9ecef;font-size:13px;margin-top:3px;">👉 {_deep.get('why','')}</div>""")
         else:
             # 模型没回来也要给真暗线：主营构成实据（不是模板句、不写「AI 未返回」）
             _dz = _dark_fact(s.get('code') or '', s.get('name') or '', _hot_names)
-            _deep_html = (f"""<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线（主营实据）：{_dz or '主营构成未取得，不给暗线结论'}</div>
-<div style="color:#ced4da;font-size:12px;margin-top:2px;">📊 竞价：高开{s['pct']:+.1f}%、量比{s['lb']:.1f}、{brk_txt}——{_auction_fact_read(s)}</div>""")
+            _dz = _dz or _dark_solid(s.get('code') or '', s.get('name') or '')
+            _deep_html = (f"""<div style="color:#a78bfa;font-size:13px;margin-top:4px;">🔍 暗线（主营实据）：{_dz or '主营构成未取得，不给暗线结论'}</div>""")
         _fl_line = ''
         if _FACTOR_OK and _jq_res is not None:
             _fres = _factor_for_auction(s, heat, cnt, _jq_res)
@@ -6154,10 +6155,16 @@ def build_auction(title='竞价观察'):
                 s['_factor'] = _fres  # 供 signal_log.csv 落库（不改变卡片渲染）
                 # 用户指令（2026-11-09）：因子只当评分用，卡面隐藏因子明细，每只只留暗线
                 _fl_line = ''
-        rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD if s['score'] >= 70 else TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
-<div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{GOLD};font-weight:800;float:right;">{s['score']:.0f}分</span></div>
-<div style="color:{GREY};font-size:12px;">竞价高开 <b style="color:{_c(s['pct'])}">{s['pct']:+.2f}%</b> ｜ 量比 {s['lb']:.1f} ｜ 竞价量比(归一) {s.get('_vr', 0):.2f} ｜ 题材：{s['industry']}{f' ｜ <b style="color:{RED if s.get('_revise',0)<0 else TEAL}">{s.get('_rtag','')}{s.get('_revise',0):+.0f}</b>' if s.get('_rtag') else ''}</div>
-{_deep_html}{_fl_line}</div>"""
+        _c5a = _chg5_of(s.get('code') or '', s.get('price') or 0)
+        if isinstance(_c5a, (int, float)):
+            _c5a_html = ('<div style="color:%s;font-size:13px;font-weight:700;margin-top:4px;">'
+                         '📈 近5日收盘涨幅 %+.2f%%</div>' % (_c(float(_c5a)), float(_c5a)))
+        else:
+            _c5a_html = ('<div style="color:%s;font-size:12px;margin-top:4px;">'
+                         '📈 近5日收盘涨幅：数据未取得</div>' % GREY)
+        rows += f"""<div style="background:#1f2635;border-left:3px solid #a78bfa;border-radius:8px;padding:10px 12px;margin:7px 0;">
+<div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span></div>
+{_c5a_html}{_deep_html}</div>"""
     try:
         _sig_rows = []
         for _s2 in tops:
@@ -6188,11 +6195,20 @@ def build_auction(title='竞价观察'):
         for i, s_ in enumerate(tops[:3], 1):
             _a, _col = _quick_act(s_)
             _d3 = (ds_map or {}).get(s_['name']) or {}
-            _dk3 = str(_d3.get('dark') or '').strip() or _dark_fact(s_.get('code') or '', s_.get('name') or '', _hot_names)
-            _dark_txt = (f'｜🔍暗线:{_dk3}' if _dk3 else '')
-            _t3.append(f'<b style="color:{_col}">{i}.{s_["name"]} {_a}</b>{_dark_txt}')
+            _dk3 = (str(_d3.get('dark') or '').strip()
+                    or _dark_fact(s_.get('code') or '', s_.get('name') or '', _hot_names)
+                    or _dark_solid(s_.get('code') or '', s_.get('name') or ''))
+            _lg3 = str(_d3.get('logic') or '').strip() or str(_d3.get('why') or '').strip()
+            _dk3_html = ('<div style="color:#a78bfa;font-size:13px;margin-top:2px;">🔍 暗线：%s</div>' % _dk3
+                         if _dk3 else
+                         '<div style="color:#f0a020;font-size:13px;margin-top:2px;">🔍 暗线：主营构成接口没取到，这只先放着别动</div>')
+            _t3.append('<div style="margin-top:7px;">'
+                       + '<b style="color:%s;font-size:14px;">%d. %s</b>' % (_col, i, s_['name'])
+                       + _dk3_html
+                       + ('<div style="color:#e9ecef;font-size:13px;margin-top:2px;">👉 %s</div>' % _lg3 if _lg3 else '')
+                       + '</div>')
         top3_txt = (f'<div style="margin-top:10px;padding:9px 11px;background:#1c2830;border-left:4px solid #a78bfa;'
-                    f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 Top3 速判（小白版{"·含暗线" if _dark_any else ""}）：</b>'
+                    f'border-radius:8px;font-size:13px;color:#e9ecef;"><b>🎯 三只重点（小白版）：</b>'
                     + ('<br>'.join(_t3) if _t3 else '—')
                     + '</div>')
     try:
@@ -7420,6 +7436,38 @@ def build_tail(title='尾盘竞价筛选'):
     cap_advice = (_ds_res or {}).get('cap_advice') or ''
     wind_strong = (_ds_res or {}).get('wind_strong') or ''
     wind_weak = (_ds_res or {}).get('wind_weak') or ''
+    # v80-A1（2026-11-09 用户指令）：尾盘卡只留「暗线 + 近五日收盘涨幅」。
+    # 五道闸明细、盘口量比换手市值、位置、主力资金、资金面、消息面、周期视角、
+    # 形态、建议/买点/止损/放弃、次日竞价预期、Top3速判、行业风向、情绪分档说明、
+    # 口径 全部隐藏——用户明确要「其他隐藏」，卡面越干净越好。
+    _lean = ''
+    for _i, _s in enumerate(tops, 1):
+        _d = ds_map.get(_s['name']) or {}
+        _dk = str(_d.get('dark') or '').strip() or _dark_fact(
+            _s.get('code') or '', _s.get('name') or '',
+            [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]])
+        _lg = str(_d.get('logic') or '').strip()
+        _wy = str(_d.get('why') or '').strip()
+        _c5 = _s.get('_chg5')
+        if isinstance(_c5, (int, float)):
+            _c5_html = ('<div style="color:%s;font-size:13px;font-weight:700;margin-top:4px;">'
+                        '📈 近5日收盘涨幅 %+.2f%%</div>' % (_c(float(_c5)), float(_c5)))
+        else:
+            _c5_html = ('<div style="color:%s;font-size:12px;margin-top:4px;">'
+                        '📈 近5日收盘涨幅：数据未取得</div>' % GREY)
+        _lean += ('<div style="background:#1f2635;border-left:3px solid #a78bfa;border-radius:8px;'
+                  'padding:10px 12px;margin:7px 0;">'
+                  '<div style="font-size:14px;font-weight:700;color:#fff;">%d. %s '
+                  '<span style="color:%s;font-size:12px;">%s</span></div>'
+                  % (_i, _s['name'], GREY, _s['code'])
+                  + _c5_html
+                  + '<div style="color:#a78bfa;font-size:13px;margin-top:5px;">🔍 暗线：%s</div>' % (_dk or '主营构成未取得，不给暗线结论')
+                  + (('<div style="color:#a78bfa;font-size:13px;margin-top:3px;">🧠 %s</div>' % _lg) if _lg else '')
+                  + (('<div style="color:#e9ecef;font-size:13px;margin-top:3px;">👉 %s</div>' % _wy) if _wy else '')
+                  + '</div>')
+    if not _lean:
+        _lean = '<div style="color:#e2e8f0;font-size:13px;">今日尾盘没有符合条件的票，这一档空着。</div>'
+    return _wrap(_lean, '🔔', title, show_reson=False)
     # （用户指令：已删除「🧭 今日整体」overall 两段；尾盘卡保留 ds_overall 仅用于下方「大盘实时」行）
     # TOP10 渲染（暗线/大白话/建议/次日竞价预期；失败仅数据事实行）
     rows = ''
@@ -13278,9 +13326,7 @@ def build_watch():
         # 空候选兜底：数据缺源/无达标候选时如实说明，不推空白卡
         _bad = [k for k, v in HEALTH['sources'].items() if not v['ok']]
         _body = (f'<div style="background:#1c2230;border-radius:8px;padding:10px 12px;margin:6px 0;">'
-                 f'<div style="color:#e9ecef;font-size:13px;">本轮无异动候选：{mlabel}（{mscore}分），情绪{emotion}</div>'
-                 f'<div style="color:{GREY};font-size:12px;margin-top:3px;">数据源：' + ('缺 ' + '、'.join(_bad) if _bad else '正常')
-                 + '；有达标候选才出卡，不硬凑，等下一轮</div></div>')
+                 f'<div style="color:#e9ecef;font-size:13px;">这会儿盘面没出现能下手的异动：{mlabel}，市场{mscore}分，情绪{emotion}，先看着不动</div></div>')
     return _wrap(f'<div style="color:{RED};font-size:14px;font-weight:700;">⏰ {_bj_now().strftime("%H:%M")} 盘中异动 · 市场{mlabel}({mscore}分)</div>{_body}{pos_cap_line(emotion, None, mscore)}',
                  '🚨', '异动提醒')
 
@@ -13308,6 +13354,27 @@ def _save_intra_state(st):
 def _intra_fingerprint(d):
     codes = sorted(x.get('c', '') for sec in d['sectors'].values() for x in sec)
     return f"{d['lu']}|{d['zb']}|{','.join(codes)}"
+
+
+def _chg5_of(code, price):
+    """近5个交易日收盘涨幅（%）：现价 / 5个交易日前收盘 - 1。取不到返 None。
+
+    竞价卡（09:25）本来没有涨幅字段，这里现算；日K 末根若是今天就剔掉，
+    否则会把今天没走完的那根当基准，涨幅算虚。
+    """
+    try:
+        sym = ('sh' if code.startswith('6') else 'sz') + code
+        arr = get_klines(sym, 40)
+        if arr and len(arr) >= 6:
+            today_s = _bj_now().strftime('%Y-%m-%d')
+            b = arr[:-1] if str(arr[-1][0]) == today_s else arr
+            if len(b) >= 6:
+                c6 = float(b[-6][2])
+                if c6 > 0 and price:
+                    return round((float(price) / c6 - 1) * 100, 2)
+    except Exception:
+        pass
+    return None
 
 
 def _intra_ma5_price(code, price):
@@ -13645,18 +13712,15 @@ def build_intraday():
                        + (f'｜距60日高 {pos60*100:.0f}%' if pos60 is not None else '')
                        + (f'｜5日线 {ma5:.2f}' if ma5 else '')
                        + '</div>')
+        # v80-A2（用户指令）：只留个股暗线 + 涨停驱动暗线，题材标签/连板标签/大白话/操作买点止损全部隐藏
         rows.append(
-            '<div style="background:#1f2635;border-left:3px solid ' + op_col + ';border-radius:8px;padding:8px 10px;margin:6px 0;">'
-            + '<div style="font-size:13px;font-weight:700;color:#fff;">' + name + '（' + code + '）｜' + (dsp.get('theme') if isinstance(dsp, dict) and dsp.get('theme') else sec) + '｜<span style="color:' + RED + ';">' + lb_txt + '</span>' + fbt_txt + '</div>'
-            + (('<div style="color:' + TEAL + ';font-size:12px;margin-top:2px;">🧠 个股逻辑：' + _logic + '</div>') if _logic else '')
-            + (('<div style="color:#94d4d0;font-size:12px;margin-top:2px;">⚡ 涨停驱动：' + dsp.get('driver', '') + '</div>') if isinstance(dsp, dict) and dsp.get('driver') else '')
-            + _whyrow
-            + _oprow
+            '<div style="background:#1f2635;border-left:3px solid #a78bfa;border-radius:8px;padding:9px 11px;margin:7px 0;">'
+            + '<div style="font-size:14px;font-weight:700;color:#fff;">' + name + '（' + code + '）</div>'
+            + (('<div style="color:#a78bfa;font-size:13px;margin-top:4px;">🔍 暗线：' + _logic + '</div>') if _logic else '')
+            + (('<div style="color:#ffd43b;font-size:13px;margin-top:3px;">⚡ 涨停驱动暗线：' + dsp.get('driver', '') + '</div>') if isinstance(dsp, dict) and dsp.get('driver') else '')
             + '</div></div>')
-    new_block = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">🆕 新进涨停 ' + str(len(new_xs)) + ' 只（增量，只讲新的）</div>'
-                 + ''.join(rows)
-                 + (('<div style="color:#94d4d0;font-size:12px;margin-top:4px;line-height:1.6;">🔄 传染方向：' + str(ds.get('contagion')) + '</div>') if ds and ds.get('contagion') else '')
-                 + ('<div style="color:' + GREY + ';font-size:12px;margin-top:4px;">另有 ' + str(rest_n) + ' 只首封（' + '、'.join(x.get('n', '') for x in new_xs[5:8]) + ' 等），不逐一展开。</div>' if rest_n else ''))
+    new_block = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">🆕 新进涨停 ' + str(len(new_xs)) + ' 只</div>'
+                 + ''.join(rows))
     # —— 主线归纳（DS 优先，模板回退）——
     from collections import Counter as _C
     cnt_new = _C(x.get('hybk') or '其他' for x in new_xs)
@@ -13715,12 +13779,18 @@ def build_intraday():
         disc = '管住手，等同步启动确认再动'
     quota_line = ('<div style="margin-top:6px;color:' + GREY + ';font-size:11px;">今日 DS 额度已用，以下为纯规则判断</div>'
                   if _DS_EXHAUSTED else '')
+    # v80-A2（用户指令）：情绪定性/今日主线/高位预警/AI风险/纪律/额度注/免责口径 全部隐藏，只留每只票的暗线与涨停驱动暗线
+    mood_line = ''
+    main_line = ''
+    hi_line = ''
+    risk_line = ''
+    disc = ''
+    quota_line = ''
     html = _wrap(
         f'<div style="color:{RED};font-size:14px;font-weight:700;">⏰ {now.strftime("%H:%M")} 盘中异动 · 涨停 {d["lu"]} / 炸板 {d["zb"]}</div>'
         + mood_line + new_block + main_line + hi_line + hold_line + risk_line
         + f'<div style="margin-top:8px;color:{TEAL};font-size:12px;">📌 纪律：{disc}</div>'
-        + quota_line
-        + '<div style="margin-top:4px;color:' + GREY + ';font-size:11px;">不构成投资建议</div>',
+        + quota_line,
         '🚨', '盘中异动')
     ok, msg = push(html, f'🚨 盘中异动 {now.strftime("%H:%M")} · {mood}')
     print(f'[intra] 指纹变化 lu={prev_lu}→{d["lu"]} zb={d["zb"]} 新进 {len(new_xs)} 只 → PUSH', ok, msg)
