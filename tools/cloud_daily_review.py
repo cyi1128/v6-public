@@ -5698,6 +5698,7 @@ def _mainline_3(gl_avg, news, d):
 
 
 _SW_DARK = {}
+_SW_KEY = [None]   # v80-A26：风向标暗线的输入指纹，同输入不重复烧模型
 
 
 def _sector_wind(d, news):
@@ -5736,6 +5737,13 @@ def _sector_wind(d, news):
     strong, weak = strong[:3], weak[:3]
     # 每条一份暗线（模型给不出就空着，不拼规则句）
     try:
+        _its0 = ([{'s': s, 'w': w, 'k': '强'} for s, w in strong]
+                 + [{'s': s, 'w': w, 'k': '弱'} for s, w in weak])
+        _k2 = repr(_its0)
+        if _SW_DARK and _SW_KEY[0] == _k2:
+            print('[pre] 风向标暗线复用上一次(%d 条)' % len(_SW_DARK))
+            return strong, weak
+        _SW_KEY[0] = _k2
         _SW_DARK.clear()
         _its = ([{'s': s, 'w': w, 'k': '强'} for s, w in strong]
                 + [{'s': s, 'w': w, 'k': '弱'} for s, w in weak])
