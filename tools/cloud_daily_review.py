@@ -138,7 +138,8 @@ DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions'
 # v7.9b 模型调用预算闸：单次 45s（原来 120s），整次调用总预算 180s。
 # 起因：11-08 demo-4 实测「超时×5 模型×2 轮」把 job 拖到 30 分钟 timeout 被砍。
 MS_TIMEOUT = int(os.environ.get('MS_TIMEOUT', '45'))
-MS_BUDGET = int(os.environ.get('MS_BUDGET', '180'))
+# v7.9x30：两波并发最坏 2×180s，实测第二轮从未成功过，纯等超时把卡拖到 6 分钟。压到 70s。
+MS_BUDGET = int(os.environ.get('MS_BUDGET', '70'))
 # v7.9c 全局 LLM 墙钟预算：从进程启动算起，超了就不再调模型，保证推送一定跑得到。
 # 起因：11-08 demo-4 实测 ModelScope 34 次超时/429，LLM 段把 30 分钟 job 吃满，推送 0 条。
 LLM_TOTAL_BUDGET = int(os.environ.get('LLM_TOTAL_BUDGET', '1500'))
