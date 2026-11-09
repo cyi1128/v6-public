@@ -756,3 +756,5 @@
 02:07:32 [ask_deepseek] ModelScope 两次尝试均失败，purpose=batch_deep
 02:07:53 [llm] 全局预算用尽 used=324s purpose=health
 02:07:56 [llm] 全局预算用尽 used=327s purpose=brief_summary_v3
+02:34:49 [ask_deepseek] 首轮无返回即止损 purpose=warn_news_ds
+02:34:49 [ask_deepseek] ModelScope 两次尝试均失败，purpose=warn_news_ds
