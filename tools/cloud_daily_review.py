@@ -6059,12 +6059,16 @@ def build_pre():
         # v80-A19：本质与暗线不再是两行——模型那段（本质→暗线业务→为什么是它→弹性风险）直接当暗线主体，
         # 主营构成只有在模型没回时才补上来；「👉」独立行取消。
         _ess = _fpl or _dk or ''
+        # v80-A35：右侧一行近5日累计，扫一眼就知道位置；明细仍在下方逐日
+        _fr = (('<span style="float:right;color:%s;font-weight:700;font-size:12px;">近5日 %+.2f%%</span>'
+                % (_c(float(_fc5)), float(_fc5))) if isinstance(_fc5, (int, float)) else '')
         _foc_rows.append(
             f"""<div style="background:#1f2635;border-left:3px solid #a78bfa;border-radius:8px;padding:10px 12px;margin:7px 0;">
-<b style="color:#fff;font-size:14px;">{nm}</b> <span style="color:{GREY};font-size:12px;">{code}</span>
+<b style="color:#fff;font-size:14px;">{nm}</b> <span style="color:{GREY};font-size:12px;">{code}</span>{_fr}
 {_fc5_html}
 <div style="color:#a78bfa;font-size:13px;margin-top:5px;line-height:1.66;">🔍 暗线：{_ess}</div>
-{('<div style="color:#94d4d0;font-size:13px;margin-top:4px;">🎯 ' + _ftip + '</div>') if _ftip else ''}</div>""")
+{('<div style="color:#94d4d0;font-size:13px;margin-top:4px;">🎯 ' + _ftip + '</div>')
+             if (_ftip and '无买点' not in _ftip and '不参与' not in _ftip and '不碰' not in _ftip) else ''}</div>""")
     focus_rows = ''.join(_foc_rows)
     focus_block = (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">⑤ 重点个股参考（{len(focus)}只）</div>{focus_rows}'
                    if focus_rows else '<div style="margin-top:10px;font-size:13px;color:' + GREY + ';">代码筛选下今日无未涨停低位标的（昨日涨停票不列）</div>')
@@ -11033,7 +11037,7 @@ def _render_follow_v2(sec, li, data, cand_payload):
             _whint = ' <span style="color:#66d9e8;font-size:12px;">可埋伏</span>'
     b = [f'<div style="font-size:15px;font-weight:800;color:#ffd43b;">🎯 {sec}（今日涨停{len(li["feat"])}只，龙头已封，下面这些都是还没动的）{_whint}</div>']
     if picks:
-        b.append(f'<div style="margin-top:8px;font-size:13px;font-weight:800;color:#ff6b6b;">🎯 待涨埋伏票·介入方案（龙头已涨停，埋伏这些还没涨的）</div>')
+        b.append(f'<div style="margin-top:8px;font-size:13px;font-weight:800;color:#ff6b6b;">🎯 待涨埋伏票</div>')
         for p in picks:
             g = p.get('grade', '')
             gc = '#ffd43b' if '第一' in g else ('#66d9e8' if '第二' in g else '#9aa4b8')
@@ -11049,7 +11053,7 @@ def _render_follow_v2(sec, li, data, cand_payload):
             else:
                 b.append(f'<div style="margin:2px 0 0 14px;font-size:12px;color:#9aa4b8;">💰 买点：{p.get("buy","等confirm触发")} ｜ 🛑 止损：{p.get("stop","无")}</div>')
     else:
-        b.append(f'<div style="margin-top:6px;font-size:12px;color:#9aa4b8;">板块内暂无介入条件（逐票原因见下方风险）</div>')
+        pass  # v80-A34：这行壳子没用（下面本来就有逐票原因），删掉
     if risk:
         b.append(f'<div style="margin-top:6px;font-size:12px;color:#ff6b6b;">⚠️ 风险：{risk}</div>')
     return '<div style="margin-top:10px;padding:10px;background:#1c2230;border-left:4px solid #ffd43b;border-radius:8px;">' + ''.join(b) + '</div>'
@@ -11142,8 +11146,8 @@ def build_followup(date=None):
         return None, '解析后无内容'
     if not blocks:
         return None, '解析后无内容'
-    inner = ('<div style="font-size:18px;font-weight:800;color:#ffd43b;">⚡ 跟涨三步走·埋伏补涨</div>'
-             + ''.join(blocks))
+    # v80-A34：标题只在 _wrap 抬头打一次，卡内不再重复一遍（用户框选的就是这行重复）
+    inner = ''.join(blocks)
     return _wrap(inner, '⚡', '跟涨三步走·埋伏补涨'), None
 
 
