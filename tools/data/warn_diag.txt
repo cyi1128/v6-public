@@ -732,3 +732,7 @@
 00:53:15 [ask_deepseek] ModelScope 两次尝试均失败，purpose=focus_deep
 00:55:57 [ask_deepseek] 首轮无返回即止损 purpose=brief_summary_v3
 00:55:57 [ask_deepseek] ModelScope 两次尝试均失败，purpose=brief_summary_v3
+01:30:29 [ask_deepseek] 首轮无返回即止损 purpose=confirm_ds
+01:30:29 [ask_deepseek] ModelScope 两次尝试均失败，purpose=confirm_ds
+01:30:49 [ask_deepseek] 首轮无返回即止损 purpose=auction
+01:30:49 [ask_deepseek] ModelScope 两次尝试均失败，purpose=auction
