@@ -749,3 +749,10 @@
 01:54:24 [ask_deepseek] 首轮无返回即止损 purpose=board_watch
 01:54:24 [ask_deepseek] ModelScope 两次尝试均失败，purpose=board_watch
 01:54:24 [board_watch_ds] LLM 返回空，回退规则模板
+02:04:57 [ask_deepseek] 首轮无返回即止损 purpose=hourly_ds
+02:04:57 [ask_deepseek] ModelScope 两次尝试均失败，purpose=hourly_ds
+02:07:32 [llm] 截止已过停产 purpose=batch_deep used=137s
+02:07:32 [ask_deepseek] 首轮无返回即止损 purpose=batch_deep
+02:07:32 [ask_deepseek] ModelScope 两次尝试均失败，purpose=batch_deep
+02:07:53 [llm] 全局预算用尽 used=324s purpose=health
+02:07:56 [llm] 全局预算用尽 used=327s purpose=brief_summary_v3
