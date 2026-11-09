@@ -990,3 +990,6 @@
 05:47:40 [ask_deepseek] ModelScope 两次尝试均失败，purpose=board_why
 05:47:40 [llm] 全局预算用尽 used=152s purpose=board_watch
 05:47:40 [board_watch_ds] LLM 返回空，回退规则模板
+06:02:45 [llm] 输出截断 purpose=batch_deep len=3077
+06:02:45 [反模板命中:batch_deep] 资金认可 (try1)
+06:04:03 [llm] 输出截断 purpose=batch_deep len=3192
