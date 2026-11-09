@@ -226,8 +226,11 @@ def pull_latest() -> None:
         return
     out = ((r.stdout or '') + (r.stderr or '')).strip()
     log(f'pull 失败，自愈：{out[:120]}')
-    for _cmd in (('rebase', '--abort'), ('rebase', '--quit'),
-                 ('checkout', '--', 'tools/data'), ('stash', 'pop')):
+    # v14：原序列解不开 "unmerged files"（14:09:49 实测就死在这里，后面所有槽都不跑）。
+    # 补 merge --abort 与 reset --hard origin/main 两级；tools/data 的状态丢了下一 tick 会重写。
+    for _cmd in (('rebase', '--abort'), ('merge', '--abort'), ('rebase', '--quit'),
+                 ('checkout', '--', 'tools/data'),
+                 ('reset', '--hard', 'origin/main')):
         try:
             git(*_cmd)
         except Exception:  # noqa: BLE001

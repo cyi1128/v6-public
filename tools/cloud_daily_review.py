@@ -2489,7 +2489,8 @@ def _ms_one(model, msgs, purpose, timeout):
     body = json.dumps({'model': model, 'messages': msgs,
                        'temperature': 0.5,
                        # v7.9x31：6000 让免费队列一辈子里跑不完，45s 必然 timeout。
-                       'max_tokens': (2400 if purpose == 'zforce_radar' else 1600)}).encode('utf-8')
+                       # v7.9x33：1600 会把正文截断（实测 len=3077 被切），放宽到 4000/5000
+                       'max_tokens': (5000 if purpose == 'zforce_radar' else 4000)}).encode('utf-8')
     req = urllib.request.Request(MODELSCOPE_URL, data=body, headers={
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + MODELSCOPE_KEY,
@@ -2592,11 +2593,14 @@ _ANTI_TEMPLATE_BLOCK = ('''【反模板与空推送规则·全局铁律·输出�
 四、今日无符合条件的标的时，必须明确写「今日无明确可操作方向」或「当前无符合条件的标的」。空推送是正确行为，禁止为了推送而降低标准。
 五、同一句式不得在不同日期或不同票之间复用；每段内容必须有当天输入数据可逐条追溯。宁可明确说"数据不足不能判断"，也不许说正确的废话。
 ''')
+# v7.9x33：只留「一眼就是套话」的词。原表把『资金认可/结构改善/情绪回暖/市场有波动/
+# 或将刺激/当前市场情绪』也判成模板——这些是正常盘面叙述用语，模型一写就被整段作废，
+# 重试又撞 max_tokens 截断，最后返回空，卡面退回代码行（用户说的「规则化」）。
 _TEMPLATE_BLACKLIST = (
-    '值得关注', '建议留意', '板块强势带动', '资金认可', '结构改善', '情绪回暖',
-    '市场有波动', '建议谨慎', '或将刺激', '具备投资价值', '风险与机会并存',
-    '板块刚萌芽', '情绪有点过热', '资金都在抢筹码', '没有安全垫', '不是低吸是接力',
-    '半山腰', '违背纪律', '确认企稳', '管住手', '先看板块别追', '当前市场情绪',
+    '值得关注', '建议留意', '板块强势带动', '具备投资价值', '风险与机会并存',
+    '建议谨慎', '板块刚萌芽', '情绪有点过热', '资金都在抢筹码', '没有安全垫',
+    '不是低吸是接力', '半山腰', '违背纪律', '管住手', '先看板块别追',
+    '以上仅供参考', '不构成投资建议',
 )
 
 
@@ -2652,13 +2656,18 @@ def ask_deepseek(payload, purpose='eod', system_text=None):
                 print('[LLM] QFIX purpose=%s 问句归一 n=%d' % (purpose, _qn))
             _hits = _antitemplate_hits(_ms)
             print('[LLM_OUT:%s] %s' % (purpose, _ms[:1200].replace(chr(10), ' ')))
-            if _hits:
-                print('[反模板命中:%s] 第%d次命中 %s → 强制重写' % (purpose, _try + 1, '/'.join(_hits)))
+            # v7.9x34：命中 1~2 个词属于正常叙述，不再整段重写——重写一轮要多烧 4~5 分钟，
+            # 而模型本来已经写完了，逼它重写只会又撞截断。命中 >=3 个才认定成套话稿。
+            if _hits and len(_hits) >= 3 and _try == 0:
+                print('[反模板命中:%s] 命中 %s → 重写一次' % (purpose, '/'.join(_hits)))
                 _diag_append('[反模板命中:%s] %s (try%d)' % (purpose, '/'.join(_hits), _try + 1))
-                if _try == 0:
-                    continue
-                print('[反模板仍命中:%s] 二次仍命中，放行' % purpose)
+                continue
+            if _hits:
+                print('[反模板放行:%s] %s（≤2 个词，正常叙述，放行）' % (purpose, '/'.join(_hits)))
+                _diag_append('[反模板放行:%s] %s' % (purpose, '/'.join(_hits)))
             _ds_daily_inc()
+            # v7.9x34：成功落地必须留痕——云端 job 日志取不到，这行是「这次真用了大模型」的唯一凭据
+            _diag_append('[llm] OK purpose=%s len=%d' % (purpose, len(_ms)))
             return _ms
     _DS_FAILED = True
     print('[LLM] ModelScope 两次尝试均失败，不输出规则结论（调用方只出数据事实）')
