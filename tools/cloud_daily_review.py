@@ -7970,7 +7970,7 @@ def build_noon():
     # v80-A11（用户指令「过于简单，要求模型研判 + 个股暗线」）：模型段太空时强制补一次
     # 主线/暗线/个股暗线；个股只许从上面真实出现的板块与梯队里挑，不许编票。
     _nd_html = ''
-    if len(ds_md or '') < 120:
+    if len(ds_md or '') < 400:
         try:
             _np = {
                 'task': 'noon_dark',
@@ -14419,8 +14419,36 @@ def build_newsfire():
         for nw in items:
             if nw.get('title') in nb:
                 _s += 1
+        # v80-A15：模型回了 news_brief 但 dark 常常只丢一个股票名（实测「中远海能」3 个字），
+        # 不算暗线。按长度判断，缺的统一补一次 news_dark 再交给渲染。
+        _briefs = [dict(b) for b in _j['news_brief'][:5] if isinstance(b, dict)]
+        _need2 = [i for i, b in enumerate(_briefs)
+                  if len(str(b.get('dark') or '').strip()) < 12]
+        if _need2:
+            try:
+                _fp3 = {
+                    'task': 'news_dark',
+                    'items': [{'i': i + 1, 't': str(_briefs[i].get('t') or ''),
+                               'c': str(_briefs[i].get('core') or '')} for i in _need2],
+                    'format': (
+                        '你是A股一线游资。给下面每条消息写一句「暗线」：这条消息背后真正在动的是什么，'
+                        '落到哪个产业环节、哪类公司、对哪种票有用，必须引用消息里的具体名词'
+                        '（公司名/产品/数字），让人看完知道该盯谁。每条30-60字。'
+                        '禁止万能句（值得关注/注意风险）、禁止设问句、禁止列表符号。'
+                        '只输出JSON：{"darks":["第1条","第2条",...]}，条数必须等于输入条数。'),
+                }
+                _fr3 = ask_deepseek(_fp3, purpose='news_dark')
+                if _fr3:
+                    _fj3 = json.loads(_fr3[_fr3.find('{'):_fr3.rfind('}') + 1])
+                    _dk3 = [str(z).strip() for z in (_fj3.get('darks') or [])]
+                    for _k3, _i3 in enumerate(_need2):
+                        if _k3 < len(_dk3) and _dk3[_k3]:
+                            _briefs[_i3]['dark'] = _dk3[_k3]
+                    print('[newsfire] 补写暗线(模型版) 回填=%d' % len(_dk3))
+            except Exception as _fe3:
+                print('[newsfire] 补写暗线异常:', repr(_fe3)[:80])
         inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">📰 {bj.strftime("%H:%M")} 新闻发酵</div>'
-                 + _warn_render_fire({'fire': [], 'news_brief': _j['news_brief'][:5]}))
+                 + _warn_render_fire({'fire': [], 'news_brief': _briefs}))
     return _wrap(inner, '📰', '新闻发酵')
 
 
