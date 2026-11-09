@@ -2840,6 +2840,38 @@ def _json_loose(txt):
     return {}
 
 
+def _split_long_line(line, limit=80, per=1):
+    """把一整段没有换行的大白话切成可读的多段（v80-A38）。
+
+    模型写研判时常常「一逗到底」：200 字里只给 1 个句号，其余全是逗号。
+    只按句号切会把 200 字切成 2 段，手机上还是密不透风。
+    所以：句末标点（。！？；）优先切，剩超长句再按（，、）二级切，最后按长度合并，
+    保证每段不超过 limit 字（默认 80 字，手机上 3-4 行）。"""
+    try:
+        if not line or len(line) <= limit:
+            return [line]
+        parts = [p for p in re.split(r'(?<=[。！？；])', line) if p and p.strip()]
+        if max((len(p) for p in parts), default=0) > limit:
+            parts2 = []
+            for p in parts:
+                if len(p) <= limit:
+                    parts2.append(p)
+                else:
+                    parts2.extend([x for x in re.split(r'(?<=[，、])', p) if x and x.strip()])
+            parts = parts2
+        rows, buf = [], ''
+        for p in parts:
+            if buf and len(buf) + len(p) > limit:
+                rows.append(buf.strip())
+                buf = ''
+            buf += p
+        if buf.strip():
+            rows.append(buf.strip())
+        return rows or [line]
+    except Exception:
+        return [line]
+
+
 def md2html(t):
     """极简 markdown 转 HTML。"""
     out = []
@@ -2854,7 +2886,12 @@ def md2html(t):
         elif line[0].isdigit() and '.' in line[:3]:
             out.append(f'<div style="color:#e9ecef;font-size:13px;line-height:1.7;">{line}</div>')
         else:
-            out.append(f'<div style="color:#ced4da;font-size:13px;line-height:1.7;">{line}</div>')
+            # v80-A38：模型不给空行时，代码按句号兜底分段，段间留白，手机上才读得下去
+            _segs = _split_long_line(line)
+            for _k, _sp in enumerate(_segs):
+                if _k:
+                    out.append('<div style="height:7px;"></div>')
+                out.append(f'<div style="color:#ced4da;font-size:13px;line-height:1.7;">{_sp}</div>')
     return ''.join(out)
 
 
@@ -11486,11 +11523,13 @@ def build_news2h():
             a = _strip_pre(a, ('操作：', '操作:'))
             _sum = _brief_sum.get(t0, '')
             _dk2h = _news_dark(t0 + ' ' + _sum)
+            _dk_raw = (w or _dk2h or '这条属消息面，暂时落不到具体个股，先看板块怎么反应')
+            _dk_row = _split_long_line(_dk_raw, limit=56, per=1)[0]
             # v80-A12（用户指令「字数过多、一问一答」）：一条只留标题 + 暗线，
             # 摘要/影响/代表个股/操作四段全部收掉，暗线优先用模型写的大白话（承载逻辑）。
             out.append(f'<div style="color:#fff;font-size:13px;margin:8px 0 0 0;">· {t0}</div>'
                        + (f'<div style="margin:2px 0 8px 0;color:#a78bfa;font-size:13px;line-height:1.6;">'
-                          f'🔍 暗线：{w or _dk2h or "这条属消息面，暂时落不到具体个股，先看板块怎么反应"}</div>'))
+                          f'🔍 暗线：{_dk_row}</div>'))
         return ''.join(out)
 
     ds_html = ''
@@ -11501,8 +11540,10 @@ def build_news2h():
                + '当前消息：利好{good}｜利空{bad}｜其他/中性{neu}\n'
                + '请严格按以下格式输出（全大白话，禁模板句，不许罗列所有消息，严禁一问一答、严禁自问自答）：\n'
                + '【今日主线】这批消息里真正在带节奏的是哪条线，落到具体板块和公司，说清为什么是它\n'
-               + '【暗线】这条主线背后真正在涨的是什么：资金认的是产业趋势、业绩兑现还是政策，把那层看不见的逻辑讲透，至少60字\n'
-               + '【最该记的一点】一句话，今天消息面最该记住的东西（偏暖还是偏冷，落在哪）')
+               + '【暗线】这条主线背后真正在涨的是什么：资金认的是产业趋势、业绩兑现还是政策，把那层看不见的逻辑讲透\n'
+               + '【最该记的一点】一句话，今天消息面最该记住的东西（偏暖还是偏冷，落在哪）\n'
+               + '硬规矩：全篇不超过220字，三段各2-3句，每段之间必须留一个真正的空行（不是省略号、不是横线）；\n'
+               + '不许把三段写成一大段，不许写「综上所述」「总的来说」这类收尾，不许复述消息标题。')
         t = ask_deepseek({'task': 'news2h_summary',
                           'good': [g.get('title','')[:40] for g in good[:4]],
                           'bad': [b.get('title','')[:40] for b in bad[:4]],
