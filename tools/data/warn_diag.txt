@@ -1044,3 +1044,8 @@
 10:02:42 [llm] OK purpose=news2h_bad len=291
 10:03:56 [反模板放行:news2h] 没有安全垫/管住手
 10:03:57 [llm] OK purpose=news2h len=600
+11:03:06 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.5-35B-A3B tag=http_502
+11:03:14 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.8-27B tag=http_502
+11:03:33 [反模板放行:news2h_good] 管住手
+11:03:33 [llm] OK purpose=news2h_good len=1238
+11:04:39 [llm] OK purpose=news2h len=730
