@@ -5188,10 +5188,15 @@ def _top10_cards(d):
                         else ('量比≥1.5（代码算）' if lb >= 1.5 else '量比<1.5（代码算）'))
             _plain_html = ('' if _llm_html else
                            f'<div style="color:#ced4da;font-size:12px;margin-top:3px;">🧠 数据：{plain}</div>')
+            # v7.9x24：每只票都强制给主营实据暗线（模型回不回都出，取不到不出不编）
+            _hot10 = [str(x[0]) for x in (d.get('tops') or [])[:4]]
+            _dk10 = _dark_fact(code, st.get('n') or '', _hot10)
+            _dark_html = (f'<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔍 暗线（主营实据）：{_dk10}</div>'
+                          if _dk10 else '')
             rows += f"""<div style="background:#1f2635;border-left:3px solid {RED if sealed else TEAL};border-radius:8px;padding:8px 10px;margin:6px 0;">
 <div style="font-size:14px;font-weight:700;color:#fff;">{n}. {st.get('n')} <span style="color:{GREY};font-size:12px;">{code}</span> <span style="color:{_c(pct)};font-weight:800;float:right;">{pct:+.1f}%</span></div>
 <div style="color:{GREY};font-size:12px;">题材：{sec} ｜ 量比 {lb:.1f} ｜ {seal_txt}{f' ｜ {lbc}连板' if lbc >= 2 else ''}</div>
-{_plain_html}{_llm_html}</div>"""
+{_plain_html}{_llm_html}{_dark_html}</div>"""
         if n > 10:
             break
     return rows or '<div style="color:' + GREY + ';font-size:13px;">今天没有哪个方向真正走强，资金分散在各处，别硬找主线去追</div>'
