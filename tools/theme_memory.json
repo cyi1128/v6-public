@@ -1,49 +1,94 @@
 {
  "2026-11-09": {
-  "光伏设备": {
+  "通用设备": {
    "leaders": [
-    "永臻股份",
-    "贝特利",
-    "安彩高科"
+    "冰山冷热",
+    "腾达科技",
+    "泰尔股份"
    ],
-   "reason": "3只涨停·龙头永臻股份",
+   "reason": "5只涨停·龙头冰山冷热",
    "strength": 10,
-   "max_lbc": 4,
-   "fbt": 92501,
+   "max_lbc": 1,
+   "fbt": 93221,
    "divergence": false
   },
-  "电力": {
+  "汽车零部": {
    "leaders": [
-    "新能股份",
-    "立新能源",
-    "东方新能"
+    "华培动力",
+    "光洋股份",
+    "日盈电子"
    ],
-   "reason": "3只涨停·龙头新能股份",
+   "reason": "5只涨停·龙头华培动力",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 93241,
+   "divergence": false
+  },
+  "元件": {
+   "leaders": [
+    "世运电路",
+    "超声电子",
+    "奥士康"
+   ],
+   "reason": "3只涨停·龙头世运电路",
    "strength": 9,
    "max_lbc": 1,
-   "fbt": 93136,
+   "fbt": 94353,
    "divergence": false
   },
-  "纺织制造": {
+  "化学制品": {
    "leaders": [
-    "浙文影业",
-    "华升股份"
+    "保利联合",
+    "晶华新材"
    ],
-   "reason": "2只涨停·龙头浙文影业",
-   "strength": 10,
-   "max_lbc": 5,
-   "fbt": 92501,
-   "divergence": false
-  },
-  "种植业": {
-   "leaders": [
-    "万向德农",
-    "新赛股份"
-   ],
-   "reason": "2只涨停·龙头万向德农",
+   "reason": "2只涨停·龙头保利联合",
    "strength": 8,
    "max_lbc": 1,
-   "fbt": 93628,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "一般零售": {
+   "leaders": [
+    "大东方",
+    "上海九百"
+   ],
+   "reason": "2只涨停·龙头大东方",
+   "strength": 9,
+   "max_lbc": 2,
+   "fbt": 93005,
+   "divergence": false
+  },
+  "计算机设": {
+   "leaders": [
+    "苏州科达",
+    "声迅股份"
+   ],
+   "reason": "2只涨停·龙头苏州科达",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93034,
+   "divergence": false
+  },
+  "游戏Ⅱ": {
+   "leaders": [
+    "文投控股",
+    "大晟文化"
+   ],
+   "reason": "2只涨停·龙头文投控股",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93542,
+   "divergence": false
+  },
+  "焦炭Ⅱ": {
+   "leaders": [
+    "安泰集团",
+    "云煤能源"
+   ],
+   "reason": "2只涨停·龙头安泰集团",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93706,
    "divergence": false
   }
  },
