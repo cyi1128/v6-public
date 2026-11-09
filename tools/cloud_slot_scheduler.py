@@ -483,16 +483,21 @@ def acquire_segment(bj: datetime.datetime, seg: str, seg_end: datetime.datetime)
     pull_latest()
 
     marker = _read_json(MARKER)
-    if marker.get('date') == day and marker.get('seg') == seg:
-        raw_end = marker.get('seg_end') or ''
-        try:
-            end_ts = datetime.datetime.fromisoformat(raw_end).timestamp()
-        except Exception:  # noqa: BLE001
-            end_ts = 0
-        if end_ts and time.time() < end_ts + SEG_ALIVE_GRACE:
-            log(f'{day} {seg} 段已有调度在运行（止于 {raw_end}），本 run 退出以免并发')
-            return False
-        log(f'发现 {day} {seg} 段的过期标记（止于 {raw_end or "?"}），接管')
+    mday = marker.get('date')
+    raw_end = marker.get('seg_end') or ''
+    try:
+        end_ts = datetime.datetime.fromisoformat(raw_end).timestamp()
+    except Exception:  # noqa: BLE001
+        end_ts = 0
+    # 2026-11-09 修：原来还要求 marker['seg'] == 本次 seg，但段名是按启动时刻起的
+    # （roll-0841 / roll-1002），两个 run 永远对不上，等于「谁都能占段」，
+    # 结果 08:41 与 10:02 两个调度同时驱动时刻表 → 同槽重复推送。
+    # 现在只看「同一天 + 段还没过期」。
+    if mday == day and end_ts and time.time() < end_ts + SEG_ALIVE_GRACE:
+        log(f'{day} 已有调度在运行（{marker.get("seg")} 止于 {raw_end}），本 run 退出以免并发双推')
+        return False
+    if mday == day and raw_end:
+        log(f'发现 {day} 段的过期标记（{marker.get("seg")} 止于 {raw_end}），接管')
 
     marker = {
         'date': day,
