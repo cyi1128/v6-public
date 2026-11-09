@@ -274,6 +274,161 @@ def _dark_fact(code, name, hot=None):
     return '主营 %s（%s）——%s%s' % (_txt, _d or '最新报告期', _stage, _rel)
 
 
+_NAME_CODE_CACHE = {'t': 0.0, 'm': {}}
+
+
+def _pure_code(c):
+    """把 sz000001 / 600410.SH / 000001 统一成 6 位数字；认不出返回空。"""
+    _d = ''.join(x for x in str(c or '') if x.isdigit())
+    return _d[-6:] if len(_d) >= 6 else ''
+
+
+def _name_code_map():
+    """当日强势股「名称 → 代码」表（涨幅榜 + 持仓），用于从新闻正文里认出个股。
+
+    只认当日真在动的票：新闻提到的冷门票在强势榜里找不到就不硬认，
+    宁可不给暗线，也不张冠李戴。900 秒缓存，一张卡里几十条新闻只拉一次。
+    """
+    if _NAME_CODE_CACHE['m'] and (time.time() - _NAME_CODE_CACHE['t']) < 900:
+        return _NAME_CODE_CACHE['m']
+    _m = {}
+    try:
+        for _s in (_clist_gainers() or []):
+            _nm = str(_s.get('name') or '')
+            _cd = _pure_code(_s.get('code'))
+            if _nm and _cd:
+                _m[_nm] = _cd
+    except Exception as _e:  # noqa: BLE001
+        print('[dark] 强势股名表获取失败: %s' % _e)
+    try:
+        for _h in HOLDINGS:
+            _cd = _pure_code(_h.get('code'))
+            if _h.get('name') and _cd:
+                _m[_h['name']] = _cd
+    except Exception:  # noqa: BLE001
+        pass
+    _NAME_CODE_CACHE['t'] = time.time()
+    _NAME_CODE_CACHE['m'] = _m
+    return _m
+
+
+_EC_SUGGEST = 'https://searchapi.eastmoney.com/api/suggest/get?input='
+_CODE_NAME_CACHE = {}
+_NM_CACHE = {}
+_NM_CAND_RE = re.compile(r'[\u4e00-\u9fa5]{2,5}(?:股份|科技|集团|时代|电子|医药|能源|汽车|银行|证券|'
+                         r'材料|化工|重工|机械|智能|通信|传媒|食品|电力|黄金|锂业|半导体|环保|环境|'
+                         r'电气|新材|控股|发展|实业|生物|装备|精密|光学|数据|网络|软件|新能源|'
+                         r'农业|有色|钢铁|煤炭|燃气|航空|物流|建筑|地产|置业|稀土|储能|新能|'
+                         r'铝业|铜业|锌业|镍业|钴业|钨业|钛业|硅业|水泥|玻璃|造纸|包装|纺织|服装|'
+                         r'家电|家居|酒业|乳业|药业|种业|渔业|林业|旅游|酒店|物业|教育|出版|影视|'
+                         r'游戏|电池|电机|管业|管道|轮胎|石墨|线缆|轴承|齿轮|液压|密封|紧固|机床|'
+                         r'刀具|机器人|无人机|光电|激光|通信|综合|水务|港口|航运|重装|工控|自动化)')
+
+
+def _name_to_code(nm):
+    """名称 → 代码：东财联想接口精确同名才算命中，港股/美股一律不认。"""
+    nm = (nm or '').strip()
+    if not nm:
+        return ''
+    if nm in _NM_CACHE:
+        return _NM_CACHE[nm]
+    _c = ''
+    try:
+        import urllib.parse as _up
+        _j = json.loads(_get(_EC_SUGGEST + _up.quote(nm) +
+                             '&type=14&token=D43BF722C8E33BDC906FB84D85E326E8&count=6'))
+        for _it in ((_j.get('QuotationCodeTable') or {}).get('Data') or []):
+            _cd = str(_it.get('Code') or '')
+            if ((_it.get('Name') or '') == nm and _cd[:1] in '0368'
+                    and '港' not in (_it.get('SecurityTypeName') or '')):
+                _c = _cd
+                break
+    except Exception as _e:  # noqa: BLE001
+        print('[dark] 名称反查失败 %s: %s' % (nm, _e))
+    _NM_CACHE[nm] = _c
+    return _c
+
+
+def _code_to_name(c):
+    """代码 → 名称（东财联想接口）。拿不到就返回空，绝不瞎猜。"""
+    _c = _pure_code(c)
+    if not _c:
+        return ''
+    if _c in _CODE_NAME_CACHE:
+        return _CODE_NAME_CACHE[_c]
+    _nm = ''
+    try:
+        _j = json.loads(_get(_EC_SUGGEST + _c + '&type=14&token=D43BF722C8E33BDC906FB84D85E326E8&count=6'))
+        for _it in ((_j.get('QuotationCodeTable') or {}).get('Data') or []):
+            if (str(_it.get('Code') or '') == _c
+                    and '港' not in (_it.get('SecurityTypeName') or '')):
+                _nm = _it.get('Name') or ''
+                break
+    except Exception:  # noqa: BLE001
+        pass
+    _CODE_NAME_CACHE[_c] = _nm
+    return _nm
+
+
+def _name_of_code(c):
+    _c = _pure_code(c)
+    if not _c:
+        return ''
+    _nm = _code_to_name(_c)
+    if _nm:
+        return _nm
+    for _nm2, _cd in _name_code_map().items():
+        if _pure_code(_cd) == _c:
+            return _nm2
+    return ''
+
+
+def _news_dark(txt, hot=None):
+    """一条新闻/事件里的个股暗线：6 位代码优先，其次当日强势股名称。
+
+    返回「名称（代码）主营…」；正文里没有可认的个股就返回空字符串，
+    绝不编一只票塞进去。
+    """
+    _t = str(txt or '')
+    if not _t:
+        return ''
+    _cand = []
+    try:
+        for _m in re.finditer(r'(?<!\d)((?:00|30|60|68|83|87|43)\d{4})(?!\d)', _t):
+            _cand.append(_m.group(1))
+    except Exception:  # noqa: BLE001
+        pass
+    for _nm, _cd in _name_code_map().items():
+        if len(_nm) >= 3 and _nm in _t and 'ST' not in _nm:
+            _cand.append(_cd)
+    # 名称兜底：新闻里经常只有公司名没有代码（宁德时代 / 隆基绿能）
+    _tried = 0
+    for _m in _NM_CAND_RE.finditer(_t):
+        _nmc = _m.group(0)
+        if _nmc in _NM_CACHE:
+            if _NM_CACHE[_nmc]:
+                _cand.append(_NM_CACHE[_nmc])
+            continue
+        if _tried >= 3:
+            break
+        _tried += 1
+        if len(_nmc) >= 4:
+            _cd = _name_to_code(_nmc)
+            if _cd:
+                _cand.append(_cd)
+    _seen = set()
+    for _c in _cand[:3]:
+        _c = _pure_code(_c)
+        if not _c or _c in _seen:
+            continue
+        _seen.add(_c)
+        _fac = _dark_fact(_c, '', hot)
+        if _fac:
+            _nm = _name_of_code(_c)
+            return ('%s（%s）%s' % (_nm, _c, _fac)) if _nm else ('%s %s' % (_c, _fac))
+    return ''
+
+
 HOLDINGS = [
     {'code': 'sz002838', 'name': '道恩股份', 'cost': 25.823, 'qty': 8500, 'sector': '塑料'},
     {'code': 'sz000811', 'name': '冰轮环境', 'cost': 37.571, 'qty': 4300, 'sector': '通用设备'},
@@ -5589,6 +5744,7 @@ def build_pre():
     s_strong = ''.join('<div style="margin:4px 0;font-size:13px;">🟢 <b>' + sec + '</b> — ' + why + '</div>' for sec, why in strong)
     s_weak = ''.join('<div style="margin:4px 0;font-size:13px;">🔴 <b>' + sec + '</b> — ' + why + '</div>' for sec, why in weak)
     news_rows = ''
+    _hot_nm = []
     for cat in ('政策/监管', '产业/行业', '公司大事', '国际/外围'):
         items = cats[cat]
         if not items:
@@ -5607,8 +5763,10 @@ def build_pre():
                 _rb2 = bool(_bd) and ('无明显' not in _bd)
                 tag = '利好' if (_rg2 and not _rb2) else ('利空' if (_rb2 and not _rg2) else ('双向' if (_rg2 and _rb2) else ''))
             else:
-                # 模型未判读：只列标题/时间，不再用 _plain_for 规则生成大白话与板块
-                plain = ''
+                # 模型未判读：不出规则版判读，但必须给真实主营实据暗线（v7.9x16）
+                plain = _news_dark((nw.get('title') or '') + ' ' + (nw.get('summary') or ''), _hot_nm)
+                if plain:
+                    plain = '🔍 暗线（主营实据）：' + plain
                 _sec2 = ''
                 tag = ''
             tag_html = (f'<span style="background:{RED if tag=="利好" else GREEN if tag=="利空" else GREY};'
@@ -10957,9 +11115,10 @@ def _strip_pre(s, pres):
     return s
 
 
-def _news_html_lines(news, n=10, purpose_key='news_brief', max_show=15):
+def _news_html_lines(news, n=10, purpose_key='news_brief', max_show=15, hot=None):
     """新闻区块 HTML：优先逐条大白话；DS 失败降级纯标题。
     返回 (html, 用了大白话 bool)。"""
+    hot = list(hot or [])
     pairs = _news_ds_lines(news, n, purpose_key)
     _brief_sum = {nw.get('title', ''): (nw.get('summary') or '')[:100] for nw in news}
     if pairs:
@@ -10975,13 +11134,21 @@ def _news_html_lines(news, n=10, purpose_key='news_brief', max_show=15):
             rows.append(f'<div style="color:#ced4da;font-size:12px;margin:8px 0 0 0;">· {t0}</div>'
                         + (f'<div style="margin:2px 0 0 16px;color:{GREY};font-size:11px;">📰 {_sum}</div>' if _sum else '')
                         + (f'<div style="margin:2px 0 0 16px;color:{GOLD};font-size:12px;">🎯 影响：{i}</div>' if i else '')
-                        + (f'<div style="margin:2px 0 0 16px;color:#b197fc;font-size:12px;">🏆 代表个股：{s2}</div>' if s2 else '')
+                        + ((f'<div style="margin:2px 0 0 16px;color:#b197fc;font-size:12px;">🏆 代表个股：{s2}</div>')
+                           if (s2 and '未返回' not in s2 and '未取得' not in s2) else '')
+                        + ((f'<div style="margin:2px 0 0 16px;color:#a78bfa;font-size:12px;">🔍 暗线（主营实据）：{_nd2}</div>')
+                           if (not s2 or '未返回' in s2 or '未取得' in s2) and (_nd2 := _news_dark(t0 + ' ' + _sum, hot)) else '')
                         + (f'<div style="margin:2px 0 0 16px;color:{TEAL};font-size:12px;">🧠 大白话：{w}</div>' if w else '')
                         + (f'<div style="margin:2px 0 8px 16px;color:{RED};font-size:12px;">💡 操作：{a}</div>' if a else ''))
         return '<div>' + ''.join(rows) + '</div>', True
-    rows = ''.join(
-        f'<div style="color:#ced4da;font-size:12px;margin:3px 0;">· {nw.get("ts","")[-5:]} {nw["title"]}</div>'
-        for nw in news[:max_show])
+    _rows = []
+    for nw in news[:max_show]:
+        _rows.append(f'<div style="color:#ced4da;font-size:12px;margin:3px 0;">· {nw.get("ts","")[-5:]} {nw["title"]}</div>')
+        # 2026-11-09：模型没回也必须给暗线——主营实据，不写「待判读/AI未返回」
+        _nd = _news_dark((nw.get('title') or '') + ' ' + (nw.get('summary') or ''), hot)
+        if _nd:
+            _rows.append(f'<div style="margin:1px 0 3px 12px;color:#a78bfa;font-size:11px;">🔍 暗线（主营实据）：{_nd}</div>')
+    rows = ''.join(_rows)
     if not rows:
         rows = '<div style="color:' + GREY + ';font-size:13px;">消息未取得</div>'
     return '<div>' + rows + '</div>', False
@@ -13572,6 +13739,8 @@ def _warn_render_fire(_j, items=None):
             _p = str(_n.get('p') or '').strip()
             _data = str(_n.get('data') or '').strip()
             if _t:
+                if not _dark:
+                    _dark = _news_dark(_t + ' ' + _c)
                 _line = f'<div style="color:#e9ecef;font-size:12px;margin:5px 0 0;line-height:1.5;">• {_t[:44]}</div>'
                 if _c:
                     _line += f'<div style="color:#c8d0e0;font-size:12px;margin:1px 0 0 10px;line-height:1.5;">📄 {_c[:80]}</div>'
@@ -13593,6 +13762,9 @@ def _warn_render_fire(_j, items=None):
             _t = str(_n.get('title') or '').strip()
             if _t:
                 _news_brief.append(f'<div style="color:#e9ecef;font-size:12px;margin:3px 0;line-height:1.5;">• {_t[:44]}</div>')
+                _nd = _news_dark(_t + ' ' + str(_n.get('summary') or ''))
+                if _nd:
+                    _news_brief.append(f'<div style="color:#a78bfa;font-size:11px;margin:1px 0 3px 10px;line-height:1.5;">🔍 暗线（主营实据）：{_nd[:110]}</div>')
     if _news_brief:
         out.append('<div style="font-size:14px;font-weight:800;color:#ffd43b;margin-top:4px;">📰 今日新闻速览（' + str(len(_news_brief)) + '条 · 大白话研判，开盘前全貌）</div>')
         out.append('<div style="background:#161e2b;border-radius:8px;padding:8px 10px;margin:4px 0;">' + ''.join(_news_brief) + '</div>')
@@ -13956,9 +14128,11 @@ def build_newsfire():
             _lvl = (_ev2 or {}).get('level') or 'C'
             _tag = {'S': '重大', 'A': '催化', 'B': '公司', 'C': '一般'}.get(_lvl, '一般')
             _tcol = {'S': RED, 'A': GOLD, 'B': TEAL, 'C': GREY}.get(_lvl, GREY)
+            _ndf = _news_dark((nw.get('title') or '') + ' ' + (nw.get('summary') or ''))
             rows.append(f"""<div style="background:#1f2635;border-left:3px solid {GOLD};border-radius:8px;padding:7px 11px;margin:5px 0;">
 <div style="color:#fff;font-size:13px;">• {nw.get('title','')} <span style="color:{_tcol};font-size:11px;">⚡{_tag}</span></div>
-<div style="color:{GREY};font-size:12px;margin-top:2px;">{nw.get('ts','')}</div></div>""")
+<div style="color:{GREY};font-size:12px;margin-top:2px;">{nw.get('ts','')}</div>
+{f'<div style="color:#a78bfa;font-size:12px;margin-top:3px;line-height:1.55;">🔍 暗线（主营实据）：{_ndf}</div>' if _ndf else ''}</div>""")
         inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">📰 {bj.strftime("%H:%M")} 新闻发酵</div>'
                  + ''.join(rows))
     else:

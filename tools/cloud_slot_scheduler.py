@@ -208,7 +208,22 @@ def git(*args: str, check: bool = False) -> subprocess.CompletedProcess:
 
 
 def pull_latest() -> None:
-    git('pull', '--rebase', '--autostash')
+    """拉远端最新；失败（rebase 冲突 / autostash pop 失败 / 网络）立刻自愈。
+
+    不自愈的后果：工作区留在 rebase in-progress，之后每次 pull 都 120s 超时，
+    _read_json 读到冲突标记后一律返回 {}，心跳再也刷不上，段静默失活。
+    """
+    r = git('pull', '--rebase', '--autostash')
+    if r.returncode == 0:
+        return
+    out = ((r.stdout or '') + (r.stderr or '')).strip()
+    log(f'pull 失败，自愈：{out[:120]}')
+    for _cmd in (('rebase', '--abort'), ('rebase', '--quit'),
+                 ('checkout', '--', 'tools/data'), ('stash', 'pop')):
+        try:
+            git(*_cmd)
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def _trim_log() -> None:
@@ -257,6 +272,47 @@ def _touch_marker() -> None:
             json.dump(m, fh, ensure_ascii=False)
     except Exception:  # noqa: BLE001
         pass
+
+
+HEARTBEAT_GAP = 900        # 空转期心跳间隔（秒）；必须小于 SEG_HB_STALE
+
+
+def heartbeat() -> None:
+    """空转期独立刷一次段心跳：只在本段仍持有标记时才写，写后提交推送。
+
+    2026-11-09 事故：心跳原来只跟着 persist_state 走，11:43 跑完 news 到 12:00
+    之间没有槽，45 分钟不刷心跳，段被判死、12:00 news2h 整槽消失。
+    """
+    if not _CUR_SEG:
+        return
+    try:
+        pull_latest()
+        m = _read_json(MARKER)
+        if (m.get('seg') or '') != _CUR_SEG or (m.get('date') or '') != _CUR_DATE:
+            log(f'心跳跳过：段标记已不是本段（{m.get("seg") or "空"}）')
+            return
+        _hb = bj_now().isoformat(timespec='seconds')
+        if (m.get('hb') or '')[:16] == _hb[:16]:
+            return
+        m['hb'] = _hb
+        with open(MARKER, 'w', encoding='utf-8') as fh:
+            json.dump(m, fh, ensure_ascii=False)
+        git('add', 'tools/data/sched_active.json')
+        if git('diff', '--cached', '--quiet').returncode == 0:
+            return
+        git('config', 'user.email', 'v6-bot@users.noreply.github.com')
+        git('config', 'user.name', 'v6-bot')
+        stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        if git('commit', '-m', f'chore: 心跳 {stamp}').returncode != 0:
+            return
+        r = git('push', 'origin', 'HEAD:main')
+        out = ((r.stdout or '') + (r.stderr or '')).strip()
+        if r.returncode == 0 and 'Everything up-to-date' not in out:
+            log(f'心跳已刷新至 {_hb}')
+        else:
+            log(f'心跳推送失败：{out[:120]}')
+    except Exception as _e:  # noqa: BLE001
+        log(f'心跳异常：{_e}')
 
 
 def persist_state(tag: str) -> None:
@@ -796,6 +852,7 @@ def main() -> int:
 
     log(f'滚动段 {seg_name} 调度至 {end:%H:%M}，共可覆盖约 {(end - bj_now()).total_seconds() / 60:.0f} 分钟')
     last_chk = bj_now()
+    last_hb = bj_now()
     while bj_now() < end:
         now = bj_now()
         # 2026-11-09：每 4 分钟复查一次段标记。如果段已被别的 run 接管（本段被判死），
@@ -808,8 +865,12 @@ def main() -> int:
                 if (m_now.get('seg') or '') != seg_name:
                     log(f'段标记已切到 {m_now.get("seg") or "空"}，本 run 让位退出')
                     return finish('preempted')
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as _e:  # noqa: BLE001
+                log(f'段标记复查异常（不影响继续）：{_e}')
+            # 空转期心跳：段里长时间没有槽要跑时也要证明自己活着（v9）
+            if (now - last_hb).total_seconds() >= HEARTBEAT_GAP:
+                last_hb = now
+                heartbeat()
         slot = pick_slot(now, executed)
         if slot:
             run_slot(slot)
