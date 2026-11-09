@@ -11482,6 +11482,31 @@ def _hold_conflict_html(bad):
             '<div style="margin-top:4px;color:#ff8787;font-size:12px;">→ 建议：结合个股关键位处理——触止损减仓/破位离场；与持仓无关可忽略。</div></div>')
 
 
+def _verdict_blocks(t, limit=48, max_blocks=3):
+    """主线研判专用渲染：按【小标题】切块，块内按标点/字长切成短段，块间留白。
+    模型写成一坨（只有逗号没有段落）时也不会挤成一屏、不会顶到框底。"""
+    raw = (t or '').strip()
+    if not raw:
+        return ''
+    parts = [p.strip() for p in re.split(r'(?=【)', raw) if p.strip()]
+    out = []
+    for bi, p in enumerate(parts[:max_blocks]):
+        m = re.match(r'(【[^】]{1,12}】)(.*)', p, re.S)
+        head, body = (m.group(1), m.group(2).strip()) if m else ('', p)
+        segs = _split_long_line(body, limit=limit, per=1) if body else []
+        if not segs:
+            segs = [body] if body else []
+        _top = ('margin-top:9px;' if bi else '')
+        h = ('<div style="font-size:13px;font-weight:800;color:%s;%s">%s</div>'
+             % (GOLD, _top, head)) if head else ''
+        rows = ''.join('<div style="font-size:13px;line-height:1.75;color:#e2e8f0;%s">%s</div>'
+                       % ('margin-top:4px;' if si else ('margin-top:2px;' if head else ''),
+                          s)
+                       for si, s in enumerate(segs))
+        out.append('<div style="%s">%s%s</div>' % (_top, h, rows))
+    return ''.join(out)
+
+
 def build_news2h():
     """两小时市场消息汇总（北京 12:00/14:01/16:00）：利好/利空逐条大白话 +
     预期差 + 怎么跟/怎么避 + 明日操作建议（结合持仓关键位）。"""
@@ -11542,7 +11567,8 @@ def build_news2h():
                + '【今日主线】这批消息里真正在带节奏的是哪条线，落到具体板块和公司，说清为什么是它\n'
                + '【暗线】这条主线背后真正在涨的是什么：资金认的是产业趋势、业绩兑现还是政策，把那层看不见的逻辑讲透\n'
                + '【最该记的一点】一句话，今天消息面最该记住的东西（偏暖还是偏冷，落在哪）\n'
-               + '硬规矩：全篇不超过220字，三段各2-3句，每段之间必须留一个真正的空行（不是省略号、不是横线）；\n'
+               + '硬规矩：全篇不超过160字，三段各1-2句，每段之间必须留一个真正的空行（不是省略号、不是横线）；\n'
+               + '每段只讲一个点，讲不透的宁可删掉，不许凑字；\n'
                + '不许把三段写成一大段，不许写「综上所述」「总的来说」这类收尾，不许复述消息标题。')
         t = ask_deepseek({'task': 'news2h_summary',
                           'good': [g.get('title','')[:40] for g in good[:4]],
@@ -11550,7 +11576,7 @@ def build_news2h():
                           'neu': '；'.join((n.get('title') or '')[:50] for n in neu[:8]) or '无',
                           'format': fmt}, purpose='news2h')
         if t:
-            ds_html = md2html(t)
+            ds_html = _verdict_blocks(t)
         else:
             # 2026-11-09：模型不回不再整卡丢弃（12:00 news2h 整槽消失的直接原因）。
             # 出数据版：真实标题 + 真实摘要 + 主营实据暗线，不写任何规则化结论。
