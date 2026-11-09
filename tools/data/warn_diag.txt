@@ -1040,3 +1040,7 @@
 09:42:45 [llm] OK purpose=pre len=1073
 09:44:01 [llm] OK purpose=focus_deep len=1972
 09:45:42 [llm] OK purpose=event_dark len=648
+10:01:20 [llm] OK purpose=news2h_good len=1232
+10:02:42 [llm] OK purpose=news2h_bad len=291
+10:03:56 [反模板放行:news2h] 没有安全垫/管住手
+10:03:57 [llm] OK purpose=news2h len=600
