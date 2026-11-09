@@ -1096,3 +1096,5 @@
 14:59:09 [反模板放行:news2h_bad] 管住手
 14:59:09 [llm] OK purpose=news2h_bad len=1102
 14:59:55 [llm] OK purpose=news2h len=472
+15:03:59 [llm] OK purpose=ext len=222
+15:05:25 [llm] OK purpose=ext_news len=3051
