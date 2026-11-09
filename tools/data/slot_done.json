@@ -57,5 +57,6 @@
  "pre|2026-11-09": true,
  "auction|2026-11-09": true,
  "hourly|2026-11-09|10": true,
- "newsfire|2026-11-09": true
+ "newsfire|2026-11-09": true,
+ "hourly|2026-11-09|11": true
 }
