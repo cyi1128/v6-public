@@ -1083,3 +1083,6 @@
 12:03:24 [llm] OK purpose=news2h len=706
 13:39:36 [llm] OK purpose=ext len=201
 13:40:38 [llm] OK purpose=ext_news len=1237
+14:01:05 [llm] OK purpose=news2h_good len=1257
+14:02:18 [llm] OK purpose=news2h_bad len=1544
+14:03:07 [llm] OK purpose=news2h len=765
