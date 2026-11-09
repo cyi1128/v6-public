@@ -809,3 +809,25 @@
 03:18:53 [llm] 未返回 purpose=risk_card model=Qwen/Qwen3.5-122B-A10B tag=timeout
 03:18:53 [llm] 未返回 purpose=risk_card model=Qwen/Qwen3.5-35B-A3B tag=timeout
 03:18:55 [llm] 未返回 purpose=risk_card model=ZhipuAI/GLM-4.7-Flash tag=http_429
+03:38:43 [llm] 未返回 purpose=noon_v4 model=Qwen/Qwen3.8-27B tag=timeout
+03:38:43 [llm] 未返回 purpose=noon_v4 model=Qwen/Qwen3.5-122B-A10B tag=timeout
+03:38:43 [llm] 未返回 purpose=noon_v4 model=Qwen/Qwen3.5-35B-A3B tag=timeout
+03:38:45 [llm] 未返回 purpose=noon_v4 model=ZhipuAI/GLM-4.7-Flash tag=http_429
+03:39:29 [llm] 未返回 purpose=noon_v4 model=Qwen/Qwen3.8-Flash-Next tag=timeout
+03:39:29 [llm] 两波并发均无返回 purpose=noon_v4
+03:39:29 [ask_deepseek] 首轮无返回即止损 purpose=noon_v4
+03:39:29 [ask_deepseek] ModelScope 两次尝试均失败，purpose=noon_v4
+03:40:15 [llm] 未返回 purpose=brief_summary_v3 model=Qwen/Qwen3.5-122B-A10B tag=timeout
+03:40:15 [llm] 未返回 purpose=brief_summary_v3 model=Qwen/Qwen3.8-27B tag=timeout
+03:40:15 [llm] 未返回 purpose=brief_summary_v3 model=Qwen/Qwen3.5-35B-A3B tag=timeout
+03:40:16 [llm] 未返回 purpose=brief_summary_v3 model=ZhipuAI/GLM-4.7-Flash tag=http_429
+03:41:01 [llm] 未返回 purpose=brief_summary_v3 model=Qwen/Qwen3.8-Flash-Next tag=timeout
+03:41:01 [llm] 两波并发均无返回 purpose=brief_summary_v3
+03:41:01 [ask_deepseek] 首轮无返回即止损 purpose=brief_summary_v3
+03:41:01 [ask_deepseek] ModelScope 两次尝试均失败，purpose=brief_summary_v3
+03:42:01 [llm] 未返回 purpose=batch_deep model=Qwen/Qwen3.5-122B-A10B tag=timeout
+03:42:01 [llm] 未返回 purpose=batch_deep model=Qwen/Qwen3.5-35B-A3B tag=timeout
+03:42:01 [llm] 未返回 purpose=batch_deep model=Qwen/Qwen3.8-27B tag=timeout
+03:42:01 [llm] 截止已过停产 purpose=batch_deep
+03:42:01 [ask_deepseek] 首轮无返回即止损 purpose=batch_deep
+03:42:01 [ask_deepseek] ModelScope 两次尝试均失败，purpose=batch_deep
