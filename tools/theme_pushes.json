@@ -1233,5 +1233,29 @@
     "pct": 4.2
    }
   ]
+ },
+ {
+  "ts": "2026-11-09 10:47:05",
+  "theme_name": "国博电子相关板块",
+  "card_type": "启动卡",
+  "confidence": "高",
+  "lifecycle_status": "萌芽",
+  "board_snapshot": [
+   {
+    "code": "688375",
+    "name": "国博电子",
+    "pct": 6.1
+   },
+   {
+    "code": "301117",
+    "name": "ST佳缘",
+    "pct": 4.8
+   },
+   {
+    "code": "603863",
+    "name": "松炀资源",
+    "pct": 4.7
+   }
+  ]
  }
 ]
