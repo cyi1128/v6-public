@@ -48,7 +48,9 @@ concurrency:
   # 外部/手动高频 dispatch 不再挤占 schedule 槽位（此前定时 run 排队超时被取消/触发被跳过，
   # 11-05 14:55-58 尾盘 schedule 0 触发、15:00 eod 被 cancelled）。
   # schedule 组内仍串行互斥，配合 slot_done 仓库内去重防双推。
-  group: daily-review-${{ github.event_name }}
+  # 2026-11-09：再按 slot 细分。scheduler 段一次占 350 分钟，若与单槽实测/补推同组，
+  # 后者会一直挂 pending 排队；按 slot 拆开后互不阻塞（去重仍由 tools/data/slot_done.json 保证）。
+  group: daily-review-${{ github.event_name }}-${{ github.event.inputs.slot || 'cron' }}
   cancel-in-progress: false
 
 jobs:
