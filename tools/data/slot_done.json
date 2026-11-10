@@ -108,5 +108,6 @@
  "news2h|2026-11-10|1200": true,
  "hourly|2026-11-10|13": true,
  "follow|2026-11-10|1335": true,
- "hourly|2026-11-10|14": true
+ "hourly|2026-11-10|14": true,
+ "preclose|2026-11-10": true
 }
