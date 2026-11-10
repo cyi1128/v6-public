@@ -889,3 +889,10 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-10 14:15:13 >>> 预算：LLM 600s / 单模型 120s / 子进程上限 750s
 11-10 14:20:15     watch| [board] confidence=低（数据异常且无缓存），禁推板块观察/启动卡
 11-10 14:20:15     watch| SLOT watch PUSH True 执行成功
+11-10 14:20:16 持久化(watch)：已推送
+11-10 14:20:16 <<< 完成槽位 watch，用时 303.6s
+11-10 14:28:19 心跳已刷新至 2026-11-10T14:28:17+08:00
+11-10 14:30:04 >>> 执行槽位 preclose @ 14:30:04
+11-10 14:30:04 >>> 计划槽时刻 1430（去重键按此生成，防补跑重复推）
+11-10 14:30:04 >>> 预算：LLM 900s / 单模型 300s / 子进程上限 1200s
+11-10 14:34:13     preclose| SLOT preclose PUSH True 执行成功
