@@ -5514,13 +5514,26 @@ def _hourly_ds(idx, d, b, zbr):
         tops = '、'.join(f"{sec}({len(sts)}只)" for sec, sts in sorted(d['sectors'].items(), key=lambda kv: -len(kv[1]))[:5]) or '无'
         _g = load_position_gauge()
         _g_txt = (f'（当前仓位仪表盘：{_g.get("suggest", "")}，来自 {_g.get("source", "")}，不得与其矛盾）' if _g else '（仓位仪表盘未生成）')
-        fmt = ('【主力游资五步铁律】先看筹码后说话，问三个主力问题，翻译成人话，套游资纪律，自查。\n'
-               + '你是一线游资，基于以下盘中数据做整点解读，先判断市场是主力进攻还是主力出货环境，再给仓位。炸板率>45%时，op不得出现「轻仓试」，只能观察或防守。整体偏空时 op 必须直接写「建议空仓」，不推个股；没有明确信号写「等」，不硬凑。\n'
-               + '【聚焦原则·强制】op 只给「现在最该做的一个动作」，禁止同时罗列多个方向；next_watch 只给下个整点前最该盯的1个点；contagion 只给1个最确定的传染方向。信息再多也只挑最重要的讲，宁缺毋滥。\n'
-               + '【传染研判·硬要求】必须单独回答 contagion：今天哪个板块在突发异动（用最强板块/领涨数据），它最可能传染到哪个「还没启动」的题材和个股，讲清传染逻辑、原因、暗线（为什么资金会顺着产业链/比价/情绪扩散过去）以及确认传染的信号（什么时候算真传染）。没有可传染方向就写「暂无明确传染方向」。\n只输出 JSON：\n'
-               + '{"overall":"现在盘面真正什么情况(用数据)+主力阶段，一句大白话+能不能做","emotion_score":0-100,"op":"该干什么：具体动作+仓位档(空仓/1成/2成/半仓)，只给最该做的一个动作","risk":"最大风险+什么情况必须撤","next_watch":"下一小时最该盯的1个点","contagion":"突发异动板块→传染方向：板块名→题材+未启动个股（点名具体股票）+传染逻辑与暗线+确认信号，≥40字"}\n'
-               + '数据：指数 ' + idx_txt + '；涨停{d["lu"]}家 炸板{d["zb"]}家(炸板率{zbr*100:.0f}%) 跌停{d["dt"]}家 最高{d["max_lbc"]}板；情绪=' + b + '；最强板块 ' + tops + _g_txt + '\n'
-               + '【过去1小时新事件】（紧跟时事：只挑真正能改变盘面的，纳入 overall/op/risk 判断；没有就写「无」）：' + ('；'.join(_ev1h) if _ev1h else '无') + '\n炸板率>45% 时，op 不得出现「轻仓试」，只能观察或防守。')
+        fmt = ('你是一名盘中市场解读助手，服务对象是正在看盘的交易者。\n'
+               '不要复述涨跌幅。你要回答四个决策问题：\n'
+               '1) 今天是什么性质的日子（增量/存量、进攻/防守、冲高回落/低开修复）；\n'
+               '2) 钱去了哪里、驱动资金是什么性质（配置型/游资型/北向/机构是否跟进）；\n'
+               '3) 异动板块为什么是现在、催化处在什么阶段（主题想象/需求验证/订单能见度）；\n'
+               '4) 情绪体感如何、赚钱效应集中在什么时间什么方向、有哪些待兑现变量。\n'
+               '━━━ 输出七段（顺序固定，缺数据的那段写「未提供」，不许编）━━━\n'
+               'qualify：一句话定性，必须带核心依据；\n'
+               'index：量能与指数——指数强弱、关键关口得失、量能是否确认，判断红盘/绿盘的质量；\n'
+               'money：资金与结构——资金流向哪里、主导资金性质、机构是否跟进、防御端是否同步动作；\n'
+               'catalyst：主线异动与催化——只写有催化的异动，每条注明催化类型（主题想象/需求验证/订单能见度）与阶段属性，'
+               '并区分「核心受益」与「泛概念跟涨」；\n'
+               'emotion：情绪与赚钱效应——涨停/炸板/连板结构，赚钱效应是前置还是持续，午后入场性价比；\n'
+               'pending：待兑现变量——盘中资金已在定价但还没兑现的变量，并给仓位含义；\n'
+               'op：操作含义，最多3条，避免绝对化，不推荐个股，不预测点位。\n'
+               '━━━ 硬要求 ━━━\n'
+               '只使用我提供的数据和可明确推断的信息；区分事实与推断，推断必须用「可能/说明/指向」这类措辞。\n'
+               '禁止自问自答、禁止设问句、禁止万能句（值得关注/注意风险）。总字数控制在300-500字。\n'
+               + ('炸板率>45%时，op 不得出现「轻仓试」，只能观察或防守；整体偏空时 op 直接写「建议空仓」，不推个股。\n')
+               + '只输出 JSON：{"qualify":"","index":"","money":"","catalyst":"","emotion":"","pending":"","op":""}\n')
         t = ask_deepseek({'task': 'hourly_ds', 'idx': idx_txt, 'tops': tops, 'b': b,
                           'lu': d['lu'], 'zb': d['zb'], 'dt': d['dt'], 'max_lbc': d['max_lbc'],
                           'news_1h': ('；'.join(_ev1h) if _ev1h else '无'),
@@ -5528,26 +5541,18 @@ def _hourly_ds(idx, d, b, zbr):
         if not t:
             return ''
         _j = json.loads(t)
+        _secs = [('🎯 【一句话定性】', 'qualify', '#ffd43b'),
+                 ('📈 【量能与指数】', 'index', '#e9ecef'),
+                 ('💰 【资金与结构】', 'money', '#94d4d0'),
+                 ('🔥 【主线异动与催化】', 'catalyst', '#ff922b'),
+                 ('🌡 【情绪与赚钱效应】', 'emotion', '#66d9e8'),
+                 ('⏳ 【待兑现变量】', 'pending', '#a78bfa'),
+                 ('🧭 【操作含义】', 'op', RED)]
         out = []
-        if _j.get('overall'):
-            out.append('<div style="color:#e9ecef;font-size:13px;">🧭 盘面：' + str(_j['overall']) + '</div>')
-        _es = _j.get('emotion_score')
-        if _es not in (None, ''):
-            try:
-                out.append('<div style="color:' + GOLD + ';font-size:13px;margin-top:3px;">📊 情绪分：' + str(int(float(_es))) + '/100</div>')
-            except Exception:
-                pass
-        _op = str(_j.get('op') or '')
-        if zbr > 0.45 and '轻仓试' in _op:
-            _op = _op.replace('轻仓试', '观察')
-        if _op:
-            out.append('<div style="color:' + GOLD + ';font-size:13px;margin-top:3px;">💡 操作：' + _op + '</div>')
-        if _j.get('risk'):
-            out.append('<div style="color:' + RED + ';font-size:13px;margin-top:3px;">⚠️ 风险：' + str(_j['risk']) + '</div>')
-        if _j.get('next_watch'):
-            out.append('<div style="color:' + GREY + ';font-size:13px;margin-top:3px;">👀 下一盯点：' + str(_j['next_watch']) + '</div>')
-        if _j.get('contagion'):
-            out.append('<div style="color:#94d4d0;font-size:13px;margin-top:3px;line-height:1.6;">🔄 传染方向：' + str(_j['contagion']) + '</div>')
+        for _nm, _key, _col in _secs:
+            _v = str(_j.get(_key) or '').strip() or '未提供'
+            out.append('<div style="font-size:13px;margin-top:5px;line-height:1.75;">'
+                       '<b style="color:' + _col + ';">' + _nm + '</b> ' + _v + '</div>')
         if not out:
             return ''
         return '<div style="margin-top:8px;padding:10px;background:#1c2230;border-left:4px solid ' + TEAL + ';border-radius:8px;">' + ''.join(out) + '</div>'
@@ -6079,38 +6084,79 @@ def build_pre():
     ds_html = _pre_ds(news, intel)
     # —— 事件驱动主线小节（量化评分 Top3，紧跟时事核心）——
     # v80-A18（用户指令「驱动主线展示暗线逻辑」）：每条事件主线补一条暗线，一次批量调用
-    _ev_darks = []
+    _ev_lines = []
     try:
         _ml3 = (intel.get('mainlines') or [])[:3]
         if _ml3:
             _frE = ask_deepseek({
                 'task': 'pre_main_dark',
-                'items': [{'s': m['sec'], 't': '；'.join(m['tops'][:2]), 'd': m.get('latest', '')}
-                          for m in _ml3],
-                'format': ('你是A股一线游资。给下面每条「事件驱动主线」写一条暗线：这条消息背后资金真正要买的是什么，'
-                           '落到产业链的哪个环节、哪几只票，说清为什么是这些票而不是同板块别的。每条50-80字。'
-                           '禁止万能句（值得关注/注意风险）、禁止设问句、禁止列表符号。'
-                           '只输出JSON：{"darks":["第1条","第2条",...]}，条数必须等于输入条数。'),
+                'items': [{'s': m['sec'], 't': '；'.join(m['tops'][:3]), 'd': m.get('latest', ''),
+                           'n': m['n'], 'net': m['net']} for m in _ml3],
+                'format': ('你是事件驱动主线量化评分分析师。给下面每条「事件驱动主线」做五维打分并映射到A股个股。\n'
+                           '评分权重：事件催化强度30%、资金认可深度25%、板块内部结构与情绪20%、持续性20%、风险约束5%。\n'
+                           '五维各给0-100整数分（s1~s5对应上述五维），total 为加权总分(0-100)。\n'
+                           '区分度是硬要求：不许三条都85分以上，主题发酵早期的主线必须明显低分，并在 qualify 里写「优先级低于前几条」。\n'
+                           '个股分三层，每层都要「名称+6位代码」：\n'
+                           '  t1 龙头锚：名称+代码+当日状态；\n'
+                           '  t2 连板梯队：名称+代码+第几板；\n'
+                           '  t3 首板/细分环节：名称+代码+环节定位。\n'
+                           '写不出具体票的那层就留空，不许拿行业名词占位。\n'
+                           'low=低位替代标的（1-3只）：名称+代码+低位逻辑（估值/位置/涨幅滞后，带具体数字）+主线贴合度+最大短板。\n'
+                           'dark=暗线贴合个股（1-2只）：名称+代码+隐形连接的具体形式（参股卡位/体外资产映射/技术同源/事件已发生但标签未贴/双重暗线交叉）'
+                           '+可证伪性(强/中强/中/偏弱)+验证节点。必须落到具体票，只写行业环节的一律不合格。\n'
+                           'qualify=核心定性一句话(≤20字)；next=次日关键观察(给具体指标)；concl=个股结构一句话小结。\n'
+                           '禁止万能句（值得关注/注意风险）、禁止设问句、禁止列表符号。\n'
+                           '只输出JSON：{"lines":[{"sec":"主线名","s1":88,"s2":75,"s3":60,"s4":70,"s5":55,"total":76,'
+                           '"qualify":"","next":"","t1":"","t2":"","t3":"","low":"","dark":"","concl":""}]}'),
             }, purpose='pre_main_dark')
             if _frE:
                 _fjE = json.loads(_frE[_frE.find('{'):_frE.rfind('}') + 1])
-                _ev_darks = [str(z).strip() for z in (_fjE.get('darks') or [])]
-                print('[pre] 主线暗线 条数=%d' % len(_ev_darks))
+                _ev_lines = [x for x in (_fjE.get('lines') or []) if isinstance(x, dict)]
+                print('[pre] 主线五维评分 条数=%d' % len(_ev_lines))
     except Exception as _ee:
-        print('[pre] 主线暗线异常:', repr(_ee)[:80])
+        print('[pre] 主线评分异常:', repr(_ee)[:80])
     _ev_rows = ''
-    for _im, m in enumerate(intel.get('mainlines') or []):
-        _lt = m['latest'][11:16] if len(m.get('latest', '')) >= 16 else m.get('latest', '')
-        _evd = _ev_darks[_im] if _im < len(_ev_darks) else ''
-        _ev_rows += ('<div style="background:#1f2635;border-left:3px solid ' + GOLD + ';border-radius:6px;padding:6px 8px;margin:5px 0;">'
-                     '<div style="font-size:13px;color:#fff;"><b>' + m['sec'] + '</b> '
-                     '<span style="color:' + GREY + ';font-size:12px;">事件' + str(m['n']) + '条 ｜ 净情绪' + ('+' if m['net'] > 0 else '') + str(m['net']) + ' ｜ 最新' + _lt + '</span></div>'
-                     '<div style="font-size:12px;color:' + TEAL + ';">代表：' + '；'.join(m['tops'][:2]) + '</div>'
-                     + (('<div style="font-size:12px;color:#a78bfa;line-height:1.6;margin-top:2px;">🔍 暗线：' + _evd + '</div>') if _evd else '')
-                     + '</div>')
+    if _ev_lines:
+        # ① 主线排序表
+        _tb = ('<div style="background:#1f2635;border-radius:6px;padding:6px 8px;margin:4px 0;">'
+               '<div style="font-size:11px;color:' + GREY + ';">排名 ｜ 主线 ｜ 综合分 ｜ 核心定性 ｜ 次日关键观察</div>')
+        for _k, _e in enumerate(_ev_lines[:3], 1):
+            _tb += ('<div style="font-size:12px;color:#e9ecef;margin-top:3px;line-height:1.5;">'
+                    + str(_k) + '. <b>' + str(_e.get('sec', '')) + '</b> '
+                    + '<span style="color:' + GOLD + ';font-weight:700;">' + str(_e.get('total', '')) + '分</span> '
+                    + '<span style="color:#c8d0e0;">' + str(_e.get('qualify', ''))[:30] + '</span> '
+                    + '<span style="color:' + TEAL + ';">观察：' + str(_e.get('next', ''))[:26] + '</span></div>')
+        _tb += '</div>'
+        _ev_rows += _tb
+        # ② 逐条展开（五维分项 + 三层个股 + 低位替代 + 暗线贴合 + 结论）
+        for _k, _e in enumerate(_ev_lines[:3], 1):
+            _srow = ' ｜ '.join('%s %s' % (n, _e.get(c))
+                                for n, c in (('催化', 's1'), ('资金', 's2'), ('结构', 's3'), ('持续', 's4'), ('风险', 's5'))
+                                if str(_e.get(c) or '').strip())
+            _ev_rows += ('<div style="background:#1f2635;border-left:3px solid ' + GOLD + ';border-radius:6px;padding:7px 9px;margin:5px 0;">'
+                         '<div style="font-size:13px;color:#fff;"><b>' + str(_k) + '. ' + str(_e.get('sec', '')) + '</b> '
+                         '<span style="color:' + GOLD + ';font-weight:700;">综合' + str(_e.get('total', '')) + '分</span>'
+                         '<span style="color:' + GREY + ';font-size:11px;"> ｜ ' + str(_e.get('qualify', '')) + '</span></div>'
+                         + ('<div style="font-size:11px;color:' + GREY + ';margin-top:2px;">📊 五维：' + _srow + '</div>' if _srow else '')
+                         + ('<div style="font-size:12px;color:#e9ecef;margin-top:3px;line-height:1.5;">🐉 ' + str(_e.get('t1', '')) + '</div>' if _e.get('t1') else '')
+                         + ('<div style="font-size:12px;color:#e9ecef;margin-top:1px;line-height:1.5;">🏛 ' + str(_e.get('t2', '')) + '</div>' if _e.get('t2') else '')
+                         + ('<div style="font-size:12px;color:#e9ecef;margin-top:1px;line-height:1.5;">🧲 ' + str(_e.get('t3', '')) + '</div>' if _e.get('t3') else '')
+                         + ('<div style="font-size:12px;color:' + TEAL + ';margin-top:3px;line-height:1.5;">🔁 低位替代：' + str(_e.get('low', '')) + '</div>' if _e.get('low') else '')
+                         + ('<div style="font-size:12px;color:#a78bfa;margin-top:2px;line-height:1.6;">🕳 暗线贴合：' + str(_e.get('dark', '')) + '</div>' if _e.get('dark') else '')
+                         + ('<div style="font-size:12px;color:' + GREY + ';margin-top:3px;line-height:1.5;">🧾 ' + str(_e.get('concl', '')) + '</div>' if _e.get('concl') else '')
+                         + '</div>')
+    if not _ev_rows:
+        # 模型没返回结构化评分：保留「事件条数+代表」简版，不印主营、不硬编暗线
+        for _im, m in enumerate(intel.get('mainlines') or []):
+            _lt = m['latest'][11:16] if len(m.get('latest', '')) >= 16 else m.get('latest', '')
+            _ev_rows += ('<div style="background:#1f2635;border-left:3px solid ' + GOLD + ';border-radius:6px;padding:6px 8px;margin:5px 0;">'
+                         '<div style="font-size:13px;color:#fff;"><b>' + m['sec'] + '</b> '
+                         '<span style="color:' + GREY + ';font-size:12px;">事件' + str(m['n']) + '条 ｜ 净情绪'
+                         + ('+' if m['net'] > 0 else '') + str(m['net']) + ' ｜ 最新' + _lt + '</span></div>'
+                         '<div style="font-size:12px;color:' + TEAL + ';">代表：' + '；'.join(m['tops'][:2]) + '</div></div>')
     if not _ev_rows:
         _ev_rows = '<div style="color:' + GREY + ';font-size:13px;">今天没有能带动板块的硬事件，消息面偏散，等明天的新催化</div>'
-    _ev_block = ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">📡 事件驱动主线（量化评分·紧跟时事）</div>' + _ev_rows)
+    _ev_block = ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">📡 事件驱动主线（五维评分·紧跟时事）</div>' + _ev_rows)
     def _sw_line(mark, col, sec, why, kind):
         _dk2 = _SW_DARK.get((kind, sec), '')
         return ('<div style="margin:5px 0;font-size:13px;">' + mark + ' <b style="color:' + col + ';">' + sec + '</b>'
@@ -9493,7 +9539,7 @@ def build_eod():
 
     sec_sell = f"""<div style="margin-top:12px;border-left:4px solid {GREEN};border-radius:8px;padding:9px 11px;background:#1c2830;font-size:13px;color:#e2e8f0;">
 <div style="font-weight:800;color:{GREEN};">📋 明日开盘预案</div>
-高开≥2%且量能配合 → 先卖一半，剩一半看封板；高开&lt;2%或平开 → 看前15分钟量能和分时结构；低开&gt;1.5% → 竞价直接减仓或清仓。</div>"""
+高开≥2%且量能配合 → 先卖一半，剩一半看封板；高开&lt;2%或平开 → 看前15分钟量能和分时结构；低开&gt;1.5% → 竞价直接减仓或清仓。<div style="margin-top:4px;color:#9aa4b8;font-size:11px;">以上是纪律预案，不构成投资建议，按自己的仓位与承受力执行。</div></div>"""
 
     _st_line = signal_stats()[0] or ''
     try:
@@ -9564,7 +9610,23 @@ def build_eod():
               + ' total=%d' % len(inner))
     except Exception:
         pass
-    return _wrap(inner, '🌆', '收盘复盘')
+    # v80-E10：标题动态化——「收盘复盘：指数分化，XX方向相对活跃」，让用户不点开就知道今天什么天
+    try:
+        _pos_n = sum(1 for x in idx if (x.get('pct') or 0) > 0)
+        _neg_n = sum(1 for x in idx if (x.get('pct') or 0) < 0)
+        if _pos_n == len(idx):
+            _idxword = '普涨'
+        elif _neg_n == len(idx):
+            _idxword = '普跌'
+        elif _pos_n and _neg_n:
+            _idxword = '分化'
+        else:
+            _idxword = '平盘'
+        _top_sec = (scored[0][0] if scored else '')
+        _eod_title = '收盘复盘：指数' + _idxword + (('，' + _top_sec + '方向相对活跃') if _top_sec else '')
+    except Exception:
+        _eod_title = '收盘复盘'
+    return _wrap(inner, '🌆', _eod_title)
 
 
 BUILDERS = {'pre': build_pre, 'auction': build_auction, 'noon': build_noon,
@@ -11745,8 +11807,8 @@ def build_news2h():
             w = _strip_pre(w, ('大白话：', '大白话:', '人话：', '解读：'))
             a = _strip_pre(a, ('操作：', '操作:'))
             _sum = _brief_sum.get(t0, '')
-            _dk2h = _news_dark(t0 + ' ' + _sum)
-            _dk_raw = (w or _dk2h or '这条属消息面，暂时落不到具体个股，先看板块怎么反应')
+            # v80-E9：删掉 _news_dark 主营兜底（用户铁律禁明面主营）；模型没给暗线就用真实摘要顶上
+            _dk_raw = (w or _sum or '这条属消息面，暂时落不到具体个股，先看板块怎么反应')
             _dk_row = _split_long_line(_dk_raw, limit=56, per=1)[0]
             # v80-A12（用户指令「字数过多、一问一答」）：一条只留标题 + 暗线，
             # 摘要/影响/代表个股/操作四段全部收掉，暗线优先用模型写的大白话（承载逻辑）。
@@ -11754,6 +11816,17 @@ def build_news2h():
                        + (f'<div style="margin:2px 0 8px 0;color:#a78bfa;font-size:13px;line-height:1.6;">'
                           f'🔍 暗线：{_dk_row}</div>'))
         return ''.join(out)
+
+    # v80-E9（用户 11-10「新增国外一些新闻」）：国外/外盘单列一段，
+    # 从同一批 news 里按外盘关键词筛，走同一套「标题+暗线」渲染，不另造结构
+    _ext = []
+    for nw in news:
+        _tx = (nw.get('title') or '') + (nw.get('summary') or '')
+        if any(k in _tx for k in ('美股', '纳斯达克', '道指', '标普', '日经', 'KOSPI', '韩国', '日本', '欧洲', '欧元区',
+                                  '美联储', '美元', '汇率', '原油', '布伦特', '黄金', '伦铜', 'COMEX', '外盘', '隔夜')):
+            _ext.append(nw)
+    _ext_pairs = _news_ds_lines(_ext, 3, 'news2h_ext') or [(e.get('title', ''), '', '', '') for e in _ext[:3]]
+    _ext_rows = _rows(_ext_pairs, True) if _ext_pairs else ''
 
     ds_html = ''
     if (MODELSCOPE_KEY or DEEPSEEK_KEY) and news:
@@ -11785,6 +11858,9 @@ def build_news2h():
              + _rows(good_pairs, True)
              + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:{GREEN};">🟢 今日利空（{len(bad_pairs)}条）</div>'
              + _rows(bad_pairs, False)
+             + ((f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#66d9e8;">🌍 国外/外盘（{len(_ext_pairs)}条）</div>'
+                 f'<div style="background:#141a24;border-radius:8px;padding:8px 10px;margin:4px 0;">{_ext_rows}</div>')
+                if _ext_rows else '')
              + (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🤖 主线研判</div>'
                 f'<div style="padding:10px;background:#1c2230;border-left:4px solid {GOLD};border-radius:8px;font-size:13px;line-height:1.8;color:#e2e8f0;">{ds_html}</div>' if ds_html else '')
              )
@@ -11921,6 +11997,8 @@ def _early_watch(market_bias='震荡'):
     - 启动埋伏：3.5%≤涨幅<6.5%（启动早期）——量比≥2.0、换手≥3%、分时站上昨收（分时均线近似）、
       同题材≥2只放量跟风（板块共振，避免孤立个股噪音）；
     - 逼近涨停：7%≤涨幅<9.5%（接近涨停）——量比≥1.8、资金抢筹（封单开始堆积）。
+    - 独立爆量（v80-E11）：量比≥3、换手≥2.5%、站上昨收、未涨停、涨幅≥2.5%——同题材还没跟风也算，
+      单只放到 3 倍量就是资金动手的最早信号（用户 11-10「有异动直接推送」）。
     偏空（市场情绪闸门）：所有涨幅门槛+1pp、量比门槛+0.5。
     【口径说明】批量行情接口无分时均价字段，"站上分时均线"用 price≥昨收 近似（当日分时走强代理），
     后续可换逐只分时接口增强。
@@ -11951,6 +12029,18 @@ def _early_watch(market_bias='震荡'):
                     and s['price'] >= s['prev']                       # 分时站上昨收（分时均线近似）
                     and sec_cnt.get(s['sec_clean'], 0) >= 2):          # 同题材≥2只跟风
                 s['fzn'] = sec_cnt.get(s['sec_clean'], 0)
+                ambush.append(s)
+            elif s['lb'] >= 3.0 + lb_bias and s['turn'] >= 2.5 and s['price'] >= s['prev']:
+                # v80-E11 独立爆量通道：题材还没跟风，但这一只已经放到 3 倍量——
+                # 资金动手的最早信号，不能因为「孤苗」被过滤掉（用户：有异动直接推）
+                s['fzn'] = sec_cnt.get(s['sec_clean'], 0)
+                s['burst'] = True
+                ambush.append(s)
+        elif s['pct'] >= 2.5:
+            # 涨幅还在 2.5-3.5% 的低位区，量比已经 3 倍以上：典型的「悄悄放量还没拉」
+            if s['lb'] >= 3.0 + lb_bias and s['turn'] >= 2.5 and s['price'] >= s['prev']:
+                s['fzn'] = sec_cnt.get(s['sec_clean'], 0)
+                s['burst'] = True
                 ambush.append(s)
     return ambush, near
 
@@ -14770,15 +14860,42 @@ def _warn_news_ds(items, zt_names=None):
     news_txt = '\n'.join(f"- {x['title']}（摘要：{x['summary'][:60]}）" for x in items[:15])
     _zt = sorted(str(x) for x in (zt_names or set()))[:40]
     zt_line = ('昨日已涨停/连板（禁止选为可操作候选，只可作风险提示）：' + '、'.join(_zt) + '\n') if _zt else ''
-    fmt = ('你是一线游资，现在是开盘前08:20，手里只有隔夜和当天的新闻，没有盘中数据。\n'
-           '任务：判断哪些板块今天可能被消息面点火启动。严格按主力游资五步铁律：\n'
+    fmt = ('你是一位顶级A股短线量化交易员，精通「消息面催化 + 盘口资金合力」的共振逻辑。\n'
+           '现在是开盘前，手里只有隔夜/今晨新闻，没有任何盘中数据。\n'
+           '任务：把这批资讯变成一份【点火监控清单】——盘中能直接照着盯的，不是研报。\n'
+           '━━━ 一、消息分级（每条先定级，不许混着写）━━━\n'
+           '· 政策级/产业级：能引发板块联动的，才进 fire 主榜；\n'
+           '· 公司级：只影响单一公司，进 news_brief，不进 fire；\n'
+           '· 传闻/未证实：必须标「待盘口确认」，只能放观察，不许当买入理由。\n'
+           '━━━ 二、梯队映射（每个 fire 方向三层必须齐）━━━\n'
+           '· 先锋龙头：连板/高辨识度那只，写清当前几板；\n'
+           '· 趋势中军：大市值、大成交的机构票；\n'
+           '· 低位跟风：小市值、弹性大的补涨票（流通市值30-150亿优先）。\n'
+           '三层都要「名称+6位代码」，写不出具体票的那层就写「该层暂无可选」，不许拿行业名词占位。\n'
+           '昨日已涨停/连板的票只能进 vanguard 当情绪标尺，不许写进 tail 当可买标的。\n'
+           '━━━ 三、盘口验证（必须量化，禁模糊词）━━━\n'
+           'verify 里只准出现可数指标，例如：竞价高开3%-7%、竞价量比>3、开盘30分钟涨速>3%/分钟、封单系数>3（封单量/流通盘）。\n'
+           '严禁「放量拉升」「强势」「资金认可」「值得关注」这类无法执行的词，出现即作废。\n'
+           '━━━ 四、证伪机制（写清什么算点火失败）━━━\n'
+           'fail_if 必须给具体失败形态：高开低走放量跌破均价线、板块跟风家数不足5家、尾盘偷袭拉升、龙头炸板不回封。\n'
+           '━━━ 五、风控定性（当日只属试错期）━━━\n'
+           'risk 必须写明：该方向今日只算试错期，仓位不超过几成；并结合大盘情绪（昨日炸板率、连板高度）说明参不参与。\n'
+           '输出极冷静、客观、结构化，不喊单、不给目标价。\n'
            + FIVE_BRIEF + '\n'
            + zt_line
-           + '先判断主力最可能选哪类票（低位有建仓痕迹的）作为点火点。\n'
-           + '【深挖铁律·落到个股必做】fire 里每个方向必须举2-3只例子（stocks 字段），必须完整执行「股票深挖铁律」：本质（一句话大白话）+暗线业务（具体产品+阶段+真实贡献，写不出写「未见明确暗线业务」）+真实关联与弹性（实受益/沾边/纯蹭）+破灭点。禁止把昨日涨停/连板票列为 stocks 候选（涨停票只能写进 risk 提示）。没有明确标的写「该方向暂无明确点火标的」，禁止硬编。总输出≤380字。\n新闻列表：\n' + news_txt + '\n'
-           + '只输出 JSON：{"fire":[{"sector":"可能被点燃的板块(≥8字)","stocks":"真实关联候选个股2-3只(必须用新闻和板块逻辑推出具体股票名，优先低位未涨停；禁止一律写无；完全推不出才写无，并写明推不出的原因)","logic":"点火逻辑(≥35字)：板块逻辑(为什么这个板块会动)+题材逻辑(消息对应哪个题材)+主力可能选什么类型的票","data":"实时数据参考：当前竞价/早盘量能、板块涨跌幅、相关个股表现；开盘前无盘中数据则明确写「开盘前暂无盘中数据，待09:25竞价验证量能/高开/板块联动」(禁止硬编数据)","verify":"开盘验证条件：竞价量比/高开幅度/板块多股联动等具体信号(≥15字，禁止空话)","fail_if":"失败则放弃的条件：出现什么信号即证伪(≥12字)","risk":"最大风险：位置/情绪/消息证伪/外围(≥12字)"}]}\n'
-           + 'fire 最多3个（只留最有把握的1-3个，宁缺毋滥）。推不出就写"今日消息面无明确点火板块"，不许硬凑。\n'
-           + 'JSON 另加 "news_brief":[{"t":"新闻原标题","core":"消息核心内容完整版(≤80字，禁止只写一句话标题)","sec":"板块逻辑：利好/利空哪个板块(≥6字)","theme":"题材逻辑：对应哪个题材(≥6字)","dark":"个股暗线：必须写出具体股票名+6位代码(如「德明利001309」)，并用一句话说清它和这条消息的硬连接(供货/参股/产能/资质/订单/同一产线)，再带一句弹性大小；凡只写得出行业环节、点不出具体票的，这条新闻整条不要输出，跳过去写下一条有真实映射的，不许拿「总装/发动机/资质企业」这类行业名词占位","p":"大白话原因(≤45字)：说清这条消息可能点燃/压制哪个方向、主力会不会借题发挥","act":"操作建议：这条消息带来的具体操作（买/躲/看+条件，≥10字，禁止万能句）","data":"实时数据参考：竞价/量能/板块涨跌/个股表现；开盘前无盘中数据则写「开盘前暂无盘中数据，待竞价验证」"}]，只对会改变交易决策的新闻给 news_brief（最多8条），纯凑数/无交易价值的新闻直接跳过不写。')
+           + '新闻列表：\n' + news_txt + '\n'
+           + '只输出 JSON：{"fire":[{"sector":"板块名(≥8字)","grade":"政策级/产业级/公司级/传闻待确认",'
+           '"vanguard":"先锋龙头：名称+代码+当前几板","mid":"趋势中军：名称+代码+市值/成交",'
+           '"tail":"低位跟风：名称+代码+流通市值",'
+           '"logic":"点火逻辑(≥35字)：板块为什么动+消息对应哪个题材+主力会选哪类票",'
+           '"data":"实时数据：开盘前统一写「开盘前无盘中数据，待09:25竞价验证」，禁编数字",'
+           '"verify":"盘口验证(量化硬指标，≥15字)","fail_if":"证伪条件(≥12字，具体形态)",'
+           '"risk":"风控定性：试错期+仓位上限+大盘情绪"}]}\n'
+           + 'fire 最多3个，只留最有把握的；完全推不出就写「今日消息面无明确点火板块」，不硬凑。\n'
+           + 'JSON 另加 "news_brief":[{"t":"新闻原标题","core":"核心内容(≤80字)","sec":"利好/利空哪个板块(≥6字)",'
+           '"theme":"对应题材(≥6字)","dark":"个股暗线：必须写具体股票名+6位代码+硬连接(供货/参股/产能/资质/订单)+弹性",'
+           '"p":"大白话(≤45字)：点燃或压制哪个方向、主力会不会借题发挥","act":"操作：买/躲/看+条件(≥10字)",'
+           '"data":"实时数据：开盘前写待竞价验证"}]，只对会改变交易决策的新闻写，最多8条，纯凑数的跳过不写。')
     t = ask_deepseek({'task': 'warn_news_ds', 'news': items[:15], 'format': fmt}, purpose='warn_news_ds')
     return t if t else ''
 
@@ -14822,19 +14939,24 @@ def _warn_render_fire(_j, items=None):
             _t = str(_n.get('title') or '').strip()
             if _t:
                 _news_brief.append(f'<div style="color:#e9ecef;font-size:12px;margin:3px 0;line-height:1.5;">• {_t[:44]}</div>')
-                _nd = _news_dark(_t + ' ' + str(_n.get('summary') or ''))
-                if _nd:
-                    _news_brief.append(f'<div style="color:#a78bfa;font-size:11px;margin:1px 0 3px 10px;line-height:1.5;">🏷 主业：{_nd[:110]}</div>')
+                # v80-E6：删掉「🏷 主业」兜底——用户铁律禁明面主营；模型没给暗线就干脆不印，
+                # 宁可这一行空着，也不许拿主营构成冒充暗线。
     if _news_brief:
         out.append('<div style="font-size:14px;font-weight:800;color:#ffd43b;margin-top:4px;">📰 今日新闻速览（' + str(len(_news_brief)) + '条 · 大白话研判，开盘前全貌）</div>')
         out.append('<div style="background:#161e2b;border-radius:8px;padding:8px 10px;margin:4px 0;">' + ''.join(_news_brief) + '</div>')
     fire = _j.get('fire') or []
     if fire:
-        out.append('<div style="font-size:15px;font-weight:800;color:#ff922b;">🔥 今日可能被消息点燃的板块（开盘前预判，等竞价验证）</div>')
+        out.append('<div style="font-size:15px;font-weight:800;color:#ff922b;">🔥 点火监控清单（开盘前预判，09:25 竞价验证）</div>')
         for i, f_ in enumerate(fire[:3], 1):
             _conf = f_.get('confidence', '')
             _conf_txt = ('★' * int(_conf)) if str(_conf).isdigit() else ''
+            _gr = str(f_.get('grade') or '').strip()
+            _vg = str(f_.get('vanguard') or '').strip()
+            _md = str(f_.get('mid') or '').strip()
+            _tl = str(f_.get('tail') or '').strip()
             _stk = str(f_.get('stocks') or '').strip()
+            if not _stk:
+                _stk = '｜'.join([x for x in (_vg, _md, _tl) if x])[:90]
             if not _stk or _stk in ('无', '暂无', '无。'):
                 _stk = '待竞价验证候选'
             _data = str(f_.get('data') or '').strip()
@@ -14843,9 +14965,17 @@ def _warn_render_fire(_j, items=None):
             _vfy = str(f_.get('verify') or '').strip() or '待竞价验证：板块竞价量比放大+多股联动再确认'
             _fail = str(f_.get('fail_if') or '').strip() or '竞价量能不足/冲高回落即放弃'
             _risk = str(f_.get('risk') or '').strip() or '以竞价验证为准，逻辑未兑现不介入'
+            _tier_rows = ''
+            if _vg:
+                _tier_rows += f'<div style="color:#fff;font-size:12px;margin-top:2px;">🐉 先锋龙头：{_vg}</div>'
+            if _md:
+                _tier_rows += f'<div style="color:#fff;font-size:12px;margin-top:1px;">🏛 趋势中军：{_md}</div>'
+            if _tl:
+                _tier_rows += f'<div style="color:{GOLD};font-size:12px;margin-top:1px;">🧲 低位跟风：{_tl}</div>'
             out.append(f"""<div style="background:#1c2830;border-left:3px solid {RED};border-radius:8px;padding:9px 11px;margin:6px 0;">
-<div style="font-size:13px;font-weight:700;color:#fff;">{i}. {f_.get('sector','')} <span style="color:{GREY};font-weight:400;">｜相关个股：{_stk}</span> <span style="color:{GOLD};">{_conf_txt}</span></div>
+<div style="font-size:13px;font-weight:700;color:#fff;">{i}. {f_.get('sector','')} <span style="color:{GOLD};font-size:11px;">〔{_gr or '待定级'}〕</span> <span style="color:{GREY};font-weight:400;">｜{_stk}</span> <span style="color:{GOLD};">{_conf_txt}</span></div>
 <div style="color:#a78bfa;font-size:12px;margin-top:2px;">🧠 点火逻辑：{f_.get('logic','')}</div>
+{_tier_rows}
 <div style="color:#6c7a89;font-size:12px;margin-top:2px;">📊 实时数据：{_data}</div>
 <div style="color:{TEAL};font-size:12px;margin-top:2px;">🔍 开盘验证：{_vfy}</div>
 <div style="color:{GREEN};font-size:12px;margin-top:2px;">⛔ 失败则：{_fail}</div>
