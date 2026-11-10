@@ -11858,32 +11858,66 @@ def build_news2h():
     _ext_pairs = _news_ds_lines(_ext, 3, 'news2h_ext') or [(e.get('title', ''), '', '', '') for e in _ext[:3]]
     _ext_rows = _rows(_ext_pairs, True) if _ext_pairs else ''
 
+    # v80-E17：模型之前只拿到几条新闻标题，写出来必然是「找不到合力方向」这类空话。
+    # 这里把真实盘面（指数 + 涨停跌停炸板连板）取出来一起喂进去。
+    _mkt_parts = []
+    try:
+        _idx2 = get_index()
+        _mkt_parts.append('指数：' + '｜'.join('%s %+.2f%%' % (x['name'], x['pct']) for x in _idx2[:5]))
+    except Exception:
+        pass
+    try:
+        _dd2 = get_pools()
+        _mkt_parts.append('涨停%d家 跌停%d家 炸板%d家 最高%d板'
+                          % (_dd2['lu'], _dd2['dt'], _dd2['zb'], _dd2['max_lbc']))
+    except Exception:
+        pass
+    _mkt = '；'.join(_mkt_parts) or '盘面数据未取得'
+
     ds_html = ''
     if (MODELSCOPE_KEY or DEEPSEEK_KEY) and news:
         _g = load_position_gauge()
         _g_txt = (f'（当前仓位仪表盘：{_g.get("suggest", "")}，来自 {_g.get("source", "")}，不得与其矛盾）\n' if _g else '（仓位仪表盘未生成）\n')
         fmt = (_TRADER_RULES + '\n' + _g_txt
+               + '当前盘面：{mkt}\n'
                + '当前消息：利好{good}｜利空{bad}｜其他/中性{neu}\n'
-               + '请严格按以下格式输出（全大白话，禁模板句，不许罗列所有消息，严禁一问一答、严禁自问自答）：\n'
-               + '【今日主线】这批消息里真正在带节奏的是哪条线，落到具体板块和公司，说清为什么是它\n'
-               + '【暗线】这条主线背后真正在涨的是什么：资金认的是产业趋势、业绩兑现还是政策，把那层看不见的逻辑讲透\n'
-               + '【最该记的一点】一句话，今天消息面最该记住的东西（偏暖还是偏冷，落在哪）\n'
-               + '硬规矩：全篇不超过160字，三段各1-2句，每段之间必须留一个真正的空行（不是省略号、不是横线）；\n'
-               + '每段只讲一个点，讲不透的宁可删掉，不许凑字；\n'
-               + '不许把三段写成一大段，不许写「综上所述」「总的来说」这类收尾，不许复述消息标题。')
+               + '你手上同时有盘面和消息，任务是判断「这些消息到底有没有真的在盘面上兑现」。\n'
+               + '请严格按以下四段输出（全大白话，禁模板句，不许罗列所有消息，严禁一问一答、严禁自问自答）：\n'
+               + '【今日主线】这批消息里真正在带节奏的是哪条线。必须点名具体板块，并说清这条线今天在盘面上\n'
+               + '有没有兑现（看涨停家数、板块内部有几家在涨），没有兑现就说没有兑现，不要编「资金在观望」。\n'
+               + '【暗线】这条主线背后真正在涨的是什么：资金认的是产业趋势、业绩兑现还是政策。\n'
+               + '必须落到一两只具体个股（写股票名+6位代码）和一个硬连接（供货/参股/产能/资质/订单/同一条产线），\n'
+               + '点不出具体票的这条线就别写，直接写「这条线今天盘面上没有能落地的票」。\n'
+               + '【盘面印证】用上面给的指数、涨跌家数、涨停跌停炸板数据，说清消息和盘面是不是对得上：\n'
+               + '对不上就直接说对不上，并说清钱到底跑去了哪里（哪个板块在涨、哪个在跌）。\n'
+               + '【最该记的一点】一句话，今天消息面最该记住的东西（偏暖还是偏冷，落在哪个板块）。\n'
+               + '硬规矩：\n'
+               + '1) 全篇不超过260字，四段各1-2句，段与段之间必须留一个真正的空行（不是省略号、不是横线）；\n'
+               + '2) 严禁出现这些万能句：找不到合力方向、避险情绪重、大矛盾未解、不敢真金白银点火、\n'
+               + '   位置不对就休息、空仓保持住、控制好仓位、谨慎观望、静待方向——出现任意一句，整段作废重写；\n'
+               + '3) 提到的板块必须点名（不许写「海外半导体」这种境外概念代替A股板块）；提到的个股必须带6位代码；\n'
+               + '4) 所有数字必须来自上面给的盘面数据或消息原文。不许写「涨超百分之五」「回撤三十个点」「涨十个基点」\n'
+               + '   这种约数或听来的数字，给不出真实数字就干脆不写数字；\n'
+               + '5) 不许复述消息标题，不许写「综上所述」「总的来说」这类收尾。')
         t = ask_deepseek({'task': 'news2h_summary',
+                          'mkt': _mkt,
                           'good': [g.get('title','')[:40] for g in good[:4]],
                           'bad': [b.get('title','')[:40] for b in bad[:4]],
                           'neu': '；'.join((n.get('title') or '')[:50] for n in neu[:8]) or '无',
                           'format': fmt}, purpose='news2h')
         if t:
-            ds_html = _verdict_blocks(t)
+            ds_html = _verdict_blocks(t, max_blocks=4)
         else:
             # 2026-11-09：模型不回不再整卡丢弃（12:00 news2h 整槽消失的直接原因）。
             # 出数据版：真实标题 + 真实摘要 + 主营实据暗线，不写任何规则化结论。
             print('[news2h] LLM 未返回，改出数据版（标题+摘要+主营实据暗线）')
             ds_html = ''
-    inner = (_hold_conflict_html(bad)
+    _mkt_html = ''
+    if _mkt_parts:
+        _mkt_html = (f'<div style="margin-top:2px;font-size:15px;font-weight:800;color:#ff922b;">📊 盘面速览</div>'
+                     f'<div style="padding:8px 10px;background:#141a24;border-radius:8px;'
+                     f'font-size:13px;color:#e2e8f0;line-height:1.72;">{_mkt}</div>')
+    inner = (_hold_conflict_html(bad) + _mkt_html
              + f'<div style="font-size:15px;font-weight:800;color:{RED};">🔴 今日利好（{len(good_pairs)}条）</div>'
              + _rows(good_pairs, True)
              + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:{GREEN};">🟢 今日利空（{len(bad_pairs)}条）</div>'
