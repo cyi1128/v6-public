@@ -1166,3 +1166,12 @@
 03:25:07 [ask_deepseek] 首轮无返回即止损 purpose=board_watch
 03:25:07 [ask_deepseek] ModelScope 两次尝试均失败，purpose=board_watch
 03:25:07 [board_watch_ds] LLM 返回空，回退规则模板
+03:31:58 [llm] OK purpose=noon_extra_dark len=1318
+03:33:20 [llm] OK purpose=mf_dark len=709
+03:33:40 [llm] 未返回 purpose=noon_v4 model=Qwen/Qwen3.8-27B tag=http_502
+03:35:30 [llm] OK purpose=noon_v4 len=256
+03:37:02 [llm] OK purpose=noon_dark len=558
+03:38:13 [llm] OK purpose=event_dark len=749
+03:39:38 [llm] OK purpose=health_dark len=247
+03:41:03 [llm] OK purpose=newfire_dark len=241
+03:42:20 [llm] OK purpose=batch_deep len=1888
