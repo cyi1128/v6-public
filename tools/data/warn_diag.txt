@@ -1119,3 +1119,15 @@
 00:35:40 [llm] OK purpose=pre_main_dark len=234
 00:37:11 [llm] OK purpose=focus_deep len=1734
 00:38:45 [llm] OK purpose=event_dark len=749
+01:27:35 [llm] 未返回 purpose=confirm_ds model=Qwen/Qwen3.5-35B-A3B tag=timeout
+01:27:35 [llm] 未返回 purpose=confirm_ds model=Qwen/Qwen3.5-122B-A10B tag=timeout
+01:27:35 [llm] 未返回 purpose=confirm_ds model=Qwen/Qwen3.8-27B tag=timeout
+01:27:35 [llm] 截止已过停产 purpose=confirm_ds
+01:27:35 [ask_deepseek] 首轮无返回即止损 purpose=confirm_ds
+01:27:35 [ask_deepseek] ModelScope 两次尝试均失败，purpose=confirm_ds
+01:27:36 [llm] 未返回 purpose=auction model=Qwen/Qwen3.8-27B tag=timeout
+01:27:36 [llm] 未返回 purpose=auction model=Qwen/Qwen3.5-122B-A10B tag=timeout
+01:27:36 [llm] 未返回 purpose=auction model=Qwen/Qwen3.5-35B-A3B tag=timeout
+01:27:36 [llm] 截止已过停产 purpose=auction
+01:27:36 [ask_deepseek] 首轮无返回即止损 purpose=auction
+01:27:36 [ask_deepseek] ModelScope 两次尝试均失败，purpose=auction
