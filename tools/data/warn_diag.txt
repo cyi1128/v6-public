@@ -1148,3 +1148,9 @@
 02:51:13 [llm] OK purpose=board_why len=275
 02:52:29 [llm] OK purpose=board_watch len=1785
 02:52:29 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 当前数据采集于盘中时段，市场情绪分数为 75.9 分，显示资金处于进攻状态。输入数据包含瑞松科技涨幅 11.3%、人民同泰涨幅 1
+03:02:21 [llm] OK purpose=hourly_ds len=487
+03:04:32 [llm] OK purpose=batch_deep len=4114
+03:07:23 [llm] OK purpose=newfire_dark len=252
+03:08:18 [llm] OK purpose=health len=169
+03:09:24 [llm] OK purpose=hold_diag len=552
+03:10:36 [llm] OK purpose=event_dark len=731
