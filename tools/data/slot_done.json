@@ -97,5 +97,6 @@
  "news2h|2026-11-09|2329": true,
  "warn|2026-11-10": true,
  "pre|2026-11-10": true,
- "auction|2026-11-10": true
+ "auction|2026-11-10": true,
+ "hourly|2026-11-10|10": true
 }
