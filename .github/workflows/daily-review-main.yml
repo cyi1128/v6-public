@@ -200,6 +200,7 @@ jobs:
     timeout-minutes: 380
     permissions:
       contents: write
+      actions: write   # 2026-11-10：自我接力需要能 dispatch 本 workflow
     steps:
       - uses: actions/checkout@v4
       # 2026-11-06 工单1：装 numpy/requests，解锁 nine_score(0.10) 与 multi_factor 两个评分引擎。
@@ -249,6 +250,7 @@ jobs:
             git push || true
           fi
       - name: 云端自驱调度
+        id: drive
         env:
           MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
@@ -257,4 +259,41 @@ jobs:
             echo "本次为演示 run，跳过常规调度（避免同一次 run 再推正常槽位造成混淆）"
             exit 0
           fi
+          _T0=$(date +%s)
           python3 -u tools/cloud_slot_scheduler.py
+          echo "drive_sec=$(( $(date +%s) - _T0 ))" >> "$GITHUB_OUTPUT"
+      # ===== 2026-11-10 自我接力（治「定时不推」的根本原因）=====
+      # 实测：本仓库 schedule 被平台系统性节流——11-09 名义 96 次只真触发 3 次，
+      # 11-10 全天 0 次 run（用户当天从早上 09:30 之后一整天没收到任何推送）。
+      # cron 不能指望，于是把一个 run 变成「一棒接一棒」：
+      # 本次调度器已释放段标记后，用 GITHUB_TOKEN 预约下一次 slot=scheduler 的 dispatch，
+      # 新 run 在 concurrency 组内排队，本次一结束立刻接上，全天不再断档。
+      # 三重防滥用：① 只在 UTC 0-15（北京 08:00-23:45）接力；
+      #            ② 本次真跑够 10 分钟才接力（空转 idle run 不接力，避免烧额度）；
+      #            ③ 演示 run([demo]) 不接力。
+      - name: 预约下一棒（cron 被吞时的兜底接力）
+        if: always() && github.event.inputs.slot != 'demo-all' && !contains(github.event.head_commit.message, '[demo]') && !contains(github.event.head_commit.message, '[run-now]')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRIVE_SEC: ${{ steps.drive.outputs.drive_sec }}
+        run: |
+          H=$(date -u +%H)
+          if [ "$H" -lt 0 ] || [ "$H" -gt 15 ]; then
+            echo "RELAY_SKIP 非推送时段 UTC H=$H"
+            exit 0
+          fi
+          if [ "${DRIVE_SEC:-0}" -lt 600 ]; then
+            echo "RELAY_SKIP 本次只跑了 ${DRIVE_SEC:-0}s（<600s），不接力"
+            exit 0
+          fi
+          CODE=$(curl -sS -o /tmp/relay_body.txt -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/daily-review-main.yml/dispatches" \
+            -d '{"ref":"main","inputs":{"slot":"scheduler"}}' || echo 000)
+          echo "RELAY_HTTP=$CODE drive_sec=${DRIVE_SEC}"
+          if [ "$CODE" != "204" ]; then
+            head -c 400 /tmp/relay_body.txt 2>/dev/null || true
+          fi

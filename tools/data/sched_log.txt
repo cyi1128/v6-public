@@ -343,26 +343,20 @@
 11-09 11:42:10 >>> 执行槽位 news @ 11:42:10
 11-09 11:42:10 >>> 预算：LLM 360s / 单模型 45s / 子进程上限 600s
 11-09 11:43:46     news| SLOT news PUSH True 执行成功
-<<<<<<< Updated upstream
 11-09 12:00:10 启动调度器 v6，当前北京时间 2026-11-09 12:00:10 星期一
 11-09 12:00:11 发现 2026-11-09 段的过期标记（roll-dead 止于 2026-11-09T09:05:00+08:00），接管
-<<<<<<< Updated upstream
-=======
 11-09 11:43:48 持久化(news)：已推送
 11-09 11:43:48 <<< 完成槽位 news，用时 97.6s
 11-09 11:43:48 漏推留痕：10:35 risk 已过宽容窗 60 分钟仍未推送
 11-09 12:00:04 >>> 执行槽位 news2h @ 12:00:04
 11-09 12:00:04 >>> 预算：LLM 360s / 单模型 45s / 子进程上限 600s
 11-09 12:04:43     news2h| SLOT news2h: 构建失败，不推送
->>>>>>> Stashed changes
-=======
 11-09 12:00:12 持久化(sched-active)：已推送
 11-09 12:00:12 已占用 2026-11-09 roll-1200 段调度权（至 17:50）
 11-09 12:00:12 补跑待执行：12:00 news2h（已迟到 0 分钟）
 11-09 12:00:12 >>> 执行槽位 news2h @ 12:00:12
 11-09 12:00:12 >>> 预算：LLM 360s / 单模型 45s / 子进程上限 600s
 11-09 12:04:51     news2h| SLOT news2h: 构建失败，不推送
->>>>>>> Stashed changes
 11-09 12:13:22 启动调度器 v6，当前北京时间 2026-11-09 12:13:22 星期一
 11-09 12:13:24 发现 2026-11-09 段的过期标记（roll-dead 止于 2026-11-09T09:05:00+08:00），接管
 11-09 12:13:25 持久化(sched-active)：已推送
@@ -379,7 +373,6 @@
 11-09 12:22:53 >>> 执行槽位 news2h @ 12:22:53
 11-09 12:22:53 >>> 预算：LLM 360s / 单模型 45s / 子进程上限 600s
 11-09 12:27:44     news2h| SLOT news2h PUSH True 执行成功
-<<<<<<< Updated upstream
 11-09 12:27:45 持久化(news2h)：已推送
 11-09 12:27:45 <<< 完成槽位 news2h，用时 292.2s
 11-09 12:27:45 滚动段 roll-1222 调度至 18:12，共可覆盖约 345 分钟
@@ -389,9 +382,7 @@
 11-09 13:00:05 >>> 执行槽位 hourly @ 13:00:05
 11-09 13:00:05 >>> 预算：LLM 360s / 单模型 45s / 子进程上限 540s
 11-09 13:06:08     hourly| SLOT hourly PUSH True 执行成功
-=======
 11-09 13:10:33 启动调度器 v6，当前北京时间 2026-11-09 13:10:33 星期一
->>>>>>> Stashed changes
 11-09 13:10:35 发现 2026-11-09 段的过期标记（roll-dead 止于 2026-11-09T09:05:00+08:00），接管
 11-09 13:10:35 pull 失败，自愈：error: Pulling is not possible because you have unmerged files.
 hint: Fix them up in the work tree, and then use 'git ad
@@ -420,16 +411,13 @@ hint: Fix them up in the work tree, and then use 'git ad
 11-09 13:30:05 >>> 执行槽位 watch @ 13:30:05
 11-09 13:30:05 >>> 预算：LLM 150s / 单模型 30s / 子进程上限 300s
 11-09 13:35:05 槽位 watch 撞到子进程硬上限 300s，跳过（下个槽不会被它拖住）
-<<<<<<< Updated upstream
 11-09 13:35:07 持久化(watch)：已推送
 11-09 13:35:07 <<< 完成槽位 watch，用时 301.9s
 11-09 13:35:07 >>> 执行槽位 risk @ 13:35:07
 11-09 13:35:07 >>> 计划槽时刻 1335（去重键按此生成，防补跑重复推）
 11-09 13:35:07 >>> 预算：LLM 300s / 单模型 45s / 子进程上限 420s
 11-09 13:36:59     risk| SLOT risk PUSH True 执行成功
-=======
 11-09 13:39:47 启动调度器 v6，当前北京时间 2026-11-09 13:39:47 星期一
->>>>>>> Stashed changes
 11-09 13:39:49 发现 2026-11-09 段的过期标记（roll-dead 止于 2026-11-09T09:05:00+08:00），接管
 11-09 13:39:49 pull 失败，自愈：error: Pulling is not possible because you have unmerged files.
 hint: Fix them up in the work tree, and then use 'git ad
@@ -463,7 +451,6 @@ hint: Fix them up in the work tree, and then use 'git ad
 11-09 13:52:25     risk| SLOT risk 今日已推（slot_done.json 去重），跳过
 11-09 13:56:51 启动调度器 v6，当前北京时间 2026-11-09 13:56:51 星期一
 11-09 13:56:53 发现 2026-11-09 段的过期标记（roll-dead 止于 2026-11-09T09:05:00+08:00），接管
-<<<<<<< Updated upstream
 11-09 13:56:55 持久化(sched-active)：已推送
 11-09 13:56:55 已占用 2026-11-09 roll-1356 段调度权（至 19:46）
 11-09 13:56:55 滚动段 roll-1356 调度至 19:46，共可覆盖约 350 分钟
@@ -472,9 +459,7 @@ hint: Fix them up in the work tree, and then use 'git ad
 11-09 14:00:10 >>> 计划槽时刻 1400（去重键按此生成，防补跑重复推）
 11-09 14:00:10 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-09 14:09:24     hourly| SLOT hourly PUSH True 执行成功; 执行成功
-=======
 11-09 14:09:47 启动调度器 v6，当前北京时间 2026-11-09 14:09:47 星期一
->>>>>>> Stashed changes
 11-09 14:09:49 发现 2026-11-09 段的过期标记（roll-dead 止于 2026-11-09T09:05:00+08:00），接管
 11-09 14:09:49 pull 失败，自愈：error: Pulling is not possible because you have unmerged files.
 hint: Fix them up in the work tree, and then use 'git ad
@@ -687,7 +672,6 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-09 23:12:07 >>> 计划槽时刻 2200（去重键按此生成，防补跑重复推）
 11-09 23:12:07 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-09 23:19:14     news2h| SLOT news2h PUSH True 执行成功
-<<<<<<< Updated upstream
 11-09 23:19:15 持久化(news2h)：已推送
 11-09 23:19:15 <<< 完成槽位 news2h，用时 428.6s
 11-09 23:19:15 >>> 执行槽位 ext @ 23:19:15
@@ -701,7 +685,6 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-09 23:25:13 滚动段调度结束（23:25），退出
 11-09 23:25:13 退出原因：roll-end
 11-09 23:25:13 今日已过窗未推 9 个槽：10:35risk、10:00news2h、14:01news2h、10:35follow、13:35follow、18:00news2h、20:00news2h、21:38ext、22:38ext
-=======
 11-09 23:25:27 持久化(ext)：无可提交改动
 11-09 23:25:27 <<< 完成槽位 ext，用时 530.3s
 11-09 23:25:27 滚动段 roll-2309 调度至 23:55，共可覆盖约 30 分钟
@@ -709,7 +692,6 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-09 23:25:27 滚动段调度结束（23:25），退出
 11-09 23:25:27 退出原因：roll-end
 11-09 23:25:27 今日已过窗未推 7 个槽：10:35risk、10:00news2h、14:01news2h、18:00news2h、20:00news2h、21:38ext、22:38ext
->>>>>>> Stashed changes
 11-09 23:25:39 持久化(sched-active)：无可提交改动
 11-09 23:25:39 已占用 2026-11-09 roll-2325 段调度权（至 23:55）
 11-09 23:25:39 补跑待执行：22:00 news2h（已迟到 85 分钟）

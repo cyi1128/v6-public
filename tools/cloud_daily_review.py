@@ -5297,6 +5297,48 @@ def _pre_key(title):
     return s[:18]
 
 
+def _hold_deep(rows):
+    """持仓竞价诊断（大模型）：{nm: {'dark','read','act'}}。模型不回返回 {}。
+    v80-D：用户明确「持仓竞价诊断禁止模版回答，核心暗线用大模型」。这里只让模型写三样，
+    代码不产出任何结论；拿不到就返回空，卡片退化到纯数据事实行（宁缺不模板）。"""
+    if not rows or not (MODELSCOPE_KEY or DEEPSEEK_KEY):
+        return {}
+    _ln = '\n'.join('- %s(%s)　今开%s　竞价量比%s　竞价量%s　现价%.2f　位置%s'
+                    % (r['name'], r['code'],
+                       ('%+.1f%%' % r['op']) if r.get('op') is not None else '未就绪',
+                       ('%.2f' % r['lb']) if r.get('lb') else '未取得',
+                       ('%.0f%%' % r['vq']) if r.get('vq') else '未取得',
+                       float(r.get('price') or 0), r.get('ptag') or '未知')
+                    for r in rows[:8])
+    fmt = ('你是A股一线游资，客户手里已经有下面这些票，正在集合竞价。逐只给判断。\n'
+           '【绝对禁止】模板句（量价不达标这种不碰/值得关注/注意风险）、设问句、自己提问自己回答、列表符号。\n'
+           '每只票给三样，全部结合上面给的真实数字：\n'
+           'dark：这只票今天被资金盯上的核心暗线（不是主营、不是明面业务），一句话说清资金在赌它什么，40-70字；'
+           '实在看不出就写「看不出资金在赌什么，跟着情绪走」。\n'
+           'read：竞价这一刻的真实读盘——开幅和量比说明了什么（有没有真买盘、是不是虚高骗炮），35-55字。\n'
+           'act：开盘怎么做——守/减/走/看，必须给具体触发条件（跌破哪个价位就走、冲到多少减），25-40字。\n'
+           '只输出 JSON：{"per":[{"nm":"股票名(照抄)","dark":"...","read":"...","act":"..."}]}，必须覆盖每只。')
+    t = ask_deepseek({'task': 'hold_deep',
+                      'items': [{'nm': r['name'], 'code': r['code'], 'op': r.get('op'),
+                                 'lb': r.get('lb'), 'vq': r.get('vq'),
+                                 'price': r.get('price'), 'pos': r.get('ptag')} for r in rows[:8]],
+                      'format': fmt}, purpose='hold_deep')
+    out = {}
+    if not t:
+        return out
+    try:
+        _j = json.loads(t[t.find('{'):t.rfind('}') + 1])
+        for it in _j.get('per') or []:
+            _nm = str(it.get('nm') or '').strip()
+            if _nm:
+                out[_nm] = {'dark': str(it.get('dark') or '').strip(),
+                            'read': str(it.get('read') or '').strip(),
+                            'act': str(it.get('act') or '').strip()}
+    except Exception:
+        pass
+    return out
+
+
 def _focus_deep(focus):
     """盘前重点个股批量深挖：{nm: {'plain','tip'}}。失败 {}。"""
     if not focus or not (MODELSCOPE_KEY or DEEPSEEK_KEY):
@@ -5830,15 +5872,33 @@ def _sector_wind(d, news):
     return strong, weak
 
 
+def _pre_lookup(pre_map, title):
+    """盘前新闻判读查表：先精确（_pre_key），再前 12 字模糊（模型偶尔改写标题）。
+    v80-D：原来只做精确匹配，模型把标题改写一个字就整张「利好利空」空掉——用户看到的就是
+    「今日暂无明确利好/利空」。加前缀模糊命中后，命中率不再受标题微小改写影响。"""
+    if not pre_map:
+        return {}
+    _k = _pre_key(title)
+    _v = pre_map.get(_k)
+    if _v:
+        return _v
+    _t12 = _k[:12]
+    for _k2, _v2 in pre_map.items():
+        if _k2[:12] == _t12:
+            return _v2
+    return {}
+
+
 def _goodbad_action(news, pre_map=None):
     """⑤ 利好利空精选（行动版）：利好≤3、利空≤3。利好/利空标签与影响面只认大模型判读；
     模型未判读的条目不入选，不再用 classify_news + _plain_for 规则版凑数。"""
     good, bad = [], []
     pre_map = pre_map or {}
     for nw in news[:20]:
-        _dn = pre_map.get(_pre_key(nw['title'])) or {}
+        _dn = _pre_lookup(pre_map, nw['title'])
         _gd, _bd = str(_dn.get('good') or '').strip(), str(_dn.get('bad') or '').strip()
-        _wh = str(_dn.get('why') or '').strip()
+        # v80-D：why 缺失时回落到 logic（模型有时只给逻辑不给大白话），不再整条丢弃
+        _wh = str(_dn.get('why') or '').strip() or str(_dn.get('logic') or '').strip()
         if not _dn or not _wh:
             continue
         _rg2 = bool(_gd) and ('无明显' not in _gd)
@@ -5987,6 +6047,24 @@ def build_pre():
     _pre_news_map = _pre_news_deep(news)
     good, bad = _goodbad_action(news, _pre_news_map)
     watch, avoid, hold_rows = _action_list(news, d, gl_avg, _pre_news_map)
+    # v80-D（用户 2026-11-10「⑧我明确禁止不让用明面的主营业务，要使用大模型的暗线」）：
+    # 可关注/坚决回避的票单独再深挖一轮，暗线只认模型输出；模型不回就**不印暗线行**，
+    # 绝不回落到 _dark_fact / _dark_solid 的主营构成（那正是用户反复否定的明面业务）。
+    _op_map = {}
+    try:
+        _oa_names = []
+        for _x in (list(watch) + list(avoid)):
+            _nmx = str(_x[0] if isinstance(_x, (list, tuple)) else _x).split('（')[0].split('(')[0].strip()
+            if _nmx and _nmx not in _oa_names:
+                _oa_names.append(_nmx)
+        _oa_focus = [(_nmx, (_name_to_code(_nmx) or _nmx), '—', '盘面', None, None, '关注')
+                     for _nmx in _oa_names[:8]]
+        if _oa_focus:
+            _op_map = _focus_deep(_oa_focus)
+        print('[pre] 操作清单暗线 模型覆盖 %d/%d' % (len(_op_map), len(_oa_focus)))
+    except Exception as _oe:
+        _op_map = {}
+        print('[pre] 操作清单暗线异常:', repr(_oe)[:80])
     ds_html = _pre_ds(news, intel)
     # —— 事件驱动主线小节（量化评分 Top3，紧跟时事核心）——
     # v80-A18（用户指令「驱动主线展示暗线逻辑」）：每条事件主线补一条暗线，一次批量调用
@@ -6075,11 +6153,9 @@ def build_pre():
     _hot_f = [str(x[0]) for x in (d.get('tops') or [])[:4] if x and x[0]]
     _foc_rows = []
     for nm, code, prev, sec, plain, tip, role in focus:
-        # 2026-11-09：每只票都常显主营实据暗线（模型回不回都出，不写「AI 未返回」）
-        _dk = _dark_fact(_pure_code(code) or code, nm, _hot_f)
+        # v80-D（用户 2026-11-10 铁律）：暗线只认大模型，主营构成兜底全部删除
         # v80-A5（用户指令）：只留暗线 + 近五日收盘涨幅，昨收/题材/角色/空 emoji 全部隐藏
         _fp = _pure_code(code) or code
-        _dk = _dk or _dark_solid(_fp, nm)
         _fc5 = _chg5_of(_fp, prev)
         _fcd = _chg5_daily(_fp)
         # v80-A19（用户指令「把每天收盘涨跌幅展示出来」）：逐日摆开，不再只给一个累计数
@@ -6106,10 +6182,22 @@ def build_pre():
         _ftip = str((_foc_map.get(nm) or {}).get('tip', '') or '').strip()
         # v80-A19：本质与暗线不再是两行——模型那段（本质→暗线业务→为什么是它→弹性风险）直接当暗线主体，
         # 主营构成只有在模型没回时才补上来；「👉」独立行取消。
-        _ess = _fpl or _dk or ''
-        # v80-A35：右侧一行近5日累计，扫一眼就知道位置；明细仍在下方逐日
-        _fr = (('<span style="float:right;color:%s;font-weight:700;font-size:12px;">近5日 %+.2f%%</span>'
-                % (_c(float(_fc5)), float(_fc5))) if isinstance(_fc5, (int, float)) else '')
+        _ess = _fpl or ''
+        # v80-D（用户 2026-11-10「近五日重复，改成现价，实时涨跌幅」）：
+        # 右侧这行原来又把「近5日 +X%」印一遍，和下方逐日明细的累计重复。改成现价 + 实时涨跌幅。
+        _sym5 = ('sh' if str(_fp).startswith('6') else 'sz') + str(_fp)
+        try:
+            _q5 = _qt(_sym5) or {}
+        except Exception:
+            _q5 = {}
+        _pv5 = _q5.get('price') or 0
+        _pc5 = _q5.get('pct')
+        if _pv5:
+            _fr = ('<span style="float:right;font-size:12px;">现价 <b style="color:#fff;">%.2f</b>'
+                   '<span style="color:%s;font-weight:700;">　%+.2f%%</span></span>'
+                   % (_pv5, _c(float(_pc5 or 0)), float(_pc5 or 0)))
+        else:
+            _fr = ''
         _foc_rows.append(
             f"""<div style="background:#1f2635;border-left:3px solid #a78bfa;border-radius:8px;padding:10px 12px;margin:7px 0;">
 <b style="color:#fff;font-size:14px;">{nm}</b> <span style="color:{GREY};font-size:12px;">{code}</span>{_fr}
@@ -6128,8 +6216,8 @@ def build_pre():
     def _op_line(mark, nm, why, tail=''):
         # v80-A18（用户指令「废话太多，只粘下逻辑暗线连贯成一段话」）：
         # 「昨日涨6.9%、量比2.2、换手4.6%、位置不高｜仓位」这类量价碎数全部不印，只留名称 + 暗线。
-        _c = _name_to_code(_plain_nm(nm))
-        _dk = _dark_fact(_c, _plain_nm(nm), _hot_f) if _c else ''
+        # v80-D：暗线只取大模型 _op_map，主营构成兜底彻底删除
+        _dk = str((_op_map.get(_plain_nm(nm)) or {}).get('plain') or '').strip()
         _dkl = (f'<div style="color:#a78bfa;font-size:12.5px;margin:2px 0 0 14px;line-height:1.62;">🔍 暗线：{_dk}</div>' if _dk else '')
         return ('<div style="margin:7px 0;font-size:13px;">' + mark + ' <b>' + nm + '</b>' + _dkl + '</div>')
 
@@ -6226,7 +6314,7 @@ def build_auction(title='竞价观察'):
             print(f'[auction] FIX18早触发等待竞价集合 {int(_wait)}s')
             time.sleep(_wait)
     # —— 持仓竞价诊断（三分法，先出；数据超时也保留持仓卡，不推空卡）——
-    own = []
+    _own_data = []
     for h in HOLDINGS:
         try:
             q = _qt(h['code'])
@@ -6242,19 +6330,50 @@ def build_auction(title='竞价观察'):
                     vq_ratio = (q['vol'] * 100) / float(arr[-2][5]) * 100
             except Exception:
                 pass
-            lb_v = q.get('lb')
-            lb_txt = f'{lb_v:.1f}' if (lb_v or 0) else '未取得'
-            act, why = three_way(op, lb_v or 0, vq_ratio)
-            op_txt = f'{op:+.1f}%' if op is not None else '未就绪'
-            op_col = _c(op) if op is not None else GREY
             _, ptag = _pos_risk(h['code'], q['price'])
-            own.append(f"""<div style="background:#1f2635;border-left:3px solid {TEAL};border-radius:8px;padding:9px 11px;margin:6px 0;">
-<b style="color:#fff;">🐉 {h['name']}</b> <span style="color:{op_col};font-weight:800;float:right;">开{op_txt}</span>
-<div style="color:{GREY};font-size:12px;">量比{lb_txt}｜{act}{f'｜位置 {ptag}' if ptag else ''}<br>{why}</div></div>""")
+            # v80-D（用户 2026-11-10「持仓竞价诊断数据不全、禁止模版回答，核心暗线用大模型」）：
+            # 这里只收真实数字。量比取不到就单独标「未取得」，不再拿 three_way 的规则句
+            # （「量价不达标，这种不碰」就是用户说的模版）糊弄。结论与暗线由 _hold_deep 模型给。
+            _own_data.append({'name': h['name'], 'code': h['code'], 'op': op,
+                              'lb': float(q.get('lb') or 0), 'vq': vq_ratio,
+                              'price': q['price'], 'pct': q.get('pct'), 'ptag': ptag})
         except Exception:
             continue
-    own_block = (''.join(own) if own else '<div style="color:' + GREY + ';font-size:13px;">持仓行情未取得（腾讯快照失败），稍后看盘中解读</div>')
-    own_section = (f'<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">🛡 持仓竞价诊断</div>{own_block}')
+
+    def _render_own(omap):
+        _hd = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">'
+               '🛡 持仓竞价诊断（先看自己的）</div>')
+        if not _own_data:
+            return (_hd + '<div style="color:' + GREY + ';font-size:13px;">'
+                    '持仓行情未取得（腾讯快照失败），稍后看盘中解读</div>')
+        _rs2 = []
+        for _d in _own_data:
+            _op = _d['op']
+            _op_txt = ('%+.1f%%' % _op) if _op is not None else '未就绪'
+            _op_col = _c(_op) if _op is not None else GREY
+            _lb_t = ('%.2f' % _d['lb']) if _d['lb'] else '未取得'
+            _vq_t = ('昨量%.0f%%' % _d['vq']) if _d.get('vq') else '未取得'
+            _pt = ('　位置 %s' % _d['ptag']) if _d.get('ptag') else ''
+            _md = (omap or {}).get(_d['name']) or {}
+            _dn = str(_md.get('dark') or '').strip()
+            _rd = str(_md.get('read') or '').strip()
+            _ac = str(_md.get('act') or '').strip()
+            _rs2.append('<div style="background:#1f2635;border-left:3px solid ' + TEAL
+                        + ';border-radius:8px;padding:9px 11px;margin:6px 0;">'
+                        '<b style="color:#fff;">🐉 ' + _d['name'] + '</b>'
+                        + '<span style="color:' + _op_col + ';font-weight:800;float:right;">开' + _op_txt + '</span>'
+                        + '<div style="color:' + GREY + ';font-size:12px;">现价 %.2f　竞价量比 %s　竞价量 %s%s</div>'
+                        % (float(_d.get('price') or 0), _lb_t, _vq_t, _pt)
+                        + ('<div style="color:#a78bfa;font-size:12.5px;margin-top:3px;line-height:1.62;">🔍 暗线：'
+                           + _dn + '</div>' if _dn else '')
+                        + ('<div style="color:#e9ecef;font-size:12.5px;margin-top:2px;line-height:1.6;">👉 '
+                           + _rd + '</div>' if _rd else '')
+                        + ('<div style="color:' + GOLD + ';font-size:12.5px;margin-top:2px;">💡 ' + _ac + '</div>'
+                           if _ac else '')
+                        + '</div>')
+        return _hd + ''.join(_rs2)
+
+    own_section = _render_own({})
     # —— 数据拉取（09:26:30 硬截止，预留选股+LLM+推送时间，保证 09:27 前强制出卡；https/http 双通道）——
     bj = _bj_now()
     deadline = bj.replace(hour=9, minute=26, second=30, microsecond=0)
@@ -6335,7 +6454,9 @@ def build_auction(title='竞价观察'):
                     else f'高开{op2:+.1f}%超过{hi2}%，竞价透支、开盘容易被砸' if op2 > hi2
                     else f'高开{op2:+.1f}%不足{lo2}%，没溢价不值得做')
         _cinfos.append({'name': s['name'], 'code': s['code'], 'op': op2, 'lb': lb2, 'sec': s['industry'], 'ok': ok2, 'why': why2})
-    _ex = ThreadPoolExecutor(max_workers=2)
+    _ex = ThreadPoolExecutor(max_workers=3)
+    # v80-D：持仓诊断的暗线/读盘/动作交给大模型，与选股深挖、实盘确认并行
+    _hd_fut = _ex.submit(_hold_deep, _own_data)
     # 8项强制修复：大盘上下文（涨停/炸板/情绪/指数）+ 涨停板块题材 → 喂给 LLM，禁止规则性回答
     try:
         _idx = get_indices()
@@ -6400,16 +6521,14 @@ def build_auction(title='竞价观察'):
         _deep = (ds_map or {}).get(s['name'])
         if _deep and _deep.get('logic'):
             _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(_deep.get('op', ''), GOLD)
-            _dk = str(_deep.get('dark') or '').strip() or _dark_fact(s.get('code') or '', s.get('name') or '', _hot_names)
+            _dk = str(_deep.get('dark') or '').strip()
             _rsn = str(_deep.get('reason') or '').strip()
             _deep_html = (f"""<div style="color:#a78bfa;font-size:13px;margin-top:4px;">🔍 暗线：{_dk or ''}</div>
 <div style="color:#a78bfa;font-size:13px;margin-top:3px;">🧠 {_deep.get('logic','')}</div>
 <div style="color:#e9ecef;font-size:13px;margin-top:3px;">👉 {_deep.get('why','')}</div>""")
         else:
-            # 模型没回来也要给真暗线：主营构成实据（不是模板句、不写「AI 未返回」）
-            _dz = _dark_fact(s.get('code') or '', s.get('name') or '', _hot_names)
-            _dz = _dz or _dark_solid(s.get('code') or '', s.get('name') or '')
-            _deep_html = (f"""<div style="color:#a78bfa;font-size:13px;margin-top:4px;">🏷 主业：{_dz or ''}</div>""")
+            # v80-D：模型没回就不印暗线（绝不回落主营构成），只留下面的事实与近5日
+            _deep_html = ''
         _fl_line = ''
         if _FACTOR_OK and _jq_res is not None:
             _fres = _factor_for_auction(s, heat, cnt, _jq_res)
@@ -6453,18 +6572,37 @@ def build_auction(title='竞价观察'):
                 return '强', TEAL
             return '中', GOLD
         _t3 = []
-        _dark_any = any(((ds_map or {}).get(s_['name']) or {}).get('dark') for s_ in tops[:3])
         for i, s_ in enumerate(tops[:3], 1):
             _a, _col = _quick_act(s_)
             _d3 = (ds_map or {}).get(s_['name']) or {}
-            _dk3 = (str(_d3.get('dark') or '').strip()
-                    or _dark_fact(s_.get('code') or '', s_.get('name') or '', _hot_names)
-                    or _dark_solid(s_.get('code') or '', s_.get('name') or ''))
+            # v80-D：暗线只认模型，删掉 _dark_fact/_dark_solid 两个主营兜底
+            _dk3 = str(_d3.get('dark') or '').strip()
             _lg3 = str(_d3.get('logic') or '').strip() or str(_d3.get('why') or '').strip()
             _dk3_html = ('<div style="color:#a78bfa;font-size:13px;margin-top:2px;">🔍 暗线：%s</div>' % _dk3
                          if _dk3 else '')
+            # v80-D（用户 2026-11-10「三只要显示竞价涨幅、现价、竞价量比，评分也消失了」）：
+            # 现价/竞价涨幅/竞价量比走腾讯实时快照，综合分直接取 _auction_score_v3 的 score
+            _sy3 = ('sh' if str(s_.get('code') or '').startswith('6') else 'sz') + str(s_.get('code') or '')
+            try:
+                _q3 = _qt(_sy3) or {}
+            except Exception:
+                _q3 = {}
+            _p3 = _q3.get('price') or s_.get('price') or 0
+            _pc3 = _q3.get('pct')
+            if not isinstance(_pc3, (int, float)):
+                _pc3 = float(s_.get('pct') or 0)
+            _lb3 = _q3.get('lb') or s_.get('lb') or 0
+            _sc3 = float(s_.get('score') or 0)
+            _pcn3 = float(_pc3 or 0)
+            _fact3 = ('<div style="color:#ced4da;font-size:12.5px;margin-top:3px;line-height:1.62;">'
+                      '💰 现价 <b style="color:#fff;">%.2f</b>　竞价 %s%.2f%%　竞价量比 <b>%.2f</b>　'
+                      '综合分 <b style="color:%s;">%.0f</b>（%s）</div>'
+                      % (float(_p3 or 0), ('+' if _pcn3 >= 0 else ''), _pcn3, float(_lb3 or 0),
+                         _c(_sc3), _sc3, _a))
             _t3.append('<div style="margin-top:7px;">'
-                       + '<b style="color:%s;font-size:14px;">%d. %s</b>' % (_col, i, s_['name'])
+                       + '<b style="color:%s;font-size:14px;">%d. %s</b> <span style="color:%s;font-size:12px;">%s</span>'
+                       % (_col, i, s_['name'], GREY, s_.get('code') or '')
+                       + _fact3
                        + _dk3_html
                        + ('<div style="color:#e9ecef;font-size:13px;margin-top:2px;">👉 %s</div>' % _lg3 if _lg3 else '')
                        + '</div>')
@@ -6536,8 +6674,18 @@ def build_auction(title='竞价观察'):
     _ov_line = _overnight_line_for_auction()
     sec_ov_html = ('<div style="background:#1f2635;border-radius:8px;padding:8px 10px;'
                    'margin-bottom:8px;font-size:13px;color:#91a7ff;">%s</div>' % _ov_line) if _ov_line else ''
-    inner = (sec_sent_html + sec_ov_html + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔔 持仓竞价诊断（先看自己的）</div>'
-             + (''.join(own) or '<div style="color:' + GREY + ';font-size:13px;">无持仓</div>')
+    # v80-D：持仓结论等模型（竞价窗口内最多再等 8 秒；拿不到就只印真实数据，绝不出规则句）
+    _hold_map = {}
+    try:
+        _hold_map = _hd_fut.result(timeout=8)
+        if not isinstance(_hold_map, dict):
+            _hold_map = {}
+        print('[auction] 持仓模型覆盖 %d/%d' % (len(_hold_map), len(_own_data)))
+    except Exception as _he:
+        _hold_map = {}
+        print('[auction] 持仓深挖超时/失败，只印数据:', repr(_he)[:60])
+    _own_html = _render_own(_hold_map)
+    inner = (sec_sent_html + sec_ov_html + _own_html
              + pick + wind + _cap_advice_row + pos_cap_line(emotion, None) + _confirm_block + _alt_note)
     _ex.shutdown(wait=False)
     return _wrap(inner, '🔔', title, show_reson=False)
