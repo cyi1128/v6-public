@@ -1302,3 +1302,7 @@
 14:44:21 [llm] OK purpose=news2h_good len=1481
 14:45:42 [llm] OK purpose=news2h_bad len=1211
 14:46:27 [llm] OK purpose=news2h len=112
+14:50:31 [llm] OK purpose=ext len=341
+14:51:48 [反模板命中:ext_news] 值得关注/半山腰/管住手 (try1)
+14:53:05 [llm] OK purpose=ext_news len=2258
+14:54:48 [llm] OK purpose=ext_news_retry len=2551
