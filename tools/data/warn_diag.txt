@@ -1203,3 +1203,13 @@
 06:19:29 [llm] OK purpose=watch_news len=339
 06:31:42 [llm] OK purpose=preclose len=205
 06:50:16 [llm] OK purpose=watch_news len=1573
+07:02:19 [llm] 未返回 purpose=tail model=Qwen/Qwen3.5-35B-A3B tag=http_400
+07:06:35 [llm] 未返回 purpose=tail model=Qwen/Qwen3.8-27B tag=timeout
+07:06:35 [llm] 未返回 purpose=tail model=Qwen/Qwen3.5-122B-A10B tag=timeout
+07:07:18 [llm] 未返回 purpose=tail model=ZhipuAI/GLM-4.7-Flash tag=http_400
+07:10:13 [llm] 未返回 purpose=tail model=Qwen/Qwen3.8-Flash-Next tag=timeout
+07:10:13 [llm] 两波并发均无返回 purpose=tail
+07:10:13 [ask_deepseek] 首轮无返回即止损 purpose=tail
+07:10:13 [ask_deepseek] ModelScope 两次尝试均失败，purpose=tail
+07:10:15 [llm] 全局预算用尽 used=903s purpose=tail
+07:10:16 [llm] 全局预算用尽 used=904s purpose=tail
