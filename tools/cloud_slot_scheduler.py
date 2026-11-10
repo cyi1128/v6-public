@@ -77,7 +77,8 @@ PY = sys.executable or 'python3'
 # 准时窗口：该槽在此区间内被选中的"正点"范围
 # 补跑宽容：迟到超过该分钟数不再补跑（避免把盘前内容推到盘中）
 FIXED_SLOTS = [
-    (8, 20, 'warn', 20, 60),       # 板块启动预警（消息面版）
+    (9, 12, 'warn', 8, 45),      # 消息面点火预判（v80-E2：08:20 -> 09:12，竞价前最后一枪，
+                                   #   09:25 竞价卡接着做验证；08:20 时点离竞价太远，点火无法验证）
     (8, 30, 'pre', 20, 60),        # 盘前速递
     (9, 25, 'auction', 3, 2),      # 竞价观察：严格 09:25-09:27，超窗绝不补
     (9, 35, 'open', 5, 10),       # 开盘验证·30分钟定调（过点不补：10 分钟后已没意义）
@@ -733,7 +734,7 @@ def _selftest() -> int:
         return datetime.datetime(2026, 11, day, hh, mm, tzinfo=BJ)
 
     # 正点选槽（executed 为空）
-    for hh, mm, want in ((8, 20, 'warn'), (8, 30, 'pre'), (9, 26, 'auction'),
+    for hh, mm, want in ((9, 12, 'warn'), (8, 30, 'pre'), (9, 26, 'auction'),
                          (10, 0, 'hourly'), (10, 31, 'newsfire'), (10, 36, 'risk'),
                          (11, 40, 'news'), (12, 0, 'news2h'), (14, 1, 'news2h'),
                          (14, 55, 'tail'), (15, 2, 'eod'), (15, 20, 'cycle'),
@@ -758,8 +759,9 @@ def _selftest() -> int:
     expect('14:00 首次', pick_slot(at(14, 0), s), 'hourly')
     expect('14:01 已记忆', pick_slot(at(14, 1), s), 'news2h')
 
-    # 补跑宽容窗（warn 8:20+60=09:20 已过窗，故 09:30 只补 pre）
-    expect('09:30 补跑清单', [x[2] for x in backfill_pending(at(9, 30), set(), done={})], ['pre'])
+    # 补跑宽容窗（warn 09:12+45=09:57 还没过窗，09:30 时 pre 与 warn 都要补）
+    expect('09:30 补跑清单', [x[2] for x in backfill_pending(at(9, 30), set(), done={})],
+           ['pre', 'warn'])
     expect('10:05 补跑清单', [x[2] for x in backfill_pending(at(10, 5), set(), done={})], ['hourly', 'news2h'])
     _today = datetime.datetime.now(BJ).strftime('%Y-%m-%d')
     expect('10:05 已完成不补',

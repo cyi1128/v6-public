@@ -3015,8 +3015,14 @@ def _strip_meta(html):
     return html
 
 
-_BR_ONE = re.compile(r'<div[^>]*>(?:<[^>]+>)*[ 　]*【[^<>【】]{1,14}】[ 　]*(?:</div>)')
-_BR_TWO = re.compile(r'(<div[^>]*>)(?:<[^>]+>)*[ 　]*【[^<>【】]{1,14}】[ 　]*')
+# v80-E1（2026-11-10「背景色没有覆盖全面」的根因）：
+# 原来 _BR_ONE / _BR_TWO 都带 (?:<[^>]+>)*，这个"任意标签"会跨层吃掉中间的 div 开标签，
+# 导致 <div background:#1c2230> 这类父容器开标签被替换掉、</div> 多出几个，
+# 父容器提前闭合 → 「主线研判」整段落到白底、行与行叠在一起（10:35 news2h 实测
+# <div>=8 / </div>=12、background:#1c2230 出现 0 次）。
+# 现在两个正则只匹配【】标题文字本身，永不触碰标签结构。
+_BR_ONE = re.compile(r'<div[^>]*>[ 　]*【[^<>【】]{1,14}】[ 　]*</div>')
+_BR_TWO = re.compile(r'[ 　]*【[^<>【】]{1,14}】[ 　]*')
 
 
 def _strip_bracket_heads(html):
@@ -3025,7 +3031,7 @@ def _strip_bracket_heads(html):
         return html
     try:
         html = _BR_ONE.sub('', html)
-        html = _BR_TWO.sub(lambda m: m.group(1), html)
+        html = _BR_TWO.sub('', html)
     except Exception:
         pass
     return html
@@ -11653,7 +11659,9 @@ def _verdict_blocks(t, limit=48, max_blocks=3):
     out = []
     for bi, p in enumerate(parts[:max_blocks]):
         m = re.match(r'(【[^】]{1,12}】)(.*)', p, re.S)
-        head, body = (m.group(1), m.group(2).strip()) if m else ('', p)
+        # v80-E1：小标题不再保留【】，改用样式区分层级。
+        # 留着【】会被 _strip_bracket_heads 当成 LLM 自加标题整块删掉（连带父容器背景失效）。
+        head, body = (m.group(1).strip('【】'), m.group(2).strip()) if m else ('', p)
         segs = _split_long_line(body, limit=limit, per=1) if body else []
         if not segs:
             segs = [body] if body else []
