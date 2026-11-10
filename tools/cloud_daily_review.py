@@ -5265,7 +5265,10 @@ def _pre_news_deep(news):
         return {}
     out = {}
     # 分批 6 条/组（一次 12 条 LLM 常输出不全，分批提升覆盖率；额度放开不用省）
-    for chunk in (news[:12][i:i + 6] for i in range(0, min(len(news), 12), 6)):
+    # v80-D（用户 2026-11-10「利好利空怎么可能没有，应该是没用大模型」）：
+    # 原来只判读前 12 条，而行动版取 news[:20]——第 13-20 条永远没有模型判读，
+    # 结构性地被丢弃，卡上就成了「今日暂无明确利好/利空」。扩到 24 条把行动版全部盖住。
+    for chunk in (news[:24][i:i + 6] for i in range(0, min(len(news), 24), 6)):
         lines = '\n'.join(f"- {x['title'][:60]}（摘要：{(x.get('summary') or '')[:50]}）" for x in chunk)
         fmt = ('你是一线游资，盘前读新闻，对下面每条新闻深挖（严格按主力游资五步铁律）：\n'
                + FIVE_BRIEF + '\n'
