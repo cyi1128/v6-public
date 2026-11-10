@@ -1,4 +1,102 @@
 {
+ "2026-11-10": {
+  "汽车零部": {
+   "leaders": [
+    "光洋股份",
+    "华培动力",
+    "金杯汽车"
+   ],
+   "reason": "11只涨停·龙头光洋股份",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 93012,
+   "divergence": false
+  },
+  "通用设备": {
+   "leaders": [
+    "泰尔股份",
+    "冰山冷热",
+    "锋龙股份"
+   ],
+   "reason": "6只涨停·龙头泰尔股份",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 93012,
+   "divergence": false
+  },
+  "光学光电": {
+   "leaders": [
+    "盛洋科技",
+    "华体科技",
+    "联创电子"
+   ],
+   "reason": "6只涨停·龙头盛洋科技",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 105656,
+   "divergence": false
+  },
+  "影视院线": {
+   "leaders": [
+    "慈文传媒",
+    "金逸影视",
+    "上海电影"
+   ],
+   "reason": "4只涨停·龙头慈文传媒",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 93827,
+   "divergence": false
+  },
+  "专用设备": {
+   "leaders": [
+    "达 意 隆",
+    "林州重机",
+    "天奇股份"
+   ],
+   "reason": "4只涨停·龙头达 意 隆",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 94254,
+   "divergence": false
+  },
+  "消费电子": {
+   "leaders": [
+    "瀛通通讯",
+    "朝阳科技",
+    "国光电器"
+   ],
+   "reason": "4只涨停·龙头瀛通通讯",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 130345,
+   "divergence": false
+  },
+  "光伏设备": {
+   "leaders": [
+    "亚玛顿",
+    "永臻股份",
+    "钧达股份"
+   ],
+   "reason": "3只涨停·龙头亚玛顿",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "IT服务Ⅱ": {
+   "leaders": [
+    "新炬网络",
+    "佳创视讯",
+    "中青宝"
+   ],
+   "reason": "3只涨停·龙头新炬网络",
+   "strength": 9,
+   "max_lbc": 1,
+   "fbt": 93037,
+   "divergence": false
+  }
+ },
  "2026-11-09": {
   "通用设备": {
    "leaders": [
@@ -612,100 +710,6 @@
   }
  },
  "2026-10-31": {
-  "白酒Ⅱ": {
-   "leaders": [
-    "迎驾贡酒",
-    "古井贡酒",
-    "皇台酒业"
-   ],
-   "reason": "4只涨停·龙头迎驾贡酒",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 94413,
-   "divergence": false
-  },
-  "休闲食品": {
-   "leaders": [
-    "青岛食品",
-    "黑芝麻",
-    "好想你"
-   ],
-   "reason": "3只涨停·龙头青岛食品",
-   "strength": 10,
-   "max_lbc": 5,
-   "fbt": 93000,
-   "divergence": false
-  },
-  "元件": {
-   "leaders": [
-    "金安国纪",
-    "澳弘电子",
-    "满坤科技"
-   ],
-   "reason": "3只涨停·龙头金安国纪",
-   "strength": 9,
-   "max_lbc": 1,
-   "fbt": 100330,
-   "divergence": false
-  },
-  "医疗服务": {
-   "leaders": [
-    "澳洋健康",
-    "万邦医药",
-    "百花医药"
-   ],
-   "reason": "3只涨停·龙头澳洋健康",
-   "strength": 10,
-   "max_lbc": 3,
-   "fbt": 102539,
-   "divergence": false
-  },
-  "通用设备": {
-   "leaders": [
-    "上海沪工",
-    "沈阳机床"
-   ],
-   "reason": "2只涨停·龙头上海沪工",
-   "strength": 10,
-   "max_lbc": 3,
-   "fbt": 92502,
-   "divergence": false
-  },
-  "房地产开": {
-   "leaders": [
-    "津滨发展",
-    "黑牡丹"
-   ],
-   "reason": "2只涨停·龙头津滨发展",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 93000,
-   "divergence": false
-  },
-  "中药Ⅱ": {
-   "leaders": [
-    "桂林三金",
-    "羚锐制药"
-   ],
-   "reason": "2只涨停·龙头桂林三金",
-   "strength": 9,
-   "max_lbc": 2,
-   "fbt": 93006,
-   "divergence": false
-  },
-  "医疗器械": {
-   "leaders": [
-    "九安医疗",
-    "阳普医疗"
-   ],
-   "reason": "2只涨停·龙头九安医疗",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 93342,
-   "divergence": false
-  }
- },
- "2026-10-30": {
   "白酒Ⅱ": {
    "leaders": [
     "迎驾贡酒",
