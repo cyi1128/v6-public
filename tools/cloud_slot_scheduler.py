@@ -165,7 +165,7 @@ SEG_ALIVE_GRACE = 600
 # 2026-11-09：段心跳。调度器每落地一个槽就刷新 hb；hb 超过这个秒数没动就判死段。
 # 45 分钟 = 最长槽间隔（16:00 -> 次日 08:20 之外，最长的盘中空档约 30 分钟）的两倍余量。
 SEG_HB_STALE = 2700       # 正常退出会清 marker，这里只是兜住"被 timeout 杀掉"的情况
-ROLL_MINUTES = 350          # 滚动占段时长：一次触发覆盖未来 5.8 小时（+ 启动开销仍在 380 timeout 内）
+ROLL_MINUTES = 300          # 滚动占段时长：一次触发覆盖 5 小时。实测 350+延伸会到 470 分钟，远超 job timeout 380 → 被平台杀 → 接力 step 跳过（11-10 空窗 50 分钟的根因）
 ROLL_TAIL_MINUTES = 45      # 段尾 45 分钟内若还能接上下一槽，就把终点延到那槽窗口末端
 DAY_END = (23, 55)          # 今日收工时刻（之后不再占段）
 EARLY_GUARD = (9, 30)       # 凌晨/深夜命中一律守到早盘竞价（09:25）跑完，不让早盘整段靠下一次运气
@@ -684,9 +684,13 @@ def rolling_end(bj: datetime.datetime) -> datetime.datetime:
             break
         cand = start + window
         best = cand if best is None else max(best, cand)
+    # v80-E15 硬上限：延伸（延到下个槽窗口末端）绝不允许把段落拉到 job timeout 之外，
+    # 否则平台会在段落跑到一半时强杀，连「预约下一棒」的 step 都执行不到。
+    _hard = bj + datetime.timedelta(minutes=ROLL_MINUTES + 20)
     if best is not None and best <= DAY_END[0] * 60 + DAY_END[1]:
-        return bj.replace(hour=best // 60, minute=best % 60, second=0, microsecond=0)
-    return end
+        _cand = bj.replace(hour=best // 60, minute=best % 60, second=0, microsecond=0)
+        return min(_cand, _hard)
+    return min(end, _hard)
 
 
 def release_segment() -> None:
@@ -785,16 +789,13 @@ def _selftest() -> int:
              done={f'evening|{_seed_day}': True, f'ext|{_seed_day}|2235': True}), True)
 
     # 滚动段终点（300 分钟 + 段尾 45 分钟延伸，杜绝"恰好把下一槽截在段外"）
-    expect('10:00 启动终点（350 分钟+段尾延伸到 16:00 news2h）',
-           rolling_end(at(10, 0)).strftime('%H:%M'), '16:20')
-    expect('13:30 启动终点（350 分钟，段尾延伸到 20:00 news2h）',
-           rolling_end(at(13, 30)).strftime('%H:%M'), '20:20')
-    expect('17:45 启动终点（350 分钟，已过 22:50 故不延伸）',
-           rolling_end(at(17, 45)).strftime('%H:%M'), '23:35')
+    expect('10:00 启动终点（300 分钟+硬上限320，停在 15:20）', rolling_end(at(10, 0)).strftime('%H:%M'), '15:20')
+    expect('13:30 启动终点（300 分钟+硬上限320，停在 18:30）', rolling_end(at(13, 30)).strftime('%H:%M'), '18:30')
+    expect('17:45 启动终点（硬上限 320 -> 23:05）', rolling_end(at(17, 45)).strftime('%H:%M'), '23:05')
     # 凌晨命中必须守到早盘，不许秒退（11-06 早盘整段丢失的根因）
     expect('04:47 凌晨命中守到早盘 09:30', rolling_end(at(4, 47)).strftime('%H:%M'), '09:30')
-    expect('03:00 凌晨命中受 350 分钟上限 -> 08:50', rolling_end(at(3, 0)).strftime('%H:%M'), '08:50')
-    expect('00:27 命中受上限约束 -> 06:17', rolling_end(at(0, 27)).strftime('%H:%M'), '06:17')
+    expect('03:00 凌晨命中受 300 分钟上限 -> 08:00', rolling_end(at(3, 0)).strftime('%H:%M'), '08:00')
+    expect('00:27 命中受上限约束 -> 05:27', rolling_end(at(0, 27)).strftime('%H:%M'), '05:27')
 
     # 窗口键必须与主程序一致（错一个就重复推或漏推）；用当天日期动态断言
     _t = datetime.datetime.now(BJ).strftime('%Y-%m-%d')

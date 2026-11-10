@@ -197,7 +197,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.event.inputs.slot == 'scheduler')
     runs-on: ubuntu-latest
     # 滚动段最长 300 + 45 分钟延伸 = 345，加 checkout/装依赖/自检余量 → 380
-    timeout-minutes: 380
+    timeout-minutes: 355   # v80-E15/16：段落最长 320 分钟，平台 job 硬上限 360，这里留 35 分钟给收尾+接力
     permissions:
       contents: write
       actions: write   # 2026-11-10：自我接力需要能 dispatch 本 workflow
@@ -260,7 +260,10 @@ jobs:
             exit 0
           fi
           _T0=$(date +%s)
-          python3 -u tools/cloud_slot_scheduler.py
+          python3 -u tools/cloud_slot_scheduler.py || echo "scheduler_exit=$?"
+          # v80-E15/16：无论调度器正常结束还是被中断，drive_sec 都必须写进 GITHUB_OUTPUT。
+          # 原来 bash -e 下非零退出会直接打断本 step，drive_sec 为空 → 接力判据当 0 → 跳过接力，
+          # 于是 11-10 21:52 之后整整空窗 50 分钟。
           echo "drive_sec=$(( $(date +%s) - _T0 ))" >> "$GITHUB_OUTPUT"
       # ===== 2026-11-10 自我接力（治「定时不推」的根本原因）=====
       # 实测：本仓库 schedule 被平台系统性节流——11-09 名义 96 次只真触发 3 次，
@@ -282,8 +285,10 @@ jobs:
             echo "RELAY_SKIP 非推送时段 UTC H=$H"
             exit 0
           fi
-          if [ "${DRIVE_SEC:-0}" -lt 600 ]; then
-            echo "RELAY_SKIP 本次只跑了 ${DRIVE_SEC:-0}s（<600s），不接力"
+          # v80-E15/16：DRIVE_SEC 为空说明 drive step 异常退出（被 timeout 杀 / 非零码），
+          # 这种时候比正常跑满更需要下一棒，绝不能当 0 跳过。
+          if [ -n "${DRIVE_SEC}" ] && [ "${DRIVE_SEC}" -lt 600 ]; then
+            echo "RELAY_SKIP 本次只跑了 ${DRIVE_SEC}s（<600s），不接力"
             exit 0
           fi
           CODE=$(curl -sS -o /tmp/relay_body.txt -w '%{http_code}' \

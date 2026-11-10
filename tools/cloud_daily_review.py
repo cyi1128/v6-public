@@ -5282,7 +5282,7 @@ def _pre_news_deep(news):
                + FIVE_BRIEF + '\n'
                + '先判断：主力会不会借此点火，还是借机出货。act必须写「开盘后看哪些票的竞价和盘口托单」而不是直接给买入价；纯凑数、不改变交易决策的新闻直接写「无交易价值，跳过」。\n'
                + '【深挖铁律·落到个股必做】新闻落到个股时，完整执行「股票深挖铁律」：本质（一句话大白话）+暗线业务（具体产品+阶段+真实贡献，写不出写「未见明确暗线业务」）+真实关联与弹性（实受益/沾边/纯蹭）+为什么是它+破灭点+动作。没有硬逻辑的写「逻辑不硬，不碰」。\n新闻：\n' + lines + '\n'
-               + '只输出 JSON：{"per":[{"t":"标题(照抄前18个字即可)","good":"✅利好哪个板块/题材/个股+为什么，至少12字（无明显利好写「无明显直接利好」）","bad":"⚠️利空哪个板块/题材/个股+为什么，至少12字（无明显利空写「无明显直接利空」）","logic":"逻辑原因：主力意图深挖，至少25字","why":"大白话：一句话戳穿真假+怎么应对，至少22字","act":"操作：开盘后验证条件（点名关注哪些票的竞价/盘口），至少20字","sec":"影响的板块(≥4字，猜不到写「暂看不出直接关联」)"}]}，必须覆盖每条。')
+               + '只输出 JSON：{"per":[{"t":"标题(照抄前18个字即可)","net":"这条消息对A股的主要倾向，只能填 利好 或 利空 或 中性 三个词之一，不许留空","good":"✅利好哪个板块/题材/个股+为什么，至少12字（无明显利好写「无明显直接利好」）","bad":"⚠️利空哪个板块/题材/个股+为什么，至少12字（无明显利空写「无明显直接利空」）","logic":"逻辑原因：主力意图深挖，至少25字","why":"大白话：一句话戳穿真假+怎么应对，至少22字","act":"操作：开盘后验证条件（点名关注哪些票的竞价/盘口），至少20字","sec":"影响的板块(≥4字，猜不到写「暂看不出直接关联」)"}]}，必须覆盖每条。')
         t = ask_deepseek({'task': 'pre_news_deep', 'news': [{'t': x['title'][:60], 's': (x.get('summary') or '')[:50]} for x in chunk],
                           'format': fmt}, purpose='pre_news_deep')
         if not t:
@@ -5296,6 +5296,7 @@ def _pre_news_deep(news):
             if tt and (it.get('why') or it.get('plain')):
                 key = _pre_key(tt)
                 out[key] = {'good': str(it.get('good') or ''), 'bad': str(it.get('bad') or ''),
+                            'net': str(it.get('net') or ''),
                             'logic': str(it.get('logic') or ''), 'why': str(it.get('why') or it.get('plain') or ''),
                             'act': str(it.get('act') or ''), 'sec': str(it.get('sec') or '')}
     return out
@@ -5915,14 +5916,27 @@ def _goodbad_action(news, pre_map=None):
         _gd, _bd = str(_dn.get('good') or '').strip(), str(_dn.get('bad') or '').strip()
         # v80-D：why 缺失时回落到 logic（模型有时只给逻辑不给大白话），不再整条丢弃
         _wh = str(_dn.get('why') or '').strip() or str(_dn.get('logic') or '').strip()
-        if not _dn or not _wh:
+        if not _dn:
+            continue
+        # v80-E12b：模型只给了 net/结论但没给大白话时也不能整条丢，用判读原文顶上
+        if not _wh:
+            _wh = (_gd or _bd or '').strip()
+        if not _wh:
             continue
         _rg2 = bool(_gd) and ('无明显' not in _gd)
         _rb2 = bool(_bd) and ('无明显' not in _bd)
-        if _rb2 and not _rg2:
+        # v80-E12：模型同一条常同时写利好和利空（真实盘面就是这样），
+        # 原来的双标签互斥会整条丢弃，20 条几乎全被扔 → 卡上「今日暂无明确利好」。
+        # 先认模型给的主倾向 net；没给就两边都有内容时按更具体的一边归类，绝不整条丢。
+        _net = str(_dn.get('net') or '').strip()
+        if _net in ('利好', '利空'):
+            tag = _net
+        elif _rb2 and not _rg2:
             tag = '利空'
         elif _rg2 and not _rb2:
             tag = '利好'
+        elif _rg2 and _rb2:
+            tag = '利好' if len(_gd) >= len(_bd) else '利空'
         else:
             continue
         if tag == '利好' and len(good) >= 3:
@@ -6249,10 +6263,23 @@ def build_pre():
             _q5 = {}
         _pv5 = _q5.get('price') or 0
         _pc5 = _q5.get('pct')
+        _prev5 = _q5.get('prev') or 0
         if _pv5:
             _fr = ('<span style="float:right;font-size:12px;">现价 <b style="color:#fff;">%.2f</b>'
                    '<span style="color:%s;font-weight:700;">　%+.2f%%</span></span>'
                    % (_pv5, _c(float(_pc5 or 0)), float(_pc5 or 0)))
+        elif _prev5:
+            # v80-E13：盘前/未开盘 price 取不到，用昨收顶上，涨跌幅取最近交易日真实收盘涨跌。
+            # 右侧不再印「近5日累计」（那正是用户说的重复），也绝不留空。
+            try:
+                _last_p5 = float(_fcd[0]['p']) if _fcd else (float(_pc5) if isinstance(_pc5, (int, float)) else None)
+            except Exception:
+                _last_p5 = None
+            _fr = ('<span style="float:right;font-size:12px;color:%s;">昨收 <b style="color:#fff;">%.2f</b>'
+                   '%s</span>'
+                   % (GREY, float(_prev5),
+                      ('<span style="color:%s;font-weight:700;">　%+.2f%%</span>' % (_c(_last_p5), _last_p5))
+                      if _last_p5 is not None else ''))
         else:
             _fr = ''
         _foc_rows.append(
@@ -9491,16 +9518,19 @@ def build_eod():
                    '可跟踪池：{pool}\n'
                    '主线健康度：' + str(hs) + '/100（' + hl + '，' + ha + '）\n'
                    '持仓个股诊断（已逐只给出持有/减仓/止损建议，见 holdings_diag）：\n{holdings_diag}\n'
-                   '请严格按以下格式输出（全大白话，禁模板句）：\n'
-                   '【今日复盘】三句话（情绪 + 主线阶段「启动|接力|分歧|退潮」 + 资金）\n'
-                   '【持仓最终建议】（复述并强化已有诊断，同板块传染标红）\n'
-                   '【明日开盘预案】条件-动作表：\n'
-                   '- 高开≥2%：…\n'
-                   '- 低开≥1.5%：…\n'
-                   '- 平开震荡：…\n'
-                   '- 主线高开但炸板率升：…\n'
-                   '【明日板块优先级】一句话（哪个 + 为什么 + 怎么跟）——提到板块内代表股/龙头时，必须执行「股票深挖铁律」：本质（一句话大白话）+暗线业务（具体产品+阶段+真实贡献，写不出写「未见明确暗线业务」）+今天为什么强+「底仓逻辑明天还在不在」（核心判断，必须写）+明天破灭点+动作，单票≤80字；没有硬逻辑写「逻辑不硬，不碰」。\n'
-                   '【核心风险】一句话'
+                   '请严格按以下八段输出（全大白话，禁模板句、禁设问句、禁自问自答，每段1-2句）：\n'
+                   '【一句话结论】市场温度（强势/震荡/弱势/分化，四选一）+ 一句话概括今天\n'
+                   '【大盘概览】各指数涨跌与强弱差 + 成交额 + 涨跌家数 + 涨停' + str(d['lu']) + '家跌停' + str(d['dt']) + '家 + 关键点位得失\n'
+                   '【板块与题材】领涨、领跌各点明具体板块；轮动路径写清早盘谁最强、午后有没有换棒、尾盘资金往哪去；'
+                   '判断是持续性主线还是纯题材脉冲；龙头与板块内分化一句话\n'
+                   '【资金与情绪】主力净流入方向 + 今日炸板率' + ('%.0f%%' % (zbr * 100)) + '、连板高度最高' + str(d['max_lbc']) + '板'
+                   '+ 成交额集中度 + 情绪阶段（冰点/修复/高潮/退潮，四选一）\n'
+                   '【个股异动与公告】只做事实归纳不做推荐：今天最强的票为什么强（一句）；'
+                   '有值得记的公告、减持、监管风险就点出来，没有写「无」\n'
+                   '【消息面与外盘】政策、行业、公司催化各点一句；外盘、汇率、商品、利率里真正影响A股的写一句；'
+                   '每条标「已消化」或「待发酵」\n'
+                   '【明日关注清单】四条以内，逐条写：①事件/数据/会议 ②关键指数点位 ③必须盯的板块与情绪指标 ④最大风险点（高位股退潮/量能不足/外围波动）\n'
+                   '【持仓提醒】只讲观察口径，不写买卖指令；同板块传染要标出来\n'
                    + ('【昨日复盘】对照今日实际，哪些对了/错了（最多3条）' if jc else '')
                    + '【今日判断记录】必须可机读，按下面五词条各一句话（供写入 judgment.json）：\n'
                    '情绪：…\n'
