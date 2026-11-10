@@ -1107,3 +1107,7 @@
 15:26:40 [llm] OK purpose=news2h_good len=1458
 15:28:01 [llm] OK purpose=news2h_bad len=1206
 15:28:47 [llm] OK purpose=news2h len=624
+00:20:08 [build_warn] 进入；新闻条数=20
+00:20:08 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+00:21:08 [llm] OK purpose=warn_news_ds len=379
+00:21:08 [build_warn] LLM 返回长度=379
