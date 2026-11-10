@@ -1312,3 +1312,5 @@
 15:07:36 [llm] OK purpose=news2h_bad len=1090
 15:08:41 [llm] OK purpose=news2h_ext len=981
 15:09:26 [llm] OK purpose=news2h len=140
+15:13:43 [llm] OK purpose=ext len=277
+15:15:15 [llm] OK purpose=ext_news len=2426

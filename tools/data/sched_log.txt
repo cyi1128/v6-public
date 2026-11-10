@@ -1048,6 +1048,7 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-10 23:05:02 >>> 计划槽时刻 2200（去重键按此生成，防补跑重复推）
 11-10 23:05:02 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-10 23:12:38     news2h| SLOT news2h PUSH True 执行成功
+<<<<<<< Updated upstream
 11-10 23:18:23 状态推送失败（第1次）：To https://github.com/cyi1128/v6-public
  ! [rejected]        HEAD -> main (fetch first)
 error: failed to push some refs to 'https://github.com/cyi1128/v6-public
@@ -1058,3 +1059,11 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-10 23:18:25 滚动段调度结束（23:18），退出
 11-10 23:18:25 退出原因：roll-end
 11-10 23:18:25 今日已过窗未推 9 个槽：09:35open、10:35risk、10:00news2h、13:05pmopen、13:35risk、14:01news2h、18:00news2h、20:00news2h、21:38ext
+=======
+11-10 23:12:40 持久化(news2h)：已推送
+11-10 23:12:40 <<< 完成槽位 news2h，用时 458.3s
+11-10 23:12:40 >>> 执行槽位 ext @ 23:12:40
+11-10 23:12:40 >>> 计划槽时刻 2238（去重键按此生成，防补跑重复推）
+11-10 23:12:40 >>> 预算：LLM 1200s / 单模型 300s / 子进程上限 1500s
+11-10 23:18:44     ext| SLOT ext PUSH True 执行成功
+>>>>>>> Stashed changes
