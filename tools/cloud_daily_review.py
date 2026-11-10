@@ -505,6 +505,8 @@ RED, GREEN, GOLD, TEAL, GREY = '#c2504a', '#3e9863', '#b1852e', '#2f8fa1', '#6b7
 # ============ 小白友好版新增配置（可调） ============
 AUCTION_TOP_N = 10         # 竞价输出数量（v3：Top10，尾盘用）
 AUCTION_TOP_MAIN = 3      # 早盘竞价只出 Top3（用户指令：回到小白速判 TOP3 口径，因子加太多走势反而差）
+AUCTION_TOP_LIST = 10     # v80-E3（用户 2026-11-10「今日可关注增加10支股票变成TOP10」）：
+                          #   卡尾「今日可关注」名单从 3 只扩到 10 只，三只重点口径不动
 TRACK_POOL_N = 6           # 收盘可跟踪池数量（可配置）
 FOCUS_N = 6                # 盘前重点个股数（可配置）
 
@@ -6435,7 +6437,8 @@ def build_auction(title='竞价观察'):
     _calc_resonance(cands, heat, cnt, mem, is_tail=False)
     _score_dead = _bj_now().replace(hour=9, minute=25, second=50, microsecond=0)
     for i, s in enumerate(cands):
-        if _bj_now() >= _score_dead and i >= AUCTION_TOP_MAIN:
+        if _bj_now() >= _score_dead and i >= AUCTION_TOP_LIST + 2:
+            # v80-E3：截断阈值跟着 TOP10 放宽（留 2 只余量），否则第 4-10 名都是兜底 0 分，排名作废
             print(f'[auction] 打分截止 {_bj_now()}，已算 {i} 只，截断保证 09:27 前推送')
             break
         s['score'] = _auction_score_v3(s, heat, cnt, mem)
@@ -6444,6 +6447,7 @@ def build_auction(title='竞价观察'):
         s.setdefault('score', 0)
     cands.sort(key=lambda x: -x['score'])
     tops = cands[:AUCTION_TOP_MAIN]
+    _list10 = cands[:AUCTION_TOP_LIST]
     # —— 并发：选股深挖 + 实盘确认深挖并行，压缩 LLM 串行耗时，保证 09:27 前推送 ——
     _cinfos = []
     for s in tops[:5]:
@@ -6522,7 +6526,7 @@ def build_auction(title='竞价观察'):
             print(f'[factor-auction] 情绪分异常 {str(_je)[:60]}')
     _hot_names = [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]]
     rows = ''
-    for i, s in enumerate(tops, 1):
+    for i, s in enumerate(_list10, 1):
         buy_low = round(max(0.0, s['price'] * 0.995), 2)
         buy_high = round(min(10.0, s['price'] * 1.01), 2)
         stop = round(buy_low * 0.97, 2)
@@ -6623,7 +6627,7 @@ def build_auction(title='竞价观察'):
         _pool_prev = _auction_pool_stats()
     except Exception:
         _pool_prev = ''
-    pick = f"""{top3_txt}<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 今日可关注 TOP{AUCTION_TOP_MAIN}（综合评分排序）</div>
+    pick = f"""{top3_txt}<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 今日可关注 TOP{AUCTION_TOP_LIST}（综合评分排序）</div>
 {rows or '<div style="color:' + GREY + ';font-size:13px;">今日无符合硬过滤条件的竞价票（涨幅榜未取得或全被过滤）</div>'}{_pool_prev}"""
     # —— 行业/题材风向（8项修复⑤：补涨停板块题材数据 + 最强/最弱暗线原因）——
     hot = sorted(heat.items(), key=lambda kv: -kv[1])[:3]
