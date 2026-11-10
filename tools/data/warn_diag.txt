@@ -1221,3 +1221,59 @@
 07:20:26 [llm] 两波并发均无返回 purpose=event_dark
 07:20:26 [ask_deepseek] 首轮无返回即止损 purpose=event_dark
 07:20:26 [ask_deepseek] ModelScope 两次尝试均失败，purpose=event_dark
+07:38:50 [llm] 未返回 purpose=sec2_deep model=Qwen/Qwen3.5-122B-A10B tag=http_500
+07:38:50 [llm] 未返回 purpose=sec2_deep model=Qwen/Qwen3.8-27B tag=http_500
+07:38:50 [llm] 未返回 purpose=sec2_deep model=Qwen/Qwen3.5-35B-A3B tag=http_500
+07:39:02 [llm] 未返回 purpose=sec2_deep model=ZhipuAI/GLM-4.7-Flash tag=http_500
+07:39:02 [llm] 未返回 purpose=sec2_deep model=Qwen/Qwen3.8-Flash-Next tag=http_500
+07:39:02 [llm] 两波并发均无返回 purpose=sec2_deep
+07:39:02 [ask_deepseek] 首轮无返回即止损 purpose=sec2_deep
+07:39:02 [ask_deepseek] ModelScope 两次尝试均失败，purpose=sec2_deep
+07:42:33 [llm] 未返回 purpose=theme_health_card model=Qwen/Qwen3.8-27B tag=http_500
+07:42:33 [llm] 未返回 purpose=theme_health_card model=Qwen/Qwen3.5-35B-A3B tag=http_500
+07:42:33 [llm] 未返回 purpose=theme_health_card model=Qwen/Qwen3.5-122B-A10B tag=http_500
+07:42:44 [llm] 未返回 purpose=theme_health_card model=ZhipuAI/GLM-4.7-Flash tag=http_500
+07:42:44 [llm] 未返回 purpose=theme_health_card model=Qwen/Qwen3.8-Flash-Next tag=http_500
+07:42:44 [llm] 两波并发均无返回 purpose=theme_health_card
+07:42:44 [ask_deepseek] 首轮无返回即止损 purpose=theme_health_card
+07:42:44 [ask_deepseek] ModelScope 两次尝试均失败，purpose=theme_health_card
+07:43:14 [llm] 未返回 purpose=eod_review_ds model=Qwen/Qwen3.5-122B-A10B tag=http_500
+07:43:14 [llm] 未返回 purpose=eod_review_ds model=Qwen/Qwen3.5-35B-A3B tag=http_500
+07:43:14 [llm] 未返回 purpose=eod_review_ds model=Qwen/Qwen3.8-27B tag=http_500
+07:43:25 [llm] 未返回 purpose=eod_review_ds model=ZhipuAI/GLM-4.7-Flash tag=http_500
+07:43:25 [llm] 未返回 purpose=eod_review_ds model=Qwen/Qwen3.8-Flash-Next tag=http_500
+07:43:25 [llm] 两波并发均无返回 purpose=eod_review_ds
+07:43:25 [ask_deepseek] 首轮无返回即止损 purpose=eod_review_ds
+07:43:25 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eod_review_ds
+07:43:36 [llm] 未返回 purpose=eod model=Qwen/Qwen3.8-27B tag=http_500
+07:43:36 [llm] 未返回 purpose=eod model=Qwen/Qwen3.5-35B-A3B tag=http_500
+07:43:36 [llm] 未返回 purpose=eod model=Qwen/Qwen3.5-122B-A10B tag=http_500
+07:43:47 [llm] 未返回 purpose=eod model=Qwen/Qwen3.8-Flash-Next tag=http_500
+07:43:47 [llm] 未返回 purpose=eod model=ZhipuAI/GLM-4.7-Flash tag=http_500
+07:43:47 [llm] 两波并发均无返回 purpose=eod
+07:43:47 [ask_deepseek] 首轮无返回即止损 purpose=eod
+07:43:47 [ask_deepseek] ModelScope 两次尝试均失败，purpose=eod
+07:49:23 [llm] 未返回 purpose=resonance_verdict model=Qwen/Qwen3.5-35B-A3B tag=http_500
+07:49:23 [llm] 未返回 purpose=resonance_verdict model=Qwen/Qwen3.5-122B-A10B tag=http_500
+07:49:23 [llm] 未返回 purpose=resonance_verdict model=Qwen/Qwen3.8-27B tag=http_500
+07:49:34 [llm] 未返回 purpose=resonance_verdict model=Qwen/Qwen3.8-Flash-Next tag=http_500
+07:49:34 [llm] 未返回 purpose=resonance_verdict model=ZhipuAI/GLM-4.7-Flash tag=http_500
+07:49:34 [llm] 两波并发均无返回 purpose=resonance_verdict
+07:49:34 [ask_deepseek] 首轮无返回即止损 purpose=resonance_verdict
+07:49:34 [ask_deepseek] ModelScope 两次尝试均失败，purpose=resonance_verdict
+07:49:47 [llm] 未返回 purpose=event_dark model=Qwen/Qwen3.5-35B-A3B tag=http_500
+07:49:47 [llm] 未返回 purpose=event_dark model=Qwen/Qwen3.8-27B tag=http_500
+07:49:47 [llm] 未返回 purpose=event_dark model=Qwen/Qwen3.5-122B-A10B tag=http_500
+07:49:58 [llm] 未返回 purpose=event_dark model=Qwen/Qwen3.8-Flash-Next tag=http_500
+07:49:58 [llm] 未返回 purpose=event_dark model=ZhipuAI/GLM-4.7-Flash tag=http_500
+07:49:58 [llm] 两波并发均无返回 purpose=event_dark
+07:49:58 [ask_deepseek] 首轮无返回即止损 purpose=event_dark
+07:49:58 [ask_deepseek] ModelScope 两次尝试均失败，purpose=event_dark
+07:50:47 [llm] 未返回 purpose=health_dark model=Qwen/Qwen3.8-27B tag=http_500
+07:50:47 [llm] 未返回 purpose=health_dark model=Qwen/Qwen3.5-35B-A3B tag=http_500
+07:50:47 [llm] 未返回 purpose=health_dark model=Qwen/Qwen3.5-122B-A10B tag=http_500
+07:50:58 [llm] 未返回 purpose=health_dark model=Qwen/Qwen3.8-Flash-Next tag=http_500
+07:50:58 [llm] 未返回 purpose=health_dark model=ZhipuAI/GLM-4.7-Flash tag=http_500
+07:50:58 [llm] 两波并发均无返回 purpose=health_dark
+07:50:58 [ask_deepseek] 首轮无返回即止损 purpose=health_dark
+07:50:58 [ask_deepseek] ModelScope 两次尝试均失败，purpose=health_dark

@@ -587,6 +587,49 @@
     "leader_lb": 1.0
    },
    "reconciled": false
+  },
+  "2026-11-10": {
+   "grade": "B",
+   "score": 47,
+   "factors": {
+    "R1": {
+     "s": 4,
+     "tag": "资金弱"
+    },
+    "R2": {
+     "s": 3,
+     "tag": "龙头松"
+    },
+    "R3": {
+     "s": 17,
+     "tag": "结构健"
+    },
+    "R4": {
+     "s": 8,
+     "tag": "情绪平"
+    },
+    "R5": {
+     "s": 15,
+     "tag": "时1天新"
+    }
+   },
+   "veto": [],
+   "sector": "汽车零部",
+   "date": "2026-11-10",
+   "detail": {
+    "avg_lb": 1.0,
+    "avg_pct": 9.9,
+    "lu": 93,
+    "zb": 19,
+    "prev_lu": 0,
+    "prev_zb": 0,
+    "mscore": 50,
+    "seen_count": 1,
+    "zbr": 0.17,
+    "leader_pct": 9.9,
+    "leader_lb": 1.0
+   },
+   "reconciled": false
   }
  }
 }
