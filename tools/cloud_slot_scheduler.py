@@ -828,7 +828,13 @@ def report_gaps() -> None:
         if gaps:
             log('今日已过窗未推 %d 个槽：%s' % (len(gaps), '、'.join(gaps)))
         else:
-            log('今日应推槽位全部已落地，无缺口')
+            # 2026-11-10：原来写「今日应推槽位全部已落地，无缺口」，极易被读成"今天全推完了"，
+            # 实际只表示"已经过窗的那些槽都推了"，未到点的槽一个没提。09:30 段尾打印这句，
+            # 当时的排查就被它误导，以为全天已完成。改成把"还没到点的槽"一并列出来。
+            _left = [f'{h:02d}:{m:02d}{s}' for h, m, s, _w, _lt in FIXED_SLOTS
+                     if h * 60 + m > minutes]
+            log('已过窗槽位全部已落地（无漏推）；还没到点的 %d 个：%s'
+                % (len(_left), '、'.join(_left[:8]) if _left else '无'))
     except Exception as exc:  # noqa: BLE001
         log(f'缺口统计失败: {exc}')
 
