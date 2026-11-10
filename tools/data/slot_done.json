@@ -100,5 +100,6 @@
  "auction|2026-11-10": true,
  "hourly|2026-11-10|10": true,
  "news2h|2026-11-10|1035": true,
- "follow|2026-11-10|1035": true
+ "follow|2026-11-10|1035": true,
+ "newsfire|2026-11-10": true
 }
