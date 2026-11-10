@@ -1194,3 +1194,9 @@
 05:19:21 [llm] OK purpose=watch_news len=360
 05:44:41 [llm] OK purpose=follow len=479
 05:45:31 [llm] OK purpose=follow len=355
+06:01:22 [llm] OK purpose=hourly_ds len=448
+06:04:08 [llm] OK purpose=batch_deep len=4370
+06:06:06 [llm] OK purpose=newfire_dark len=215
+06:06:54 [llm] OK purpose=health len=169
+06:08:06 [llm] OK purpose=hold_diag len=579
+06:09:25 [llm] OK purpose=event_dark len=715
