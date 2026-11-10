@@ -1308,3 +1308,7 @@
 14:54:48 [llm] OK purpose=ext_news_retry len=2551
 14:59:15 [llm] OK purpose=evening len=358
 15:00:46 [llm] OK purpose=eve_news len=1872
+15:06:20 [llm] OK purpose=news2h_good len=1530
+15:07:36 [llm] OK purpose=news2h_bad len=1090
+15:08:41 [llm] OK purpose=news2h_ext len=981
+15:09:26 [llm] OK purpose=news2h len=140
