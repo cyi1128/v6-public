@@ -1334,3 +1334,7 @@
 00:44:08 [反模板放行:focus_deep] 管住手
 00:44:08 [llm] OK purpose=focus_deep len=1563
 00:45:58 [llm] OK purpose=event_dark len=709
+01:12:07 [build_warn] 进入；新闻条数=20
+01:12:07 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+01:13:23 [llm] OK purpose=warn_news_ds len=1623
+01:13:23 [build_warn] LLM 返回长度=1623
