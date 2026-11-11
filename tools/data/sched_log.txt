@@ -1145,3 +1145,8 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-11 09:25:08 >>> 计划槽时刻 0925（去重键按此生成，防补跑重复推）
 11-11 09:25:08 >>> 预算：LLM 150s / 单模型 40s / 子进程上限 240s
 11-11 09:27:17     auction| SLOT auction PUSH True 执行成功
+11-11 09:27:18 持久化(auction)：已推送
+11-11 09:27:18 <<< 完成槽位 auction，用时 130.2s
+11-11 09:30:03 滚动段调度结束（09:30），退出
+11-11 09:30:03 退出原因：roll-end
+11-11 09:30:03 已过窗槽位全部已落地（无漏推）；还没到点的 30 个：09:35open、10:00hourly、10:30newsfire、10:35risk、11:00hourly、11:30noon、11:40news、10:00news2h
