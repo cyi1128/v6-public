@@ -1438,3 +1438,9 @@
 05:39:20 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 当前交易时段为盘中，数据采集于 10:30 前后。华建集团涨幅 10.0%，封板时间未明确但已确认涨停状态，长龄液压涨幅 6.2%，候
 05:46:49 [llm] OK purpose=follow len=1131
 05:50:02 [llm] OK purpose=follow len=1254
+06:01:19 [llm] OK purpose=hourly_ds len=509
+06:02:40 [llm] OK purpose=batch_deep len=4295
+06:04:41 [llm] OK purpose=newfire_dark len=164
+06:05:18 [llm] OK purpose=health len=189
+06:06:22 [llm] OK purpose=hold_diag len=369
+06:07:38 [llm] OK purpose=event_dark len=726
