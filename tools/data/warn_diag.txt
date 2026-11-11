@@ -1364,3 +1364,5 @@
 01:35:37 [反模板放行:board_watch] 管住手
 01:35:37 [llm] OK purpose=board_watch len=2052
 01:35:37 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 现在是盘中实时监测阶段，所有价格、涨跌幅及成交额数据均基于即时行情快照，信宇人涨幅百分之十一点三，源杰科技涨幅百分之三点九，候选标
+01:37:31 [反模板放行:open_check] 管住手
+01:37:32 [llm] OK purpose=open_check len=147
