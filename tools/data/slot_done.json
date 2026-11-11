@@ -141,5 +141,6 @@
  "hourly|2026-11-11|13": true,
  "pmopen|2026-11-11": true,
  "follow|2026-11-11|1335": true,
- "hourly|2026-11-11|14": true
+ "hourly|2026-11-11|14": true,
+ "preclose|2026-11-11": true
 }
