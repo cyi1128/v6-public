@@ -1384,3 +1384,6 @@
 02:32:29 [llm] OK purpose=warn_news_ds len=2517
 02:38:49 [llm] OK purpose=follow len=1074
 02:41:41 [llm] OK purpose=follow len=576
+02:54:11 [llm] OK purpose=board_deep len=1153
+02:55:13 [llm] OK purpose=board_why len=232
+02:56:39 [llm] 全局预算用尽 used=686s purpose=board
