@@ -1376,3 +1376,8 @@
 02:07:27 [llm] OK purpose=health len=184
 02:09:27 [llm] OK purpose=hold_diag len=454
 02:13:46 [llm] OK purpose=event_dark len=766
+02:15:34 [llm] OK purpose=news2h_good len=900
+02:16:53 [llm] OK purpose=news2h_bad len=596
+02:18:20 [反模板放行:news2h_ext] 管住手
+02:18:21 [llm] OK purpose=news2h_ext len=969
+02:19:17 [llm] OK purpose=news2h len=152
