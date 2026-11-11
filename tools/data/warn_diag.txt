@@ -1366,3 +1366,7 @@
 01:35:37 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 现在是盘中实时监测阶段，所有价格、涨跌幅及成交额数据均基于即时行情快照，信宇人涨幅百分之十一点三，源杰科技涨幅百分之三点九，候选标
 01:37:31 [反模板放行:open_check] 管住手
 01:37:32 [llm] OK purpose=open_check len=147
+01:52:16 [llm] OK purpose=board_deep len=1212
+01:53:11 [llm] OK purpose=board_why len=339
+01:54:27 [llm] OK purpose=board_watch len=2012
+01:54:27 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在盘面时间按验证节点推算在 10 点 30 分之后，数据采集截止到上午收盘前。输入数据里海顺新材涨 4%，声迅股份涨 3.2%，兰剑
