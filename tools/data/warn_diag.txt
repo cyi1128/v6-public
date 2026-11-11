@@ -1458,3 +1458,7 @@
 06:55:07 [ask_deepseek] 首轮无返回即止损 purpose=board_watch
 06:55:07 [ask_deepseek] ModelScope 两次尝试均失败，purpose=board_watch
 06:55:07 [board_watch_ds] LLM 返回空，回退规则模板
+06:57:14 [llm] OK purpose=news2h_good len=1366
+06:58:24 [llm] OK purpose=news2h_bad len=632
+06:59:49 [llm] OK purpose=news2h_ext len=871
+07:01:03 [llm] OK purpose=news2h len=222
