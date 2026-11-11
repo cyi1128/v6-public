@@ -1448,3 +1448,4 @@
 06:23:43 [llm] OK purpose=board_why len=395
 06:24:58 [llm] OK purpose=board_watch len=1986
 06:24:58 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在时间是盘中关键节点，数据采集截止至上午 10 点 30 分，市场情绪分 84.7 分显示主线持续性强，数据来源于实时行情终端，所有
+06:31:24 [llm] OK purpose=preclose len=150
