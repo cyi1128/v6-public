@@ -1338,3 +1338,24 @@
 01:12:07 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
 01:13:23 [llm] OK purpose=warn_news_ds len=1623
 01:13:23 [build_warn] LLM 返回长度=1623
+01:26:24 [llm] 未返回 purpose=hold_deep model=Qwen/Qwen3.8-27B tag=timeout
+01:26:24 [llm] 未返回 purpose=hold_deep model=Qwen/Qwen3.5-122B-A10B tag=timeout
+01:26:24 [llm] 未返回 purpose=hold_deep model=Qwen/Qwen3.5-35B-A3B tag=timeout
+01:26:25 [llm] 未返回 purpose=hold_deep model=ZhipuAI/GLM-4.7-Flash tag=http_429
+01:26:27 [llm] 未返回 purpose=confirm_ds model=Qwen/Qwen3.8-27B tag=timeout
+01:26:27 [llm] 未返回 purpose=confirm_ds model=Qwen/Qwen3.5-122B-A10B tag=timeout
+01:26:27 [llm] 未返回 purpose=confirm_ds model=Qwen/Qwen3.5-35B-A3B tag=timeout
+01:26:30 [llm] 未返回 purpose=auction model=Qwen/Qwen3.8-27B tag=timeout
+01:26:30 [llm] 未返回 purpose=auction model=Qwen/Qwen3.5-35B-A3B tag=timeout
+01:26:30 [llm] 未返回 purpose=auction model=Qwen/Qwen3.5-122B-A10B tag=timeout
+01:26:32 [llm] 未返回 purpose=auction model=ZhipuAI/GLM-4.7-Flash tag=http_429
+01:26:55 [llm] OK purpose=hold_deep len=341
+01:27:08 [llm] 未返回 purpose=confirm_ds model=Qwen/Qwen3.8-Flash-Next tag=timeout
+01:27:09 [llm] 未返回 purpose=confirm_ds model=ZhipuAI/GLM-4.7-Flash tag=timeout
+01:27:09 [llm] 两波并发均无返回 purpose=confirm_ds
+01:27:09 [ask_deepseek] 首轮无返回即止损 purpose=confirm_ds
+01:27:09 [ask_deepseek] ModelScope 两次尝试均失败，purpose=confirm_ds
+01:27:11 [llm] 未返回 purpose=auction model=Qwen/Qwen3.8-Flash-Next tag=timeout
+01:27:11 [llm] 两波并发均无返回 purpose=auction
+01:27:11 [ask_deepseek] 首轮无返回即止损 purpose=auction
+01:27:11 [ask_deepseek] ModelScope 两次尝试均失败，purpose=auction
