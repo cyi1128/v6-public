@@ -1468,3 +1468,20 @@
 07:09:16 [llm] OK purpose=tail len=1727
 07:10:13 [llm] OK purpose=tail len=596
 07:15:39 [llm] OK purpose=event_dark len=662
+07:27:37 [反模板放行:sec2_deep] 管住手
+07:27:37 [llm] OK purpose=sec2_deep len=2033
+07:29:43 [反模板放行:theme_health_card] 没有安全垫
+07:29:44 [llm] OK purpose=theme_health_card len=544
+07:31:30 [llm] OK purpose=eod_review_ds len=1348
+07:32:25 [llm] OK purpose=eod len=1161
+07:33:52 [llm] OK purpose=miss_deep len=472
+07:35:00 [llm] OK purpose=resonance_verdict len=208
+07:35:49 [llm] OK purpose=event_dark len=159
+07:35:55 [llm] 未返回 purpose=health_dark model=Qwen/Qwen3.8-27B tag=http_429
+07:35:55 [llm] 未返回 purpose=health_dark model=Qwen/Qwen3.5-35B-A3B tag=http_429
+07:35:55 [llm] 未返回 purpose=health_dark model=Qwen/Qwen3.5-122B-A10B tag=http_429
+07:35:57 [llm] 未返回 purpose=health_dark model=ZhipuAI/GLM-4.7-Flash tag=http_429
+07:35:59 [llm] 未返回 purpose=health_dark model=Qwen/Qwen3.8-Flash-Next tag=http_429
+07:35:59 [llm] 两波并发均无返回 purpose=health_dark
+07:35:59 [ask_deepseek] 首轮无返回即止损 purpose=health_dark
+07:35:59 [ask_deepseek] ModelScope 两次尝试均失败，purpose=health_dark
