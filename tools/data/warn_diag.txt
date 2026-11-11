@@ -1449,3 +1449,12 @@
 06:24:58 [llm] OK purpose=board_watch len=1986
 06:24:58 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在时间是盘中关键节点，数据采集截止至上午 10 点 30 分，市场情绪分 84.7 分显示主线持续性强，数据来源于实时行情终端，所有
 06:31:24 [llm] OK purpose=preclose len=150
+06:52:15 [llm] OK purpose=board_deep len=780
+06:53:25 [llm] OK purpose=board_why len=310
+06:55:06 [llm] 未返回 purpose=board_watch model=Qwen/Qwen3.5-122B-A10B tag=timeout
+06:55:07 [llm] 未返回 purpose=board_watch model=Qwen/Qwen3.5-35B-A3B tag=timeout
+06:55:07 [llm] 未返回 purpose=board_watch model=Qwen/Qwen3.8-27B tag=timeout
+06:55:07 [llm] 截止已过停产 purpose=board_watch
+06:55:07 [ask_deepseek] 首轮无返回即止损 purpose=board_watch
+06:55:07 [ask_deepseek] ModelScope 两次尝试均失败，purpose=board_watch
+06:55:07 [board_watch_ds] LLM 返回空，回退规则模板
