@@ -454,5 +454,53 @@
   "close": 10.27,
   "pct": 15.26,
   "next_open_pct": -16.553067185978577
+ },
+ {
+  "date": "2026-11-11",
+  "code": "300960",
+  "name": "通业科技",
+  "close": 19.28,
+  "pct": 13.95,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-11",
+  "code": "300310",
+  "name": "宜通世纪",
+  "close": 5.3,
+  "pct": 14.22,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-11",
+  "code": "300570",
+  "name": "太辰光",
+  "close": 125.0,
+  "pct": 17.05,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-11",
+  "code": "300394",
+  "name": "天孚通信",
+  "close": 144.06,
+  "pct": 13.96,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-11",
+  "code": "300147",
+  "name": "*ST香雪",
+  "close": 6.35,
+  "pct": 13.19,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-11",
+  "code": "301205",
+  "name": "联特科技",
+  "close": 164.0,
+  "pct": 12.37,
+  "next_open_pct": null
  }
 ]
