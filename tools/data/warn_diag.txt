@@ -1462,3 +1462,8 @@
 06:58:24 [llm] OK purpose=news2h_bad len=632
 06:59:49 [llm] OK purpose=news2h_ext len=871
 07:01:03 [llm] OK purpose=news2h len=222
+07:06:55 [反模板放行:tail] 管住手
+07:06:56 [llm] OK purpose=tail len=1254
+07:08:11 [llm] OK purpose=tail len=1055
+07:09:16 [llm] OK purpose=tail len=1727
+07:10:13 [llm] OK purpose=tail len=596
