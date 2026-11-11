@@ -1427,3 +1427,7 @@
 05:06:38 [llm] OK purpose=hold_diag len=330
 05:07:47 [llm] OK purpose=event_dark len=803
 05:12:07 [llm] OK purpose=pm_relay len=144
+05:17:12 [llm] OK purpose=board_deep len=529
+05:18:22 [llm] OK purpose=board_why len=253
+05:19:50 [llm] OK purpose=board_watch len=1861
+05:19:50 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 当前为交易日盘中时段，所有价格、涨幅、量比数据均来源于交易所实时行情快照，时间锚定在上午收盘前关键节点。市场情绪分 72.5 分基于全
