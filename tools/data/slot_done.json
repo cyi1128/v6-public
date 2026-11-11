@@ -132,5 +132,6 @@
  "open|2026-11-11": true,
  "hourly|2026-11-11|10": true,
  "news2h|2026-11-11|1019": true,
- "newsfire|2026-11-11": true
+ "newsfire|2026-11-11": true,
+ "follow|2026-11-11|1035": true
 }
