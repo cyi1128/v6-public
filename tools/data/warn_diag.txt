@@ -1420,3 +1420,9 @@
 04:02:28 [llm] OK purpose=news2h_bad len=571
 04:03:38 [llm] OK purpose=news2h_ext len=977
 04:04:47 [llm] OK purpose=news2h len=202
+05:01:29 [llm] OK purpose=hourly_ds len=530
+05:03:08 [llm] OK purpose=batch_deep len=4722
+05:05:08 [llm] OK purpose=newfire_dark len=84
+05:05:35 [llm] OK purpose=health len=205
+05:06:38 [llm] OK purpose=hold_diag len=330
+05:07:47 [llm] OK purpose=event_dark len=803
