@@ -1322,3 +1322,15 @@
 15:30:12 [llm] OK purpose=news2h_bad len=1275
 15:31:16 [llm] OK purpose=news2h_ext len=844
 15:32:03 [llm] OK purpose=news2h len=155
+00:31:02 [llm] OK purpose=sec_wind_dark len=258
+00:32:21 [llm] OK purpose=pre_news_deep len=1823
+00:33:23 [llm] OK purpose=pre_news_deep len=1738
+00:34:19 [llm] OK purpose=pre_news_deep len=1460
+00:35:26 [llm] OK purpose=pre_news_deep len=1483
+00:37:08 [llm] OK purpose=focus_deep len=1610
+00:38:05 [反模板放行:pre] 管住手
+00:38:06 [llm] OK purpose=pre len=253
+00:42:32 [llm] OK purpose=pre_main_dark len=1783
+00:44:08 [反模板放行:focus_deep] 管住手
+00:44:08 [llm] OK purpose=focus_deep len=1563
+00:45:58 [llm] OK purpose=event_dark len=709
