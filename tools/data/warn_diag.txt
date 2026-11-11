@@ -1431,3 +1431,8 @@
 05:18:22 [llm] OK purpose=board_why len=253
 05:19:50 [llm] OK purpose=board_watch len=1861
 05:19:50 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 当前为交易日盘中时段，所有价格、涨幅、量比数据均来源于交易所实时行情快照，时间锚定在上午收盘前关键节点。市场情绪分 72.5 分基于全
+05:37:21 [llm] OK purpose=board_deep len=840
+05:38:17 [llm] OK purpose=board_why len=324
+05:39:20 [反模板放行:board_watch] 管住手
+05:39:20 [llm] OK purpose=board_watch len=1942
+05:39:20 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 当前交易时段为盘中，数据采集于 10:30 前后。华建集团涨幅 10.0%，封板时间未明确但已确认涨停状态，长龄液压涨幅 6.2%，候
