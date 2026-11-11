@@ -1370,3 +1370,9 @@
 01:53:11 [llm] OK purpose=board_why len=339
 01:54:27 [llm] OK purpose=board_watch len=2012
 01:54:27 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 现在盘面时间按验证节点推算在 10 点 30 分之后，数据采集截止到上午收盘前。输入数据里海顺新材涨 4%，声迅股份涨 3.2%，兰剑
+02:01:48 [llm] OK purpose=hourly_ds len=492
+02:04:27 [llm] OK purpose=batch_deep len=4582
+02:06:54 [llm] OK purpose=newfire_dark len=170
+02:07:27 [llm] OK purpose=health len=184
+02:09:27 [llm] OK purpose=hold_diag len=454
+02:13:46 [llm] OK purpose=event_dark len=766
