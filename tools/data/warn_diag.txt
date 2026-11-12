@@ -1630,3 +1630,5 @@
 05:24:09 [llm] OK purpose=health len=136
 05:25:43 [llm] OK purpose=hold_diag len=195
 05:26:46 [llm] OK purpose=event_dark len=624
+05:31:37 [反模板放行:pm_relay] 半山腰
+05:31:38 [llm] OK purpose=pm_relay len=175
