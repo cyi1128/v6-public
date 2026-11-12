@@ -160,5 +160,6 @@
  "hourly|2026-11-12|14": true,
  "preclose|2026-11-12": true,
  "tail|2026-11-12": true,
- "cycle|2026-11-12": true
+ "cycle|2026-11-12": true,
+ "news|2026-11-12|1535": true
 }
