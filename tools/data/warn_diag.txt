@@ -1647,3 +1647,5 @@
 06:20:53 [反模板放行:board_watch] 管住手
 06:20:53 [llm] OK purpose=board_watch len=1402
 06:20:53 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 当前基于盘中实时数据，好当家涨幅 10.2%，换手率 4.5 倍，状态未封死涨停；海晨股份涨幅 5.5%，换手率 2.5 倍。市场
+06:32:12 [反模板放行:preclose] 管住手
+06:32:12 [llm] OK purpose=preclose len=200
