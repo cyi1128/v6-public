@@ -1703,3 +1703,7 @@
 15:07:20 [反模板放行:ext] 管住手
 15:07:21 [llm] OK purpose=ext len=278
 15:08:31 [llm] OK purpose=ext_news len=2406
+15:12:20 [llm] OK purpose=news2h_good len=1301
+15:13:19 [llm] OK purpose=news2h_bad len=1144
+15:14:20 [llm] OK purpose=news2h_ext len=893
+15:15:02 [llm] OK purpose=news2h len=204
