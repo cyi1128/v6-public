@@ -1695,3 +1695,8 @@
 14:40:28 [llm] OK purpose=ext_news len=2370
 14:51:06 [llm] OK purpose=evening len=302
 14:53:33 [llm] OK purpose=eve_news len=2402
+14:58:53 [llm] OK purpose=news2h_good len=1350
+15:00:12 [反模板放行:news2h_bad] 管住手
+15:00:13 [llm] OK purpose=news2h_bad len=1288
+15:01:17 [llm] OK purpose=news2h_ext len=999
+15:02:14 [llm] OK purpose=news2h len=211
