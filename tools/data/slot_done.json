@@ -158,5 +158,6 @@
  "risk|2026-11-12|1335": true,
  "follow|2026-11-12|1335": true,
  "hourly|2026-11-12|14": true,
- "preclose|2026-11-12": true
+ "preclose|2026-11-12": true,
+ "tail|2026-11-12": true
 }
