@@ -1664,3 +1664,7 @@
 07:29:51 [llm] OK purpose=health_dark len=199
 07:35:29 [llm] OK purpose=cycle len=1976
 07:40:36 [llm] OK purpose=event_dark len=674
+08:01:21 [llm] OK purpose=news2h_good len=1339
+08:02:39 [llm] OK purpose=news2h_ext len=950
+08:02:45 [llm] 未返回 purpose=news2h model=Qwen/Qwen3.5-122B-A10B tag=http_429
+08:03:35 [llm] OK purpose=news2h len=210
