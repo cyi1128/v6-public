@@ -461,7 +461,7 @@
   "name": "通业科技",
   "close": 19.28,
   "pct": 13.95,
-  "next_open_pct": null
+  "next_open_pct": -1.2448132780083054
  },
  {
   "date": "2026-11-11",
@@ -469,7 +469,7 @@
   "name": "宜通世纪",
   "close": 5.3,
   "pct": 14.22,
-  "next_open_pct": null
+  "next_open_pct": -1.6981132075471694
  },
  {
   "date": "2026-11-11",
@@ -477,7 +477,7 @@
   "name": "太辰光",
   "close": 125.0,
   "pct": 17.05,
-  "next_open_pct": null
+  "next_open_pct": 0.6000000000000005
  },
  {
   "date": "2026-11-11",
@@ -485,7 +485,7 @@
   "name": "天孚通信",
   "close": 144.06,
   "pct": 13.96,
-  "next_open_pct": null
+  "next_open_pct": -0.38872691933916625
  },
  {
   "date": "2026-11-11",
@@ -493,7 +493,7 @@
   "name": "*ST香雪",
   "close": 6.35,
   "pct": 13.19,
-  "next_open_pct": null
+  "next_open_pct": 0.0
  },
  {
   "date": "2026-11-11",
@@ -501,6 +501,6 @@
   "name": "联特科技",
   "close": 164.0,
   "pct": 12.37,
-  "next_open_pct": null
+  "next_open_pct": 1.4146341463414647
  }
 ]
