@@ -1668,3 +1668,9 @@
 08:02:39 [llm] OK purpose=news2h_ext len=950
 08:02:45 [llm] 未返回 purpose=news2h model=Qwen/Qwen3.5-122B-A10B tag=http_429
 08:03:35 [llm] OK purpose=news2h len=210
+10:01:43 [llm] OK purpose=news2h_good len=1214
+10:02:53 [反模板放行:news2h_bad] 半山腰
+10:02:53 [llm] OK purpose=news2h_bad len=1385
+10:03:57 [反模板放行:news2h_ext] 管住手
+10:03:58 [llm] OK purpose=news2h_ext len=1486
+10:04:51 [llm] OK purpose=news2h len=209
