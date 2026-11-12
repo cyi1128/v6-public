@@ -1651,3 +1651,5 @@
 06:32:12 [llm] OK purpose=preclose len=200
 06:49:28 [llm] OK purpose=link_confirm len=125
 06:51:50 [llm] OK purpose=intra len=2592
+06:58:13 [llm] OK purpose=tail len=1578
+06:59:35 [llm] OK purpose=tail len=948
