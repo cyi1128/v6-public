@@ -153,5 +153,6 @@
  "news2h|2026-11-11|2000": true,
  "news2h|2026-11-11|2001": true,
  "hourly|2026-11-12|13": true,
- "pmopen|2026-11-12": true
+ "pmopen|2026-11-12": true,
+ "newsfire|2026-11-12": true
 }
