@@ -1453,3 +1453,8 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-12 14:00:02 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-12 14:12:19     hourly| [event] 暗线 LLM 异常: JSONDecodeError('Expecting value: line 1 column 1 (char 0)')
 11-12 14:12:19     hourly| SLOT hourly PUSH True 执行成功; 执行成功
+11-12 14:12:20 持久化(hourly)：已推送
+11-12 14:12:20 <<< 完成槽位 hourly，用时 738.4s
+11-12 14:15:05 >>> 执行槽位 watch @ 14:15:05
+11-12 14:15:05 >>> 预算：LLM 600s / 单模型 120s / 子进程上限 750s
+11-12 14:22:07     watch| SLOT watch: 无异动或构建失败，不推送

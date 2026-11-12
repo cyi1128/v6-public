@@ -1642,3 +1642,8 @@
 06:06:42 [llm] OK purpose=health len=122
 06:07:43 [llm] OK purpose=hold_diag len=324
 06:08:52 [llm] OK purpose=event_dark len=454
+06:18:54 [llm] OK purpose=board_deep len=679
+06:19:55 [llm] OK purpose=board_why len=261
+06:20:53 [反模板放行:board_watch] 管住手
+06:20:53 [llm] OK purpose=board_watch len=1402
+06:20:53 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 当前基于盘中实时数据，好当家涨幅 10.2%，换手率 4.5 倍，状态未封死涨停；海晨股份涨幅 5.5%，换手率 2.5 倍。市场
