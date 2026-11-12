@@ -1624,3 +1624,9 @@
 12:01:22 [llm] 两波并发均无返回 purpose=news2h
 12:01:22 [ask_deepseek] 首轮无返回即止损 purpose=news2h
 12:01:22 [ask_deepseek] ModelScope 两次尝试均失败，purpose=news2h
+05:19:01 [llm] OK purpose=hourly_ds len=580
+05:21:23 [llm] OK purpose=batch_deep len=3542
+05:23:47 [llm] OK purpose=newfire_dark len=171
+05:24:09 [llm] OK purpose=health len=136
+05:25:43 [llm] OK purpose=hold_diag len=195
+05:26:46 [llm] OK purpose=event_dark len=624
