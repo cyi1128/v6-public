@@ -1593,3 +1593,9 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-12 22:50:13 >>> 计划槽时刻 2250（去重键按此生成，防补跑重复推）
 11-12 22:50:13 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-12 22:57:18     evening| SLOT evening PUSH True 执行成功
+11-12 22:57:19 持久化(evening)：已推送
+11-12 22:57:19 <<< 完成槽位 evening，用时 425.9s
+11-12 22:57:20 本段剩余时间内已无待跑槽位，提前让位退出
+11-12 22:57:20 滚动段调度结束（22:57），退出
+11-12 22:57:20 退出原因：roll-end
+11-12 22:57:20 今日已过窗未推 17 个槽：09:12warn、08:30pre、09:25auction、09:35open、10:00hourly、10:35risk、11:00hourly、11:30noon、11:40news、10:00news2h、12:00news2h、14:01news2h、10:35follow、15:10news、18:00news2h、20:00news2h、21:38ext
