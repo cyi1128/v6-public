@@ -1653,3 +1653,12 @@
 06:51:50 [llm] OK purpose=intra len=2592
 06:58:13 [llm] OK purpose=tail len=1578
 06:59:35 [llm] OK purpose=tail len=948
+07:17:03 [反模板放行:sec2_deep] 半山腰
+07:17:04 [llm] OK purpose=sec2_deep len=2188
+07:21:42 [llm] OK purpose=theme_health_card len=837
+07:22:41 [llm] OK purpose=signal_review len=189
+07:23:38 [llm] OK purpose=eod_review_ds len=832
+07:24:38 [llm] OK purpose=eod len=851
+07:27:12 [llm] OK purpose=resonance_verdict len=149
+07:28:41 [llm] OK purpose=event_dark len=203
+07:29:51 [llm] OK purpose=health_dark len=199
