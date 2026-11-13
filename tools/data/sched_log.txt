@@ -1817,3 +1817,9 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-13 13:30:11 >>> 计划槽时刻 1330（去重键按此生成，防补跑重复推）
 11-13 13:30:11 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-13 13:30:12     newsfire| SLOT newsfire 本窗口已推（slot_done 去重），跳过
+11-13 13:30:13 持久化(newsfire)：已推送
+11-13 13:30:13 <<< 完成槽位 newsfire，用时 1.9s
+11-13 13:30:13 >>> 执行槽位 watch @ 13:30:13
+11-13 13:30:13 >>> 预算：LLM 600s / 单模型 120s / 子进程上限 750s
+11-13 13:33:40     watch| [board] confidence=低（数据异常且无缓存），禁推板块观察/启动卡
+11-13 13:33:40     watch| SLOT watch: 无异动或构建失败，不推送
