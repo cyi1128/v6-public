@@ -1847,3 +1847,11 @@
 07:21:59 [llm] 两波并发均无返回 purpose=health_dark
 07:21:59 [ask_deepseek] 首轮无返回即止损 purpose=health_dark
 07:21:59 [ask_deepseek] ModelScope 两次尝试均失败，purpose=health_dark
+07:26:30 [llm] 未返回 purpose=cycle model=Qwen/Qwen3.5-122B-A10B tag=http_429
+07:26:30 [llm] 未返回 purpose=cycle model=Qwen/Qwen3.5-35B-A3B tag=http_429
+07:31:29 [llm] 未返回 purpose=cycle model=Qwen/Qwen3.8-27B tag=timeout
+07:31:31 [llm] 未返回 purpose=cycle model=Qwen/Qwen3.8-Flash-Next tag=http_429
+07:31:31 [llm] 未返回 purpose=cycle model=ZhipuAI/GLM-4.7-Flash tag=http_429
+07:31:31 [llm] 两波并发均无返回 purpose=cycle
+07:31:31 [ask_deepseek] 首轮无返回即止损 purpose=cycle
+07:31:31 [ask_deepseek] ModelScope 两次尝试均失败，purpose=cycle
