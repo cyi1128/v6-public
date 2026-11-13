@@ -188,5 +188,6 @@
  "noon|2026-11-13": true,
  "news|2026-11-13|1140": true,
  "news2h|2026-11-13|1200": true,
- "hourly|2026-11-13|13": true
+ "hourly|2026-11-13|13": true,
+ "pmopen|2026-11-13": true
 }
