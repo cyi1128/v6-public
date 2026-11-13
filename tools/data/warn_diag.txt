@@ -1735,3 +1735,17 @@
 01:12:13 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
 01:13:27 [llm] OK purpose=warn_news_ds len=2089
 01:13:27 [build_warn] LLM 返回长度=2089
+01:25:48 [llm] 未返回 purpose=auction model=Qwen/Qwen3.5-122B-A10B tag=http_429
+01:26:21 [llm] OK purpose=confirm_ds len=210
+01:26:21 [llm] 未返回 purpose=hold_deep model=Qwen/Qwen3.5-35B-A3B tag=timeout
+01:26:21 [llm] 未返回 purpose=hold_deep model=Qwen/Qwen3.8-27B tag=timeout
+01:26:21 [llm] 未返回 purpose=hold_deep model=Qwen/Qwen3.5-122B-A10B tag=timeout
+01:26:23 [llm] 未返回 purpose=hold_deep model=ZhipuAI/GLM-4.7-Flash tag=http_429
+01:26:27 [llm] 未返回 purpose=auction model=Qwen/Qwen3.5-35B-A3B tag=timeout
+01:26:27 [llm] 未返回 purpose=auction model=Qwen/Qwen3.8-27B tag=timeout
+01:26:28 [llm] 未返回 purpose=auction model=ZhipuAI/GLM-4.7-Flash tag=http_429
+01:26:57 [llm] OK purpose=hold_deep len=431
+01:27:08 [llm] 未返回 purpose=auction model=Qwen/Qwen3.8-Flash-Next tag=timeout
+01:27:08 [llm] 两波并发均无返回 purpose=auction
+01:27:08 [ask_deepseek] 首轮无返回即止损 purpose=auction
+01:27:08 [ask_deepseek] ModelScope 两次尝试均失败，purpose=auction
