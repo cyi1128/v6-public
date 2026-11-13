@@ -1812,3 +1812,9 @@
 05:36:21 [llm] OK purpose=risk_card len=368
 05:42:12 [llm] OK purpose=follow len=1130
 05:44:19 [llm] OK purpose=follow len=598
+06:01:06 [llm] OK purpose=hourly_ds len=507
+06:04:27 [llm] OK purpose=batch_deep len=4069
+06:05:26 [llm] OK purpose=health len=126
+06:06:13 [llm] OK purpose=hold_diag len=236
+06:07:19 [反模板放行:event_dark] 管住手
+06:07:20 [llm] OK purpose=event_dark len=707
