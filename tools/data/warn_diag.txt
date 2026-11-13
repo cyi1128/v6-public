@@ -1826,3 +1826,7 @@
 06:31:40 [llm] OK purpose=preclose len=201
 06:48:00 [llm] OK purpose=link_confirm len=107
 06:49:34 [llm] OK purpose=intra len=969
+06:52:50 [llm] OK purpose=news2h_good len=1238
+06:53:20 [llm] OK purpose=news2h_bad len=398
+06:54:42 [llm] OK purpose=news2h_ext len=969
+06:56:09 [llm] OK purpose=news2h len=184
