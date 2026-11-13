@@ -1795,3 +1795,7 @@
 03:39:57 [llm] OK purpose=health_dark len=228
 03:41:17 [llm] OK purpose=batch_deep len=2071
 03:46:11 [llm] OK purpose=event_dark len=690
+04:01:42 [llm] OK purpose=news2h_good len=1506
+04:02:51 [llm] OK purpose=news2h_bad len=1243
+04:04:34 [llm] OK purpose=news2h_ext len=986
+04:05:33 [llm] OK purpose=news2h len=135
