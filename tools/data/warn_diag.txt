@@ -1731,3 +1731,7 @@
 00:47:38 [ask_deepseek] ModelScope 两次尝试均失败，purpose=pre_main_dark
 00:49:18 [llm] OK purpose=focus_deep len=1552
 00:50:25 [llm] OK purpose=event_dark len=652
+01:12:13 [build_warn] 进入；新闻条数=20
+01:12:13 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+01:13:27 [llm] OK purpose=warn_news_ds len=2089
+01:13:27 [build_warn] LLM 返回长度=2089
