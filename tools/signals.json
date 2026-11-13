@@ -502,5 +502,53 @@
   "close": 164.0,
   "pct": 12.37,
   "next_open_pct": 1.4146341463414647
+ },
+ {
+  "date": "2026-11-13",
+  "code": "300324",
+  "name": "旋极信息",
+  "close": 3.88,
+  "pct": 17.58,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-13",
+  "code": "301077",
+  "name": "星华新材",
+  "close": 22.12,
+  "pct": 10.43,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-13",
+  "code": "600857",
+  "name": "宁波中百",
+  "close": 16.3,
+  "pct": 8.67,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-13",
+  "code": "600405",
+  "name": "动力源",
+  "close": 4.45,
+  "pct": 8.27,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-13",
+  "code": "301618",
+  "name": "长联科技",
+  "close": 34.37,
+  "pct": 8.42,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-13",
+  "code": "603353",
+  "name": "和顺石油",
+  "close": 31.71,
+  "pct": 7.56,
+  "next_open_pct": null
  }
 ]
