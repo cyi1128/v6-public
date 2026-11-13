@@ -1787,3 +1787,10 @@
 03:20:58 [反模板放行:board_watch] 管住手
 03:20:59 [llm] OK purpose=board_watch len=1526
 03:20:59 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 数据采集时间为盘中节点，市场情绪分五十三点八属于中低水位，快速轮动标签显示资金切换频繁，萌芽期生命周期意味着行情处于试错阶段，所有
+03:31:53 [llm] OK purpose=noon_extra_dark len=795
+03:34:38 [llm] OK purpose=mf_dark len=750
+03:36:30 [llm] OK purpose=noon_v4 len=177
+03:37:53 [llm] OK purpose=noon_dark len=654
+03:39:02 [llm] OK purpose=event_dark len=646
+03:39:57 [llm] OK purpose=health_dark len=228
+03:41:17 [llm] OK purpose=batch_deep len=2071
