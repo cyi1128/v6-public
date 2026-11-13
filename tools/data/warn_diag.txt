@@ -1799,3 +1799,9 @@
 04:02:51 [llm] OK purpose=news2h_bad len=1243
 04:04:34 [llm] OK purpose=news2h_ext len=986
 04:05:33 [llm] OK purpose=news2h len=135
+05:01:07 [llm] OK purpose=hourly_ds len=535
+05:03:10 [llm] OK purpose=batch_deep len=4289
+05:04:02 [llm] 未返回 purpose=health model=Qwen/Qwen3.5-122B-A10B tag=http_429
+05:04:21 [llm] OK purpose=health len=178
+05:05:24 [llm] OK purpose=hold_diag len=336
+05:06:32 [llm] OK purpose=event_dark len=673
