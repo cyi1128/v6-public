@@ -1823,3 +1823,4 @@
 06:21:14 [反模板放行:board_watch] 管住手
 06:21:14 [llm] OK purpose=board_watch len=1645
 06:21:14 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 当前交易时段数据基于实时行情接口抓取，市场情绪分数定格在 38.1 分，标签明确指向情绪退潮，天邦食品代码 002124 涨幅 10.
+06:31:40 [llm] OK purpose=preclose len=201
