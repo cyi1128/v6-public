@@ -1936,5 +1936,23 @@
   "concept": "3.1",
   "from_stock": "300508",
   "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-13 11:16:28",
+  "concept": "其他",
+  "from_stock": "001330",
+  "reason": "score=75"
+ },
+ {
+  "ts": "2026-11-13 11:16:28",
+  "concept": "其他",
+  "from_stock": "002306",
+  "reason": "score=75"
+ },
+ {
+  "ts": "2026-11-13 11:16:28",
+  "concept": "其他",
+  "from_stock": "688660",
+  "reason": "score=75"
  }
 ]
