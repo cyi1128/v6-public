@@ -2002,3 +2002,19 @@
 14:00:31 [llm] 两波并发均无返回 purpose=news2h
 14:00:31 [ask_deepseek] 首轮无返回即止损 purpose=news2h
 14:00:31 [ask_deepseek] ModelScope 两次尝试均失败，purpose=news2h
+14:38:26 [llm] 未返回 purpose=ext model=Qwen/Qwen3.5-35B-A3B tag=http_429
+14:38:26 [llm] 未返回 purpose=ext model=Qwen/Qwen3.8-27B tag=http_429
+14:38:26 [llm] 未返回 purpose=ext model=Qwen/Qwen3.5-122B-A10B tag=http_429
+14:38:28 [llm] 未返回 purpose=ext model=ZhipuAI/GLM-4.7-Flash tag=http_429
+14:38:28 [llm] 未返回 purpose=ext model=Qwen/Qwen3.8-Flash-Next tag=http_429
+14:38:28 [llm] 两波并发均无返回 purpose=ext
+14:38:28 [ask_deepseek] 首轮无返回即止损 purpose=ext
+14:38:28 [ask_deepseek] ModelScope 两次尝试均失败，purpose=ext
+14:38:29 [llm] 未返回 purpose=ext_news model=Qwen/Qwen3.5-35B-A3B tag=http_429
+14:38:29 [llm] 未返回 purpose=ext_news model=Qwen/Qwen3.8-27B tag=http_429
+14:38:29 [llm] 未返回 purpose=ext_news model=Qwen/Qwen3.5-122B-A10B tag=http_429
+14:38:30 [llm] 未返回 purpose=ext_news model=ZhipuAI/GLM-4.7-Flash tag=http_429
+14:38:30 [llm] 未返回 purpose=ext_news model=Qwen/Qwen3.8-Flash-Next tag=http_429
+14:38:30 [llm] 两波并发均无返回 purpose=ext_news
+14:38:30 [ask_deepseek] 首轮无返回即止损 purpose=ext_news
+14:38:30 [ask_deepseek] ModelScope 两次尝试均失败，purpose=ext_news
