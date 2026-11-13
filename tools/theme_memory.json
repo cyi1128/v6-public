@@ -1,4 +1,63 @@
 {
+ "2026-11-13": {
+  "汽车零部": {
+   "leaders": [
+    "天普股份",
+    "中马传动",
+    "美晨科技"
+   ],
+   "reason": "6只涨停·龙头天普股份",
+   "strength": 10,
+   "max_lbc": 4,
+   "fbt": 93034,
+   "divergence": false
+  },
+  "影视院线": {
+   "leaders": [
+    "金逸影视",
+    "横店影视",
+    "中国电影"
+   ],
+   "reason": "5只涨停·龙头金逸影视",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 93212,
+   "divergence": false
+  },
+  "通用设备": {
+   "leaders": [
+    "东方中科",
+    "日发精机"
+   ],
+   "reason": "2只涨停·龙头东方中科",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93018,
+   "divergence": false
+  },
+  "游戏Ⅱ": {
+   "leaders": [
+    "文投控股",
+    "凯撒文化"
+   ],
+   "reason": "2只涨停·龙头文投控股",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93040,
+   "divergence": false
+  },
+  "IT服务Ⅱ": {
+   "leaders": [
+    "华胜天成",
+    "南威软件"
+   ],
+   "reason": "2只涨停·龙头华胜天成",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 95006,
+   "divergence": false
+  }
+ },
  "2026-11-12": {
   "一般零售": {
    "leaders": [
@@ -704,89 +763,6 @@
    "strength": 10,
    "max_lbc": 1,
    "fbt": 102736,
-   "divergence": false
-  }
- },
- "2026-11-03": {
-  "电池": {
-   "leaders": [
-    "紫竹高科",
-    "圣阳股份",
-    "龙蟠科技"
-   ],
-   "reason": "7只涨停·龙头紫竹高科",
-   "strength": 10,
-   "max_lbc": 2,
-   "fbt": 94848,
-   "divergence": false
-  },
-  "一般零售": {
-   "leaders": [
-    "大东方",
-    "大连友谊",
-    "友好集团"
-   ],
-   "reason": "4只涨停·龙头大东方",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 95728,
-   "divergence": false
-  },
-  "游戏Ⅱ": {
-   "leaders": [
-    "大晟文化",
-    "电魂网络",
-    "文投控股"
-   ],
-   "reason": "3只涨停·龙头大晟文化",
-   "strength": 10,
-   "max_lbc": 2,
-   "fbt": 92500,
-   "divergence": false
-  },
-  "服装家纺": {
-   "leaders": [
-    "七 匹 狼",
-    "九牧王",
-    "龙头股份"
-   ],
-   "reason": "3只涨停·龙头七 匹 狼",
-   "strength": 10,
-   "max_lbc": 2,
-   "fbt": 93224,
-   "divergence": false
-  },
-  "饮料乳品": {
-   "leaders": [
-    "均瑶健康",
-    "阳光乳业"
-   ],
-   "reason": "2只涨停·龙头均瑶健康",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 92501,
-   "divergence": false
-  },
-  "电网设备": {
-   "leaders": [
-    "远程股份",
-    "太阳电缆"
-   ],
-   "reason": "2只涨停·龙头远程股份",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 93000,
-   "divergence": false
-  },
-  "装修建材": {
-   "leaders": [
-    "鲁阳节能",
-    "扬子新材"
-   ],
-   "reason": "2只涨停·龙头鲁阳节能",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 93903,
    "divergence": false
   }
  }
