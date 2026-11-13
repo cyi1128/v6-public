@@ -2066,3 +2066,27 @@
 14:52:14 [llm] 两波并发均无返回 purpose=news2h
 14:52:14 [ask_deepseek] 首轮无返回即止损 purpose=news2h
 14:52:14 [ask_deepseek] ModelScope 两次尝试均失败，purpose=news2h
+20:02:38 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.8-27B tag=http_429
+20:02:38 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-122B-A10B tag=http_429
+20:02:38 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-35B-A3B tag=http_429
+20:02:39 [llm] 未返回 purpose=holiday_ds model=ZhipuAI/GLM-4.7-Flash tag=http_429
+20:02:39 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.8-Flash-Next tag=http_429
+20:02:39 [llm] 两波并发均无返回 purpose=holiday_ds
+20:02:39 [ask_deepseek] 首轮无返回即止损 purpose=holiday_ds
+20:02:39 [ask_deepseek] ModelScope 两次尝试均失败，purpose=holiday_ds
+20:02:41 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.8-27B tag=http_429
+20:02:41 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-122B-A10B tag=http_429
+20:02:41 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-35B-A3B tag=http_429
+20:02:42 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.8-Flash-Next tag=http_429
+20:02:42 [llm] 未返回 purpose=holiday_ds model=ZhipuAI/GLM-4.7-Flash tag=http_429
+20:02:42 [llm] 两波并发均无返回 purpose=holiday_ds
+20:02:42 [ask_deepseek] 首轮无返回即止损 purpose=holiday_ds
+20:02:42 [ask_deepseek] ModelScope 两次尝试均失败，purpose=holiday_ds
+20:02:44 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.8-27B tag=http_429
+20:02:44 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-35B-A3B tag=http_429
+20:02:44 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-122B-A10B tag=http_429
+20:02:45 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.8-Flash-Next tag=http_429
+20:02:45 [llm] 未返回 purpose=holiday_ds model=ZhipuAI/GLM-4.7-Flash tag=http_429
+20:02:45 [llm] 两波并发均无返回 purpose=holiday_ds
+20:02:45 [ask_deepseek] 首轮无返回即止损 purpose=holiday_ds
+20:02:45 [ask_deepseek] ModelScope 两次尝试均失败，purpose=holiday_ds
