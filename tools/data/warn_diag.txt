@@ -1806,3 +1806,6 @@
 05:05:24 [llm] OK purpose=hold_diag len=336
 05:06:32 [llm] OK purpose=event_dark len=673
 05:11:56 [llm] OK purpose=pm_relay len=132
+05:18:49 [llm] OK purpose=link_confirm len=114
+05:20:25 [llm] OK purpose=intra len=1697
+05:22:56 [llm] OK purpose=radar_ds len=965
