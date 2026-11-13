@@ -1754,3 +1754,5 @@
 01:36:04 [反模板命中:board_watch] 管住手/为什么选它/为什么是它 (try1)
 01:37:12 [llm] OK purpose=board_watch len=1985
 01:37:12 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 当前处于盘中监控阶段，所有价格与涨幅数据基于实时行情快照，华智数媒现价对应涨幅 10.1%，光力科技涨幅 2.6%，凯撒文化涨幅 6.
+01:39:15 [反模板放行:open_check] 管住手
+01:39:16 [llm] OK purpose=open_check len=184
