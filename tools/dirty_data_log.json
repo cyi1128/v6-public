@@ -1954,5 +1954,17 @@
   "concept": "其他",
   "from_stock": "688660",
   "reason": "score=75"
+ },
+ {
+  "ts": "2026-11-13 14:17:10",
+  "concept": "5.48",
+  "from_stock": "002124",
+  "reason": "score=10"
+ },
+ {
+  "ts": "2026-11-13 14:17:10",
+  "concept": "5.48",
+  "from_stock": "600895",
+  "reason": "score=10"
  }
 ]
