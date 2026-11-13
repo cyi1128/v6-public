@@ -1781,3 +1781,9 @@
 03:08:07 [llm] OK purpose=health len=182
 03:08:58 [llm] OK purpose=hold_diag len=217
 03:10:27 [llm] OK purpose=event_dark len=861
+03:17:56 [llm] OK purpose=board_deep len=815
+03:18:50 [llm] OK purpose=board_deep_fill len=299
+03:19:44 [llm] OK purpose=board_why len=306
+03:20:58 [反模板放行:board_watch] 管住手
+03:20:59 [llm] OK purpose=board_watch len=1526
+03:20:59 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 数据采集时间为盘中节点，市场情绪分五十三点八属于中低水位，快速轮动标签显示资金切换频繁，萌芽期生命周期意味着行情处于试错阶段，所有
