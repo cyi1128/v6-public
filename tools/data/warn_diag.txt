@@ -1761,3 +1761,9 @@
 01:52:49 [反模板放行:board_watch] 半山腰/管住手
 01:52:50 [llm] OK purpose=board_watch len=2269
 01:52:50 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=【一、当前时间与数据可信度】 当前处于盘中交易时段，数据采集时间锚定在 09:45 至 10:30 之间，市场情绪分 50.3 分显示为快速轮动状态，这个分数属
+02:01:14 [llm] OK purpose=hourly_ds len=551
+02:03:42 [llm] OK purpose=batch_deep len=3805
+02:07:18 [llm] OK purpose=newfire_dark len=73
+02:07:46 [llm] OK purpose=health len=148
+02:09:18 [llm] OK purpose=hold_diag len=364
+02:10:37 [llm] OK purpose=event_dark len=679
