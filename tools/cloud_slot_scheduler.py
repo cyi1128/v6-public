@@ -871,18 +871,59 @@ def main() -> int:
     bj = bj_now()
     log(f'启动调度器 v6，当前北京时间 {bj:%Y-%m-%d %H:%M:%S} 星期{"一二三四五六日"[bj.weekday()]}')
 
-    # ---- 周末/休市日：快跑一次休市新闻汇总即退出（不占长班次） ----
+    # ---- 周末/休市日：滚动守候，逐窗出卡后等下一窗 ----
+    # 2026-11-14：原来推完一窗立刻 return finish('weekend-end')，run 只有几秒到几分钟，
+    # 达不到 workflow 里"跑满 600 秒才预约下一棒"的接力门槛 → 休市日接力链必断，
+    # 只能等 GitHub cron；而本仓库 schedule 被平台系统性节流（注释实测名义 96 次只真触发 3 次）。
+    # 当天 08:00-12:15 整段零启动、08 点与 10 点两窗直接漏推，就是这个断链的后果。
+    # 改法：一次 run 守到当天最后一个休市窗口之后（最长 300 分钟，与工作日滚动段一致），
+    # 每到偶数小时窗口就出一次卡；run 活得够久 → 接力恢复正常 → 全天不再赌 cron。
     if bj.weekday() >= 5:
         win = bj.hour // 2 * 2
         seg = f'weekend-{win:02d}'
-        if not acquire_segment(bj, seg, bj + datetime.timedelta(minutes=20)):
+        end = min(bj + datetime.timedelta(minutes=300),
+                  bj.replace(hour=23, minute=55, second=0, microsecond=0))
+        if not acquire_segment(bj, seg, end):
             log(f'周末 {seg} 段已有存活调度器，本 run 让位退出')
             return finish('weekend-busy')
-        # 周日 09:00 档先出因子体检报告，再出本窗休市新闻（去重都在主程序内）
-        if bj.weekday() == 6 and 9 <= bj.hour < 12:
-            run_slot('factor_weekly')
-        run_slot('watch')   # 休市日闸门会把任意槽位改走 holiday_slot（2 小时窗去重）
-        log('周末快跑结束，退出')
+        log(f'休市滚动守候至 {end:%H:%M}，每到 2 小时窗口出一次卡')
+        executed: set = set()
+        day_key = bj.strftime('%Y-%m-%d')
+        last_chk = bj_now()
+        last_hb = bj_now()
+        while True:
+            now = bj_now()
+            if now >= end:
+                break
+            curwin = now.hour // 2 * 2
+            # 周日 09:00-12:00 档先出因子体检报告，再出本窗休市新闻（去重都在主程序内）
+            if now.weekday() == 6 and 9 <= now.hour < 12 and f'factor|{day_key}' not in executed:
+                run_slot('factor_weekly')
+                executed.add(f'factor|{day_key}')
+            if f'watch|{day_key}|{curwin:02d}' not in executed:
+                run_slot('watch')   # 休市日闸门会把任意槽位改走 holiday_slot（2 小时窗去重）
+                executed.add(f'watch|{day_key}|{curwin:02d}')
+            now = bj_now()
+            # 每 4 分钟复查段标记：段被别的 run 接管就让位，绝不并发双推
+            if (now - last_chk).total_seconds() >= 240:
+                last_chk = now
+                try:
+                    pull_latest()
+                    m_now = _read_json(MARKER)
+                    if (m_now.get('seg') or '') != seg:
+                        log(f'段标记已切到 {m_now.get("seg") or "空"}，本 run 让位退出')
+                        return finish('preempted')
+                except Exception as _e:  # noqa: BLE001
+                    log(f'段标记复查异常（不影响继续）：{_e}')
+                # 守候期空转心跳：证明自己活着，避免被 SEG_HB_STALE 判死
+                if (bj_now() - last_hb).total_seconds() >= HEARTBEAT_GAP:
+                    last_hb = bj_now()
+                    heartbeat()
+            if bj_now() >= end:
+                break
+            time.sleep(15)
+        release_segment()
+        log(f'休市滚动守候结束（{bj_now():%H:%M}），退出')
         return finish('weekend-end')
 
     # ---- 工作日：滚动占段 ----
