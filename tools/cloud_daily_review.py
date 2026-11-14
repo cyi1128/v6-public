@@ -11830,6 +11830,14 @@ def build_news2h():
             bad.append(nw)
         else:
             neu.append(nw)
+
+    # 跨窗口去重（一天 3 次两小时汇总，60 条新闻里大半在上一轮已经上过版面）：
+    # 新增优先；不足 3 条才用已发过的补位并标「跟踪」，既有新东西又不至于变空壳。
+    _gd = _news_dedup(good, 'news2h', min_keep=3, max_new=4)
+    _bd = _news_dedup(bad, 'news2h', min_keep=3, max_new=4)
+    _TRK2 = {_news_fp(n.get('title')) for n, _t in (_gd + _bd) if _t}
+    good = [n for n, _t in _gd]
+    bad = [n for n, _t in _bd]
     good_pairs = _news_ds_lines(good, 4, 'news2h_good') or [(g.get('title',''), '', '', '') for g in good[:4]]
     bad_pairs = _news_ds_lines(bad, 4, 'news2h_bad') or [(b.get('title',''), '', '', '') for b in bad[:4]]
 
@@ -11874,7 +11882,9 @@ def build_news2h():
             # v80-A12（用户指令「字数过多、一问一答」）：一条只留标题 + 暗线，
             # 摘要/影响/代表个股/操作四段全部收掉，暗线优先用模型写的大白话（承载逻辑）。
             _dc = (_DPACK.get('deep') or {}).get(t0) or (_DPACK.get('dn') or {}).get(_nrm_d(t0))
-            out.append(f'<div style="color:#fff;font-size:13px;margin:8px 0 0 0;">· {t0}</div>'
+            _tb = ('<span style="color:#9aa4b8;font-size:11px;font-weight:400;">跟踪 </span>'
+                   if _news_fp(t0) in _TRK2 else '')
+            out.append(f'<div style="color:#fff;font-size:13px;margin:8px 0 0 0;">· {_tb}{t0}</div>'
                        + (f'<div style="margin:2px 0 2px 0;color:#a78bfa;font-size:13px;line-height:1.6;">'
                           f'🔍 暗线：{_dk_row}</div>')
                        + (_holiday_deep_html(_dc) if _dc else ''))
@@ -11964,6 +11974,7 @@ def build_news2h():
              + (f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🤖 主线研判</div>'
                 f'<div style="padding:10px;background:#1c2230;border-left:4px solid {GOLD};border-radius:8px;font-size:13px;line-height:1.8;color:#e2e8f0;">{ds_html}</div>' if ds_html else '')
              )
+    _seen_mark('news2h', good + bad + _ext)
     return _wrap(inner, '📰', '两小时市场消息汇总')
 
 
@@ -15890,6 +15901,10 @@ def push(html, title):
 
 # ============ 休市日新闻汇总：去重 + 组装（2026-10-19 新增） ============
 NEWS_PUSH_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'last_news_push.json')
+# 跨窗口新闻去重账本：同一类卡当天已上过版面的标题指纹。
+# 休市日一天有 8 个窗口（08/10/12/14/16/18/20/22），两小时汇总一天 3 次（12/14/16），
+# 新闻源 2-3 小时内只会多出两三条新东西，不记账就必然把同一批新闻反复念一遍。
+NEWS_SEEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'news_seen.json')
 
 
 def load_news_push():
@@ -15917,6 +15932,71 @@ def mark_news_push_done(date_str):
     # 只保留最近 90 天，避免文件无限增长
     m = {k: v for k, v in sorted(m.items())[-90:]}
     save_news_push(m)
+
+
+def _news_fp(title):
+    """标题指纹：去标点取前 20 个中英文数字字符。扛得住模型改写标点、空格、全半角。"""
+    return re.sub(r'[^\u4e00-\u9fffA-Za-z0-9]', '', str(title or ''))[:20]
+
+
+def _seen_load():
+    try:
+        with open(NEWS_SEEN_PATH, encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _seen_save(m):
+    """只留最近 3 天，避免账本无限增长；随状态提交回仓库，让云端各 job 共享同一份。"""
+    _keep = sorted(m.keys())[-3:]
+    m = {k: m[k] for k in _keep}
+    try:
+        with open(NEWS_SEEN_PATH, 'w', encoding='utf-8') as f:
+            json.dump(m, f, ensure_ascii=False, indent=1)
+        _git_commit_push(NEWS_SEEN_PATH, 'update news seen')
+    except Exception as e:
+        print('[dedup] 账本写入失败:', str(e)[:60])
+
+
+def _news_dedup(news, kind, min_keep=6, max_new=12):
+    """同一类卡当天跨窗口去重：新增优先；不足 min_keep 才补已发过的（标为跟踪）。
+
+    为什么不直接删干净：2 小时窗口里真正的新消息常常只有两三条，全删会让卡变空壳。
+    已发过的条目对用户仍然是「这条还在推进」的信息，所以降到跟踪位，而不是消失。
+    返回 [(news, is_track), ...]。"""
+    _m = _seen_load()
+    _d = _bj_now().strftime('%Y-%m-%d')
+    _old = set((_m.get(_d) or {}).get(kind) or [])
+    _new, _rep = [], []
+    for _n in news or []:
+        _fp = _news_fp(_n.get('title'))
+        if not _fp:
+            continue
+        if _fp in _old:
+            _rep.append(_n)
+        else:
+            _new.append(_n)
+    _out = [(_n, False) for _n in _new[:max_new]]
+    _need = min_keep - len(_out)
+    if _need > 0:
+        _out += [(_n, True) for _n in _rep[:_need]]
+    print('[dedup] %s 新增 %d / 已发过 %d → 收录 %d（跟踪 %d）'
+          % (kind, len(_new), len(_rep), len(_out), sum(1 for x in _out if x[1])))
+    return _out
+
+
+def _seen_mark(kind, news):
+    """本卡收录过的条目全部记账（新增和跟踪都算已发）。失败不阻断推送。"""
+    _m = _seen_load()
+    _d = _bj_now().strftime('%Y-%m-%d')
+    _cur = (_m.get(_d) or {}).get(kind) or []
+    for _n in news or []:
+        _fp = _news_fp(_n.get('title'))
+        if _fp and _fp not in _cur:
+            _cur.append(_fp)
+    _m.setdefault(_d, {})[kind] = _cur[-400:]
+    _seen_save(_m)
 
 
 def _news_date(ts):
@@ -15947,8 +16027,11 @@ def _holiday_ds(items, scene='holiday'):
     for _off in range(0, len(items), 5):
         _batch = items[_off:_off + 5]
         news_txt = '\n'.join(f"- {x['title']}（摘要：{x['summary'][:50]}）" for x in _batch)
-        fmt = ('你是一线游资，休市日新闻汇总。只做情报，不做涨跌判断、不给买卖价、不贴利好利空标签。\n'
+        _who = {'holiday': '休市日新闻汇总', 'intraday': '盘中两小时消息汇总',
+                'evening': '收盘后晚间消息汇总'}.get(scene, '消息汇总')
+        fmt = ('你是一线游资，' + _who + '。只做情报，不做涨跌判断、不给买卖价、不贴利好利空标签。\n'
                + FIVE_BRIEF + '\n'
+               + _SCENE_VIEW.get(scene, '') + '\n'
                + '【第一步先分级 rank】S=政策级/产业级（会改整条板块的资金方向，下周看板块整体）；A=公司级（只动这一只票，板块不受影响）；B=传闻/单家券商观点/未证实（只能观察，不许动手）。每条必须给一个档，不许全给 A。\n'
                + '【暗线方向 dark】必须讲清三件事：①这条消息里谁是真受益方（点名到公司或产业链环节，禁止用「相关/涉及/布局/受益于」糊弄）②它落在哪条产业链的哪个环节，这个环节现在处在什么阶段（缺货/涨价/扩产/刚起步/已兑现/产能爬坡）③后面还可能往哪个方向继续发酵（下一棒会打给谁、什么条件下发酵会断）。\n'
                + '【暗线贴合个股 dark_stock】只给 rank=S 的写，1-2 只，每只严格五段用竖线隔开：\n'
@@ -16003,6 +16086,20 @@ _HOLIDAY_HOME_KW = ('政策', '国务院', '发改委', '工信部', '财政部'
 _HOLIDAY_ABROAD_KW = ('英伟达', '微软', '马斯克', '白宫', '美联储', '纳指', '道指', '标普',
                       '特斯拉', 'Meta', 'Arm', '苹果', '谷歌', '亚马逊', 'OpenAI', '星舰',
                       '星链', '美国', '欧洲', '日本', '韩国', '美股', '美元', '特朗普')
+
+# 三张消息卡问不同的问题，同一条新闻的结论才会不一样 —— 这是三张卡差异化的根。
+# 只换时间词不换问题，等于三张卡念同一段话。
+_SCENE_VIEW = {
+    'holiday': ('【本卡视角·下周还开不开】不要复述事件。要判断这条线下周有没有继续发酵的条件'
+                '（新政策/新订单/新产能节点），一周内什么东西会把它打断；同一板块里谁是主攻、'
+                '谁只是跟风，跟风那只下周先掉队。'),
+    'intraday': ('【本卡视角·这几小时有没有兑现】不要复述事件。要判断这 2 小时里有没有真金白银进来：'
+                 '和上午或上一窗口比这条线是加速还是滞涨，盘面上有没有对应的涨停、放量、板块内部家数扩散；'
+                 '今天下午到收盘还能不能接、接的条件是什么。'),
+    'evening': ('【本卡视角·今天最后赢了还是输了】不要复述事件。要判断全天资金最后收敛到哪条线：'
+                '哪条消息被证伪了没人跟、哪条被真做上去了；明天开盘第一个确认信号是什么，'
+                '什么情况说明判断错了。'),
+}
 
 
 def _holiday_pick(news, n=15):
@@ -16462,6 +16559,12 @@ def build_holiday_news():
     # 国内优先排序：同样的条数，先给能落到 A 股的政策/产业/公司消息
     today_news = _holiday_pick(today_news, 15)
 
+    # 跨窗口去重（2026-11-14 用户指令「三张卡内容要不一样」）：
+    # 当天已上过版面的降级成「跟踪」补位，新增的排前面——一天 8 个窗口不该把同一批新闻念 8 遍。
+    _dd = _news_dedup(today_news, 'holiday', min_keep=6, max_new=15)
+    _TRK = {_news_fp(nw.get('title')) for nw, _tr in _dd if _tr}
+    today_news = [nw for nw, _tr in _dd]
+
     if not today_news:
         print(f'[holiday] {today} 无当天有效新闻（新闻源返回 {len(news)} 条但均非当天/为空）')
         html = ('<div style="color:#e2e8f0;font-size:14px;line-height:1.8;padding:10px;background:#1c2230;'
@@ -16505,7 +16608,10 @@ def build_holiday_news():
         _cs = (nw.get('summary') or '').strip()
         _ts = str(nw.get('ts') or '')
         _src = nw.get('source') or '东财7x24'
-        _color = TEAL if _d else '#4b5563'
+        _trk = _news_fp(_ct) in _TRK
+        _badge = ('<span style="color:#9aa4b8;font-size:11px;font-weight:400;">· 跟踪 · </span>'
+                  if _trk else '')
+        _color = '#4b5563' if _trk else (TEAL if _d else '#4b5563')
         _tags = ''
         if _d:
             if _d.get('sector') or _d.get('stocks'):
@@ -16519,7 +16625,7 @@ def build_holiday_news():
             _tags = _holiday_deep_html(None)
         return (f'<div style="background:#1f2635;border-left:3px solid {_color};border-radius:8px;'
                 f'padding:9px 11px;margin:7px 0;">'
-                f'<b style="color:#fff;font-size:13px;line-height:1.5;">{_ct or "（无标题）"}</b>'
+                f'<b style="color:#fff;font-size:13px;line-height:1.5;">{_badge}{_ct or "（无标题）"}</b>'
                 f'<div style="color:{GREY};font-size:12px;margin-top:2px;">🕐 {_ts}｜来源：{_src}</div>'
                 f'<div style="color:#c8d0e0;font-size:12px;margin-top:4px;line-height:1.65;">{_cs[:80]}</div>'
                 f'{_tags}</div>')
@@ -16540,6 +16646,7 @@ def build_holiday_news():
                 '<span style="color:#9aa4b8;font-size:12px;">（当天新闻条目为空，不伪造内容。）</span></div>')
         return _wrap(html, '📰', f'休市日新闻汇总 {today}'), today
 
+    _seen_mark('holiday', today_news)
     _miss_txt = (f'｜其中 {_miss} 条只有新闻本身，没判读到暗线' if _miss else '')
     inner = (f'<div style="background:#1a2030;border-radius:8px;padding:9px 11px;margin-bottom:8px;">'
              f'<div style="color:#e2e8f0;font-size:13px;line-height:1.7;">{_tone}</div>'
