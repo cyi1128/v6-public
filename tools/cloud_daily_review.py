@@ -11711,6 +11711,7 @@ def build_evening():
             _ev_news.append((_nw, _e))
     _ev_news.sort(key=lambda x: -x[1]['score'])
     ev_news = [x[0] for x in _ev_news] or news
+    ev_news = _news_cluster_cap(ev_news, 2)   # 同主题刷屏控制（如医保目录当天十几家药企各发一条）
     news_brief = [{'t': nw['title'], 's': (nw.get('summary') or '')[:50]} for nw in ev_news[:12]]
     # —— DS 大白话汇总 ——
     ds_html = ''
@@ -11833,6 +11834,8 @@ def build_news2h():
 
     # 跨窗口去重（一天 3 次两小时汇总，60 条新闻里大半在上一轮已经上过版面）：
     # 新增优先；不足 3 条才用已发过的补位并标「跟踪」，既有新东西又不至于变空壳。
+    good = _news_cluster_cap(good, 2)
+    bad = _news_cluster_cap(bad, 2)
     _gd = _news_dedup(good, 'news2h', min_keep=3, max_new=4)
     _bd = _news_dedup(bad, 'news2h', min_keep=3, max_new=4)
     _TRK2 = {_news_fp(n.get('title')) for n, _t in (_gd + _bd) if _t}
@@ -15986,6 +15989,39 @@ def _news_dedup(news, kind, min_keep=6, max_new=12):
     return _out
 
 
+# 同主题刷屏控制关键词：2026-11-14 医保目录公布当天，十几家药企各发一条公告，
+# 不控的话一张卡 15 条里 7 条都是「某某药纳入医保」，用户看到的就是重复。
+_CLUSTER_KW = ('医保', '集采', '中标', '增持', '减持', '回购', '重组', '并购',
+               '立案', '问询', '监管措施', '罚款', '停产', '限产')
+
+
+def _news_cluster_cap(items, max_per=2):
+    """同一主题簇每张卡最多留 max_per 条，超出的跳过，把版面留给别的题材。"""
+    _cnt, _out = {}, []
+    for _nw in items or []:
+        _t = str(_nw.get('title') or '')
+        _hit = next((k for k in _CLUSTER_KW if k in _t), '')
+        if _hit:
+            _cnt[_hit] = _cnt.get(_hit, 0) + 1
+            if _cnt[_hit] > max_per:
+                print('[cluster] 同主题刷屏跳过(%s)：%s' % (_hit, _t[:24]))
+                continue
+        _out.append(_nw)
+    return _out
+
+
+def _news_abroad_cap(items, max_abroad=8):
+    """海外消息配额：休市卡的价值在国内暗线，海外只能当背景。
+    不设上限的话，下午国内消息稀疏时整张卡会变成国际新闻摘要。"""
+    _hm, _ab = [], []
+    for _n in items or []:
+        _t = str(_n.get('title') or '')
+        _isab = (any(k in _t for k in _HOLIDAY_ABROAD_KW)
+                 and not any(k in _t for k in _HOLIDAY_HOME_KW))
+        (_ab if _isab else _hm).append(_n)
+    return _hm + _ab[:max_abroad]
+
+
 def _seen_mark(kind, news):
     """本卡收录过的条目全部记账（新增和跟踪都算已发）。失败不阻断推送。"""
     _m = _seen_load()
@@ -16085,7 +16121,7 @@ _HOLIDAY_HOME_KW = ('政策', '国务院', '发改委', '工信部', '财政部'
 
 _HOLIDAY_ABROAD_KW = ('英伟达', '微软', '马斯克', '白宫', '美联储', '纳指', '道指', '标普',
                       '特斯拉', 'Meta', 'Arm', '苹果', '谷歌', '亚马逊', 'OpenAI', '星舰',
-                      '星链', '美国', '欧洲', '日本', '韩国', '美股', '美元', '特朗普')
+                      '星链', '美国', '全美', '欧洲', '日本', '韩国', '美股', '美元', '特朗普')
 
 # 三张消息卡问不同的问题，同一条新闻的结论才会不一样 —— 这是三张卡差异化的根。
 # 只换时间词不换问题，等于三张卡念同一段话。
@@ -16540,7 +16576,7 @@ def build_holiday_news():
     today = _bj_now().strftime('%Y-%m-%d')
     t0 = time.time()
     try:
-        news = get_news(30)   # 多抓一倍：再按"国内政策/产业/公司"优先挑 15 条，避免版面被外盘科技消息占满
+        news = get_news(60)   # 候选池必须大于版面：休市卡一天 8 个窗口，去重后剩下的新消息只会更少
         _record('holiday_news', True, time.time() - t0, f'{len(news)}条')
     except Exception as e:
         _record('holiday_news', False, time.time() - t0, str(e)[:80])
@@ -16556,8 +16592,11 @@ def build_holiday_news():
         else:
             print(f'[holiday] 丢弃非当天新闻: ts={nw.get("ts")!r} title={nw.get("title", "")[:20]}')
 
-    # 国内优先排序：同样的条数，先给能落到 A 股的政策/产业/公司消息
-    today_news = _holiday_pick(today_news, 15)
+    # 国内优先排序 + 候选池放到 40 条：去重会剔掉当天已上过版面的条目，
+    # 若先只挑 15 条再剔，18:00 这种「国内重要消息上午已念过」的窗口就只剩几条海外新闻撑版面。
+    today_news = _holiday_pick(today_news, 40)
+    today_news = _news_cluster_cap(today_news, 2)
+    today_news = _news_abroad_cap(today_news, 8)
 
     # 跨窗口去重（2026-11-14 用户指令「三张卡内容要不一样」）：
     # 当天已上过版面的降级成「跟踪」补位，新增的排前面——一天 8 个窗口不该把同一批新闻念 8 遍。
