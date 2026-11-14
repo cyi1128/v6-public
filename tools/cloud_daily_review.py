@@ -16009,7 +16009,7 @@ def _holiday_code_of(name):
 
 
 def _holiday_mv_batch(codes):
-    """流通市值批量取，返回 {code: 'XX亿'}。
+    """流通市值批量取，返回 {code: XX}（单位亿，供低位替代的 30-800 亿门槛判定）。
 
     2026-11-14 实测坑：`push2.eastmoney.../stock/get?...&fields=f21` 会被东财直接断连
     （Remote end closed connection without response），换 `ulist.np/get` 一次多票稳定返回，
