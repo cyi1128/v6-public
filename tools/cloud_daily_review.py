@@ -10964,7 +10964,25 @@ def _ext_map_html(pack, mains, data):
     return ''.join(lines)
 
 
-def _ext_fallback(pack, mains):
+_EXT_EVENT_KW = ('美联储', 'FOMC', 'CPI', '非农', 'PCE', 'GDP', '财报', '关税', 'OPEC',
+                 'GTC', '议息', '降息', '加息', '利率决议', '非农就业')
+
+
+def _ext_events(news, mains):
+    """兜底事件日历：只从真实新闻标题里抽事件（不编、不猜），抽不到就写无重大事件。"""
+    out = []
+    for nw in (news or [])[:14]:
+        t = str(nw.get('title') or '').strip()
+        if not t:
+            continue
+        if any(k in t for k in _EXT_EVENT_KW):
+            out.append(t[:46] + ' → 影响全市场风险偏好与主线定价')
+        if len(out) >= 2:
+            break
+    return out or ['无重大事件']
+
+
+def _ext_fallback(pack, mains, news=None):
     """LLM 未返回时的规则兜底：结论按硬变量定性，其余段给可验证的最小结论。"""
     fei = pack['us'].get('费半')
     a50 = pack['a50']
@@ -10994,7 +11012,8 @@ def _ext_fallback(pack, mains):
             risk.append('%s %+.2f%%（利率上行代理）→ 压制高估值成长主线' % (nm, v))
     if pack['stk'].get('美元指数') is not None and pack['stk']['美元指数'] >= 0.3:
         risk.append('美元 %+.2f%% 走强 → 压制外资偏好品种与出口链定价' % pack['stk']['美元指数'])
-    return {'conclusion': concl, 'map': [], 'calendar': ['无重大事件'], 'risk': risk or ['无显著异动']}
+    return {'conclusion': concl, 'map': [], 'calendar': _ext_events(news, mains),
+            'risk': risk or ['无显著异动']}
 
 
 def _ext_parse(t):
@@ -11044,6 +11063,12 @@ def build_ext():
     mains_line = '；'.join('%s %.0f分(%s)' % (m[0], m[1] or 0, m[2] or '') for m in mains) or '主线数据未取得'
     data = None
     if DEEPSEEK_KEY:
+        # 独立系统提示：全局 _ASK_DS_SYS 要求"连贯大白话段落、禁条目罗列"，
+        # 会把这个 JSON 契约直接冲掉（云端实测会返回自由文本→解析失败→永远走兜底）。
+        # 带「反模板强化」字样同时跳过 _ANTI_TEMPLATE_BLOCK 的追加。
+        sys_txt = ('你是外盘窗口推送编辑，负责把隔夜外盘变量映射到A股当前事件驱动主线上。'
+                   '你的输出只有一个 JSON 对象：不要解释、不要 Markdown、不要在 JSON 之外写任何句子。'
+                   '反模板强化：不写空话套话，每条结论必须绑定输入里的真实数值与真实主线名。')
         fmt = ('你是一名外盘窗口推送编辑，负责把隔夜外盘变量映射到A股当前事件驱动主线上，'
                '输出盘前1-2屏推送，结论先行，每条信息必须带映射结论，不写新闻摘要。\n'
                '今日日期：{date}\n'
@@ -11064,13 +11089,14 @@ def build_ext():
                '不重复同一事件，不堆数字，全文1-2屏。')
         t = ask_deepseek({'task': 'ext_window', 'date': _bj_now().strftime('%Y-%m-%d'),
                           'hard': hard_line, 'mains': mains_line,
-                          'news': [nw.get('title') for nw in news[:12]], 'format': fmt}, purpose='ext_window')
+                          'news': [nw.get('title') for nw in news[:12]], 'format': fmt},
+                         purpose='ext_window', system_text=sys_txt)
         data = _ext_parse(t)
         if data is None:
             print('[ext] LLM 未返回可解析 JSON，走规则兜底 | 原文前120字:', (t or '')[:120].replace('\n', ' '))
     if data is None:
-        data = _ext_fallback(pack, mains)
-    concl = str(data.get('conclusion') or '').strip() or _ext_fallback(pack, mains)['conclusion']
+        data = _ext_fallback(pack, mains, news)
+    concl = str(data.get('conclusion') or '').strip() or _ext_fallback(pack, mains, news)['conclusion']
     cal = [str(x).strip() for x in (data.get('calendar') or []) if str(x).strip()] or ['无重大事件']
     risk = [str(x).strip() for x in (data.get('risk') or []) if str(x).strip()] or ['无显著异动']
     cal_html = ''.join('<div style="margin-top:2px;">· %s</div>' % x for x in cal[:4])
