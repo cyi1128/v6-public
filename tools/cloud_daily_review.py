@@ -11740,14 +11740,30 @@ def build_evening():
             _lhb_html_block = _lhb_html(_lhb)
     except Exception as _le:
         print('[lhb] 段渲染失败:', type(_le).__name__, str(_le)[:60])
-    news_rows, _used_ds = _news_html_lines(ev_news, n=8, purpose_key='eve_news', max_show=12)
+    # 2026-11-14 用户指令「晚间汇总也要暗线贴合个股 + 低位替代 + 优先级汇总」：
+    # 消息正文不再只给标题+摘要，改为按 S/A/B 分级 + 暗线贴合 + 低位替代，顶部先给定调与优先级。
+    # evening 已按事件强度排好，用 pre_sorted=True 保序（不再做国内优先重排）。
+    _DEPACK = {}
+    if (MODELSCOPE_KEY or DEEPSEEK_KEY) and ev_news:
+        try:
+            _DEPACK = _deep_news_pack(ev_news[:12], scene='evening', pick_n=12, pre_sorted=True)
+        except Exception as _de:
+            print('[evening] 深挖失败（不影响主体）:', type(_de).__name__, str(_de)[:60])
+    if _DEPACK:
+        _msg_html = ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">'
+                     '📰 今日消息汇总（按可达性分级）</div>'
+                     + _deep_news_html(_DEPACK, head='明日验证', show_cards=True,
+                                       stamp=_bj_now().strftime('%H:%M')))
+    else:
+        news_rows, _used_ds = _news_html_lines(ev_news, n=8, purpose_key='eve_news', max_show=12)
+        _msg_html = ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">'
+                     '📰 今日消息汇总（按事件强度）</div>' + news_rows)
     inner = (f'<div style="font-size:15px;font-weight:800;color:#ff922b;">🇨🇳 今日A股全景</div>' + a_sec
              + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🌐 全球晚间行情</div>'
              + _global_markets_html(gl)
              + (f'<div style="margin-top:10px;padding:10px;background:#1c2230;border-left:4px solid {GOLD};border-radius:8px;font-size:13px;line-height:1.8;color:#e2e8f0;">🤖 今日大事 & 明日关注 & 最大风险：{ds_html}</div>' if ds_html else '')
              + _lhb_html_block
-             + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">📰 今日消息汇总（按事件强度）</div>'
-             + news_rows)
+             + _msg_html)
     return _wrap(inner, '🌙', '晚间消息汇总')
 
 
@@ -11820,6 +11836,21 @@ def build_news2h():
     _brief_sum = {g.get('title', ''): (g.get('summary') or '')[:100] for g in good}
     _brief_sum.update({b.get('title', ''): (b.get('summary') or '')[:100] for b in bad})
 
+    # 2026-11-14 用户指令「两小时汇总也要暗线贴合个股 + 低位替代 + 优先级汇总」：
+    # 只深挖真正上版面的 8 条（利好4+利空4），外盘只给标题+暗线不做深挖，把模型调用压到 2 批以内。
+    def _nrm_d(s):
+        return re.sub(r'[^\u4e00-\u9fffA-Za-z0-9]', '', str(s or ''))[:40]
+
+    _DPACK = {}
+    if (MODELSCOPE_KEY or DEEPSEEK_KEY) and (good or bad):
+        try:
+            _DPACK = _deep_news_pack(
+                [{'title': g.get('title', ''), 'summary': g.get('summary', '')} for g in good[:4]]
+                + [{'title': b.get('title', ''), 'summary': b.get('summary', '')} for b in bad[:4]],
+                scene='intraday', pick_n=8, pre_sorted=True)
+        except Exception as _de:
+            print('[news2h] 深挖失败（不影响主体）:', type(_de).__name__, str(_de)[:60])
+
     def _rows(pairs, is_good):
         if not pairs:
             return '<div style="color:' + GREY + ';font-size:12px;">今日无明显' + ('利好' if is_good else '利空') + '消息</div>'
@@ -11842,9 +11873,11 @@ def build_news2h():
             _dk_row = _split_long_line(_dk_raw, limit=56, per=1)[0]
             # v80-A12（用户指令「字数过多、一问一答」）：一条只留标题 + 暗线，
             # 摘要/影响/代表个股/操作四段全部收掉，暗线优先用模型写的大白话（承载逻辑）。
+            _dc = (_DPACK.get('deep') or {}).get(t0) or (_DPACK.get('dn') or {}).get(_nrm_d(t0))
             out.append(f'<div style="color:#fff;font-size:13px;margin:8px 0 0 0;">· {t0}</div>'
-                       + (f'<div style="margin:2px 0 8px 0;color:#a78bfa;font-size:13px;line-height:1.6;">'
-                          f'🔍 暗线：{_dk_row}</div>'))
+                       + (f'<div style="margin:2px 0 2px 0;color:#a78bfa;font-size:13px;line-height:1.6;">'
+                          f'🔍 暗线：{_dk_row}</div>')
+                       + (_holiday_deep_html(_dc) if _dc else ''))
         return ''.join(out)
 
     # v80-E9（用户 11-10「新增国外一些新闻」）：国外/外盘单列一段，
@@ -11917,7 +11950,10 @@ def build_news2h():
         _mkt_html = (f'<div style="margin-top:2px;font-size:15px;font-weight:800;color:#ff922b;">📊 盘面速览</div>'
                      f'<div style="padding:8px 10px;background:#141a24;border-radius:8px;'
                      f'font-size:13px;color:#e2e8f0;line-height:1.72;">{_mkt}</div>')
+    _top_html = (_deep_news_html(_DPACK, head='今天验证', show_cards=False, stamp=_bj_now().strftime('%H:%M'))
+                 if _DPACK else '')
     inner = (_hold_conflict_html(bad) + _mkt_html
+             + _top_html
              + f'<div style="font-size:15px;font-weight:800;color:{RED};">🔴 今日利好（{len(good_pairs)}条）</div>'
              + _rows(good_pairs, True)
              + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:{GREEN};">🟢 今日利空（{len(bad_pairs)}条）</div>'
@@ -15899,9 +15935,11 @@ def _news_date(ts):
     return None
 
 
-def _holiday_ds(items):
-    """休市日新闻 LLM 深挖：只挖「暗线方向」（谁真受益＋产业链环节＋当前阶段＋后续往哪发酵），
-    外加板块题材/相关个股/大白话。不出利好、利空、操作（2026-11-07 用户指令）。失败返回 {}。
+def _holiday_ds(items, scene='holiday'):
+    """消息类新闻 LLM 深挖：只挖「暗线方向」（谁真受益＋产业链环节＋当前阶段＋后续往哪发酵），
+    外加分级/板块题材/相关个股/暗线贴合个股/低位替代/大白话。不出利好、利空、操作。
+    scene 只改验证时间口径（holiday=下周 / intraday=今天下午到尾盘 / evening=明天开盘），
+    其余判定标准三张卡完全一致。失败返回 {}。
     分批调用（每批 5 条），尽量让每条新闻都拿到暗线，而不是只挖前几条、其余留空壳。"""
     if not items or not (MODELSCOPE_KEY or DEEPSEEK_KEY):
         return {}
@@ -15928,6 +15966,9 @@ def _holiday_ds(items):
                + '【硬约束】禁止出现「利好」「利空」「操作」「买点」「止损」「仓位」「建议买入」；禁止「主营XX占XX%」「主营构成」「基本盘」「核心业务」这类明面主营句式；暗线必须落到真实业务，写不出就写「未见明确暗线业务」。\n'
                + '新闻列表：\n' + news_txt + '\n'
                + '只输出 JSON：{"items":[{"t":"标题(照抄)","rank":"S或A或B","sector":"板块题材(至少8字，猜不到写「暂看不出直接关联」)","stocks":"相关个股(没有写无)","dark":"暗线方向(至少30字，三件事齐全)","dark_stock":"名称(代码)|连接形式|可证伪性|验证节点|代价（多只用分号隔开，A或B级写空）","low":"名称(代码)|位置分位|涨幅滞后|流通市值|短板（多只用分号隔开，A或B级写空）","why":"大白话(一句话戳穿本质，至少15字，不写涨跌不写买卖)"}]}，必须覆盖每条；纯凑数新闻直接跳过。')
+        _hz = {'holiday': '下周', 'intraday': '今天下午到尾盘', 'evening': '明天开盘'}.get(scene, '下周')
+        if _hz != '下周':
+            fmt = fmt.replace('下周', _hz)
         t = ask_deepseek({'task': 'holiday_ds', 'news': [{'title': x['title'], 'summary': x['summary'][:60]} for x in _batch],
                           'format': fmt}, purpose='holiday_ds')
         if not t:
@@ -16213,25 +16254,28 @@ def _holiday_rank(deep_map):
     return _rows
 
 
-def _holiday_tone(cnt, rows):
-    """一句话定调：按档位分布与候选数量生成，不调模型、不编造。"""
+def _holiday_tone(cnt, rows, scene='holiday'):
+    """一句话定调：按档位分布与候选数量生成，不调模型、不编造。
+    scene 只换时间词（下周 / 今天下午 / 明天），判定逻辑三张消息卡共用。"""
+    _open = {'holiday': '下周开盘', 'intraday': '今天下午到尾盘', 'evening': '明天开盘'}.get(scene, '下周开盘')
+    _next = {'holiday': '下周这条线', 'intraday': '今天下午这条线', 'evening': '明天这条线'}.get(scene, '下周这条线')
     _s, _a, _b = cnt.get('S', 0), cnt.get('A', 0), cnt.get('B', 0)
     _n = len(rows)
-    _first = (f'优先级第一的是{rows[0]["name"]}（{rows[0]["kind"]}），下周开盘先验它。' if rows else '')
+    _first = (f'优先级第一的是{rows[0]["name"]}（{rows[0]["kind"]}），{_open}先验它。' if rows else '')
     if _s >= 2:
-        return (f'消息面是加码不是熄火——{_s} 条落到政策/产业级，下周这条线有继续做的理由；'
+        return (f'消息面是加码不是熄火——{_s} 条落到政策/产业级，{_next}有继续做的理由；'
                 f'本期给出 {_n} 个候选。{_first}')
     if _s == 1:
-        return (f'这周只有 1 条够格的政策/产业级消息，能撑一条线但撑不起两条，别把个股消息当板块行情；'
+        return (f'只有 1 条够格的政策/产业级消息，能撑一条线但撑不起两条，别把个股消息当板块行情；'
                 f'本期给出 {_n} 个候选。{_first}')
     if _a:
-        return (f'这周没有政策/产业级消息，{_a} 条都是公司级，下周开盘看个股不看板块；'
+        return (f'没有政策/产业级消息，{_a} 条都是公司级，{_open}看个股不看板块；'
                 f'本期给出 {_n} 个候选。{_first}')
-    return f'这周 {_b} 条全是待证实消息，下周开盘只观察不动手；本期给出 {_n} 个候选。{_first}'
+    return f'{_b} 条全是待证实消息，{_open}只观察不动手；本期给出 {_n} 个候选。{_first}'
 
 
-def _holiday_rank_html(rows):
-    """优先级汇总表：窄屏友好，四列必给（标的/类型/主线/下周验证）。"""
+def _holiday_rank_html(rows, head='下周验证'):
+    """优先级汇总表：窄屏友好，五列必给（序号/标的/类型/主线/验证时间）。"""
     if not rows:
         return ''
     _bd = 'border-bottom:1px solid #2b3446;'
@@ -16250,7 +16294,7 @@ def _holiday_rank_html(rows):
             '<tr style="color:#9aa4b8;background:#1a2030;">'
             f'<td style="padding:4px 5px;width:8%;">#</td><td style="padding:4px 5px;width:22%;">标的</td>'
             f'<td style="padding:4px 5px;width:16%;">类型</td><td style="padding:4px 5px;width:18%;">主线</td>'
-            f'<td style="padding:4px 5px;width:36%;">下周验证</td></tr>' + _tr + '</table>')
+            f'<td style="padding:4px 5px;width:36%;">{head}</td></tr>' + _tr + '</table>')
 
 
 def _holiday_deep_html(_d):
@@ -16288,6 +16332,103 @@ def _holiday_deep_html(_d):
                    f'市值：{_f[3] or "未取到"}<br>'
                    f'短板：{_f[4] or "未给短板"}</div></div>')
     return _h
+
+
+def _deep_card(nw, _d):
+    """单条消息卡：标题→时间来源→摘要（压到80字）→板块个股→暗线方向→暗线贴合→低位替代→大白话。"""
+    _ct = (nw.get('title') or '').strip()
+    _cs = (nw.get('summary') or '').strip()
+    _ts = str(nw.get('ts') or '')
+    _src = nw.get('source') or '东财7x24'
+    _color = TEAL if _d else '#4b5563'
+    _tags = ''
+    if _d:
+        if _d.get('sector') or _d.get('stocks'):
+            _tags += (f'<div style="color:{TEAL};font-size:12px;margin-top:3px;">'
+                      f'🏷️ 板块题材：{_d.get("sector") or "未标注"}｜相关个股：{_d.get("stocks") or "无"}</div>')
+        _tags += _holiday_deep_html(_d)
+        if _d.get('why'):
+            _tags += (f'<div style="color:#e2e8f0;font-size:12px;margin-top:3px;line-height:1.6;">'
+                      f'🗣️ 大白话：{_d["why"]}</div>')
+    else:
+        _tags = _holiday_deep_html(None)
+    return (f'<div style="background:#1f2635;border-left:3px solid {_color};border-radius:8px;'
+            f'padding:9px 11px;margin:7px 0;">'
+            f'<b style="color:#fff;font-size:13px;line-height:1.5;">{_ct or "（无标题）"}</b>'
+            f'<div style="color:{GREY};font-size:12px;margin-top:2px;">🕐 {_ts}｜来源：{_src}</div>'
+            f'<div style="color:#c8d0e0;font-size:12px;margin-top:4px;line-height:1.65;">{_cs[:80]}</div>'
+            f'{_tags}</div>')
+
+
+def _deep_news_pack(news, scene='intraday', pick_n=12, pre_sorted=False):
+    """消息类卡片的公共深挖引擎（休市汇总 / 两小时汇总 / 晚间汇总共用同一套判定）。
+
+    一次跑完：国内优先筛选 → 分级(S/A/B) + 暗线方向 + 暗线贴合个股 + 低位替代
+    → 低位三项用真实日K与流通市值实算并硬过滤（30-800亿、半区间以下、近5日未涨超7%）
+    → 纯规则排优先级（可证伪性 强>中强>中，暗线优先于低位，同档位置低的排前）。
+    pre_sorted=True 表示调用方已按事件强度/版面顺序排好（晚间卡），不再做国内优先重排。
+    无模型 / 无新闻 → deep 为空、全部落到 B 级，渲染层给业务化说明，绝不编造。"""
+    _src_list = list(news or [])
+    _list = _src_list[:pick_n] if pre_sorted else _holiday_pick(_src_list, pick_n)
+    _dig = []
+    for _n in _list:
+        _t = (_n.get('title') or '').strip()
+        _s = (_n.get('summary') or '').strip()
+        if _t or _s:
+            _dig.append({'title': _t, 'summary': _s})
+    _deep = _holiday_fill_market(_holiday_ds(_dig, scene=scene)) if _dig else {}
+
+    def _nrm(s):
+        return re.sub(r'[^\u4e00-\u9fffA-Za-z0-9]', '', str(s or ''))[:40]
+
+    _dn = {_nrm(k): v for k, v in (_deep or {}).items()}
+    _groups, _cnt, _miss = {'S': [], 'A': [], 'B': []}, {'S': 0, 'A': 0, 'B': 0}, 0
+    for _n in _list:
+        _t = (_n.get('title') or '').strip()
+        _s = (_n.get('summary') or '').strip()
+        if not _t and not _s:
+            continue
+        _d = (_deep or {}).get(_t) or _dn.get(_nrm(_t))
+        if _d:
+            _rk = _d.get('rank') or 'A'
+        else:
+            _rk, _miss = 'B', _miss + 1
+        _groups.setdefault(_rk, []).append((_n, _d))
+        _cnt[_rk] = _cnt.get(_rk, 0) + 1
+    _rows = _holiday_rank(_deep)
+    return {'items': _list, 'groups': _groups, 'cnt': _cnt, 'rows': _rows,
+            'tone': _holiday_tone(_cnt, _rows, scene=scene), 'miss': _miss,
+            'deep': _deep, 'dn': _dn}
+
+
+def _deep_news_html(pack, head='下周验证', show_cards=True, stamp=''):
+    """定调框 + 优先级汇总表 + 按 S/A/B 分组卡（每条含暗线方向 / 暗线贴合 / 低位替代 / 大白话）。
+    stamp 传抓取时间（如 '16:05'），三张卡时间口径不同，由调用方给。"""
+    if not pack:
+        return ''
+    _cnt = pack.get('cnt') or {}
+    _items = pack.get('items') or []
+    _miss = pack.get('miss') or 0
+    _blocks = ''
+    if show_cards:
+        for _rk, _label in (('S', '🔴 S 级 · 政策/产业级（改的是整条线的钱，看板块整体）'),
+                            ('A', '🟡 A 级 · 公司级（只动这一只票，板块不受影响）'),
+                            ('B', '⚪ B 级 · 待证实（只观察，不动手）')):
+            _grp = (pack.get('groups') or {}).get(_rk) or []
+            if not _grp:
+                continue
+            _blocks += (f'<div style="color:#e2e8f0;font-size:13px;font-weight:600;margin:12px 0 4px;">'
+                        f'{_label}（{len(_grp)} 条）</div>')
+            _blocks += ''.join(_deep_card(nw, dd) for nw, dd in _grp)
+    _miss_txt = (f'｜其中 {_miss} 条只有新闻本身，没判读到暗线' if _miss else '')
+    _st = (f'｜抓取 {stamp}' if stamp else '')
+    return (f'<div style="background:#1a2030;border-radius:8px;padding:9px 11px;margin-bottom:8px;">'
+            f'<div style="color:#e2e8f0;font-size:13px;line-height:1.7;">{pack.get("tone") or ""}</div>'
+            f'<div style="color:#9aa4b8;font-size:11px;margin-top:5px;">'
+            f'S 级 {_cnt.get("S", 0)}｜A 级 {_cnt.get("A", 0)}｜B 级 {_cnt.get("B", 0)}'
+            f'｜新闻 {len(_items)} 条（东财 7x24{_st}）{_miss_txt}</div></div>'
+            + _holiday_rank_html(pack.get('rows') or [], head=head)
+            + _blocks)
 
 
 def build_holiday_news():
