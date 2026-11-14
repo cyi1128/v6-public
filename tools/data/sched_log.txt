@@ -2036,3 +2036,8 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-14 12:32:07     watch| [LLM] OUT purpose=holiday_ds len=1192 q=1 head={ "items": [ { "t": "吴清：进一步深化市场稳定长效机制研究 防范市场异常波动", "sector":
 11-14 12:32:07     watch| [LLM_OUT:holiday_ds] {   "items": [     {       "t": "吴清：进一步深化市场稳定长效机制研究 防范市场异常波动",       "sector": "资本市场稳定机制建设",       "stocks": "无",       "dark": "监管层构建市场稳定机制，非具体产业受益，
 11-14 12:32:07     watch| SLOT watch 休市新闻 PUSH True 执行成功
+11-14 12:32:08 持久化(watch)：已推送
+11-14 12:32:08 <<< 完成槽位 watch，用时 209.3s
+11-14 12:32:08 周末快跑结束，退出
+11-14 12:32:08 退出原因：weekend-end
+11-14 12:32:08 休市日：按各槽 holiday_slot 走，不统计工作日缺口
