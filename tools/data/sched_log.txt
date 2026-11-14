@@ -2108,3 +2108,8 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-14 22:00:01 >>> 执行槽位 watch @ 22:00:01
 11-14 22:00:01 >>> 预算：LLM 600s / 单模型 120s / 子进程上限 750s
 11-14 22:03:40     watch| SLOT watch 休市新闻 PUSH True 执行成功; 执行成功
+11-14 22:03:42 持久化(watch)：已推送
+11-14 22:03:42 <<< 完成槽位 watch，用时 221.0s
+11-14 22:10:43 休市滚动守候结束（22:10），退出
+11-14 22:10:43 退出原因：weekend-end
+11-14 22:10:43 休市日：按各槽 holiday_slot 走，不统计工作日缺口
