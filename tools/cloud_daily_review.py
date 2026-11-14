@@ -15921,12 +15921,10 @@ def _holiday_ds(items):
                + '代价写买它要承担什么（比例不高/弹性有限/题材不纯这类实话）。\n'
                + 'rank=A 或 B 的这一项写空字符串。\n'
                + '【低位替代 low】只给 rank=S 的写，1-3 只，每只严格五段用竖线隔开：\n'
-               + '名称(代码)|位置分位|涨幅滞后|流通市值|短板\n'
-               + '位置分位=现价在近 60 日区间的百分位，必须写具体数字（如「32%分位」，在半区间以下才算低位）；\n'
-               + '涨幅滞后=近 20 日自身涨幅对比同板块龙头差多少点，必须写具体数字；\n'
-               + '流通市值写「XX亿」，30-150 亿优先，超出范围要照实写；\n'
-               + '短板写它为什么涨不过龙头（市值大/业绩不实/题材不纯），必须写，不许美化。\n'
-               + '已涨停或近 5 日涨超 7% 的票不许列。拿不到真实数字就写「未取到」，绝不许编。\n'
+               + '名称(代码)|（留空）|（留空）|（留空）|短板\n'
+               + '中间三段（位置分位/涨幅滞后/流通市值）你没有实时行情，一律留空，代码会用真实日K和行情补算；绝对不要猜数字、也不要写「未取到」，留空即可。\n'
+               + '你只负责两件事：①选真正低位、当天没涨停、近5日没涨超7%、流通市值 30-150 亿的中小票（千亿大票一律不许列，宁缺毋滥）②写短板——它为什么涨不过龙头（业绩不实/题材不纯/订单依赖），必须写，不许美化。\n'
+               + '已涨停或近 5 日涨超 7% 的票不许列。\n'
                + '【硬约束】禁止出现「利好」「利空」「操作」「买点」「止损」「仓位」「建议买入」；禁止「主营XX占XX%」「主营构成」「基本盘」「核心业务」这类明面主营句式；暗线必须落到真实业务，写不出就写「未见明确暗线业务」。\n'
                + '新闻列表：\n' + news_txt + '\n'
                + '只输出 JSON：{"items":[{"t":"标题(照抄)","rank":"S或A或B","sector":"板块题材(至少8字，猜不到写「暂看不出直接关联」)","stocks":"相关个股(没有写无)","dark":"暗线方向(至少30字，三件事齐全)","dark_stock":"名称(代码)|连接形式|可证伪性|验证节点|代价（多只用分号隔开，A或B级写空）","low":"名称(代码)|位置分位|涨幅滞后|流通市值|短板（多只用分号隔开，A或B级写空）","why":"大白话(一句话戳穿本质，至少15字，不写涨跌不写买卖)"}]}，必须覆盖每条；纯凑数新闻直接跳过。')
@@ -16002,6 +16000,162 @@ def _holiday_fields(p, n=5):
     while len(f) < n:
         f.append('')
     return f[:n]
+
+
+def _holiday_code_of(name):
+    """从「名称(600001)」里取 6 位代码；取不到返回空串。"""
+    _m = re.search(r'([0-9]{6})', str(name or ''))
+    return _m.group(1) if _m else ''
+
+
+def _holiday_mv_batch(codes):
+    """流通市值批量取，返回 {code: 'XX亿'}。
+
+    2026-11-14 实测坑：`push2.eastmoney.../stock/get?...&fields=f21` 会被东财直接断连
+    （Remote end closed connection without response），换 `ulist.np/get` 一次多票稳定返回，
+    顺带把 N 只票的市值压成 1 次请求。"""
+    _out = {}
+    _ss = []
+    for _c in codes:
+        if not _c:
+            continue
+        _mk = '1' if str(_c).startswith(('6', '9')) else '0'
+        _ss.append('%s.%s' % (_mk, _c))
+    if not _ss:
+        return _out
+    try:
+        _u = ('http://push2.eastmoney.com/api/qt/ulist.np/get?secids=%s&fields=f12,f21'
+              % ','.join(_ss))
+        _d = json.loads(_get(_u)).get('data') or {}
+        for _r in (_d.get('diff') or []):
+            _c = str(_r.get('f12') or '')
+            _v = _r.get('f21')
+            if _c and isinstance(_v, (int, float)) and _v > 0:
+                _out[_c] = round(_v / 1e8, 0)
+    except Exception as e:
+        print(f'[holiday] 流通市值批量失败: {str(e)[:60]}')
+    return _out
+
+
+def _holiday_low_calc(code, mv_map=None):
+    """低位三项用真实数据实算（2026-11-14 实测修死：模型没有行情权限，问它只能得到满屏「未取到」）。
+
+    位置分位 = 最新收盘价在近 60 日最高/最低区间里的百分位；
+    涨幅     = 近 20 个交易日涨跌幅；
+    市值     = 东财 f21 流通市值。
+    任一项取不到就不放进返回结果，渲染层保留原值，绝不填假数字。"""
+    _out = {}
+    _sym = ('sh' if str(code).startswith(('6', '9')) else 'sz') + str(code)
+    try:
+        _k = [r for r in get_klines(_sym, 70) if len(r) >= 5]
+        if len(_k) >= 25:
+            _close = float(_k[-1][2])
+            _hi = max(float(r[3]) for r in _k[-60:])
+            _lo = min(float(r[4]) for r in _k[-60:])
+            if _hi > _lo > 0:
+                _p = round((_close - _lo) / (_hi - _lo) * 100)
+                _out['pos'] = '%d%%分位' % _p
+                _out['pos_num'] = _p
+            _base = float(_k[-21][2]) if len(_k) >= 21 else 0.0
+            if _base > 0:
+                _pct = (_close / _base - 1) * 100
+                _out['lag_pct'] = round(_pct, 1)
+                _out['lag'] = '近20日%+.1f%%' % _pct
+            _b5 = float(_k[-6][2]) if len(_k) >= 6 else 0.0
+            if _b5 > 0:
+                _out['lag5_num'] = round((_close / _b5 - 1) * 100, 1)
+    except Exception as e:
+        print(f'[holiday] 低位日K失败 {code}: {str(e)[:50]}')
+    _mv = (mv_map or {}).get(str(code))
+    if _mv:
+        _out['mv_num'] = _mv
+        _out['mv'] = '%.0f亿' % _mv
+    return _out
+
+
+def _holiday_fill_market(deep_map):
+    """把 low 里留空的行情三段用代码实算填回去；模型只负责选票与短板。
+
+    涨幅对比用同条的暗线票（dark_stock 第一只）当参照，能算出两边涨幅就差出点数，
+    算不出就只给自身涨幅——不编「比龙头少X点」。"""
+    if not deep_map:
+        return deep_map
+    _codes = []
+    for _d0 in deep_map.values():
+        if not isinstance(_d0, dict) or not _d0.get('low'):
+            continue
+        for _p0 in _holiday_split_multi(_d0['low']):
+            _c0 = _holiday_code_of(_holiday_fields(_p0)[0])
+            if _c0 and _c0 not in _codes:
+                _codes.append(_c0)
+    _mvs = _holiday_mv_batch(_codes)
+    if _codes:
+        print('[holiday] 低位市值批量 %d 只 → 命中 %d 只' % (len(_codes), len(_mvs)))
+    _cache = {}
+    for _k, _d in deep_map.items():
+        if not isinstance(_d, dict) or not _d.get('low'):
+            continue
+        _ref = None
+        _ds = _holiday_split_multi(_d.get('dark_stock'))
+        if _ds:
+            _rc = _holiday_code_of(_holiday_fields(_ds[0])[0])
+            if _rc:
+                if _rc not in _cache:
+                    _cache[_rc] = _holiday_low_calc(_rc, _mvs)
+                _ref = (_cache[_rc] or {}).get('lag_pct')
+        _new = []
+        for _p in _holiday_split_multi(_d['low']):
+            _f = _holiday_fields(_p)
+            # 模型少写竖线时短板会落到第 4 位，先归位到第 5 位，否则短板会被市值覆盖掉
+            if not _f[4] and _f[3] and not re.search(r'(分位|亿|%)', _f[3]):
+                _f[4], _f[3] = _f[3], ''
+            _code = _holiday_code_of(_f[0])
+            if not _code:
+                _new.append(_p)
+                continue
+            if _code not in _cache:
+                _cache[_code] = _holiday_low_calc(_code, _mvs)
+            _v = _cache[_code] or {}
+            if not _v:
+                _new.append(_p)
+                continue
+            # 硬门槛（数据实测才知道模型选票完全不看市值：它给的「低位」是 2354 亿的票）：
+            # 流通市值不在 30-150 亿、位置在半区间以上、近 5 日已涨超 7% 的一律不列。
+            _why = ''
+            _mn = _v.get('mv_num')
+            if _mn is not None and not (30 <= _mn <= 150):
+                _why = '流通市值%.0f亿不在30-150亿区间' % _mn
+            _pn = _v.get('pos_num')
+            if not _why and _pn is not None and _pn > 50:
+                _why = '位置%d%%分位在半区间以上，不算低位' % _pn
+            _l5 = _v.get('lag5_num')
+            if not _why and _l5 is not None and _l5 > 7:
+                _why = '近5日已涨%.1f%%，追高' % _l5
+            if _why:
+                print('[holiday] 低位剔除 %s：%s' % (_f[0], _why))
+                continue
+            if _v.get('pos'):
+                _f[1] = _v['pos']
+            _lp = _v.get('lag_pct')
+            if _lp is not None:
+                if _ref is not None:
+                    _gap = _ref - _lp
+                    _f[2] = (('近20日%+.1f%%，比暗线票%+.1f%%少%.1f点' if _gap >= 0
+                              else '近20日%+.1f%%，比暗线票%+.1f%%多%.1f点')
+                             % (_lp, _ref, abs(_gap)))
+                else:
+                    _f[2] = _v.get('lag') or _f[2]
+            if _v.get('mv'):
+                _f[3] = _v['mv']
+            _new.append('｜'.join([x for x in _f]))
+        if _d.get('low') and not _new:
+            _d['low'] = ''
+            _d['low_none'] = True
+            print('[holiday] 低位替代全部不合格，本条留空（不硬凑）')
+        else:
+            _d['low'] = '；'.join(_new)
+            print(f'[holiday] 低位三项实算回填：{_d["low"][:70]}')
+    return deep_map
 
 
 def _holiday_rank(deep_map):
@@ -16119,6 +16273,10 @@ def _holiday_deep_html(_d):
                    f'验证：{_f[3] or "未给验证节点"}<br>'
                    f'代价：{_f[4] or "未给代价"}</div></div>')
     _lw = _holiday_split_multi(_d.get('low'))
+    if _d.get('low_none'):
+        _h += ('<div style="color:#9aa4b8;font-size:12px;margin-top:4px;line-height:1.6;">'
+               '🔁 低位替代：这条线没有同时满足「位置在半区间以下 + 流通市值 30-150 亿 + 近5日没被炒过」'
+               '的票，宁可空着也不硬凑。</div>')
     if _lw:
         _h += f'<div style="color:{GOLD};font-size:12px;margin-top:4px;font-weight:600;">🔁 低位替代（低位逻辑）</div>'
         for _p in _lw:
@@ -16171,8 +16329,9 @@ def build_holiday_news():
                 f'{len(news)} 条，均非今日或内容为空；不伪造内容。抓取时间 {_bj_now().strftime("%H:%M")}）</span></div>')
         return _wrap(html, '📰', f'休市日新闻汇总 {today}'), today
 
-    _deep_map = _holiday_ds([{'title': nw.get('title', ''), 'summary': nw.get('summary', '')}
-                               for nw in today_news if nw.get('title', '').strip() or nw.get('summary', '').strip()])
+    _deep_map = _holiday_fill_market(
+        _holiday_ds([{'title': nw.get('title', ''), 'summary': nw.get('summary', '')}
+                     for nw in today_news if nw.get('title', '').strip() or nw.get('summary', '').strip()]))
     def _nrm(s):
         """标题归一化：只留中英文数字，用于扛住模型改写标点/空格导致的匹配失败。"""
         return re.sub(r'[^\u4e00-\u9fffA-Za-z0-9]', '', str(s or ''))[:40]
