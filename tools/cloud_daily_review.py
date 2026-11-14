@@ -2731,7 +2731,7 @@ def ask_deepseek(payload, purpose='eod', system_text=None):
     system_text 缺省用全局 _ASK_DS_SYS；特殊场景可传独立系统提示词。"""
     global _DS_EXHAUSTED, _DS_FAILED
     system_text = system_text or _ASK_DS_SYS
-    if purpose not in ('zforce_radar', 'deep6', 'board', 'risk_card', 'theme_health_card', 'factor_weekly_card', 'board_reverse'):
+    if purpose not in ('zforce_radar', 'deep6', 'board', 'risk_card', 'theme_health_card', 'factor_weekly_card', 'board_reverse', 'ext_window'):
         # 全局「股票深挖铁律」注入所有模块（主力雷达 ZSYS 已有等价 bottom_logic 必填、deep6 手动完整版、board 小白通俗150字硬限 不注入）
         # risk_card/theme_health_card/factor_weekly_card 是大盘级/统计级判读、不含个股，注入个股深挖铁律会诱导编造个股，故豁免
         system_text = _DEEP_DIG_RULE + '\n' + system_text
@@ -10718,44 +10718,376 @@ def _global_markets_html(gl):
     return '<div style="font-size:13px;color:#e2e8f0;">' + '　'.join(rows) + '</div>'
 
 
-def build_ext():
-    """外盘窗口（升级版）：全球行情采集（美股三指数/恒生/原油/黄金/比特币）+ 全球7x24消息
-    → DeepSeek 大白话汇总对A股影响。DS 失败/用尽 → 规则兜底（行情+纳指影响+新闻标题）。"""
-    gl = _global_markets()
-    news = []
+# ---- 外盘窗口 v2（2026-11-14）：用户给的是一份「外盘窗口推送编辑规范」，
+# 要求严格 5 段：一句话结论 → 硬变量 → 主线映射 → 事件日历 → 风险预警。
+# 硬变量全部代码取真数（缺项标未直取，绝不编）；主线映射按当日涨停池题材健康分排序。
+_EXT_SINA_GB = (('纳指', 'gb_ixic'), ('道指', 'gb_dji'), ('标普', 'gb_inx'), ('费半', 'gb_sox'))
+# 美债10Y / 美元指数在国内免费源全取不到（腾讯/新浪/东财/Yahoo 均失败），
+# 用美股 ETF 做方向代理并在卡面标口径，绝不写成"美债10Y X%"。
+_EXT_TX_STK = (('美元指数', 'usUUP'), ('美债20Y', 'usTLT'), ('美债10Y', 'usIEF'),
+               ('英伟达', 'usNVDA'), ('超威半导体', 'usAMD'), ('台积电', 'usTSM'), ('费半ETF', 'usSOXX'))
+_EXT_TX_COMM = (('原油', 'hf_CL'), ('黄金', 'hf_GC'), ('伦铜', 'hf_CAD'), ('美铜', 'hf_HG'), ('白银', 'hf_SI'))
+_EXT_LINE_KEYS = (
+    (('半导体', '芯片', '端侧', '存储', '先进封装', '算力', '电子', '元件', '光学', '消费电子',
+      '半导体设备'), ('费半', '费半ETF', '英伟达', '超威半导体', '台积电')),
+    (('光模块', '服务器', 'PCB', '通信', '液冷', 'IT服务', '软件', '计算机'), ('纳指', '费半')),
+    (('机器人', '人形', '自动化', '工业母机', '通用设备', '专用设备', '机械'), ('纳指', '道指')),
+    (('光伏', '储能', '锂电', '新能源', '电池', '电源'), ('纳指', '白银')),
+    (('有色', '铜', '电网', '电力设备', '小金属', '金属'), ('伦铜', '美铜')),
+    (('黄金', '贵金属'), ('黄金',)),
+    (('石油', '油气', '化工', '化学'), ('原油',)),
+    (('军工', '卫星', '商业航天', '航空'), ('纳指',)),
+)
+# 主线找不到专属外盘标的时，用大盘类变量兜底（任何主线都受风险偏好定价，属真实映射）
+_EXT_GLOBAL_KEYS = ('标普期货', 'A50夜盘', '纳指')
+
+
+def _ext_sina_gb(code):
+    """新浪美股指数：名称,最新,涨跌%,... → (名称, 最新, 涨跌%)；失败 None。"""
     try:
-        news = get_news(14)
+        req = urllib.request.Request('https://hq.sinajs.cn/list=' + code,
+                                     headers={**UA, 'Referer': 'https://finance.sina.com.cn/'})
+        txt = urllib.request.urlopen(req, timeout=8).read().decode('gbk', 'ignore')
+        f = txt.split('"')[1].split(',')
+        if len(f) > 3 and f[2]:
+            return (f[0], float(f[1]), float(f[2]))
     except Exception:
         pass
-    markets_txt = '；'.join(f'{nm} {("未取得" if pct is None else "%+.2f%%" % pct)}' for nm, pct, _ in gl)
-    news_brief = [{'t': nw['title'], 's': (nw.get('summary') or '')[:50]} for nw in news[:12]]
-    # —— DS 大白话汇总（交易员规范；失败/用尽 → 规则兜底）——
-    ds_html = ''
-    if DEEPSEEK_KEY and news:
-        fmt = (_TRADER_RULES + '\n'
-               + '今晚全球行情：{markets}\n'
-               + '全球财经消息（东财7x24）：\n{news}\n'
-               + '请严格按以下格式输出（全大白话，禁模板句，不许加板块）：\n'
-               + '只用一段连贯的话讲完：外盘哪里强哪里弱、只挑对A股有影响的讲、这份外盘数据映射到明天A股哪个板块或题材、明天开盘该追该接还是直接避开、万一外盘反向对应板块怎么处理。\n'
-               + '必须分 3 段写，段与段之间空一行，每段 2-3 句，读着像三段独立判断而不是一坨：第 1 段外盘哪块强哪块弱、映射到 A 股哪条线；第 2 段明天开盘该追该接还是避开，落到具体板块和最近真在动的票；第 3 段万一外盘反向、对应板块怎么处理。禁止分栏、禁止【】标题、禁止问号、禁止「1.2.3.」列表、禁止「每条=…」这种说明文字。\n'
-               + '【明天A股怎么看】一句话定调（偏多/偏空/震荡）+ 明天最该做的一件事\n'
+    return None
 
-               + '如果今晚没有值得说的重要消息，必须写「今晚无大事」并说明原因，禁止硬凑。')
-        t = ask_deepseek({'task': 'ext_global', 'markets': markets_txt, 'news': news_brief,
-                          'format': fmt}, purpose='ext')
-        ds_html = md2html(t) if t else ''
-    if not ds_html:
-        # 2026-11-09：模型不回不再丢整张卡。全球行情与消息速览都是真实数据，
-        # 只把模型那段大白话留空，绝不写规则化结论。
-        print('[ext] LLM 未返回，改出数据版（全球行情+消息速览）')
-        ds_html = ''
-    news_rows, _used_ds = _news_html_lines(news, n=8, purpose_key='ext_news', max_show=10)
-    inner = (f'<div style="font-size:15px;font-weight:800;color:#ff922b;">🌐 全球行情（红涨绿跌）</div>'
-             + _global_markets_html(gl)
 
-             + (f'<div style="margin-top:10px;padding:10px;background:#1c2230;border-left:4px solid {GOLD};border-radius:8px;font-size:13px;line-height:1.8;color:#e2e8f0;">🤖 大白话汇总：{ds_html}</div>' if ds_html else '')
-             + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">📰 全球消息速览</div>'
-             + news_rows)
+def _ext_tx_pct(code, tag):
+    """腾讯美股：现价/昨收自算涨跌幅（接口自带字段口径不稳，不用它）。"""
+    try:
+        txt, ok = _getm('http://qt.gtimg.cn/q=' + code, 'extv2_' + tag)
+        if not ok or not txt:
+            return None
+        f = txt.split('~')
+        if len(f) < 5:
+            return None
+        cur = float(f[3]); prev = float(f[4])
+        return (f[1], cur, (cur / prev - 1) * 100) if prev > 0 else None
+    except Exception:
+        return None
+
+
+def _ext_tx_comm(code, tag):
+    """腾讯商品期货：数值,涨跌%,... → (涨跌%, 最新价)。"""
+    try:
+        txt, ok = _getm('http://qt.gtimg.cn/q=' + code, 'extv2_' + tag)
+        if not ok or not txt:
+            return None
+        v = txt.split('"')[1].split(',')
+        return (float(v[1]), float(v[0]))
+    except Exception:
+        return None
+
+
+def _ext_sina_raw(code, tag):
+    """新浪行情原字段数组；失败 []。"""
+    try:
+        req = urllib.request.Request('https://hq.sinajs.cn/list=' + code,
+                                     headers={**UA, 'Referer': 'https://finance.sina.com.cn/'})
+        txt = urllib.request.urlopen(req, timeout=8).read().decode('gbk', 'ignore')
+        body = txt.split('"')[1]
+        return body.split(',') if body.strip() else []
+    except Exception:
+        return []
+
+
+def _ext_pack():
+    """外盘硬变量采集：全部真数，缺项 None，绝不编造。"""
+    p = {'us': {}, 'stk': {}, 'comm': {}, 'fut': None, 'a50': None, 'cnh': None, 'hk': None}
+    for nm, code in _EXT_SINA_GB:
+        r = _ext_sina_gb(code)
+        if r:
+            p['us'][nm] = r[2]
+    for nm, code in _EXT_TX_STK:
+        r = _ext_tx_pct(code, code)
+        if r:
+            p['stk'][nm] = r[2]
+    for nm, code in _EXT_TX_COMM:
+        r = _ext_tx_comm(code, code)
+        if r:
+            p['comm'][nm] = r[0]
+    r = _ext_tx_comm('hf_ES', 'hf_ES')          # 标普500夜盘期货：比现货更贴"隔夜"
+    if r:
+        p['fut'] = r[0]
+    f = _ext_sina_raw('hf_CHA50CFD', 'a50')     # A50 夜盘：f[0]最新 f[7]昨结
+    try:
+        if len(f) > 7 and f[7] and float(f[7]) > 0:
+            p['a50'] = (float(f[0]) / float(f[7]) - 1) * 100
+    except Exception:
+        pass
+    f = _ext_sina_raw('fx_susdcnh', 'cnh')      # 离岸人民币：f[1]最新 f[10]涨跌%
+    try:
+        if len(f) > 10 and f[1]:
+            p['cnh'] = (float(f[1]), float(f[10]))
+    except Exception:
+        pass
+    f = _ext_sina_raw('int_hangseng', 'hk')
+    try:
+        if len(f) > 2 and f[1]:
+            cur, chg = float(f[1]), float(f[2])
+            p['hk'] = chg / (cur - chg) * 100 if cur != chg else 0.0
+    except Exception:
+        pass
+    return p
+
+
+def _ext_mainlines(top_n=5):
+    """当日主线评分排序：涨停池按题材聚合 → theme_health 打分 → 降序取前 N。
+    返回 [(主线名, 分数, 档位)]；取不到返回 []（卡面标"主线数据未取得"）。"""
+    day = _bj_now().strftime('%Y%m%d')
+    pool = _follow_pool(day)
+    if not pool:                              # 周末/休市：退到上一交易日
+        day = _prev_trade_day(day)
+        pool = _follow_pool(day)
+    if not pool:
+        return []
+    mod = _theme_health_mod()
+    if not mod:
+        return []
+    rows = [{'theme': (_sec_clean(x.get('hybk') or x.get('theme') or '') or '其他'),
+             'lbc': int(x.get('lbc') or 0),
+             'name': str(x.get('n') or ''),
+             'code': str(x.get('c') or '')} for x in pool]
+    try:
+        res = mod.theme_health(rows, None, top_n=top_n + 2) or []
+    except Exception as e:
+        print('[ext] theme_health 计算失败:', e)
+        return []
+    res = [r for r in res if (r.get('theme') or '') not in ('其他', '', None)][:top_n]
+    # 东财行业名带 Ⅰ/Ⅱ/Ⅲ 后缀（游戏Ⅱ、IT服务Ⅱ），映射读着别扭，去掉后缀保留主名
+    _clean_t = lambda t: (re.sub(r'[ⅠⅡⅢ]+$', '', str(t or '')).strip() or str(t or ''))
+    # 每个题材的最高板个股 → 作为"关注什么节点"的可验证落点（具体票名，不是"某板块"）
+    leaders = {}
+    for r in rows:
+        t = r['theme']
+        if r['name'] and (t not in leaders or r['lbc'] > leaders[t][0]):
+            leaders[t] = (r['lbc'], r['name'])
+    return [(_clean_t(r.get('theme')), r.get('score'), r.get('level'),
+             (leaders.get(r.get('theme')) or (0, ''))[1]) for r in res]
+
+
+def _ext_hard_html(pack):
+    """硬变量：≤5 项，只写数值+方向，不展开解读。缺项如实标未直取。"""
+    def c(v, s):
+        return '<b style="color:%s">%s</b>' % (RED if v >= 0 else GREEN, s)
+
+    rows = []
+    us = []
+    if pack['us'].get('纳指') is not None:
+        us.append('纳指 ' + c(pack['us']['纳指'], '%+.2f%%' % pack['us']['纳指']))
+    if pack['us'].get('费半') is not None:
+        us.append('费半 ' + c(pack['us']['费半'], '%+.2f%%' % pack['us']['费半']))
+    if pack['fut'] is not None:
+        us.append('标普期货 ' + c(pack['fut'], '%+.2f%%' % pack['fut']))
+    if us:
+        rows.append('　'.join(us))
+    # 美债 / 美元：ETF 代理，口径写在卡面上
+    bond = []
+    for nm in ('美债10Y', '美债20Y'):
+        if pack['stk'].get(nm) is not None:
+            v = pack['stk'][nm]
+            bond.append('%s %s（%s）' % (nm, c(v, '%+.2f%%' % v),
+                                         '利率下行' if v >= 0 else '利率上行'))
+    if pack['stk'].get('美元指数') is not None:
+        v = pack['stk']['美元指数']
+        bond.append('美元 %s（%s）' % (c(v, '%+.2f%%' % v), '走强' if v >= 0 else '走弱'))
+    if pack['cnh']:
+        v = pack['cnh'][1]
+        bond.append('离岸人民币 %s（%s）' % (c(v, '%+.2f%%' % v), '贬值' if v >= 0 else '升值'))
+    if bond:
+        rows.append('　'.join(bond))
+    if pack['a50'] is not None:
+        rows.append('A50 夜盘 ' + c(pack['a50'], '%+.2f%%' % pack['a50']))
+    comm = []
+    for nm in ('原油', '黄金', '伦铜', '美铜'):
+        v = pack['comm'].get(nm)
+        if v is not None and abs(v) >= 2.0:          # 商品只推超 2% 的异动
+            comm.append('%s %s' % (nm, c(v, '%+.2f%%' % v)))
+    if comm:
+        rows.append('　'.join(comm))
+    if not rows:
+        return '<span style="color:%s">硬变量未取得</span>' % GREY
+    tip = '<div style="color:%s;font-size:11px;margin-top:3px;">美债与美元为美股 ETF 代理（IEF/TLT/UUP），非收益率原值</div>' % GREY
+    return ''.join('<div style="margin-top:2px;">%s</div>' % r for r in rows) + tip
+
+
+def _ext_map_html(pack, mains, data):
+    """主线映射：每条必须三层（外盘标的 → 哪条主线什么方向 → 关注什么节点）。"""
+    lines = []
+    pairs = []
+    for it in (data.get('map') or []):
+        e = str(it.get('ext') or '').strip()
+        l = str(it.get('line') or '').strip()
+        n = str(it.get('node') or '').strip()
+        if not (e and l and n):                      # 缺一层就不写
+            continue
+        pairs.append((e, l, n))
+    if pairs:
+        for i, (e, l, n) in enumerate(pairs[:6], 1):
+            lines.append('<div style="margin-top:4px;">%d. <span style="color:#ffd43b;">%s</span> → %s → 关注 %s</div>'
+                         % (i, e, l, n))
+        return ''.join(lines)
+    # 兜底：按主线 × 外盘标的规则表拼三层，绝不空段
+    alt = []
+    for theme, score, _lv, leader in (mains or [])[:4]:
+        hit = False
+        for kws, keys in _EXT_LINE_KEYS:
+            if any(k in theme for k in kws):
+                for key in keys:
+                    v = pack['us'].get(key) if key in pack['us'] else pack['stk'].get(key)
+                    if v is None:
+                        continue
+                    alt.append((key, v, theme, score, leader))
+                    hit = True
+                    break
+                break
+        if not hit:
+            # 无专属标的 → 用大盘风险偏好变量，仍是可验证的三层
+            for key in _EXT_GLOBAL_KEYS:
+                v = (pack['fut'] if key == '标普期货' else
+                     pack['a50'] if key == 'A50夜盘' else pack['us'].get('纳指'))
+                if v is None:
+                    continue
+                alt.append((key, v, theme, score, leader))
+                break
+    if not alt:
+        return '<div style="color:%s">主线与外盘均未取到数据，本段无有效映射</div>' % GREY
+    for i, (key, v, theme, score, leader) in enumerate(alt[:5], 1):
+        direction = '走弱压制' if v < 0 else '走强助推'
+        node = ('%s 开盘竞价与首波承接' % leader) if leader else '该主线龙头开盘竞价强弱'
+        lines.append('<div style="margin-top:4px;">%d. <span style="color:#ffd43b;">%s %+.2f%%</span> → %s（%.0f分）%s → 关注 %s</div>'
+                     % (i, key, v, theme, score, direction, node))
+    return ''.join(lines)
+
+
+def _ext_fallback(pack, mains):
+    """LLM 未返回时的规则兜底：结论按硬变量定性，其余段给可验证的最小结论。"""
+    fei = pack['us'].get('费半')
+    a50 = pack['a50']
+    heads = [x for x in (mains or []) if x[0] and x[0] != '其他']
+    top = heads[0][0] if heads else ''
+    top_hit_semi = any(k in (top or '') for k in ('半导体', '芯片', '电子', '算力', '存储', '元件'))
+    if fei is not None and fei <= -2.0:
+        if top_hit_semi:
+            concl = '隔夜外盘半导体链集体走弱（费半 %+.2f%%），A股风险偏好开盘承压，%s 方向首当其冲。' % (fei, top)
+        else:
+            concl = ('隔夜外盘半导体链集体走弱（费半 %+.2f%%），A股风险偏好开盘承压，半导体/算力方向受冲击最大，'
+                     '第一主线%s要看能不能走出独立行情。' % (fei, top or '当日最强题材'))
+    elif a50 is not None and a50 <= -0.5:
+        concl = 'A50 夜盘 %+.2f%%，外盘情绪偏空，A股开盘指数层面先承压再看主线能否独立走强。' % a50
+    elif a50 is not None and a50 >= 0.5:
+        concl = 'A50 夜盘 %+.2f%%，外盘给的是顺风，A股按自身主线节奏推进即可。' % a50
+    else:
+        concl = '隔夜外盘整体平稳，没有改变风险偏好的变量，A股按自身主线节奏走。'
+    if heads and all((x[2] or '') != '加速期' for x in heads):
+        concl += '当日主线评分全在分歧期，没有加速方向，属于存量博弈。'
+    risk = []
+    if fei is not None and fei <= -2.0:
+        risk.append('费半 %+.2f%% → 压制半导体/算力主线开盘定价' % fei)
+    for nm in ('美债10Y', '美债20Y'):
+        v = pack['stk'].get(nm)
+        if v is not None and v <= -0.3:
+            risk.append('%s %+.2f%%（利率上行代理）→ 压制高估值成长主线' % (nm, v))
+    if pack['stk'].get('美元指数') is not None and pack['stk']['美元指数'] >= 0.3:
+        risk.append('美元 %+.2f%% 走强 → 压制外资偏好品种与出口链定价' % pack['stk']['美元指数'])
+    return {'conclusion': concl, 'map': [], 'calendar': ['无重大事件'], 'risk': risk or ['无显著异动']}
+
+
+def _ext_parse(t):
+    """从模型输出里抠 JSON。"""
+    if not t:
+        return None
+    s = t.strip()
+    if '```' in s:
+        s = s.replace('```json', '```').split('```')[1]
+    i, j = s.find('{'), s.rfind('}')
+    if i < 0 or j <= i:
+        return None
+    try:
+        d = json.loads(s[i:j + 1])
+        return d if isinstance(d, dict) else None
+    except Exception:
+        return None
+
+
+def build_ext():
+    """外盘窗口 v2：硬变量（代码真数）+ 主线评分排序（涨停池健康分）+ 编辑规范 5 段。
+    LLM 只写结论/映射/日历/风险；硬变量永远由代码给，模型不回也不丢卡。"""
+    pack = _ext_pack()
+    mains = _ext_mainlines(5)
+    try:
+        news = get_news(14) or []
+    except Exception:
+        news = []
+    hard_txt = []
+    for nm in ('纳指', '道指', '标普', '费半'):
+        if pack['us'].get(nm) is not None:
+            hard_txt.append('%s %+.2f%%' % (nm, pack['us'][nm]))
+    if pack['fut'] is not None:
+        hard_txt.append('标普夜盘期货 %+.2f%%' % pack['fut'])
+    for nm, code in _EXT_TX_STK:
+        if pack['stk'].get(nm) is not None:
+            hard_txt.append('%s(ETF代理) %+.2f%%' % (nm, pack['stk'][nm]))
+    if pack['a50'] is not None:
+        hard_txt.append('A50夜盘 %+.2f%%' % pack['a50'])
+    if pack['cnh']:
+        hard_txt.append('离岸人民币 %.4f(%+.2f%%)' % pack['cnh'])
+    for nm, v in pack['comm'].items():
+        hard_txt.append('%s %+.2f%%' % (nm, v))
+    if pack['hk'] is not None:
+        hard_txt.append('恒生 %+.2f%%' % pack['hk'])
+    hard_line = '；'.join(hard_txt) or '外盘数据未取得'
+    mains_line = '；'.join('%s %.0f分(%s)' % (m[0], m[1] or 0, m[2] or '') for m in mains) or '主线数据未取得'
+    data = None
+    if DEEPSEEK_KEY:
+        fmt = ('你是一名外盘窗口推送编辑，负责把隔夜外盘变量映射到A股当前事件驱动主线上，'
+               '输出盘前1-2屏推送，结论先行，每条信息必须带映射结论，不写新闻摘要。\n'
+               '今日日期：{date}\n'
+               '隔夜外盘硬变量（真实取数，可直接引用，禁止改动任何数值、禁止新增没给的数字）：{hard}\n'
+               'A股当前主线评分排序（题材健康分，越高越强，优先级按此排序）：{mains}\n'
+               '全球财经消息（东财7x24）：{news}\n'
+               '严格只输出 JSON，不要任何解释文字：\n'
+               '{"conclusion":"一句话结论，陈述句，给隔夜外盘对A股风险偏好和第一主线的定性判断，'
+               '不超过两行，禁止问句","map":[{"ext":"外盘标的及涨跌幅或事件","line":"对哪条主线什么方向",'
+               '"node":"关注A股哪个节点或标的"}],"calendar":["事件 → 影响哪条主线"],'
+               '"risk":["变量 → 可能压制哪条主线"]}\n'
+               '硬规则：禁止自问自答、禁止为什么/这意味着什么/是不是/要不要/怎么看等设问、禁止问句做标题，'
+               '全部陈述句直接给结论；map 只推能映射到上面主线排序的外盘标的与事件，与主线无关的海外个股、'
+               '宏观数据、人事变动、八卦一律不写；每条 map 三层缺一层就不写，node 必须是可验证的具体节点'
+               '（具体板块方向/具体个股/具体时间点），禁止"关注某板块"这种无法验证的表述；map 最多6条，'
+               '第一主线排第一；calendar 只写对当前主线有潜在冲击的事件，没有就输出 ["无重大事件"]；'
+               'risk 只写会改变风险偏好或压制主线定价的变量，没有就输出 ["无显著异动"]；'
+               '不重复同一事件，不堆数字，全文1-2屏。')
+        t = ask_deepseek({'task': 'ext_window', 'date': _bj_now().strftime('%Y-%m-%d'),
+                          'hard': hard_line, 'mains': mains_line,
+                          'news': [nw.get('title') for nw in news[:12]], 'format': fmt}, purpose='ext_window')
+        data = _ext_parse(t)
+        if data is None:
+            print('[ext] LLM 未返回可解析 JSON，走规则兜底 | 原文前120字:', (t or '')[:120].replace('\n', ' '))
+    if data is None:
+        data = _ext_fallback(pack, mains)
+    concl = str(data.get('conclusion') or '').strip() or _ext_fallback(pack, mains)['conclusion']
+    cal = [str(x).strip() for x in (data.get('calendar') or []) if str(x).strip()] or ['无重大事件']
+    risk = [str(x).strip() for x in (data.get('risk') or []) if str(x).strip()] or ['无显著异动']
+    cal_html = ''.join('<div style="margin-top:2px;">· %s</div>' % x for x in cal[:4])
+    risk_html = ''.join('<div style="margin-top:2px;">· %s</div>' % x for x in risk[:4])
+    mains_head = (''.join('<div style="color:%s;font-size:11px;margin-top:2px;">主线排序：%s</div>' % (GREY, mains_line))
+                  if mains else '<div style="color:%s;font-size:11px;margin-top:2px;">主线数据未取得</div>' % GREY)
+    inner = (f'<div style="margin-top:8px;font-size:14px;line-height:1.75;color:#f1f3f5;">'
+             + f'<b style="color:#ffd43b;">■ 一句话结论：</b>{concl}</div>'
+             + '<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
+             + '<b style="color:#ffd43b;">■ 硬变量：</b>' + _ext_hard_html(pack) + '</div>'
+             + '<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
+             + '<b style="color:#ffd43b;">■ 主线映射：</b>' + mains_head + _ext_map_html(pack, mains, data) + '</div>'
+             + '<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
+             + '<b style="color:#ffd43b;">■ 事件日历：</b>' + cal_html + '</div>'
+             + '<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
+             + '<b style="color:#ffd43b;">■ 风险预警：</b>' + risk_html + '</div>'
+             + f'<div style="margin-top:8px;color:{GREY};font-size:11px;">以上只做变量提示</div>')
     return _wrap(inner, '🌙', '外盘窗口')
 
 
