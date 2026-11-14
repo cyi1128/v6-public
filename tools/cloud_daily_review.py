@@ -15911,10 +15911,25 @@ def _holiday_ds(items):
         news_txt = '\n'.join(f"- {x['title']}（摘要：{x['summary'][:50]}）" for x in _batch)
         fmt = ('你是一线游资，休市日新闻汇总。只做情报，不做涨跌判断、不给买卖价、不贴利好利空标签。\n'
                + FIVE_BRIEF + '\n'
-               + '【每条只挖暗线方向，不挖情绪】必须讲清三件事：①这条消息里谁是真受益方（点名到公司或产业链环节，不许用「相关/涉及/布局/受益于」糊弄）②它落在哪条产业链的哪个环节，这个环节现在处在什么阶段（缺货/涨价/扩产/刚起步/已兑现/产能爬坡）③后面还可能往哪个方向继续发酵（下一棒会打给谁、什么条件下发酵会断）。\n'
-               + '【硬约束】正文里禁止出现「利好」「利空」「操作」「买点」「止损」「仓位」「建议买入」这些词，禁止给涨跌预测；暗线必须落到真实业务，写不出就写「未见明确暗线业务」。\n'
+               + '【第一步先分级 rank】S=政策级/产业级（会改整条板块的资金方向，下周看板块整体）；A=公司级（只动这一只票，板块不受影响）；B=传闻/单家券商观点/未证实（只能观察，不许动手）。每条必须给一个档，不许全给 A。\n'
+               + '【暗线方向 dark】必须讲清三件事：①这条消息里谁是真受益方（点名到公司或产业链环节，禁止用「相关/涉及/布局/受益于」糊弄）②它落在哪条产业链的哪个环节，这个环节现在处在什么阶段（缺货/涨价/扩产/刚起步/已兑现/产能爬坡）③后面还可能往哪个方向继续发酵（下一棒会打给谁、什么条件下发酵会断）。\n'
+               + '【暗线贴合个股 dark_stock】只给 rank=S 的写，1-2 只，每只严格五段用竖线隔开：\n'
+               + '名称(代码)|连接形式|可证伪性|验证节点|代价\n'
+               + '连接形式只能是这五种之一：参股卡位/体外资产映射/技术同源产线可改造/事件已发生但标签未贴/双重暗线交叉。\n'
+               + '可证伪性只能是 强/中强/中（只有工商可查的参股比例、同一实控人、产能归属这类硬关系才算「强」，凭技术路线或客户重叠最多「中强」，只是事件受益但标签没贴上算「中」）。\n'
+               + '验证节点写成「看到X算成立，看到Y算不成立」，X/Y 必须是下周盘面或公告里能看见的具体信号。\n'
+               + '代价写买它要承担什么（比例不高/弹性有限/题材不纯这类实话）。\n'
+               + 'rank=A 或 B 的这一项写空字符串。\n'
+               + '【低位替代 low】只给 rank=S 的写，1-3 只，每只严格五段用竖线隔开：\n'
+               + '名称(代码)|位置分位|涨幅滞后|流通市值|短板\n'
+               + '位置分位=现价在近 60 日区间的百分位，必须写具体数字（如「32%分位」，在半区间以下才算低位）；\n'
+               + '涨幅滞后=近 20 日自身涨幅对比同板块龙头差多少点，必须写具体数字；\n'
+               + '流通市值写「XX亿」，30-150 亿优先，超出范围要照实写；\n'
+               + '短板写它为什么涨不过龙头（市值大/业绩不实/题材不纯），必须写，不许美化。\n'
+               + '已涨停或近 5 日涨超 7% 的票不许列。拿不到真实数字就写「未取到」，绝不许编。\n'
+               + '【硬约束】禁止出现「利好」「利空」「操作」「买点」「止损」「仓位」「建议买入」；禁止「主营XX占XX%」「主营构成」「基本盘」「核心业务」这类明面主营句式；暗线必须落到真实业务，写不出就写「未见明确暗线业务」。\n'
                + '新闻列表：\n' + news_txt + '\n'
-               + '只输出 JSON：{"items":[{"t":"标题(照抄)","sector":"板块题材(至少8字，猜不到写「暂看不出直接关联」)","stocks":"相关个股(没有写无)","dark":"暗线方向(至少30字：谁真受益+产业链哪个环节+当前阶段+后续往哪发酵)","why":"大白话(一句话戳穿本质，至少15字，不写涨跌不写买卖)"}]}，必须覆盖每条；纯凑数新闻直接跳过。')
+               + '只输出 JSON：{"items":[{"t":"标题(照抄)","rank":"S或A或B","sector":"板块题材(至少8字，猜不到写「暂看不出直接关联」)","stocks":"相关个股(没有写无)","dark":"暗线方向(至少30字，三件事齐全)","dark_stock":"名称(代码)|连接形式|可证伪性|验证节点|代价（多只用分号隔开，A或B级写空）","low":"名称(代码)|位置分位|涨幅滞后|流通市值|短板（多只用分号隔开，A或B级写空）","why":"大白话(一句话戳穿本质，至少15字，不写涨跌不写买卖)"}]}，必须覆盖每条；纯凑数新闻直接跳过。')
         t = ask_deepseek({'task': 'holiday_ds', 'news': [{'title': x['title'], 'summary': x['summary'][:60]} for x in _batch],
                           'format': fmt}, purpose='holiday_ds')
         if not t:
@@ -15925,12 +15940,196 @@ def _holiday_ds(items):
             for it in _j.get('items') or []:
                 tt = str(it.get('t') or '').strip()
                 if tt and (it.get('dark') or it.get('why') or it.get('sector')):
+                    _rk = str(it.get('rank') or '').strip().upper()[:1]
+                    if _rk not in ('S', 'A', 'B'):
+                        _rk = 'A' if (it.get('sector') or it.get('stocks')) else 'B'
                     out[tt] = {'sector': str(it.get('sector') or ''), 'stocks': str(it.get('stocks') or ''),
-                               'dark': str(it.get('dark') or ''), 'why': str(it.get('why') or '')}
+                               'rank': _rk,
+                               'dark': str(it.get('dark') or ''),
+                               'dark_stock': str(it.get('dark_stock') or ''),
+                               'low': str(it.get('low') or ''),
+                               'why': str(it.get('why') or '')}
         except Exception as e:
             print(f'[holiday] 第 {_off // 5 + 1} 批解析失败: {e}')
     print(f'[holiday] 深挖覆盖 {len(out)}/{len(items)} 条')
     return out
+
+
+_HOLIDAY_HOME_KW = ('政策', '国务院', '发改委', '工信部', '财政部', '商务部', '央行', '证监会',
+                    '交易所', '部委', '公告', '中标', '订单', '签约', '涨价', '提价', '扩产',
+                    '投产', '产能', '补贴', '关税', '出口', '进口', '重组', '并购', '立案',
+                    '回购', '增持', '业绩', '营收', '净利', '毛利', '开工', '项目', '试点',
+                    '规划', '专项', '国产', '替代', '招标', '量产', '限产', '环保', '安全')
+
+_HOLIDAY_ABROAD_KW = ('英伟达', '微软', '马斯克', '白宫', '美联储', '纳指', '道指', '标普',
+                      '特斯拉', 'Meta', 'Arm', '苹果', '谷歌', '亚马逊', 'OpenAI', '星舰',
+                      '星链', '美国', '欧洲', '日本', '韩国', '美股', '美元', '特朗普')
+
+
+def _holiday_pick(news, n=15):
+    """休市日新闻国内优先：外盘科技消息再多也不占版面。
+
+    打分 = 国内政策/产业/公司关键词命中×3 − 海外关键词命中×2；
+    同分保原时间顺序（新闻源按时间倒序）；标题前 12 字重复只留一条。返回前 n 条。"""
+    if not news:
+        return []
+    _scored, _seen = [], set()
+    for _i, _n in enumerate(news):
+        _txt = str(_n.get('title') or '') + str(_n.get('summary') or '')
+        _key = re.sub(r'[^\u4e00-\u9fffA-Za-z0-9]', '', str(_n.get('title') or ''))[:12]
+        if _key and _key in _seen:
+            continue
+        if _key:
+            _seen.add(_key)
+        _h = sum(1 for k in _HOLIDAY_HOME_KW if k in _txt)
+        _a = sum(1 for k in _HOLIDAY_ABROAD_KW if k in _txt)
+        _scored.append((-(_h * 3 - _a * 2), _i, _n))
+    _scored.sort(key=lambda x: (x[0], x[1]))
+    _out = [x[2] for x in _scored[:n]]
+    print(f'[holiday] 国内优先筛选：候选 {len(news)} → 保留 {len(_out)} 条')
+    return _out
+
+
+def _holiday_split_multi(s):
+    """拆多标的：兼容全角竖线/分号。返回 ['名称(代码)|...', ...]。"""
+    s = re.sub('｜', '|', str(s or ''))
+    return [p.strip() for p in re.split('[；;]', s) if p.strip()]
+
+
+def _holiday_fields(p, n=5):
+    """按竖线拆字段，不足补空（模型偶尔少给字段，不能让整行崩掉）。"""
+    f = [x.strip() for x in str(p or '').split('|')]
+    while len(f) < n:
+        f.append('')
+    return f[:n]
+
+
+def _holiday_rank(deep_map):
+    """休市日优先级汇总（纯规则排序，不再调模型）。
+
+    排序三原则（顺序即权重）：
+      1) 可证伪性强的排前：暗线按 强 > 中强 > 中 排，偏弱直接剔除；
+      2) 暗线贴合优先于低位替代：暗线是提前发现，低位是接盘后手；
+      3) 同一档内，位置分位低的排前。
+    返回 rows，每行 {'pri','name','kind','line','proof','cond','cost'}。"""
+    _PROOF = {'强': 0, '中强': 1, '中': 2, '偏弱': 4}
+    _cands = []
+    for _t, _d in (deep_map or {}).items():
+        if not isinstance(_d, dict):
+            continue
+        _line = (_d.get('sector') or '').strip() or '未标注主线'
+        for _p in _holiday_split_multi(_d.get('dark_stock')):
+            _f = _holiday_fields(_p)
+            _name = _f[0]
+            if not _name or _name in ('无', '空', '未见明确暗线业务'):
+                continue
+            _pr = _PROOF.get(_f[2].replace(' ', '').replace('（', '').replace('）', ''), 3)
+            if _pr >= 4:
+                continue
+            _cands.append({'name': _name, 'kind': '暗线贴合', 'line': _line,
+                           'proof': _f[2] or '未标注',
+                           'cond': _f[3] or '未给验证节点',
+                           'cost': _f[4] or '', '_k': (_pr, 0, 999)})
+        for _p in _holiday_split_multi(_d.get('low')):
+            _f = _holiday_fields(_p)
+            _name = _f[0]
+            if not _name or _name in ('无', '空'):
+                continue
+            _m = re.search(r'([0-9]{1,3})', _f[1])
+            _pv = int(_m.group(1)) if _m else 999
+            _cond = '｜'.join([x for x in (_f[1], _f[2]) if x]) or '未给位置'
+            _cands.append({'name': _name, 'kind': '低位替代', 'line': _line,
+                           'proof': '—', 'cond': _cond,
+                           'cost': _f[4] or '', '_k': (2.6, 1, _pv)})
+    # 同一标的只保留优先级最高的一条（先排序后去重）
+    _seen, _rows = set(), []
+    for _c in sorted(_cands, key=lambda x: x['_k']):
+        _key = re.sub(r'[^0-9]', '', _c['name']) or _c['name']
+        if _key in _seen:
+            continue
+        _seen.add(_key)
+        _c.pop('_k', None)
+        _rows.append(_c)
+    if _rows:
+        print(f'[holiday] 优先级候选 {len(_rows)} 个（暗线 {sum(1 for r in _rows if r["kind"] == "暗线贴合")} / 低位 {sum(1 for r in _rows if r["kind"] == "低位替代")}）')
+    else:
+        print('[holiday] 未产出优先级候选（模型可能只给了暗线方向没给个股）')
+    for _i, _r in enumerate(_rows, 1):
+        _r['pri'] = _i
+    return _rows
+
+
+def _holiday_tone(cnt, rows):
+    """一句话定调：按档位分布与候选数量生成，不调模型、不编造。"""
+    _s, _a, _b = cnt.get('S', 0), cnt.get('A', 0), cnt.get('B', 0)
+    _n = len(rows)
+    _first = (f'优先级第一的是{rows[0]["name"]}（{rows[0]["kind"]}），下周开盘先验它。' if rows else '')
+    if _s >= 2:
+        return (f'消息面是加码不是熄火——{_s} 条落到政策/产业级，下周这条线有继续做的理由；'
+                f'本期给出 {_n} 个候选。{_first}')
+    if _s == 1:
+        return (f'这周只有 1 条够格的政策/产业级消息，能撑一条线但撑不起两条，别把个股消息当板块行情；'
+                f'本期给出 {_n} 个候选。{_first}')
+    if _a:
+        return (f'这周没有政策/产业级消息，{_a} 条都是公司级，下周开盘看个股不看板块；'
+                f'本期给出 {_n} 个候选。{_first}')
+    return f'这周 {_b} 条全是待证实消息，下周开盘只观察不动手；本期给出 {_n} 个候选。{_first}'
+
+
+def _holiday_rank_html(rows):
+    """优先级汇总表：窄屏友好，四列必给（标的/类型/主线/下周验证）。"""
+    if not rows:
+        return ''
+    _bd = 'border-bottom:1px solid #2b3446;'
+    _tr = ''
+    for _r in rows:
+        _c = RED if _r['kind'] == '暗线贴合' else GOLD
+        _tr += (f'<tr><td style="color:{_c};padding:4px 5px;{_bd}">{_r["pri"]}</td>'
+                f'<td style="color:#fff;padding:4px 5px;{_bd}">{_r["name"]}</td>'
+                f'<td style="color:{_c};padding:4px 5px;{_bd}">{_r["kind"]}</td>'
+                f'<td style="color:#c8d0e0;padding:4px 5px;{_bd}">{_r["line"]}</td>'
+                f'<td style="color:#c8d0e0;padding:4px 5px;{_bd}">{_r["cond"]}</td></tr>')
+    return ('<div style="margin:12px 0 4px;color:#e2e8f0;font-size:13px;font-weight:600;">'
+            '🎯 优先级汇总（按可证伪性排，不按涨幅排）</div>'
+            '<div style="color:#9aa4b8;font-size:11px;margin-bottom:4px;">强 &gt; 中强 &gt; 中；暗线贴合优先于低位替代；同档内位置低的排前</div>'
+            '<table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;word-break:break-all;">'
+            '<tr style="color:#9aa4b8;background:#1a2030;">'
+            f'<td style="padding:4px 5px;width:8%;">#</td><td style="padding:4px 5px;width:22%;">标的</td>'
+            f'<td style="padding:4px 5px;width:16%;">类型</td><td style="padding:4px 5px;width:18%;">主线</td>'
+            f'<td style="padding:4px 5px;width:36%;">下周验证</td></tr>' + _tr + '</table>')
+
+
+def _holiday_deep_html(_d):
+    """单条的暗线方向 / 暗线贴合个股 / 低位替代 三块渲染。"""
+    if not _d:
+        return ('<div style="color:#9aa4b8;font-size:12px;margin-top:3px;line-height:1.6;">'
+                '🕳️ 暗线方向：本条没判读到，只有新闻本身（不补写、不编造）。</div>')
+    _h = ''
+    if _d.get('dark'):
+        _h += f'<div style="color:{GOLD};font-size:12px;margin-top:3px;line-height:1.65;">🕳️ 暗线方向：{_d["dark"]}</div>'
+    _ds = _holiday_split_multi(_d.get('dark_stock'))
+    if _ds:
+        _h += f'<div style="color:{RED};font-size:12px;margin-top:4px;font-weight:600;">🎯 暗线贴合个股</div>'
+        for _p in _ds:
+            _f = _holiday_fields(_p)
+            _h += (f'<div style="background:#232b3d;border-radius:6px;padding:6px 8px;margin:4px 0;">'
+                   f'<div style="color:#fff;font-size:12px;font-weight:600;">{_f[0]}</div>'
+                   f'<div style="color:#c8d0e0;font-size:11px;line-height:1.6;">'
+                   f'连接：{_f[1] or "未给连接形式"}｜可证伪：{_f[2] or "未标注"}<br>'
+                   f'验证：{_f[3] or "未给验证节点"}<br>'
+                   f'代价：{_f[4] or "未给代价"}</div></div>')
+    _lw = _holiday_split_multi(_d.get('low'))
+    if _lw:
+        _h += f'<div style="color:{GOLD};font-size:12px;margin-top:4px;font-weight:600;">🔁 低位替代（低位逻辑）</div>'
+        for _p in _lw:
+            _f = _holiday_fields(_p)
+            _h += (f'<div style="background:#232b3d;border-radius:6px;padding:6px 8px;margin:4px 0;">'
+                   f'<div style="color:#fff;font-size:12px;font-weight:600;">{_f[0]}</div>'
+                   f'<div style="color:#c8d0e0;font-size:11px;line-height:1.6;">'
+                   f'位置：{_f[1] or "未取到"}｜滞后：{_f[2] or "未取到"}<br>'
+                   f'市值：{_f[3] or "未取到"}<br>'
+                   f'短板：{_f[4] or "未给短板"}</div></div>')
+    return _h
 
 
 def build_holiday_news():
@@ -15945,7 +16144,7 @@ def build_holiday_news():
     today = _bj_now().strftime('%Y-%m-%d')
     t0 = time.time()
     try:
-        news = get_news(15)
+        news = get_news(30)   # 多抓一倍：再按"国内政策/产业/公司"优先挑 15 条，避免版面被外盘科技消息占满
         _record('holiday_news', True, time.time() - t0, f'{len(news)}条')
     except Exception as e:
         _record('holiday_news', False, time.time() - t0, str(e)[:80])
@@ -15960,6 +16159,9 @@ def build_holiday_news():
             today_news.append(nw)
         else:
             print(f'[holiday] 丢弃非当天新闻: ts={nw.get("ts")!r} title={nw.get("title", "")[:20]}')
+
+    # 国内优先排序：同样的条数，先给能落到 A 股的政策/产业/公司消息
+    today_news = _holiday_pick(today_news, 15)
 
     if not today_news:
         print(f'[holiday] {today} 无当天有效新闻（新闻源返回 {len(news)} 条但均非当天/为空）')
@@ -15977,46 +16179,77 @@ def build_holiday_news():
 
     _deep_map_n = {_nrm(k): v for k, v in (_deep_map or {}).items()}
 
-    items = []
+    # —— 分档：档位由模型给；没拿到深挖的保守归 B（不许把没挖的冒充 A）——
+    _groups = {'S': [], 'A': [], 'B': []}
+    _cnt = {'S': 0, 'A': 0, 'B': 0}
+    _miss = 0
     for nw in today_news:
-        title = nw.get('title', '').strip()
-        summary = nw.get('summary', '').strip()
-        ts = str(nw.get('ts') or '')
-        src = nw.get('source') or '东财7x24'
-        if not title and not summary:
+        _t = (nw.get('title') or '').strip()
+        _sum = (nw.get('summary') or '').strip()
+        if not _t and not _sum:
             continue
-        _d = (_deep_map or {}).get(title) or _deep_map_n.get(_nrm(title))
-        # 2026-11-07 用户指令：取消利好/利空/操作三行，也不再打情绪标签，只讲暗线方向
-        color = TEAL
-        tag_html = ''
+        _d = (_deep_map or {}).get(_t) or _deep_map_n.get(_nrm(_t))
         if _d:
-            _sec2 = _d.get('sector') or ''
-            _stk2 = _d.get('stocks') or ''
-            _dk2 = _d.get('dark') or ''
-            _wh2 = _d.get('why') or ''
-            if _sec2 or _stk2:
-                tag_html = (f'<div style="color:{TEAL};font-size:12px;margin-top:3px;">🏷️ 板块题材：{_sec2}'
-                            f'｜相关个股：{_stk2}</div>')
-            if _dk2:
-                tag_html += (f'<div style="color:{GOLD};font-size:12px;margin-top:2px;">🕳️ 暗线方向：{_dk2}</div>')
-            if _wh2:
-                tag_html += (f'<div style="color:#e2e8f0;font-size:12px;margin-top:2px;">🗣️ 大白话：{_wh2}</div>')
+            _rk = _d.get('rank') or 'A'
         else:
-            tag_html = ''
-        items.append(f"""<div style="background:#1f2635;border-left:3px solid {color};border-radius:8px;padding:9px 11px;margin:7px 0;">
-<b style="color:#fff;">{title or '（无标题）'}</b>
-<div style="color:{GREY};font-size:12px;margin-top:2px;">🕐 {ts}｜来源：{src}</div>
-<div style="color:#c8d0e0;font-size:13px;margin-top:4px;line-height:1.7;">{summary[:200]}</div>{tag_html}</div>""")
+            _rk = 'B'
+            _miss += 1
+        _groups.setdefault(_rk, []).append((nw, _d))
+        _cnt[_rk] = _cnt.get(_rk, 0) + 1
 
-    if not items:
+    _rows = _holiday_rank(_deep_map)
+    _tone = _holiday_tone(_cnt, _rows)
+
+    def _card(nw, _d):
+        _ct = (nw.get('title') or '').strip()
+        _cs = (nw.get('summary') or '').strip()
+        _ts = str(nw.get('ts') or '')
+        _src = nw.get('source') or '东财7x24'
+        _color = TEAL if _d else '#4b5563'
+        _tags = ''
+        if _d:
+            if _d.get('sector') or _d.get('stocks'):
+                _tags += (f'<div style="color:{TEAL};font-size:12px;margin-top:3px;">'
+                          f'🏷️ 板块题材：{_d.get("sector") or "未标注"}｜相关个股：{_d.get("stocks") or "无"}</div>')
+            _tags += _holiday_deep_html(_d)
+            if _d.get('why'):
+                _tags += (f'<div style="color:#e2e8f0;font-size:12px;margin-top:3px;line-height:1.6;">'
+                          f'🗣️ 大白话：{_d["why"]}</div>')
+        else:
+            _tags = _holiday_deep_html(None)
+        return (f'<div style="background:#1f2635;border-left:3px solid {_color};border-radius:8px;'
+                f'padding:9px 11px;margin:7px 0;">'
+                f'<b style="color:#fff;font-size:13px;line-height:1.5;">{_ct or "（无标题）"}</b>'
+                f'<div style="color:{GREY};font-size:12px;margin-top:2px;">🕐 {_ts}｜来源：{_src}</div>'
+                f'<div style="color:#c8d0e0;font-size:12px;margin-top:4px;line-height:1.65;">{_cs[:80]}</div>'
+                f'{_tags}</div>')
+
+    _blocks = ''
+    for _rk, _label in (('S', '🔴 S 级 · 政策/产业级（改的是整条线的钱，下周看板块整体）'),
+                        ('A', '🟡 A 级 · 公司级（只动这一只票，板块不受影响）'),
+                        ('B', '⚪ B 级 · 待证实（只观察，不动手）')):
+        if not _groups.get(_rk):
+            continue
+        _blocks += (f'<div style="color:#e2e8f0;font-size:13px;font-weight:600;margin:12px 0 4px;">'
+                    f'{_label}（{_cnt[_rk]} 条）</div>')
+        _blocks += ''.join(_card(_nw, _dd) for _nw, _dd in _groups[_rk])
+
+    if not _blocks:
         html = ('<div style="color:#e2e8f0;font-size:14px;line-height:1.8;padding:10px;background:#1c2230;'
                 'border-radius:8px;">今日未获取到有效新闻<br>'
                 '<span style="color:#9aa4b8;font-size:12px;">（当天新闻条目为空，不伪造内容。）</span></div>')
         return _wrap(html, '📰', f'休市日新闻汇总 {today}'), today
 
-    inner = (f'<div style="color:{GREY};font-size:12px;margin-bottom:6px;">A 股休市，不推股票分析；'
-             f'以下为当天新闻汇总（共 {len(items)} 条，来源：东财 7x24 快讯，抓取时间 '
-             f'{_bj_now().strftime("%H:%M")}）</div>' + ''.join(items))
+    _miss_txt = (f'｜其中 {_miss} 条只有新闻本身，没判读到暗线' if _miss else '')
+    inner = (f'<div style="background:#1a2030;border-radius:8px;padding:9px 11px;margin-bottom:8px;">'
+             f'<div style="color:#e2e8f0;font-size:13px;line-height:1.7;">{_tone}</div>'
+             f'<div style="color:#9aa4b8;font-size:11px;margin-top:5px;">'
+             f'S 级 {_cnt["S"]}｜A 级 {_cnt["A"]}｜B 级 {_cnt["B"]}'
+             f'｜新闻 {sum(_cnt.values())} 条（东财 7x24，抓取 {_bj_now().strftime("%H:%M")}）{_miss_txt}</div></div>'
+             + _holiday_rank_html(_rows)
+             + _blocks
+             + f'<div style="color:{GREY};font-size:11px;margin-top:12px;">'
+             f'休市日只给情报清单与验证条件，不给买卖价；个股数字取自各自最近一根日K，未取到一律标「未取到」。</div>')
     return _wrap(inner, '📰', f'休市日新闻汇总 {today}'), today
 
 
