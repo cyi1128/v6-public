@@ -2090,3 +2090,6 @@
 20:02:45 [llm] 两波并发均无返回 purpose=holiday_ds
 20:02:45 [ask_deepseek] 首轮无返回即止损 purpose=holiday_ds
 20:02:45 [ask_deepseek] ModelScope 两次尝试均失败，purpose=holiday_ds
+04:29:29 [llm] OK purpose=holiday_ds len=1035
+04:30:23 [llm] OK purpose=holiday_ds len=1091
+04:31:22 [llm] OK purpose=holiday_ds len=1192
