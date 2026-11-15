@@ -10725,19 +10725,24 @@ _EXT_SINA_GB = (('纳指', 'gb_ixic'), ('道指', 'gb_dji'), ('标普', 'gb_inx'
 # 美债10Y / 美元指数在国内免费源全取不到（腾讯/新浪/东财/Yahoo 均失败），
 # 用美股 ETF 做方向代理并在卡面标口径，绝不写成"美债10Y X%"。
 _EXT_TX_STK = (('美元指数', 'usUUP'), ('美债20Y', 'usTLT'), ('美债10Y', 'usIEF'),
-               ('英伟达', 'usNVDA'), ('超威半导体', 'usAMD'), ('台积电', 'usTSM'), ('费半ETF', 'usSOXX'))
-_EXT_TX_COMM = (('原油', 'hf_CL'), ('黄金', 'hf_GC'), ('伦铜', 'hf_CAD'), ('美铜', 'hf_HG'), ('白银', 'hf_SI'))
+               ('英伟达', 'usNVDA'), ('超威半导体', 'usAMD'), ('台积电', 'usTSM'), ('费半ETF', 'usSOXX'),
+               ('特斯拉', 'usTSLA'), ('苹果', 'usAAPL'), ('博通', 'usAVGO'))
+# 2026-11-15：用户明确要求"重点抓费半/特斯拉/英伟达/苹果/台积电这类有产业指向的标的，
+# 普通大盘涨跌不要强行推导个股"，且禁止拿行业名（通用设备/汽车零部）冒充主线。
+# 映射改成概念题材关键词 → 产业标的。
 _EXT_LINE_KEYS = (
-    (('半导体', '芯片', '端侧', '存储', '先进封装', '算力', '电子', '元件', '光学', '消费电子',
-      '半导体设备'), ('费半', '费半ETF', '英伟达', '超威半导体', '台积电')),
-    (('光模块', '服务器', 'PCB', '通信', '液冷', 'IT服务', '软件', '计算机'), ('纳指', '费半')),
-    (('机器人', '人形', '自动化', '工业母机', '通用设备', '专用设备', '机械'), ('纳指', '道指')),
-    (('光伏', '储能', '锂电', '新能源', '电池', '电源'), ('纳指', '白银')),
-    (('有色', '铜', '电网', '电力设备', '小金属', '金属'), ('伦铜', '美铜')),
+    (('半导体', '芯片', '存储', '先进封装', '光刻', '第三代半导体', 'IGBT', 'MCU', '封测'), ('费半', '费半ETF', '台积电')),
+    (('算力', 'CPO', '光模块', 'AI服务器', '液冷', '数据中心', '人工智能', 'AI'), ('英伟达', '博通')),
+    (('机器人', '人形', '减速器', '伺服', '工业母机', '灵巧手'), ('特斯拉', '英伟达')),
+    (('新能源车', '汽车', '一体化压铸', '充电桩', '固态电池', '智能驾驶'), ('特斯拉',)),
+    (('消费电子', '苹果', '果链', 'MR', 'VR', '智能穿戴', '折叠屏'), ('苹果',)),
+    (('光伏', '储能', '锂电', '钠电'), ('纳指', '白银')),
+    (('铜', '有色', '电网', '小金属', '稀土'), ('伦铜', '美铜')),
     (('黄金', '贵金属'), ('黄金',)),
     (('石油', '油气', '化工', '化学'), ('原油',)),
-    (('军工', '卫星', '商业航天', '航空'), ('纳指',)),
+    (('军工', '卫星', '商业航天', '低空经济'), ('纳指',)),
 )
+_EXT_TX_COMM = (('原油', 'hf_CL'), ('黄金', 'hf_GC'), ('伦铜', 'hf_CAD'), ('美铜', 'hf_HG'), ('白银', 'hf_SI'))
 # 主线找不到专属外盘标的时，用大盘类变量兜底（任何主线都受风险偏好定价，属真实映射）
 _EXT_GLOBAL_KEYS = ('标普期货', 'A50夜盘', '纳指')
 
@@ -10835,39 +10840,74 @@ def _ext_pack():
     return p
 
 
-def _ext_mainlines(top_n=5):
-    """当日主线评分排序：涨停池按题材聚合 → theme_health 打分 → 降序取前 N。
-    返回 [(主线名, 分数, 档位)]；取不到返回 []（卡面标"主线数据未取得"）。"""
-    day = _bj_now().strftime('%Y%m%d')
-    pool = _follow_pool(day)
-    if not pool:                              # 周末/休市：退到上一交易日
-        day = _prev_trade_day(day)
-        pool = _follow_pool(day)
-    if not pool:
-        return []
-    mod = _theme_health_mod()
-    if not mod:
-        return []
-    rows = [{'theme': (_sec_clean(x.get('hybk') or x.get('theme') or '') or '其他'),
-             'lbc': int(x.get('lbc') or 0),
-             'name': str(x.get('n') or ''),
-             'code': str(x.get('c') or '')} for x in pool]
+# 概念板块里大量是"选股标签"而非产业主线（证金持股/茅指数/红利破净），必须剔除，
+# 否则风格标签一强就冲到榜首，又变成用户说的"编造主线"。
+_CONCEPT_SKIP = ('昨日打二板', '红利破净', '破净股', '证金持股', '茅指数', '大盘价值', '大盘成长',
+                 '消费风格', '央视50', '融资融券', '深股通', '沪股通', 'MSCI', '富时罗素',
+                 '标准普尔', '转债标的', 'ST板块', '次新股', '机构重仓', '基金重仓', 'QFII',
+                 '社保重仓', '养老金', '高送转', '预亏预减', '国企改革', '央企改革', 'IPO受益',
+                 '股权转让', '并购重组', '低价股', '小盘股', '中盘股', '大盘股', '白马股',
+                 '绩优股', '年报', '中报', '季报', '预增', '科创板', '创业板', '注册制',
+                 '专精特新', '独角兽', '核心资产', '漂亮50', 'AH股', '上证', '深证', '中证',
+                 '沪深300', '中证500', '昨日涨停', '昨日连板', '龙虎榜', '参股', '举牌',
+                 '壳资源', '预亏', '业绩预', '融资标的', '龙头股')
+
+
+def _ext_concepts(top_n=5):
+    """当日概念主线：东财概念板块强度打分排序。
+    分数口径＝相对强度分（板块涨幅＋上涨家数＋红绿比），不是涨停梯队分，卡面写清口径。
+    返回 [(名称, 分数, 阶段, 代表股, 板块涨幅)]；取不到返回 []。"""
+    url = ('https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=80&po=1&np=1&fltt=2&invt=2'
+           '&fid=f3&fs=m:90+t:3&fields=f12,f14,f3,f104,f105,f128')
     try:
-        res = mod.theme_health(rows, None, top_n=top_n + 2) or []
+        txt, ok = _getm(url, 'ext_concept')
+        if not ok or not txt:
+            print('[ext] 概念板块未取到')
+            return []
+        items = (json.loads(txt).get('data') or {}).get('diff') or []
     except Exception as e:
-        print('[ext] theme_health 计算失败:', e)
+        print('[ext] 概念板块解析失败:', e)
         return []
-    res = [r for r in res if (r.get('theme') or '') not in ('其他', '', None)][:top_n]
-    # 东财行业名带 Ⅰ/Ⅱ/Ⅲ 后缀（游戏Ⅱ、IT服务Ⅱ），映射读着别扭，去掉后缀保留主名
-    _clean_t = lambda t: (re.sub(r'[ⅠⅡⅢ]+$', '', str(t or '')).strip() or str(t or ''))
-    # 每个题材的最高板个股 → 作为"关注什么节点"的可验证落点（具体票名，不是"某板块"）
-    leaders = {}
-    for r in rows:
-        t = r['theme']
-        if r['name'] and (t not in leaders or r['lbc'] > leaders[t][0]):
-            leaders[t] = (r['lbc'], r['name'])
-    return [(_clean_t(r.get('theme')), r.get('score'), r.get('level'),
-             (leaders.get(r.get('theme')) or (0, ''))[1]) for r in res]
+    out = []
+    for x in items:
+        nm = str(x.get('f14') or '').strip()
+        if not nm or any(k in nm for k in _CONCEPT_SKIP) or '风格' in nm or '权重' in nm:
+            continue
+        try:
+            pct = float(x.get('f3') or 0)
+            up = int(x.get('f104') or 0)
+            down = int(x.get('f105') or 0)
+        except Exception:
+            continue
+        if up < 5:                      # 上涨家数不足5家的概念撑不起一条主线
+            continue
+        ratio = up / max(down, 1)
+        # 涨幅是主权重：宽概念"上涨家数多"不代表强，只给很小的分；
+        # 1.5% 左右 → 60分上下（分歧期），4%+ 才够 80 分（一致期），口径写在卡面。
+        score = round(min(35 + min(pct, 6) * 9 + min(up, 20) * 0.3
+                          + (5 if ratio >= 1.5 else 0) + (8 if pct >= 4 else 0), 100.0), 1)
+        stage = '一致期' if score >= 70 else ('分歧期' if score >= 50 else '退潮期')
+        out.append((nm, score, stage, str(x.get('f128') or '').strip(), pct))
+    out.sort(key=lambda t: -t[1])
+    return out[:top_n]
+
+
+def _ext_mainlines(top_n=5):
+    """当日主线排序：优先人工/外部覆盖（给我主线名单时 100% 照用），否则按概念板块强度自算。"""
+    ov = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'mainlines_override.json')
+    try:
+        if os.path.exists(ov):
+            with open(ov, 'r', encoding='utf-8') as f:
+                raw = json.load(f) or []
+            rows = [(str(x.get('name')), float(x.get('score') or 0),
+                     str(x.get('stage') or '分歧期'), str(x.get('leader') or ''), None)
+                    for x in raw if isinstance(x, dict) and x.get('name')]
+            if rows:
+                print('[ext] 用 override 主线 %d 条' % len(rows))
+                return rows[:top_n]
+    except Exception as e:
+        print('[ext] override 读取失败:', e)
+    return _ext_concepts(top_n)
 
 
 def _ext_hard_html(pack):
@@ -10915,105 +10955,166 @@ def _ext_hard_html(pack):
     return ''.join('<div style="margin-top:2px;">%s</div>' % r for r in rows) + tip
 
 
+def _ext_macro_html(pack):
+    """宏观底色：≤3 项，只写数值和方向。美债10Y变动bp国内免费源取不到原值，
+    按用户规范"未提供的数据直接省略"，整项不写，绝不用ETF代理冒充收益率。"""
+    stk = pack['stk'] or {}
+    rows = []
+    uup = stk.get('美元指数')
+    if uup is not None:
+        rows.append('美元指数代理 <b style="color:%s">%+.2f%%</b>（%s）'
+                    % (RED if uup > 0 else GREEN, uup, '走强' if uup > 0 else '走弱'))
+    if pack['cnh']:
+        cur, pct = pack['cnh']
+        rows.append('离岸人民币 %.4f <b>%+.2f%%</b>（%s）' % (cur, pct, '贬值' if pct > 0 else '升值'))
+    if pack['a50'] is not None:
+        rows.append('A50夜盘 <b style="color:%s">%+.2f%%</b>'
+                    % (RED if pack['a50'] >= 0 else GREEN, pack['a50']))
+    if not rows:
+        return '<div style="color:%s">宏观数据未取得</div>' % GREY
+    return '<div style="margin-top:3px;line-height:1.8;">' + ''.join('· ' + r + '<br>' for r in rows) + '</div>'
+
+
+def _ext_node(stage, leader):
+    """观察节点：按情绪阶段给可验证落点，不用"开盘竞价与首波承接"这种万能句。"""
+    if not leader:
+        return ''
+    if stage == '一致期':
+        return '%s 能否继续加速，同线跟风票是否补齐' % leader
+    if stage == '退潮期':
+        return '%s 低开走弱，这条线当日不参与' % leader
+    return '%s 开盘承接，不破昨日封板价才算这条线没散' % leader
+
+
 def _ext_map_html(pack, mains, data):
-    """主线映射：每条必须三层（外盘标的 → 哪条主线什么方向 → 关注什么节点）。"""
+    """产业主线映射：外盘产业事件 → 主线名称及评分 → 传导逻辑 → 观察节点，四要素缺一不写。"""
     lines = []
-    pairs = []
+    rows = []
+
+    def _emit(rr):
+        for i, (e, l, g, n) in enumerate(rr[:5], 1):
+            lines.append('<div style="margin-top:6px;">%d. %s → 映射至 <b style="color:#ffd43b;">%s</b>'
+                         ' → 传导：<b>%s</b> → 观察：%s</div>' % (i, e, l, g, n))
+        return ''.join(lines)
+
+    names = [m[0] for m in (mains or []) if m[0]]
     for it in (data.get('map') or []):
         e = str(it.get('ext') or '').strip()
         l = str(it.get('line') or '').strip()
+        g = str(it.get('logic') or '').strip()
         n = str(it.get('node') or '').strip()
-        if not (e and l and n):                      # 缺一层就不写
+        if not (e and l and g and n):          # 四要素缺一层直接丢弃
             continue
-        pairs.append((e, l, n))
-    if pairs:
-        for i, (e, l, n) in enumerate(pairs[:6], 1):
-            lines.append('<div style="margin-top:4px;">%d. <span style="color:#ffd43b;">%s</span> → %s → 关注 %s</div>'
-                         % (i, e, l, n))
-        return ''.join(lines)
-    # 兜底：按主线 × 外盘标的规则表拼三层，绝不空段
-    alt = []
-    for theme, score, _lv, leader in (mains or [])[:4]:
-        hit = False
+        # 防篡改主线：line 必须落在给定主线名单里，模型自造"通用设备/汽车零部"直接丢弃
+        if names and not any(nm in l for nm in names):
+            print('[ext] 丢弃篡改主线名的一条映射:', l[:40])
+            continue
+        # 防万能节点：模型写"开盘竞价与首波承接"就换成按情绪阶段的具体节点
+        if '首波承接' in n or '开盘竞价' in n:
+            hm = next((x for x in (mains or []) if x[0] and x[0] in l), None)
+            if not hm:
+                continue
+            n = _ext_node(hm[2] if len(hm) > 2 else '', hm[3] if len(hm) > 3 else '') or n
+        rows.append((e, l, g, n))
+    if rows:
+        return _emit(rows)
+    # 规则兜底：概念主线 × 外盘产业标的
+    for m_it in (mains or [])[:4]:
+        theme, score, stage, leader = m_it[0], m_it[1], m_it[2], m_it[3]
+        ev = logic = None
         for kws, keys in _EXT_LINE_KEYS:
             if any(k in theme for k in kws):
                 for key in keys:
                     v = pack['us'].get(key) if key in pack['us'] else pack['stk'].get(key)
-                    if v is None:
-                        continue
-                    alt.append((key, v, theme, score, leader))
-                    hit = True
-                    break
+                    if v is not None:
+                        ev = '%s %+.2f%%' % (key, v)
+                        logic = '负向压制' if v < 0 else '正向刺激'
+                        break
                 break
-        if not hit:
-            # 无专属标的 → 用大盘风险偏好变量，仍是可验证的三层
-            for key in _EXT_GLOBAL_KEYS:
-                v = (pack['fut'] if key == '标普期货' else
-                     pack['a50'] if key == 'A50夜盘' else pack['us'].get('纳指'))
-                if v is None:
-                    continue
-                alt.append((key, v, theme, score, leader))
-                break
-    if not alt:
-        return '<div style="color:%s">主线与外盘均未取到数据，本段无有效映射</div>' % GREY
-    for i, (key, v, theme, score, leader) in enumerate(alt[:5], 1):
-        direction = '走弱压制' if v < 0 else '走强助推'
-        node = ('%s 开盘竞价与首波承接' % leader) if leader else '该主线龙头开盘竞价强弱'
-        lines.append('<div style="margin-top:4px;">%d. <span style="color:#ffd43b;">%s %+.2f%%</span> → %s（%.0f分）%s → 关注 %s</div>'
-                     % (i, key, v, theme, score, direction, node))
-    return ''.join(lines)
-
-
-_EXT_EVENT_KW = ('美联储', 'FOMC', 'CPI', '非农', 'PCE', 'GDP', '财报', '关税', 'OPEC',
-                 'GTC', '议息', '降息', '加息', '利率决议', '非农就业')
-
-
-def _ext_events(news, mains):
-    """兜底事件日历：只从真实新闻标题里抽事件（不编、不猜），抽不到就写无重大事件。"""
-    out = []
-    for nw in (news or [])[:14]:
-        t = str(nw.get('title') or '').strip()
-        if not t:
-            continue
-        if any(k in t for k in _EXT_EVENT_KW):
-            out.append(t[:46] + ' → 影响全市场风险偏好与主线定价')
-        if len(out) >= 2:
-            break
-    return out or ['无重大事件']
+        if not ev:
+            continue          # 无产业交集就跳过，绝不用标普/纳指硬凑（用户明令禁止废话映射）
+        node = _ext_node(stage, leader) or '该主线无代表股数据，节点暂缺'
+        rows.append((ev, '%s（%.0f分・%s）' % (theme, score or 0, stage or '分歧期'), logic, node))
+    if not rows:
+        names = '、'.join(m[0] for m in (mains or [])[:4]) or '当日主线'
+        return ('<div style="color:%s;line-height:1.7;">隔夜外盘没有能映射到当日主线（%s）的产业级事件，'
+                '外盘对这些方向只提供情绪底色，不构成产业传导。</div>' % (GREY, names))
+    extra = ''
+    kept = [r[1].split('（')[0] for r in rows]
+    rest = [m[0] for m in (mains or []) if m[0] not in kept]
+    if rest and len(rows) < 4:
+        extra = ('<div style="color:%s;font-size:11px;margin-top:4px;">其余主线（%s）与外盘产业端无交集，'
+                 '只受情绪定价。</div>' % (GREY, '、'.join(rest)))
+    return _emit(rows) + extra
 
 
 def _ext_fallback(pack, mains, news=None):
-    """LLM 未返回时的规则兜底：结论按硬变量定性，其余段给可验证的最小结论。"""
-    fei = pack['us'].get('费半')
+    """LLM 未返回时的规则兜底：一句话定性（风险偏好＋对第一主线正/负/无）＋风险预警。
+    全部陈述句，只用代码取到的真数，缺项不写。"""
+    us = pack['us'] or {}
+    stk = pack['stk'] or {}
+    fei = us.get('费半')
+    tesla = stk.get('特斯拉')
+    aapl = stk.get('苹果')
     a50 = pack['a50']
-    heads = [x for x in (mains or []) if x[0] and x[0] != '其他']
-    top = heads[0][0] if heads else ''
-    top_hit_semi = any(k in (top or '') for k in ('半导体', '芯片', '电子', '算力', '存储', '元件'))
-    if fei is not None and fei <= -2.0:
-        if top_hit_semi:
-            concl = '隔夜外盘半导体链集体走弱（费半 %+.2f%%），A股风险偏好开盘承压，%s 方向首当其冲。' % (fei, top)
-        else:
-            concl = ('隔夜外盘半导体链集体走弱（费半 %+.2f%%），A股风险偏好开盘承压，半导体/算力方向受冲击最大，'
-                     '第一主线%s要看能不能走出独立行情。' % (fei, top or '当日最强题材'))
+    heads = [m for m in (mains or []) if m[0]]
+    top = heads[0] if heads else ('', 0, '', '', None)
+    top_name, top_score, top_stage = top[0], top[1], top[2]
+
+    semi_kw = ('半导体', '芯片', '封测', '存储', '先进封装', '光刻', '算力', 'CPO', '光模块',
+               '电子', '面板', 'PCB')
+    robot_kw = ('机器人', '人形', '减速器', '伺服', '工业母机', '灵巧手')
+    auto_kw = ('新能源车', '汽车', '智能驾驶', '一体化压铸', '充电桩', '固态电池')
+    apple_kw = ('消费电子', '苹果', '果链', 'MR', 'VR', '智能穿戴', '折叠屏')
+
+    neg = []                              # [(外盘名, 值, 对应关键词组)]
+    if fei is not None and fei <= -1.5:
+        neg.append(('费半', fei, semi_kw))
+    if tesla is not None and tesla <= -3.0:
+        neg.append(('特斯拉', tesla, robot_kw + auto_kw))
+    if aapl is not None and aapl <= -2.5:
+        neg.append(('苹果', aapl, apple_kw))
+
+    hit = None
+    for nm, v, kws in neg:
+        if any(k in (top_name or '') for k in kws):
+            hit = (nm, v)
+            break
+
+    # —— 一句话定性：风险偏好定性 + 对第一主线 正向/负向/无影响 ——
+    if neg:
+        worst = min(neg, key=lambda t: t[1])
+        base = '隔夜外盘产业端走弱（%s %+.2f%%），A股风险偏好开盘承压' % (worst[0], worst[1])
+        if len(neg) >= 2:
+            base += '，%s %+.2f%% 同步拖累' % (neg[1][0], neg[1][1])
     elif a50 is not None and a50 <= -0.5:
-        concl = 'A50 夜盘 %+.2f%%，外盘情绪偏空，A股开盘指数层面先承压再看主线能否独立走强。' % a50
+        base = 'A50 夜盘 %+.2f%%，外盘给的是偏空底色' % a50
     elif a50 is not None and a50 >= 0.5:
-        concl = 'A50 夜盘 %+.2f%%，外盘给的是顺风，A股按自身主线节奏推进即可。' % a50
+        base = 'A50 夜盘 %+.2f%%，外盘给的是顺风底色' % a50
     else:
-        concl = '隔夜外盘整体平稳，没有改变风险偏好的变量，A股按自身主线节奏走。'
-    if heads and all((x[2] or '') != '加速期' for x in heads):
-        concl += '当日主线评分全在分歧期，没有加速方向，属于存量博弈。'
+        base = '隔夜外盘平稳，没有改变风险偏好的产业级变量'
+    if top_name:
+        if hit:
+            tail = '对第一主线%s（%.0f分・%s）是负向传导，这条线开盘要吃外盘压制。' % (top_name, top_score or 0, top_stage or '')
+        elif neg:
+            tail = '对第一主线%s（%.0f分・%s）无直接产业传导，只是情绪层面的压制，逻辑本身没被打断。' % (top_name, top_score or 0, top_stage or '')
+        else:
+            tail = '对第一主线%s（%.0f分・%s）无影响，按自身节奏走。' % (top_name, top_score or 0, top_stage or '')
+        verdict = base + '，' + tail
+    else:
+        verdict = base + '。'
+
     risk = []
     if fei is not None and fei <= -2.0:
-        risk.append('费半 %+.2f%% → 压制半导体/算力主线开盘定价' % fei)
-    for nm in ('美债10Y', '美债20Y'):
-        v = pack['stk'].get(nm)
-        if v is not None and v <= -0.3:
-            risk.append('%s %+.2f%%（利率上行代理）→ 压制高估值成长主线' % (nm, v))
-    if pack['stk'].get('美元指数') is not None and pack['stk']['美元指数'] >= 0.3:
-        risk.append('美元 %+.2f%% 走强 → 压制外资偏好品种与出口链定价' % pack['stk']['美元指数'])
-    return {'conclusion': concl, 'map': [], 'calendar': _ext_events(news, mains),
-            'risk': risk or ['无显著异动']}
+        risk.append('费半 %+.2f%%，半导体与算力方向的开盘定价还要往下压' % fei)
+    if tesla is not None and tesla <= -3.0:
+        risk.append('特斯拉 %+.2f%%，机器人链与新能源车链的映射会跟着走弱' % tesla)
+    uup = stk.get('美元指数')
+    if uup is not None and uup >= 0.3:
+        risk.append('美元走强（代理 %+.2f%%），压制外资偏好的高估值品种' % uup)
+    if a50 is not None and a50 <= -0.5:
+        risk.append('A50 夜盘 %+.2f%%，指数低开后主线不接力，日内会走成普跌' % a50)
+    return {'verdict': verdict, 'map': [], 'risk': risk[:2] or ['无显著异动']}
 
 
 def _ext_parse(t):
@@ -11042,25 +11143,27 @@ def build_ext():
         news = get_news(14) or []
     except Exception:
         news = []
-    hard_txt = []
-    for nm in ('纳指', '道指', '标普', '费半'):
+    # 给模型的外盘事实：产业标的优先，大盘指数只作底色，商品只推超2%的异动
+    fact = []
+    for nm in ('纳指', '标普', '费半'):
         if pack['us'].get(nm) is not None:
-            hard_txt.append('%s %+.2f%%' % (nm, pack['us'][nm]))
+            fact.append('%s %+.2f%%' % (nm, pack['us'][nm]))
     if pack['fut'] is not None:
-        hard_txt.append('标普夜盘期货 %+.2f%%' % pack['fut'])
-    for nm, code in _EXT_TX_STK:
-        if pack['stk'].get(nm) is not None:
-            hard_txt.append('%s(ETF代理) %+.2f%%' % (nm, pack['stk'][nm]))
+        fact.append('标普夜盘期货 %+.2f%%' % pack['fut'])
+    for nm in ('英伟达', '特斯拉', '苹果', '台积电', '超威半导体', '博通', '费半ETF'):
+        if (pack['stk'] or {}).get(nm) is not None:
+            fact.append('%s %+.2f%%' % (nm, pack['stk'][nm]))
+    for nm, v in (pack['comm'] or {}).items():
+        if abs(v) >= 2.0:
+            fact.append('%s %+.2f%%(异动超2%%)' % (nm, v))
     if pack['a50'] is not None:
-        hard_txt.append('A50夜盘 %+.2f%%' % pack['a50'])
+        fact.append('A50夜盘 %+.2f%%' % pack['a50'])
     if pack['cnh']:
-        hard_txt.append('离岸人民币 %.4f(%+.2f%%)' % pack['cnh'])
-    for nm, v in pack['comm'].items():
-        hard_txt.append('%s %+.2f%%' % (nm, v))
-    if pack['hk'] is not None:
-        hard_txt.append('恒生 %+.2f%%' % pack['hk'])
-    hard_line = '；'.join(hard_txt) or '外盘数据未取得'
-    mains_line = '；'.join('%s %.0f分(%s)' % (m[0], m[1] or 0, m[2] or '') for m in mains) or '主线数据未取得'
+        fact.append('离岸人民币 %.4f(%+.2f%%)' % pack['cnh'])
+    hard_line = '；'.join(fact) or '外盘数据未取得'
+    # 主线必须带评分+情绪阶段+代表股，模型只能原样引用，不许换名
+    mains_line = '；'.join('%s(%.0f分,%s,代表股%s)' % (m[0], m[1] or 0, m[2] or '', m[3] or '未标')
+                          for m in mains) or '主线数据未取得'
     data = None
     if DEEPSEEK_KEY:
         # 独立系统提示：全局 _ASK_DS_SYS 要求"连贯大白话段落、禁条目罗列"，
@@ -11069,24 +11172,23 @@ def build_ext():
         sys_txt = ('你是外盘窗口推送编辑，负责把隔夜外盘变量映射到A股当前事件驱动主线上。'
                    '你的输出只有一个 JSON 对象：不要解释、不要 Markdown、不要在 JSON 之外写任何句子。'
                    '反模板强化：不写空话套话，每条结论必须绑定输入里的真实数值与真实主线名。')
-        fmt = ('你是一名外盘窗口推送编辑，负责把隔夜外盘变量映射到A股当前事件驱动主线上，'
-               '输出盘前1-2屏推送，结论先行，每条信息必须带映射结论，不写新闻摘要。\n'
-               '今日日期：{date}\n'
-               '隔夜外盘硬变量（真实取数，可直接引用，禁止改动任何数值、禁止新增没给的数字）：{hard}\n'
-               'A股当前主线评分排序（题材健康分，越高越强，优先级按此排序）：{mains}\n'
-               '全球财经消息（东财7x24）：{news}\n'
-               '严格只输出 JSON，不要任何解释文字：\n'
-               '{"conclusion":"一句话结论，陈述句，给隔夜外盘对A股风险偏好和第一主线的定性判断，'
-               '不超过两行，禁止问句","map":[{"ext":"外盘标的及涨跌幅或事件","line":"对哪条主线什么方向",'
-               '"node":"关注A股哪个节点或标的"}],"calendar":["事件 → 影响哪条主线"],'
-               '"risk":["变量 → 可能压制哪条主线"]}\n'
-               '硬规则：禁止自问自答、禁止为什么/这意味着什么/是不是/要不要/怎么看等设问、禁止问句做标题，'
-               '全部陈述句直接给结论；map 只推能映射到上面主线排序的外盘标的与事件，与主线无关的海外个股、'
-               '宏观数据、人事变动、八卦一律不写；每条 map 三层缺一层就不写，node 必须是可验证的具体节点'
-               '（具体板块方向/具体个股/具体时间点），禁止"关注某板块"这种无法验证的表述；map 最多6条，'
-               '第一主线排第一；calendar 只写对当前主线有潜在冲击的事件，没有就输出 ["无重大事件"]；'
-               'risk 只写会改变风险偏好或压制主线定价的变量，没有就输出 ["无显著异动"]；'
-               '不重复同一事件，不堆数字，全文1-2屏。')
+        fmt = ('你是资深A股与海外映射研究员，写盘前"外盘窗口"推送。核心能力是识别海外产业级事件'
+               '（费半、英伟达、特斯拉、苹果、台积电这类有产业指向的标的），不解读大盘涨跌。\n'
+               '日期：{date}\n'
+               '隔夜外盘真实数据（禁止改动任何数值、禁止新增没给的数字）：{hard}\n'
+               'A股当前主线（名称/评分/情绪阶段/代表股，必须原样使用）：{mains}\n'
+               '消息面：{news}\n'
+               '只输出一个 JSON 对象，不要解释、不要 Markdown：\n'
+               '{"verdict":"一句话定性：先定外盘对A股风险偏好的影响，再直接点出对第一主线是正向/负向/无影响，'
+               '不超过两行","map":[{"ext":"外盘产业事件或龙头表现(带涨跌幅)","line":"主线名称及评分，必须原样抄上面给的",'
+               '"logic":"正向刺激/负向压制/逻辑脱敏 三选一","node":"观察节点，结合代表股与情绪阶段"}],'
+               '"risk":["1-2条会打破上述逻辑的变量"]}\n'
+               '硬规则：全篇陈述句，禁止任何问句、设问、反问、自问自答，禁止出现为什么/是不是/怎么看/'
+               '这意味着什么；map 只推有产业指向的标的，纳指标普这类普通涨跌不要硬推个股，'
+               '主线自身有独立逻辑时 logic 写"逻辑脱敏"；line 只能填上面给的主线名，一个都不许改成'
+               '通用设备、汽车零部这类行业名；node 必须是能验证的具体动作——分歧期写看承接、'
+               '一致期写看加速、退潮期写不参与，严禁写"关注开盘竞价与首波承接"这种万能句；'
+               '未给的数据直接省略不编；map 最多4条，第一主线排第一，全文1-2屏。')
         t = ask_deepseek({'task': 'ext_window', 'date': _bj_now().strftime('%Y-%m-%d'),
                           'hard': hard_line, 'mains': mains_line,
                           'news': [nw.get('title') for nw in news[:12]], 'format': fmt},
@@ -11096,24 +11198,21 @@ def build_ext():
             print('[ext] LLM 未返回可解析 JSON，走规则兜底 | 原文前120字:', (t or '')[:120].replace('\n', ' '))
     if data is None:
         data = _ext_fallback(pack, mains, news)
-    concl = str(data.get('conclusion') or '').strip() or _ext_fallback(pack, mains, news)['conclusion']
-    cal = [str(x).strip() for x in (data.get('calendar') or []) if str(x).strip()] or ['无重大事件']
-    risk = [str(x).strip() for x in (data.get('risk') or []) if str(x).strip()] or ['无显著异动']
-    cal_html = ''.join('<div style="margin-top:2px;">· %s</div>' % x for x in cal[:4])
-    risk_html = ''.join('<div style="margin-top:2px;">· %s</div>' % x for x in risk[:4])
-    mains_head = (''.join('<div style="color:%s;font-size:11px;margin-top:2px;">主线排序：%s</div>' % (GREY, mains_line))
-                  if mains else '<div style="color:%s;font-size:11px;margin-top:2px;">主线数据未取得</div>' % GREY)
-    inner = (f'<div style="margin-top:8px;font-size:14px;line-height:1.75;color:#f1f3f5;">'
-             + f'<b style="color:#ffd43b;">■ 一句话结论：</b>{concl}</div>'
-             + '<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
-             + '<b style="color:#ffd43b;">■ 硬变量：</b>' + _ext_hard_html(pack) + '</div>'
-             + '<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
-             + '<b style="color:#ffd43b;">■ 主线映射：</b>' + mains_head + _ext_map_html(pack, mains, data) + '</div>'
-             + '<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
-             + '<b style="color:#ffd43b;">■ 事件日历：</b>' + cal_html + '</div>'
-             + '<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
-             + '<b style="color:#ffd43b;">■ 风险预警：</b>' + risk_html + '</div>'
-             + f'<div style="margin-top:8px;color:{GREY};font-size:11px;">以上只做变量提示</div>')
+    fb = _ext_fallback(pack, mains, news)
+    verdict = str(data.get('verdict') or data.get('conclusion') or '').strip() or fb['verdict']
+    risk = [str(x).strip() for x in (data.get('risk') or []) if str(x).strip()] or fb['risk']
+    risk_html = ''.join('<div style="margin-top:2px;">· %s</div>' % x for x in risk[:2])
+    inner = ('<div style="margin-top:8px;font-size:14px;line-height:1.75;color:#f1f3f5;">'
+             '<b style="color:#ffd43b;">■ 一句话定性：</b>' + verdict + '</div>'
+             '<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
+             '<b style="color:#ffd43b;">■ 宏观底色：</b>' + _ext_macro_html(pack) + '</div>'
+             '<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
+             '<b style="color:#ffd43b;">■ 产业主线映射：</b>'
+             '<div style="color:' + GREY + ';font-size:11px;margin-top:2px;">' + mains_line + '</div>'
+             + _ext_map_html(pack, mains, data) + '</div>'
+             '<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
+             '<b style="color:#ffd43b;">■ 风险预警：</b>' + risk_html + '</div>'
+             '<div style="margin-top:8px;color:' + GREY + ';font-size:11px;">以上只做变量提示</div>')
     return _wrap(inner, '🌙', '外盘窗口')
 
 
