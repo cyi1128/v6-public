@@ -12624,6 +12624,10 @@ def build_evening():
     _ev_news.sort(key=lambda x: -x[1]['score'])
     ev_news = [x[0] for x in _ev_news] or news
     ev_news = _news_cluster_cap(ev_news, 2)   # 同主题刷屏控制（如医保目录当天十几家药企各发一条）
+    # 晚间卡是当天最后一张：先剔除当日两小时卡/休市卡已上过版面的同一批消息，
+    # 只留新东西；新消息不足 4 条才把旧条目降到跟踪位补位，保证卡不空、又不复述前面几张。
+    ev_news = [n for n, _t in _news_dedup(ev_news, 'evening', min_keep=4, max_new=10, cross=True)]
+    _seen_mark('evening', ev_news)
     news_brief = [{'t': nw['title'], 's': (nw.get('summary') or '')[:50]} for nw in ev_news[:12]]
     # —— DS 大白话汇总 ——
     ds_html = ''
@@ -16875,15 +16879,31 @@ def _seen_save(m):
         print('[dedup] 账本写入失败:', str(e)[:60])
 
 
-def _news_dedup(news, kind, min_keep=6, max_new=12):
+def _news_seen_union(exclude=None):
+    """当天所有卡已发过的标题指纹并集。exclude 传当前 kind 时排除自己那份账，
+    用于晚间卡避开当日两小时卡/休市卡已经上过版面的同一批消息。"""
+    _m = _seen_load()
+    _d = _bj_now().strftime('%Y-%m-%d')
+    _s = set()
+    for _k, _v in (_m.get(_d) or {}).items():
+        if exclude and _k == exclude:
+            continue
+        _s |= set(_v or [])
+    return _s
+
+
+def _news_dedup(news, kind, min_keep=6, max_new=12, cross=False):
     """同一类卡当天跨窗口去重：新增优先；不足 min_keep 才补已发过的（标为跟踪）。
 
     为什么不直接删干净：2 小时窗口里真正的新消息常常只有两三条，全删会让卡变空壳。
     已发过的条目对用户仍然是「这条还在推进」的信息，所以降到跟踪位，而不是消失。
+    cross=True 时连同当天其它卡（两小时/休市日）已发的也一起排除，让晚间卡不复述前几张。
     返回 [(news, is_track), ...]。"""
     _m = _seen_load()
     _d = _bj_now().strftime('%Y-%m-%d')
     _old = set((_m.get(_d) or {}).get(kind) or [])
+    if cross:
+        _old |= _news_seen_union(exclude=kind)
     _new, _rep = [], []
     for _n in news or []:
         _fp = _news_fp(_n.get('title'))
