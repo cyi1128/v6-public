@@ -11656,7 +11656,13 @@ def _dl_tape_desc(code):
         v5 = sum(vols[-6:-1]) / 5.0 if len(vols) >= 6 else 1.0
         vr = (vols[-1] / v5) if v5 > 0 else 0.0
         cap = _dl_mktcap(code)
-        if chg >= 9.5:
+        limit = 9.5
+        sc = str(code)
+        if sc.startswith(('30', '68', '69')):
+            limit = 19.5
+        elif sc.startswith(('4', '8', '9')):
+            limit = 29.5
+        if chg >= limit:
             desc = '今日涨停，已明牌'
         elif chg <= -5 and cur < ma20:
             desc = '放量大跌·破20线'
