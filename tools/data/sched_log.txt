@@ -2192,3 +2192,8 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-15 09:10:28 >>> 执行槽位 factor_weekly @ 09:10:28
 11-15 09:10:28 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-15 09:10:29     factor_weekly| SLOT factor_weekly 本期已推送，跳过
+11-15 09:10:30 持久化(factor_weekly)：已推送
+11-15 09:10:30 <<< 完成槽位 factor_weekly，用时 1.5s
+11-15 09:10:30 >>> 执行槽位 watch @ 09:10:30
+11-15 09:10:30 >>> 预算：LLM 600s / 单模型 120s / 子进程上限 750s
+11-15 09:10:30     watch| SLOT watch 休市日新闻汇总 2026-11-15-08 窗口已推送（2小时去重），跳过
