@@ -11432,19 +11432,19 @@ def _dl_line(r, mt):
     else:
         head += ' 现价待补'
     old_s = str(mt.get('oldtag') or ('、'.join(r['old'][:3]) if r['old'] else ('市场按「%s」板块归类' % r['block'])))
-    new_s = str(mt.get('newlogic') or ('%s 方向有新增披露' % '、'.join(r['new'][:3])))[:78]
-    pin_s = str(mt.get('pin') or '')[:22]
+    new_s = str(mt.get('newlogic') or ('%s 方向有新增披露' % '、'.join(r['new'][:3])))[:56]
+    pin_s = str(mt.get('pin') or '')[:14]
     if pin_s:
         new_s = new_s + '·卡位' + pin_s
-    src_s = str(mt.get('src') or '')[:40]
+    src_s = str(mt.get('src') or '')[:30]
     if not src_s:
         m2 = re.search(r'(\d{4}年\d{1,2}月\d{1,2}日[^，,]{0,16})', r['reason_info'])
-        src_s = m2.group(1) if m2 else r['reason_type'][:24]
+        src_s = m2.group(1) if m2 else r['reason_type'][:20]
     ma, q = _dl_form(t)
-    front = '%s主线%.0f分·%s，不破5日线' % (r['theme'], r['block_score'], r['stage'])
+    front = '%s%.0f分·%s' % (r['theme'], r['block_score'], r['stage'])
     grade = str(mt.get('grade') or ('强' if r['strength'] == 2 else ('中' if r['strength'] == 1 else '弱')))
     note = '贴合度%s｜%s' % (grade, str(mt.get('falsify') or
-                                     ('公司否认「%s」即作废' % r['reason_type'][:22]))[:44])
+                                     ('公司否认「%s」即作废' % r['reason_type'][:18]))[:30])
     return ('%s | 旧:%s。新:%s（%s） | 前置:%s | 均线:%s | 量价:%s | 备注:%s'
             % (head, old_s, new_s, src_s, front, ma, q, note))
 
