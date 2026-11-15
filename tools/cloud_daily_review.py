@@ -11971,7 +11971,8 @@ def _dl_text_llm(cands, bj):
            '4)赛道分散:theme 按真实赛道命名，不许把所有票都标成机器人;'
            '整份输出尽量覆盖 2-3 个不同赛道。' + chr(10) +
            '5)正文只是顺口提到新词、主业与它无关的，grade=弱并点明"不构成暗线"。' + chr(10) +
-           '6)items 与候选一一对应，不许换股、不许漏股。')
+           '6)oldtag 只能用该候选正文里真实出现的原主营，正文没写就填“主业未标注”，严禁编造或张冠李戴。' + chr(10) +
+           '7)items 与候选一一对应，不许换股、不许漏股。')
     t = ask_deepseek({'task': 'darkline', 'date': bj.strftime('%Y-%m-%d'),
                       'mains': mains_line, 'facts': chr(10).join(facts), 'format': fmt},
                      purpose='darkline', system_text=sys_txt)
@@ -11980,13 +11981,20 @@ def _dl_text_llm(cands, bj):
         print('[dl] 文本LLM 未返回可解析 JSON | 前120字:', (t or '')[:120].replace(chr(10), ' '))
     return data
 def _dl_text_fallback(cands):
-    """无 LLM 时规则兜底：用正文新词/旧词直接组 items。"""
-    items = [{'code': c['code'], 'oldtag': '、'.join(c['old'][:3]) or '主业未标注',
-              'newlogic': '、'.join(c['new'][:4]) + ' 方向有披露', 'grade': '弱',
-              'theme': (c['new'][0] if c['new'] else ''), 'why': '', 'falsify': ''} for c in cands]
+    """无 LLM 时规则兜底：正文命中实质动词给“中”，否则“弱”（弱项会被主流程剔除）。"""
+    subs = ('送样', '定点', '供货', '小批量', '量产', '中标', '订单', '验收', '签订', '交付')
+    items = []
+    for c in cands:
+        txt = c.get('text') or ''
+        hit = next((k for k in subs if k in txt), '')
+        items.append({'code': c['code'],
+                      'oldtag': '、'.join(c['old'][:3]) or '主业未标注',
+                      'newlogic': ('、'.join(c['new'][:4]) + '（正文出现“%s”）' % hit) if hit
+                                  else ('、'.join(c['new'][:4]) + ' 方向有披露，未见实质进展'),
+                      'grade': '中' if hit else '弱',
+                      'theme': (c['new'][0] if c['new'] else ''),
+                      'why': '', 'falsify': ''})
     return {'items': items, 'note': ''}
-
-
 def _dl_line_text(c, it):
     """单行全量输出：涨红跌绿、竖线分隔、不给买卖价。"""
     it = it or {}
@@ -12044,7 +12052,9 @@ def build_darkline():
             continue
         grade = str(it.get('grade') or '')
         nlogic = str(it.get('newlogic') or '')
-        if grade == '弱' and ('未见明确暗线' in nlogic or '不构成' in nlogic):
+        subs = ('送样', '定点', '供货', '小批量', '量产', '重大合同', '中标', '订单', '验收', '签订')
+        if grade not in ('强', '中') and not any(k in nlogic for k in subs):
+            print('[dl] 剔除无实质进展 %s grade=%s' % (c['name'], grade or '空'))
             continue
         tape = _dl_tape_desc(code)
         if tape is None:
