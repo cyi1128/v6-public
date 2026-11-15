@@ -11411,8 +11411,47 @@ def _dl_cninfo_search(searchkey, seDate, pageSize=50):
     return []
 
 
+def _dl_report_search(days=5):
+    """东财券商研报列表（免登录 JSON）：返回 [{code,name,title,date,pdf,tag,text}]。
+    研报只取标题/机构/评级/行业，正文预填这些字段，不下载研报 PDF。"""
+    se = _dl_se_days(days)
+    st, en = se.split('~')
+    out = []
+    h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36'}
+    for page in (1, 2):
+        try:
+            u = ('https://reportapi.eastmoney.com/report/list?industryCode=*&pageSize=50&industry=*'
+                 '&rating=&ratingChange=&beginTime=%s&endTime=%s&pageNo=%d&fields=&qType=0&orgCode=&code=&rcode=&p=%d&pageNum=%d'
+                 % (st, en, page, page, page))
+            req = urllib.request.Request(u, headers=h)
+            raw = urllib.request.urlopen(req, timeout=12).read().decode('utf-8', 'ignore')
+            rows = (json.loads(raw) or {}).get('data') or []
+            if not rows:
+                break
+            for r in rows:
+                code = str(r.get('stockCode') or '').strip()
+                nm = str(r.get('stockName') or '').strip()
+                if not code or not nm:
+                    continue
+                title = str(r.get('title') or '').strip()
+                dt = str(r.get('publishDate') or '')[:10]
+                rating = str(r.get('emRatingName') or '').strip()
+                ind = str(r.get('indvInduName') or '').strip()
+                org = str(r.get('orgSName') or '').strip()
+                text = '研报标题：%s；机构：%s；评级：%s；行业：%s；日期：%s' % (
+                    title, org, rating or '未评级', ind or '未分类', dt)
+                out.append({'code': code, 'name': nm, 'title': title, 'date': dt,
+                            'pdf': '', 'tag': '研报', 'text': text})
+            if len(rows) < 50:
+                break
+        except Exception as e:
+            print('[dl] 研报源失败%d: %s' % (page, repr(e)[:60]))
+            break
+    return out
+
+
 def _dl_text_fetch(days=5):
-    """文本源抓取（预期差主源）：巨潮调研纪要 + 多关键词全文搜公告，去重后返回。"""
+    """文本源抓取（预期差主源）：巨潮调研纪要 + 多关键词全文搜公告 + 东财券商研报，去重后返回。"""
     se = _dl_se_days(days)
     seen = {}
 
@@ -11426,9 +11465,10 @@ def _dl_text_fetch(days=5):
     for kw in DL_TEXT_KW:
         _add(_dl_cninfo_search(kw, se, 20), kw)
         time.sleep(0.25)
+    _add(_dl_report_search(days), '研报')
     out = list(seen.values())
     out.sort(key=lambda x: x['date'], reverse=True)
-    print('[dl] 文本源: 调研纪要+%d关键词，去重后 %d 条公告' % (len(DL_TEXT_KW), len(out)))
+    print('[dl] 文本源: 调研纪要+%d关键词公告+券商研报，去重后 %d 条' % (len(DL_TEXT_KW), len(out)))
     return out
 
 
@@ -11469,10 +11509,12 @@ def _dl_text_candidates(days=5):
     items = _dl_text_fetch(days)
 
     def _one(x):
-        try:
-            txt = _dl_pdf_text(x['pdf'])
-        except Exception:
-            txt = ''
+        txt = x.get('text') or ''
+        if not txt:
+            try:
+                txt = _dl_pdf_text(x['pdf'])
+            except Exception:
+                txt = ''
         if not txt:
             return None
         nw = [k for k in _DL_NEW_KW if k in txt]
@@ -11969,6 +12011,8 @@ def _dl_text_llm(cands, bj):
            '不许因为"文件类型是程序或融资文件"就整篇判弱。' + chr(10) +
            '2)必须写实质进展:送样/定点/供货/小批量/量产/重大合同/客户名/指标突破；'
            '只写"布局""涉足""合作研发中"这类文字的，grade 最高只能给弱。' + chr(10) +
+           '2b)券商研报的买入/增持/推荐只是机构观点，不等于公司业务已落地；'
+           '研报线索里只有"拓展/布局/合作/储备"而无送样、定点、供货、小批量、量产、合同、具名客户的，grade 最高只能给弱。' + chr(10) +
            '3)禁止伪机器人:通用机械、电机、齿轮、热流道、绞盘、橡塑件 不得挂机器人，'
            '除非正文明确出现"人形机器人"客户或人形产品，否则 grade=弱。' + chr(10) +
            '4)赛道分散:theme 按真实赛道命名，不许把所有票都标成机器人;'
