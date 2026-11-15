@@ -11556,7 +11556,7 @@ def _dl_html(rows, data, mains_line):
         lines.append('<div style="margin-top:5px;"><b>② 盘面验证前置条件</b></div>')
         lines.append('<div>· 主线企稳：%s 主线 %.0f分・%s，板块内涨停 %d 家；主线不破5日线才谈这条暗线</div>'
                      % (r['theme'], r['block_score'], r['stage'], r['lu']))
-        lines.append('<div>· 情绪周期：%s</div>' % str(mt.get('cycle') or r['stage']))
+        lines.append('<div>· 情绪周期：%s（按主线实际评分阶段，不由模型改写）</div>' % r['stage'])
         lines.append('<div style="margin-top:5px;"><b>③ 爆发信号触发</b></div>')
         lines.append('<div>· 量价：%s</div>' % tape_line)
         lines.append('<div>· 触发线：%s</div>' % trig)
@@ -11567,7 +11567,7 @@ def _dl_html(rows, data, mains_line):
         lines.append('<div style="margin-top:5px;"><b>④ 证伪与风险</b></div>')
         lines.append('<div>· 逻辑证伪：%s</div>'
                      % str(mt.get('falsify') or ('公司澄清未与相关客户合作，或材料未达量产标准，这条暗线当场作废')))
-        lines.append('<div>· 盘面破位：%s</div>' % str(mt.get('break') or brk))
+        lines.append('<div>· 盘面破位：%s</div>' % brk)
     note = str((data or {}).get('note') or '').strip()
     if note:
         lines.append('<div style="margin-top:8px;color:%s;font-size:11px;">%s</div>' % (GREY, note))
@@ -11608,7 +11608,7 @@ def build_darkline():
                '只输出一个 JSON 对象：\n'
                '{"items":[{"code":"候选代码，原样抄","src":"情报来源与时间，必须来自原文摘要，写清是官微/'
                '投资者关系活动记录表/公告/专利","oldtag":"市场旧标签","newlogic":"隐藏新逻辑，写清卡在哪个环节",'
-               '"grade":"强/中/弱 三选一","pin":"卡位痛点：主线里哪个环节靠它解决","cycle":"发酵期/分歧期/主升期三选一",'
+               '"grade":"强/中/弱 三选一","pin":"卡位痛点：主线里哪个环节靠它解决","cycle":"原样抄输入里给的主线阶段，不许改",'
                '"fund":"资金异动信号","falsify":"逻辑被证伪的具体信号","break":"盘面破位的具体价位或条件"}],'
                '"note":"一句总括，可为空"}\n'
                '硬规则：全篇陈述句，禁止任何问句、设问、反问、自问自答；'
