@@ -28,7 +28,8 @@ import re
 import subprocess
 import sys
 import time
-import urllib.request
+import urllib.request, urllib.parse
+import io
 try:
     from resonance_engine import compute_resonance as _reson_compute, resonance_banner as _reson_banner_html, \
         record_today as _reson_record, reconcile_today as _reson_reconcile, load_ledger as _reson_ledger
@@ -3829,7 +3830,8 @@ def _DEEP6_SYS_text():
 
 def _deep6_collect(code, name=''):
     """六层数据收集：快照+K线12日+F10主营+新闻+涨停池状态。失败字段=未取得，绝不编造。"""
-    sym = ('sh' if str(code).startswith('6') else 'sz') + str(code)
+    sym = ('sh' if str(code).startswith('6') else
+           ('bj' if str(code).startswith(('4', '8', '9')) else 'sz')) + str(code)
     q = {}
     try:
         f = _get('http://qt.gtimg.cn/q=' + sym, encoding='gbk').split('~')
@@ -11360,30 +11362,156 @@ def _dl_pool_save(blocks):
         print('[dl] 涨停池存档失败: %s' % repr(e)[:70])
 
 
+DL_TEXT_KW = ('机器人', '人形', '固态电池', '光刻胶', '减速器', '丝杠', '灵巧手',
+              '谐波', '伺服', '送样', '定点', '算力', '液冷', '铜连接', '具身智能',
+              '触觉传感器', '仿生皮肤', '中试', '小批量')
+
+
+def _dl_se_days(days=5):
+    now = _bj_now()
+    st = (now - timedelta(days=days)).strftime('%Y-%m-%d')
+    en = now.strftime('%Y-%m-%d')
+    return '%s~%s' % (st, en)
+
+
+def _dl_cninfo_search(searchkey, seDate, pageSize=50):
+    """巨潮公告全文搜（tabName=fulltext），返回 [{code,name,title,date,pdf}]。
+    互动易 / 上证e互动已 405/500 不可用，本模块只走巨潮。"""
+    u = 'http://www.cninfo.com.cn/new/hisAnnouncement/query'
+    h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+         'Referer': 'http://www.cninfo.com.cn/', 'X-Requested-With': 'XMLHttpRequest'}
+    d = {'pageNum': 1, 'pageSize': pageSize, 'column': 'szse', 'tabName': 'fulltext',
+         'plate': '', 'stock': '', 'searchkey': searchkey, 'secid': '', 'category': '',
+         'trade': '', 'seDate': seDate, 'sortName': '', 'sortType': '', 'isHLtitle': 'true'}
+    for i in range(3):
+        try:
+            req = urllib.request.Request(u, data=urllib.parse.urlencode(d).encode(), headers=h)
+            raw = urllib.request.urlopen(req, timeout=12).read().decode('utf-8', 'ignore')
+            j = json.loads(raw) or {}
+            anns = j.get('announcements') or []
+            out = []
+            for a in anns:
+                cd = str(a.get('secCode') or '').strip()
+                nm = re.sub(r'<[^>]+>', '', str(a.get('secName') or '')).strip()
+                if not cd or not nm:
+                    continue
+                title = re.sub(r'<[^>]+>', '', str(a.get('announcementTitle') or ''))
+                pdf = str(a.get('adjunctUrl') or '').strip()
+                dt = ''
+                try:
+                    dt = datetime.fromtimestamp(int(a.get('announcementTime') or 0) / 1000).strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+                out.append({'code': cd, 'name': nm, 'title': title, 'date': dt, 'pdf': pdf})
+            return out
+        except Exception as e:
+            print('[dl] 巨潮搜索失败%d(%s): %s' % (i + 1, searchkey, repr(e)[:50]))
+            time.sleep(0.8)
+    return []
+
+
+def _dl_text_fetch(days=5):
+    """文本源抓取（预期差主源）：巨潮调研纪要 + 多关键词全文搜公告，去重后返回。"""
+    se = _dl_se_days(days)
+    seen = {}
+
+    def _add(lst, tag):
+        for x in lst:
+            key = x['code'] + '|' + x['title'][:24]
+            if key not in seen:
+                seen[key] = dict(x, tag=tag)
+
+    _add(_dl_cninfo_search('投资者关系活动记录表', se, 80), '调研')
+    for kw in DL_TEXT_KW:
+        _add(_dl_cninfo_search(kw, se, 20), kw)
+        time.sleep(0.25)
+    out = list(seen.values())
+    out.sort(key=lambda x: x['date'], reverse=True)
+    print('[dl] 文本源: 调研纪要+%d关键词，去重后 %d 条公告' % (len(DL_TEXT_KW), len(out)))
+    return out
+
+
+def _dl_pdf_text(pdf):
+    """下载巨潮公告 PDF 并提取前 8 页正文。取不到返回空串。"""
+    if not pdf:
+        return ''
+    full = 'http://static.cninfo.com.cn/' + str(pdf).lstrip('/')
+    try:
+        req = urllib.request.Request(full, headers={'User-Agent': 'Mozilla/5.0'})
+        raw = urllib.request.urlopen(req, timeout=25).read()
+        if not raw.startswith(b'%PDF'):
+            return ''
+        try:
+            import pypdf
+        except Exception:
+            print('[dl] 缺 pypdf 依赖，无法解析公告正文')
+            return ''
+        reader = pypdf.PdfReader(io.BytesIO(raw))
+        parts = []
+        for pg in reader.pages[:8]:
+            try:
+                parts.append(pg.extract_text() or '')
+            except Exception:
+                pass
+        return '\n'.join(parts).strip()
+    except Exception as e:
+        print('[dl] PDF 下载/解析失败 %s: %s' % (str(pdf)[-24:], repr(e)[:60]))
+        return ''
+
+
+_DL_KLINE_CACHE = {}
+
+
+def _dl_text_candidates(days=5):
+    """第一步：文本抓取 + 新产业词粗筛，返回含新词的公告候选（含正文）。"""
+    items = _dl_text_fetch(days)
+    out = []
+    for x in items:
+        txt = _dl_pdf_text(x['pdf'])
+        if not txt:
+            continue
+        nw = [k for k in _DL_NEW_KW if k in txt]
+        if not nw:
+            continue
+        ow = [k for k in _DL_OLD_KW if k in txt]
+        out.append({'code': x['code'], 'name': x['name'], 'title': x['title'],
+                    'date': x['date'], 'src_tag': x['tag'], 'new': nw, 'old': ow,
+                    'text': txt})
+    print('[dl] 文本粗筛: %d 条含新产业词' % len(out))
+    return out
+
+
 def _dl_kline(code, n=40):
     """暗线专用日K：腾讯优先，腾讯 501 限流时走新浪（两个源都实测可用，
-    东财日K早已全节点 RemoteDisconnected，不再作为兜底）。返回 [日期,开,收,高,低,量]。"""
-    sym = ('sh' if str(code).startswith('6') else 'sz') + str(code)
+    东财日K早已全节点 RemoteDisconnected，不再作为兜底）。返回 [日期,开,收,高,低,量]。
+    进程内按 (code,n) 缓存，避免同一只票反复下 K 线。"""
+    key = (code, n)
+    if key in _DL_KLINE_CACHE:
+        return _DL_KLINE_CACHE[key]
+    sym = ('sh' if str(code).startswith('6') else
+           ('bj' if str(code).startswith(('4', '8', '9')) else 'sz')) + str(code)
+    out = []
     try:
         arr = get_klines(sym, n)
         if arr and len(arr) >= 6:
-            return arr
+            out = arr
     except Exception:
         pass
-    try:
-        u = ('https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData'
-             '?symbol=%s&scale=240&ma=no&datalen=%d' % (sym, n))
-        req = urllib.request.Request(u, headers={
-            'User-Agent': 'Mozilla/5.0', 'Referer': 'https://finance.sina.com.cn/'})
-        raw = urllib.request.urlopen(req, timeout=12).read().decode('utf-8', 'ignore')
-        d = json.loads(raw)
-        out = [[str(k['day']), float(k['open']), float(k['close']),
-                float(k['high']), float(k['low']), float(k['volume'])] for k in d]
-        if out:
-            return out
-    except Exception as e:
-        print('[dl] %s 新浪日K失败: %s' % (sym, repr(e)[:60]))
-    return []
+    if not out:
+        try:
+            u = ('https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData'
+                 '?symbol=%s&scale=240&ma=no&datalen=%d' % (sym, n))
+            req = urllib.request.Request(u, headers={
+                'User-Agent': 'Mozilla/5.0', 'Referer': 'https://finance.sina.com.cn/'})
+            raw = urllib.request.urlopen(req, timeout=12).read().decode('utf-8', 'ignore')
+            d = json.loads(raw)
+            out = [[str(k['day']), float(k['open']), float(k['close']),
+                    float(k['high']), float(k['low']), float(k['volume'])] for k in d]
+        except Exception as e:
+            print('[dl] %s 新浪日K失败: %s' % (sym, repr(e)[:60]))
+    if out:
+        _DL_KLINE_CACHE[key] = out
+    return out
 
 
 def _dl_tape(code):
@@ -11422,6 +11550,38 @@ def _dl_pct5(code):
         return None
 
 
+def _dl_lurk_filter(cands):
+    """第二步：盘面校验，只留"未爆发、缩量、站稳20线"的潜伏标的。
+    今日涨跌幅 -4%~+4%；近10日<20%；缩量(量比<1.2)；收盘>=20日线。"""
+    keep = []
+    for c in cands:
+        code = c['code']
+        chg = _dl_chg1(code)
+        p10 = _dl_pct10(code)
+        tape = _dl_tape(code)
+        if tape is None:
+            print('[dl] 跳过无盘面 %s %s' % (c['name'], code))
+            continue
+        if chg is None or not (-4.0 <= chg <= 4.0):
+            print('[dl] 剔除今日涨跌超界 %s %s' % (c['name'], ('%+.1f%%' % chg) if chg is not None else '未取到'))
+            continue
+        if p10 is not None and p10 >= 20:
+            print('[dl] 剔除近10日涨幅过高 %s %+.1f%%' % (c['name'], p10))
+            continue
+        if tape['vr'] >= 1.2:
+            print('[dl] 剔除未缩量 %s 量比%.2f' % (c['name'], tape['vr']))
+            continue
+        if tape['cur'] < tape['ma20']:
+            print('[dl] 剔除跌破20线 %s %.2f<%.2f' % (c['name'], tape['cur'], tape['ma20']))
+            continue
+        c['chg'] = chg
+        c['pct10'] = p10
+        c['tape'] = tape
+        keep.append(c)
+    print('[dl] 盘面过滤后 %d 只潜伏标的' % len(keep))
+    return keep
+
+
 def _dl_pct20(code):
     """近20日累计涨幅。用户红线：20日涨幅超40%已是主升高位，不是暗线。取不到返回 None。"""
     try:
@@ -11434,9 +11594,34 @@ def _dl_pct20(code):
         return None
 
 
+def _dl_pct10(code):
+    """近10日累计涨幅。取不到返回 None。"""
+    try:
+        arr = _dl_kline(code, 40)
+        if not arr or len(arr) < 11:
+            return None
+        c0, c1 = float(arr[-11][2]), float(arr[-1][2])
+        return ((c1 / c0 - 1) * 100) if c0 > 0 else None
+    except Exception:
+        return None
+
+
+def _dl_chg1(code):
+    """今日涨跌幅%。取不到返回 None。"""
+    try:
+        arr = _dl_kline(code, 40)
+        if not arr or len(arr) < 2:
+            return None
+        c0, c1 = float(arr[-2][2]), float(arr[-1][2])
+        return ((c1 / c0 - 1) * 100) if c0 > 0 else None
+    except Exception:
+        return None
+
+
 def _dl_mktcap(code):
     """流通市值（亿元），走腾讯单票行情（字段44）。取不到返回 None。"""
-    sym = ('sh' if str(code).startswith('6') else 'sz') + str(code)
+    sym = ('sh' if str(code).startswith('6') else
+           ('bj' if str(code).startswith(('4', '8', '9')) else 'sz')) + str(code)
     try:
         req = urllib.request.Request('http://qt.gtimg.cn/q=%s' % sym,
                                      headers={'User-Agent': 'Mozilla/5.0'})
@@ -11674,76 +11859,133 @@ def _dl_html(rows, data, mains_line):
     return ''.join(lines)
 
 
+def _dl_excerpt(text, nw, span=380):
+    """截取正文里首个新词前后的片段，控制喂给 LLM 的输入长度。"""
+    text = re.sub(r'\s+', ' ', text or '')
+    pos = -1
+    for k in nw:
+        p = text.find(k)
+        if p >= 0:
+            pos = p
+            break
+    if pos < 0:
+        return text[:800]
+    a = max(0, pos - span)
+    b = min(len(text), pos + span + 260)
+    return text[a:b]
+
+
+def _dl_text_parse(t):
+    """解析文本版 LLM 的 JSON，只校验 code 与 items 结构。src 由代码用真实 date/title 生成，不做护栏。"""
+    try:
+        m = re.search(r'\{.*\}', t or '', re.S)
+        o = json.loads(m.group(0)) if m else None
+    except Exception:
+        o = None
+    if not o or not isinstance(o.get('items'), list):
+        return None
+    items = [it for it in o['items'] if isinstance(it, dict) and it.get('code')]
+    if not items:
+        return None
+    return {'items': items, 'note': o.get('note') or ''}
+
+
+def _dl_text_llm(cands, bj):
+    """把文本候选正文片段喂 LLM，提炼旧主业 vs 新暗线。失败返回 None。"""
+    mains_line = '；'.join('%s(%.0f分)' % (m[0], m[1] or 0) for m in _ext_mainlines(5)) or '未取得'
+    facts = []
+    for c in cands:
+        ex = _dl_excerpt(c['text'], c['new'])
+        facts.append('%s(%s)｜类型:%s｜新词:%s｜旧词:%s｜正文片段:%s'
+                     % (c['name'], c['code'], c['src_tag'], '、'.join(c['new'][:6]),
+                        '、'.join(c['old'][:4]), ex))
+    sys_txt = ('你是A股"暗线潜伏雷达"：从公告/调研纪要正文里挖"旧主业掩盖新暗线"的预期差，'
+               '不推高位龙头，只找逻辑刚发酵、还没被市场定价的标的。只输出一个 JSON，不要解释、不要 Markdown。')
+    fmt = ('日期:{date}' + chr(10) + 'A股当前主线:{mains}' + chr(10) + '候选公司正文片段:{facts}' + chr(10) +
+           '只输出 JSON:{"items":[{"code":"原样抄","oldtag":"市场旧标签(它被当成什么行业)",'
+           '"newlogic":"新暗线:具体产品/技术+应用场景+产业链卡位或核心客户,不许只写方向词",'
+           '"grade":"强/中/弱","theme":"挂在输入里哪条主线(没有就写“其他”)",'
+           '"pin":"卡位痛点","falsify":"逻辑证伪的具体信号"}],"note":"一句总括"}' + chr(10) +
+           '硬规则:全篇陈述句,禁止设问/反问;只写正文里真实出现的信息,禁止编造;'
+           '正文只是顺口提到新词、主业与它无关的,grade 写"弱"并在 newlogic 里点明不构成暗线;'
+           'items 与候选一一对应,不许换股、不许漏股。')
+    t = ask_deepseek({'task': 'darkline', 'date': bj.strftime('%Y-%m-%d'),
+                      'mains': mains_line, 'facts': chr(10).join(facts), 'format': fmt},
+                     purpose='darkline', system_text=sys_txt)
+    data = _dl_text_parse(t)
+    if data is None:
+        print('[dl] 文本LLM 未返回可解析 JSON | 前120字:', (t or '')[:120].replace(chr(10), ' '))
+    return data
+def _dl_text_fallback(cands):
+    """无 LLM 时规则兜底：用正文新词/旧词直接组 items。"""
+    items = [{'code': c['code'], 'oldtag': '、'.join(c['old'][:3]) or '主业未标注',
+              'newlogic': '、'.join(c['new'][:4]) + ' 方向有披露', 'grade': '弱',
+              'theme': '', 'pin': '', 'falsify': ''} for c in cands]
+    return {'items': items, 'note': ''}
+
+
+def _dl_line_text(c, it):
+    """文本版单行：涨红跌绿、竖线分隔、不给买卖价。"""
+    it = it or {}
+    t = c.get('tape') or {}
+    cap = c.get('cap')
+    chg = c.get('chg')
+
+    def _e(s):
+        s = '' if s is None else str(s)
+        return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
+    nm = _e(c['name']) + (('(%.0f亿)' % cap) if cap else '')
+    body = ('%.2f(%+.1f%%)' % (t['cur'], chg)) if (t and chg is not None) else '现价待补'
+    col = 'red' if (chg is not None and chg > 0) else 'green'
+    head = '<font color="%s"><b>%s %s</b></font>' % (col, nm, body)
+    old_s = _e(str(it.get('oldtag') or ('、'.join(c['old'][:3]) if c['old'] else '主业未标注')))
+    new_s = _e(str(it.get('newlogic') or '、'.join(c['new'][:4])))[:72]
+    src_s = _e('%s·%s' % (c.get('date') or '', c.get('src_tag') or ''))
+    ma, q = _dl_form(t)
+    grade = str(it.get('grade') or '弱')
+    fals = str(it.get('falsify') or '')[:30]
+    note = ('贴合度%s｜%s' % (_e(grade), _e(fals))) if fals else '贴合度%s' % _e(grade)
+    return ('%s | 旧:%s。新:%s（%s） | 均线:%s | 量价:%s | 备注:%s'
+            % (head, old_s, new_s, src_s, _e(ma), _e(q), note))
+
+
+def _dl_html_text(final, by_code, mains_line):
+    lines = ['<div style="color:%s;font-size:11px;margin-top:2px;">当日主线：%s</div>' % (GREY, mains_line)]
+    for c in final:
+        one = _dl_line_text(c, by_code.get(c['code']))
+        lines.append('<div style="margin-top:6px;font-size:12px;line-height:1.65;">%s</div>' % one)
+    if not final:
+        lines.append('<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
+                     '今天没有同时满足"预期差够硬 + 盘面未爆发、缩量、站稳20线"的潜伏标的，不硬凑。</div>')
+    return ''.join(lines)
+
+
 def build_darkline():
-    """暗线情报与爆发点预警：情报源（涨停原因原文）→ 暗线拆解 → 主线共振 → 盘面触发线 → 证伪。"""
+    """暗线潜伏雷达：文本源抓预期差 → LLM 提炼旧主业/新暗线 → K线盘面校验（未爆发/缩量/站稳20线）。"""
     bj = _bj_now()
-    blocks = _dl_blocks()
-    _dl_pool_save(blocks)
-    rows = _dl_candidates(blocks, 20)
-    if not rows:
-        inner = ('<div style="margin-top:8px;font-size:13px;line-height:1.75;color:#e2e8f0;">'
-                 '当日涨停原因里没有出现"传统主业＋新产业逻辑"同时成立的个股，'
-                 '情报面不构成暗线，不硬凑标的。</div>')
-        return _wrap(inner, '🔍', '暗线情报')
-    for r in rows:
-        r['tape'] = _dl_tape(r['code'])
-        r['cap'] = _dl_mktcap(r['code'])
-    mains = _ext_mainlines(5)
-    mains_line = '；'.join('%s(%.0f分,代表股%s)' % (m[0], m[1] or 0, m[3] or '未标') for m in mains) or '主线数据未取得'
-    # 给模型的全部是真实事实，数值不许改
-    fact = []
-    for r in rows:
-        t = r['tape']
-        ta = '' if not t else ('现价%.2f MA5%.2f MA20%.2f 平台高点%.2f 量比%.2f' % (
-            t['cur'], t['ma5'], t['ma20'], t['p20'], t['vr']))
-        fact.append('%s(%s) 流通市值%s｜新逻辑主线%s %.0f分%s（当日涨停落在%s）｜涨停 %d 家｜涨停原因[%s]｜原文[%s]｜连板%d板（首板=1）｜近5日%s｜近20日%s｜%s'
-                    % (r['name'], r['code'], ('%.0f亿' % r['cap']) if r.get('cap') else '未取到',
-                       r['theme'], r['block_score'], r['stage'], r['block'], r['lu'],
-                       r['reason_type'], r['reason_info'][:150].replace('\n', ' '), r['continue'],
-                       ('%+.1f%%' % r['pct5']) if r['pct5'] is not None else '未取到',
-                       ('%+.1f%%' % r['pct20']) if r.get('pct20') is not None else '未取到', ta))
+    cands = _dl_text_candidates(days=5)
+    if not cands:
+        return _wrap('<div style="margin-top:8px;font-size:13px;line-height:1.75;color:#e2e8f0;">'
+                     '近5日巨潮调研纪要与公告正文里没有含新产业词的公司，情报面不构成暗线，不硬凑标的。</div>',
+                     '🔍', '暗线情报')
     data = None
     if DEEPSEEK_KEY:
-        sys_txt = ('你是A股"暗线潜伏雷达"：只挖逻辑刚发酵、资金刚试探、还没走出主升浪的左侧或'
-                   '突破前夜标的，不推已连板或近20日翻倍过的明牌高位股。输出只有一个 JSON 对象：'
-                   '不要解释、不要 Markdown、不要在 JSON 之外写任何句子。反模板强化：每句必须绑定'
-                   '输入里的真实情报原文与真实数值。候选已按红线过滤（只留首板、近20日涨幅不超40%），'
-                   '"潜伏逻辑"要写清它现在处在蓄势/洗盘/待确认的哪一步。')
-        fmt = ('日期：{date}\nA股主线（名称/评分/代表股，只能原样引用）：{mains}\n'
-               '当日暗线候选（全部为真实涨停原因与真实盘面，数值禁止改动、禁止新增没给的信息）：\n{facts}\n'
-               '只输出一个 JSON 对象：\n'
-               '{"items":[{"code":"候选代码，原样抄","src":"情报来源与时间，必须来自原文摘要，写清是官微/'
-               '投资者关系活动记录表/公告/专利","oldtag":"市场旧标签，写它被市场当成什么行业",'
-               '"newlogic":"隐藏新逻辑，必须写透：具体产品技术名＋应用场景＋产业链卡位或核心客户名，'
-               '不许只写方向词","grade":"强/中/弱 三选一","pin":"卡位痛点：主线里哪个环节靠它解决",'
-               '"cycle":"原样抄输入里给的主线阶段，不许改",'
-               '"fund":"资金异动信号","falsify":"逻辑被证伪的具体信号","break":"盘面破位的具体价位或条件"}],'
-               '"note":"一句总括，可为空"}\n'
-               '硬规则：全篇陈述句，禁止任何问句、设问、反问、自问自答；'
-               'src 只能来自原文，不许编造机构名、日期、公告标题；'
-               'newlogic 必须挂到给定主线上，不许讲脱离主线的孤立故事，'
-               '每一条都要出现具体产品名或具体客户名，禁止只写"机器人""算力"这种空泛方向；'
-               'newlogic 里禁止复述流通市值、现价、涨跌幅、连板数——这些代码已经在行首渲染，写进去就是白占字数；'
-               'cycle 只原样抄给出的主线名+分数+阶段，禁止追加括号说明或改写成涨停板块名；'
-               'falsify 必须可验证——公司澄清、未达量产、未通过验证这类具体事；'
-               'break 必须写具体价位或条件，禁止写"走势转弱"这种废话；'
-               'items 最多20条，与候选一一对应，不许换股、不许漏股。')
-        t = ask_deepseek({'task': 'darkline', 'date': bj.strftime('%Y-%m-%d'),
-                          'mains': mains_line, 'facts': '\n'.join(fact), 'format': fmt},
-                         purpose='darkline', system_text=sys_txt)
-        data = _dl_parse(t, {r['code']: r['reason_info'] for r in rows})
-        if data is None:
-            print('[dl] LLM 未返回可解析 JSON，走规则兜底 | 原文前120字:', (t or '')[:120].replace('\n', ' '))
+        data = _dl_text_llm(cands, bj)
     if data is None:
-        data = _dl_fallback(rows)
-    inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">涨停池 %d 只里筛出暗线 %d 只｜盘面按最近交易日收盘'
-             '</div>' % (GREY, sum(len(b['list']) for b in blocks), len(rows))
-             + '<div style="margin-top:6px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
-             + _dl_html(rows, data, mains_line) + '</div>'
-             + '<div style="margin-top:8px;color:%s;font-size:11px;">以上只做情报与变量提示，不构成投资建议</div>' % GREY)
+        data = _dl_text_fallback(cands)
+    by_code = {str(it.get('code')): it for it in (data.get('items') or [])}
+    keep = _dl_lurk_filter(cands)
+    for c in keep:
+        c['cap'] = _dl_mktcap(c['code'])
+    final = [c for c in keep if c['code'] in by_code]
+    mains_line = '；'.join('%s(%.0f分)' % (m[0], m[1] or 0) for m in _ext_mainlines(5)) or '主线未取得'
+    inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">文本源 %d 条公告里筛出潜伏暗线 %d 只｜盘面按最近交易日收盘</div>'
+             % (GREY, len(cands), len(final)))
+    inner += ('<div style="margin-top:6px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
+              + _dl_html_text(final, by_code, mains_line) + '</div>')
+    inner += '<div style="margin-top:8px;color:%s;font-size:11px;">以上只做情报与变量提示，不构成投资建议</div>' % GREY
     return _wrap(inner, '🔍', '暗线情报')
-
-
 # ============ 跟涨三步走·埋伏补涨（follow） ============
 _FOLLOW_MIN_FUND = 5e7          # 龙头封单资金下限（元，约5000万）
 _FOLLOW_MIN_SECTOR = 3          # 板块涨停家数 ≥3 才算强势板块

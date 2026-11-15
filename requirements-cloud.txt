@@ -3,3 +3,4 @@
 # 版本与 Python 3.11 (ubuntu-latest) 对齐
 numpy==1.26.4
 requests==2.32.3
+pypdf==7.1.0
