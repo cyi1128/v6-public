@@ -11318,11 +11318,36 @@ def _dl_blocks(limit=30):
     return out
 
 
+def _dl_kline(code, n=40):
+    """暗线专用日K：腾讯优先，腾讯 501 限流时走新浪（两个源都实测可用，
+    东财日K早已全节点 RemoteDisconnected，不再作为兜底）。返回 [日期,开,收,高,低,量]。"""
+    sym = ('sh' if str(code).startswith('6') else 'sz') + str(code)
+    try:
+        arr = get_klines(sym, n)
+        if arr and len(arr) >= 6:
+            return arr
+    except Exception:
+        pass
+    try:
+        u = ('https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData'
+             '?symbol=%s&scale=240&ma=no&datalen=%d' % (sym, n))
+        req = urllib.request.Request(u, headers={
+            'User-Agent': 'Mozilla/5.0', 'Referer': 'https://finance.sina.com.cn/'})
+        raw = urllib.request.urlopen(req, timeout=12).read().decode('utf-8', 'ignore')
+        d = json.loads(raw)
+        out = [[str(k['day']), float(k['open']), float(k['close']),
+                float(k['high']), float(k['low']), float(k['volume'])] for k in d]
+        if out:
+            return out
+    except Exception as e:
+        print('[dl] %s 新浪日K失败: %s' % (sym, repr(e)[:60]))
+    return []
+
+
 def _dl_tape(code):
     """盘面验证：20日平台高点、量比、MA5/MA20、现价、近5日涨幅。取不到返回 None。"""
     try:
-        sym = ('sh' if str(code).startswith('6') else 'sz') + str(code)
-        arr = get_klines(sym, 40)
+        arr = _dl_kline(code, 40)
         if not arr or len(arr) < 22:
             return None
         closes = [float(x[2]) for x in arr]
@@ -11346,8 +11371,7 @@ def _dl_tape(code):
 def _dl_pct5(code):
     """近5日涨幅，用于把已经明牌化的标的挡在门外。取不到返回 None。"""
     try:
-        sym = ('sh' if str(code).startswith('6') else 'sz') + str(code)
-        arr = get_klines(sym, 10)
+        arr = _dl_kline(code, 10)
         if not arr or len(arr) < 6:
             return None
         c0, c1 = float(arr[-6][2]), float(arr[-1][2])
