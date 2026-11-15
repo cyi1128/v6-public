@@ -11995,7 +11995,7 @@ def _dl_text_llm(cands, bj):
                '行政流程一律不算暗线：股东会、董事会决议、续聘或改聘会计师、常规分红、'
                '权益变动合规核查、募集说明书常规披露、持续督导意见，这些只是程序，不是业务。'
                '只有送样、定点、小批量供货、量产、签重大合同、核心指标突破、点明客户名，才叫实质进展。'
-               '全市场全赛道扫描，不预设行业，输出必须跨赛道分散。只输出一个 JSON，不要解释、不要 Markdown。')
+               '全市场全赛道扫描，不预设行业，不强制跨赛道。只输出一个 JSON，不要解释、不要 Markdown。')
     fmt = ('日期:{date}' + chr(10) + 'A股当前主线(仅供参考，可自判):{mains}' + chr(10) +
            '候选公司正文片段:{facts}' + chr(10) +
            '只输出 JSON:{"items":[{"code":"原样抄","oldtag":"原主营业务(旧标签)",'
@@ -12015,8 +12015,7 @@ def _dl_text_llm(cands, bj):
            '研报线索里只有"拓展/布局/合作/储备"而无送样、定点、供货、小批量、量产、合同、具名客户的，grade 最高只能给弱。' + chr(10) +
            '3)禁止伪机器人:通用机械、电机、齿轮、热流道、绞盘、橡塑件 不得挂机器人，'
            '除非正文明确出现"人形机器人"客户或人形产品，否则 grade=弱。' + chr(10) +
-           '4)赛道分散:theme 按真实赛道命名，不许把所有票都标成机器人;'
-           '整份输出尽量覆盖 2-3 个不同赛道。' + chr(10) +
+           '4)theme 按真实赛道命名，不许把通用机械/电机/齿轮硬标成机器人；不要求跨赛道，同赛道多只一并保留。' + chr(10) +
            '5)正文只是顺口提到新词、主业与它无关的，grade=弱并点明"不构成暗线"。' + chr(10) +
            '6)oldtag 只能用该候选正文里真实出现的原主营，正文没写就填“主业未标注”，严禁编造或张冠李戴。' + chr(10) +
            '7)items 与候选一一对应，不许换股、不许漏股。')
@@ -12126,28 +12125,17 @@ def build_darkline():
             continue
         rows.append({'code': code, 'name': c['name'], 'src': '%s·%s' % (c['date'], c['src_tag']),
                      'it': it, 'tape': tape})
-    # 赛道分散：同一赛道最多保留 3 只，按 grade 强弱、再按流通市值大小排
-    pre_div = len(rows)
+    # 按 grade 强弱、再按流通市值大小排；赛道不强制分散，同赛道多只一并保留
     grade_rank = {'强': 3, '中': 2, '弱': 1}
     rows.sort(key=lambda r: (grade_rank.get(str(r['it'].get('grade') or ''), 0),
                              -(r['tape'].get('cap') or 0)))
-    per_theme = {}
-    kept = []
-    for r in rows:
-        th = str(r['it'].get('theme') or '其他').split('/')[0].strip() or '其他'
-        if per_theme.get(th, 0) >= 3:
-            print('[dl] 赛道分散剔除 %s（%s 已满3只）' % (r['name'], th))
-            continue
-        per_theme[th] = per_theme.get(th, 0) + 1
-        kept.append(r)
-    rows = kept
-    print('[dl] 最终暗线 %d 只（候选 %d → 过质量门槛 %d → 赛道分散后 %d）'
-          % (len(rows), len(cands), pre_div, len(rows)))
+    print('[dl] 最终暗线 %d 只（候选 %d → 过质量门槛 %d）'
+          % (len(rows), len(cands), len(rows)))
     print('[dl] 保留明细: ' + '｜'.join(
         '%s(%s/%s/%s亿)' % (r['name'], r['it'].get('grade'), r['it'].get('theme'),
                             '%.1f' % (r['tape'].get('cap') or 0)) for r in rows))
     mains_line = '；'.join('%s(%.0f分)' % (m[0], m[1] or 0) for m in _ext_mainlines(5)) or '主线未取得'
-    inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">文本源 %d 条，实质暗线 %d 只｜已剔流通市值&lt;30亿与同一赛道第4只起</div>'
+    inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">文本源 %d 条，实质暗线 %d 只｜已剔流通市值&lt;30亿与无实质进展</div>'
              % (GREY, len(cands), len(rows)))
     inner += ('<div style="margin-top:6px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
               + _dl_html_text(rows, mains_line) + '</div>')
