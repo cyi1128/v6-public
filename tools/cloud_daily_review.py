@@ -11366,6 +11366,10 @@ DL_TEXT_KW = ('机器人', '人形', '固态电池', '光刻胶', '减速器', '
               '谐波', '伺服', '送样', '定点', '算力', '液冷', '铜连接', '具身智能',
               '触觉传感器', '仿生皮肤', '中试', '小批量', '低空', '卫星', 'CPO',
               'HBM', 'PEEK', '碳纤维', '钙钛矿', '光模块', 'AI芯片')
+# 新闻源搜词：与公告词错开，专挑媒体会用来写"新业务进展"的说法
+_DL_NEWS_KW = ('电子皮肤', '人形机器人', '具身智能', '灵巧手', '丝杠', '固态电池',
+               '钙钛矿', '液冷', 'CPO', '光模块', 'HBM', '先进封装', '碳纤维',
+               'PEEK', '低空经济', 'eVTOL', '商业航天', 'AI眼镜', '端侧AI', '铜连接')
 
 
 def _dl_se_days(days=5):
@@ -11411,8 +11415,170 @@ def _dl_cninfo_search(searchkey, seDate, pageSize=50):
     return []
 
 
+_DL_NAME_POOL = {}
+_DL_NAME_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'darkline_names.json')
+# 这些词虽然是 A 股公司名的一部分，但单独出现时是通用词，不能当公司名回填
+_DL_NAME_SKIP = ('证券', '银行', '基金', '科技', '股份', '集团', '控股', '指数',
+                 '板块', '市场', '概念', '公司', '实业', '发展', '国际', '中国',
+                 '机器人', '智能', '电子', '能源', '汽车', '医药', '电力', '传媒')
+# 纯盘面快讯：只报涨跌不报业务，进情报层只会挤掉真线索
+_DL_NEWS_DROP = ('盘初活跃', '盘中活跃', '震荡反弹', '盘中拉升', '涨超', '跌超', '走强',
+                 '异动', '涨停潮', '主力资金', '资金流入', '概念股', '板块异动',
+                 '涨幅榜', '龙虎榜', '早盘', '午盘', '盘中', '收盘', '开盘',
+                 '板块下跌', '板块回调', '重挫', '跌幅榜')
+
+
+def _dl_name_pool():
+    """全市场 名称→代码 表（新闻里的中文公司名要靠它落代码）：
+    新浪全市场行情列表并发抓取，落盘 tools/data/darkline_names.json 缓存 7 天。
+    抓不到就返回 {}，此时新闻只按正文“名称(代码)”写法回填，绝不猜代码。"""
+    global _DL_NAME_POOL
+    if _DL_NAME_POOL:
+        return _DL_NAME_POOL
+    today = _bj_now().strftime('%Y-%m-%d')
+    try:
+        with open(_DL_NAME_PATH, encoding='utf-8') as f:
+            d = json.load(f) or {}
+        dt = str(d.get('date') or '')
+        pool = d.get('pool') or {}
+        if pool and dt:
+            age = (_bj_now() - datetime.strptime(dt, '%Y-%m-%d')).days
+            if 0 <= age <= 7:
+                _DL_NAME_POOL = {str(k): str(v) for k, v in pool.items() if k and v}
+                print('[dl] 名称池命中缓存 %d 只（%s）' % (len(_DL_NAME_POOL), dt))
+                return _DL_NAME_POOL
+    except Exception:
+        pass
+    from concurrent.futures import ThreadPoolExecutor
+    h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+         'Referer': 'https://finance.sina.com.cn/'}
+
+    def _page(pg):
+        try:
+            u = ('http://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/'
+                 'Market_Center.getHQNodeData?page=%d&num=100&sort=symbol&asc=1&node=hs_a' % pg)
+            raw = urllib.request.urlopen(urllib.request.Request(u, headers=h), timeout=12).read()
+            return json.loads(raw.decode('utf-8', 'ignore')) or []
+        except Exception:
+            return []
+
+    pool = {}
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        pages = list(ex.map(_page, range(1, 56)))
+    for rows in pages:
+        for x in rows:
+            nm = str(x.get('name') or '').replace(' ', '').strip()
+            cd = str(x.get('code') or '').strip()
+            if nm and cd.isdigit() and len(cd) == 6:
+                pool[nm] = cd
+    if not pool:
+        print('[dl] 名称池抓取失败，新闻只按“名称(代码)”回填')
+        return {}
+    _DL_NAME_POOL = pool
+    print('[dl] 名称池新建 %d 只' % len(pool))
+    try:
+        os.makedirs(os.path.dirname(_DL_NAME_PATH), exist_ok=True)
+        with open(_DL_NAME_PATH, 'w', encoding='utf-8') as f:
+            json.dump({'date': today, 'pool': pool}, f, ensure_ascii=False)
+        _git_commit_push(_DL_NAME_PATH, 'update darkline name pool')
+    except Exception as e:
+        print('[dl] 名称池落盘失败:', repr(e)[:60])
+    return pool
+
+
+def _dl_names_in(blob, pool):
+    """在正文里扫公司名（最长 8 字、最短 3 字窗口查表），返回 [(名称, 代码)]，不重叠、不取泛词。"""
+    if not blob or not pool:
+        return []
+    out, i, n = [], 0, len(blob)
+    while i < n:
+        hit = False
+        for L in (8, 7, 6, 5, 4, 3):
+            w = blob[i:i + L]
+            if len(w) >= 3 and w in pool and w not in _DL_NAME_SKIP:
+                out.append((w, pool[w]))
+                i += L
+                hit = True
+                break
+        if not hit:
+            i += 1
+    return out
+
+
+def _dl_news_search(days=5):
+    """东财全站新闻搜索（免登录 JSONP）：按主题词捞近 N 日新闻，返回 [{code,name,title,date,pdf,tag,text}]。
+    代码回填：新闻正文里普遍写成“名称(6位代码)”，直接按该写法抽取配对；
+    只出现名称不给代码的文章一律不进候选（宁缺勿错，不猜代码）。"""
+    now = _bj_now()
+    since = (now - timedelta(days=days)).strftime('%Y-%m-%d')
+    h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+         'Referer': 'https://so.eastmoney.com/'}
+    arts = {}
+    for kw in _DL_NEWS_KW:
+        try:
+            param = json.dumps({'uid': '', 'keyword': kw, 'type': ['cmsArticleWebOld'],
+                                'client': 'web', 'clientType': 'web', 'clientVersion': 'curr'},
+                               ensure_ascii=False)
+            u = ('https://search-api-web.eastmoney.com/search/jsonp?cb=cb&param='
+                 + urllib.parse.quote(param))
+            req = urllib.request.Request(u, headers=h)
+            raw = urllib.request.urlopen(req, timeout=10).read().decode('utf-8', 'ignore')
+            m = re.search(r'cb\((.*)\)', raw, re.S)
+            if not m:
+                continue
+            rows = ((json.loads(m.group(1)) or {}).get('result') or {}).get('cmsArticleWebOld') or []
+            for a in rows:
+                aid = str(a.get('code') or '').strip()
+                tt = re.sub(r'<[^>]+>', '', str(a.get('title') or '')).strip()
+                ct = re.sub(r'<[^>]+>', '', str(a.get('content') or '')).strip()
+                dt = str(a.get('date') or '')[:10]
+                if not aid or not tt or dt < since:
+                    continue
+                # 纯盘面快讯与超短快讯不进情报层：只报涨跌、没有业务信息
+                if any(k in tt for k in _DL_NEWS_DROP) or len(ct) < 40:
+                    continue
+                old = arts.get(aid)
+                if old and old['kw'] != kw:
+                    continue
+                arts[aid] = {'title': tt, 'content': ct, 'date': dt,
+                             'media': str(a.get('mediaName') or '').strip(), 'kw': kw}
+            time.sleep(0.2)
+        except Exception as e:
+            print('[dl] 新闻源失败 %s: %s' % (kw, repr(e)[:50]))
+    out = []
+    pool = _dl_name_pool()
+    for aid, a in arts.items():
+        blob = a['title'] + ' ' + a['content']
+        pairs = []
+        for m in re.finditer(r'([\u4e00-\u9fa5A-Za-z]{2,10})\s*[（(]\s*([0368][0-9]{5})\s*[)）]', blob):
+            pairs.append((m.group(1).strip(), m.group(2).strip()))
+        for nm, cd in _dl_names_in(blob, pool):
+            # 顺带提一嘴的概念股不算：必须出现在标题，或正文里被反复讲到
+            if nm in a['title'] or blob.count(nm) >= 2:
+                pairs.append((nm, cd))
+        seen_cd = set()
+        for nm, cd in pairs:
+            if cd in seen_cd:
+                continue
+            seen_cd.add(cd)
+            txt = ('新闻标题：%s；媒体：%s；日期：%s；正文：%s'
+                   % (a['title'], a['media'] or '未标注媒体', a['date'], a['content'][:300]))
+            out.append({'code': cd, 'name': nm, 'title': a['title'], 'date': a['date'],
+                        'pdf': '', 'tag': '新闻', 'text': txt})
+    # 同一只票一天可能被多篇新闻提到，只留最新 2 条，别把 LLM 上下文塞满
+    by = {}
+    for x in sorted(out, key=lambda y: y['date'], reverse=True):
+        by.setdefault(x['code'], [])
+        if len(by[x['code']]) < 2:
+            by[x['code']].append(x)
+    out = [x for lst in by.values() for x in lst]
+    print('[dl] 新闻源: %d 词扫到 %d 篇，回填出 %d 条带代码新闻'
+          % (len(_DL_NEWS_KW), len(arts), len(out)))
+    return out
+
+
 def _dl_report_search(days=5):
-    """东财券商研报列表（免登录 JSON）：返回 [{code,name,title,date,pdf,tag,text}]。
+    """东财券商研报列表（免登录 JSON）：返回 [{code,name,title,date,pdf,tag,text}]
     研报只取标题/机构/评级/行业，正文预填这些字段，不下载研报 PDF。"""
     se = _dl_se_days(days)
     st, en = se.split('~')
@@ -11466,9 +11632,10 @@ def _dl_text_fetch(days=5):
         _add(_dl_cninfo_search(kw, se, 20), kw)
         time.sleep(0.25)
     _add(_dl_report_search(days), '研报')
+    _add(_dl_news_search(days), '新闻')
     out = list(seen.values())
     out.sort(key=lambda x: x['date'], reverse=True)
-    print('[dl] 文本源: 调研纪要+%d关键词公告+券商研报，去重后 %d 条' % (len(DL_TEXT_KW), len(out)))
+    print('[dl] 文本源: 调研纪要+%d关键词公告+券商研报+全站新闻，去重后 %d 条' % (len(DL_TEXT_KW), len(out)))
     return out
 
 
@@ -12019,7 +12186,10 @@ def _dl_text_llm(cands, bj):
            '5)正文只是顺口提到新词、主业与它无关的，grade=弱并点明"不构成暗线"。' + chr(10) +
            '6)oldtag 只能用该候选正文里真实出现的原主营，正文没写就填“主业未标注”，严禁编造或张冠李戴。' + chr(10) +
            '7)items 与候选一一对应，不许换股、不许漏股；不限制输出条数，凡判强/中的都要列出，'
-           '不许为了精简只给几只；判弱的也如实列出并标弱，不要主动砍候选。')
+           '不许为了精简只给几只；判弱的也如实列出并标弱，不要主动砍候选。' + chr(10) +
+           '8)公司自己澄清降温的措辞(收入不足/占比极低/比重极低/尚未量产/未产生收入/未形成批量/'
+           '不构成重大影响/仅为概念/风险提示)在正文里命中两条以上，说明公司自己否认了这条暗线，grade=弱，'
+           'newlogic 写明“公司已澄清、逻辑证伪”。')
     t = ask_deepseek({'task': 'darkline', 'date': bj.strftime('%Y-%m-%d'),
                       'mains': mains_line, 'facts': chr(10).join(facts), 'format': fmt},
                      purpose='darkline', system_text=sys_txt)
@@ -12042,6 +12212,57 @@ def _dl_text_fallback(cands):
                       'theme': (c['new'][0] if c['new'] else ''),
                       'why': '', 'falsify': ''})
     return {'items': items, 'note': ''}
+# 赛道词 → 当日主线板块名的对接口径（只做展示匹配，不改判级、不剔除）
+_DL_THEME_ALIAS = (
+    (('机器人', '人形', '减速器', '丝杠', '丝杆', '灵巧手', '谐波', '伺服', '电子皮肤',
+      '触觉', '仿生', '具身'), ('机器人', '人形', '减速器', '丝杠', '灵巧手', '谐波', '伺服', '具身')),
+    (('算力', 'CPO', '光模块', '硅光', '液冷', '数据中心', '服务器'), ('算力', 'CPO', '光模块', '液冷', '数据中心', 'AI算力', '服务器', '铜连接')),
+    (('固态电池', '硅碳负极', '锂电'), ('固态电池', '锂电', '电池')),
+    (('半导体', '先进封装', '光刻胶', 'HBM', '存储', '封测'), ('半导体', '芯片', '封装', '存储', '光刻', '集成电路')),
+    (('低空', 'eVTOL', '飞行汽车', '商业航天', '卫星'), ('低空', '飞行', '航天', '卫星', '无人机')),
+    (('AI终端', 'AI眼镜', '端侧', 'AR', 'VR', '消费电子'), ('AI眼镜', '消费电子', 'MR', 'AR', 'VR', '端侧', '智能穿戴')),
+    (('新材料', 'PEEK', '碳纤维', '轻量化', '镁合金', '钙钛矿'), ('新材料', '碳纤维', '化工', '有色', '钙钛矿', '稀土')),
+    (('汽车智能化', '智能驾驶', '智驾', '智能座舱'), ('智能驾驶', '汽车零部件', '汽车电子', '无人驾驶')),
+)
+
+
+def _dl_main_hit(theme, mains):
+    """个股赛道是否落在当日主线榜：返回 (主线名, 名次, 分数, 阶段) 或 None。
+    只读当日主线真实评分，不做任何推断。"""
+    th = str(theme or '').strip()
+    if not th or not mains:
+        return None
+    keys = set()
+    for grp, alts in _DL_THEME_ALIAS:
+        if any(g in th for g in grp) or any(g in th for g in alts):
+            keys |= set(grp) | set(alts)
+    if not keys:
+        keys = {th}
+    for i, m in enumerate(mains):
+        nm = str(m[0] or '')
+        if any(k and (k in nm or nm in k) for k in keys):
+            return (nm, i + 1, m[1] or 0, str(m[2] or ''))
+    return None
+
+
+def _dl_blast_desc(tape, theme, hit):
+    """爆发时刻标注：题材是否在当日主线榜、处什么阶段，个股盘面能不能接上。
+    纯展示判断，不参与任何剔除。"""
+    d = str((tape or {}).get('desc') or '')
+    if hit:
+        nm, rank, score, stage = hit
+        if score >= 60 and stage != '退潮期':
+            if '涨停' in d:
+                return '题材在榜且个股已明牌，等回踩不追高'
+            if '缩量回踩' in d or '横盘' in d:
+                return '题材强、个股缩量蓄势，放量站上20线即爆发'
+            if '放量' in d or '大涨' in d:
+                return '题材强、个股已放量启动，防兑现'
+            return '题材强但个股破位，等收复20线再谈爆发'
+        return '题材在榜但已到分歧退潮，看个股能否独立走强'
+    return '题材不在今日主线榜，属潜伏线索，非爆发时刻'
+
+
 def _dl_line_text(c, it):
     """单行全量输出：涨红跌绿、竖线分隔、不给买卖价。"""
     it = it or {}
@@ -12062,8 +12283,13 @@ def _dl_line_text(c, it):
     theme = _e(it.get('theme') or '')
     desc = _e(t.get('desc') or '')
     why = _e(it.get('why') or '')[:40]
-    return ('%s | 旧:%s。新:%s(%s) | 主线:%s | 盘面状态:%s | 预期差:%s'
-            % (head, old_s, new_s, src_s, theme, desc, why))
+    hit = c.get('mh')
+    if hit:
+        sec = '%s(第%d·%.0f分·%s)' % (_e(hit[0]), hit[1], hit[2], _e(hit[3]))
+    else:
+        sec = ('%s·不在今日主线榜' % theme) if theme else '未判定'
+    return ('%s | 旧:%s。新:%s(%s) | 主线:%s | 盘面状态:%s | 所属板块:%s | 爆发时刻:%s | 预期差:%s'
+            % (head, old_s, new_s, src_s, theme, desc, sec, _e(c.get('blast') or ''), why))
 
 
 def _dl_html_text(rows, mains_line):
@@ -12099,6 +12325,11 @@ def build_darkline():
             continue
         grade = str(it.get('grade') or '')
         nlogic = str(it.get('newlogic') or '')
+        # 公司自己下场澄清降温（收入不足/占比极低/不构成重大影响…）：命中两条即逻辑已证伪
+        deny_hits = [k for k in _DL_DENY if k in (c.get('text') or '')]
+        if len(deny_hits) >= 2:
+            print('[dl] 剔除公司自证否认 %s %s' % (c['name'], '/'.join(deny_hits[:2])))
+            continue
         subs = ('送样', '定点', '供货', '小批量', '量产', '重大合同', '中标', '订单', '验收', '签订')
         if grade not in ('强', '中') and not any(k in nlogic for k in subs):
             print('[dl] 剔除无实质进展 %s grade=%s' % (c['name'], grade or '空'))
@@ -12118,6 +12349,15 @@ def build_darkline():
                 print('[dl] oldtag 幻觉丢弃 %s -> %s' % (c['name'], oldtag))
                 oldtag = ''
         if not oldtag:
+            # 新闻正文短，常常没写原主营：用东财主营构成（真实披露数据）补，补不到才认旧词表
+            try:
+                _rep, _its = _mainop_of(code)
+                _top = [nm for nm, rt in _its if rt >= 5.0][:2]
+                if _top:
+                    oldtag = '、'.join(_top)
+            except Exception:
+                pass
+        if not oldtag:
             oldtag = ('、'.join(c['old'][:3]) if c['old'] else '主业未标注')
         it['oldtag'] = oldtag
         cap = tape.get('cap')
@@ -12130,12 +12370,19 @@ def build_darkline():
     grade_rank = {'强': 3, '中': 2, '弱': 1}
     rows.sort(key=lambda r: (grade_rank.get(str(r['it'].get('grade') or ''), 0),
                              -(r['tape'].get('cap') or 0)))
+    # 爆发时刻标注（纯展示）：个股赛道对当日主线榜，再叠个股盘面
+    mains = _ext_mainlines(8)
+    for r in rows:
+        th = str(r['it'].get('theme') or '')
+        r['mh'] = _dl_main_hit(th, mains)
+        r['blast'] = _dl_blast_desc(r['tape'], th, r['mh'])
     print('[dl] 最终暗线 %d 只（候选 %d → 过质量门槛 %d）'
           % (len(rows), len(cands), len(rows)))
     print('[dl] 保留明细: ' + '｜'.join(
-        '%s(%s/%s/%s亿)' % (r['name'], r['it'].get('grade'), r['it'].get('theme'),
-                            '%.1f' % (r['tape'].get('cap') or 0)) for r in rows))
-    mains_line = '；'.join('%s(%.0f分)' % (m[0], m[1] or 0) for m in _ext_mainlines(5)) or '主线未取得'
+        '%s(%s/%s/%s亿/%s)' % (r['name'], r['it'].get('grade'), r['it'].get('theme'),
+                              '%.1f' % (r['tape'].get('cap') or 0),
+                              ('主线第%d' % r['mh'][1]) if r.get('mh') else '非主线') for r in rows))
+    mains_line = '；'.join('%s(%.0f分)' % (m[0], m[1] or 0) for m in mains[:5]) or '主线未取得'
     inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">文本源 %d 条，实质暗线 %d 只｜已剔流通市值&lt;30亿与无实质进展</div>'
              % (GREY, len(cands), len(rows)))
     inner += ('<div style="margin-top:6px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
