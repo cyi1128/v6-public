@@ -12062,8 +12062,17 @@ def build_darkline():
         tape = _dl_tape_desc(code)
         if tape is None:
             continue
-        if not it.get('oldtag'):
-            it['oldtag'] = ('、'.join(c['old'][:3]) if c['old'] else '主业未标注')
+        # oldtag 防幻觉：LLM 写的旧主营必须能在该候选正文或公司名里找到，否则整条丢弃
+        oldtag = str(it.get('oldtag') or '').strip()
+        if oldtag:
+            parts = [w for w in re.split(r'[、,，/；;]', oldtag) if w.strip()]
+            body = str(c.get('text') or '') + str(c.get('name') or '')
+            if not any(w in body for w in parts):
+                print('[dl] oldtag 幻觉丢弃 %s -> %s' % (c['name'], oldtag))
+                oldtag = ''
+        if not oldtag:
+            oldtag = ('、'.join(c['old'][:3]) if c['old'] else '主业未标注')
+        it['oldtag'] = oldtag
         cap = tape.get('cap')
         if cap is not None and cap < 30:
             print('[dl] 剔除流通市值<30亿 %s %.1f亿' % (c['name'], cap))
@@ -12087,6 +12096,9 @@ def build_darkline():
     rows = kept
     print('[dl] 最终暗线 %d 只（候选 %d → 过质量门槛 %d → 赛道分散后 %d）'
           % (len(rows), len(cands), pre_div, len(rows)))
+    print('[dl] 保留明细: ' + '｜'.join(
+        '%s(%s/%s/%s亿)' % (r['name'], r['it'].get('grade'), r['it'].get('theme'),
+                            '%.1f' % (r['tape'].get('cap') or 0)) for r in rows))
     mains_line = '；'.join('%s(%.0f分)' % (m[0], m[1] or 0) for m in _ext_mainlines(5)) or '主线未取得'
     inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">文本源 %d 条，实质暗线 %d 只｜已剔流通市值&lt;30亿与同一赛道第4只起</div>'
              % (GREY, len(cands), len(rows)))
