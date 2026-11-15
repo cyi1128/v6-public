@@ -11962,8 +11962,11 @@ def _dl_text_llm(cands, bj):
            '"why":"一句话说清预期差为什么硬:市场还没定价的点在哪","falsify":"逻辑证伪的具体信号"}],"note":"一句总括"}' +
            chr(10) +
            '硬规则:' + chr(10) +
-           '1)行政流程类(股东会/董事会决议/会计师聘任或续聘/分红/权益变动核查/持续督导/募集说明书常规披露)'
-           '一律 grade=弱，newlogic 写"行政流程，无业务实质"。' + chr(10) +
+           '1)行政流程本身不算暗线(股东会/董事会决议/会计师聘任或续聘/分红/权益变动核查/持续督导)，'
+           '这类文件通篇只有程序、没提任何业务进展的，grade=弱，newlogic 写"行政流程，无业务实质"。' + chr(10) +
+           '1b)但同一份文件(含募集说明书、年报半年报、招股书、问询函回复)里若明确写了已发生的实质进展'
+           '(已送样/已定点/已供货/小批量/量产/签合同/指标突破/具名客户)，必须按该实质进展判级并把产品、场景、客户写清楚，'
+           '不许因为"文件类型是程序或融资文件"就整篇判弱。' + chr(10) +
            '2)必须写实质进展:送样/定点/供货/小批量/量产/重大合同/客户名/指标突破；'
            '只写"布局""涉足""合作研发中"这类文字的，grade 最高只能给弱。' + chr(10) +
            '3)禁止伪机器人:通用机械、电机、齿轮、热流道、绞盘、橡塑件 不得挂机器人，'
@@ -12068,6 +12071,7 @@ def build_darkline():
         rows.append({'code': code, 'name': c['name'], 'src': '%s·%s' % (c['date'], c['src_tag']),
                      'it': it, 'tape': tape})
     # 赛道分散：同一赛道最多保留 3 只，按 grade 强弱、再按流通市值大小排
+    pre_div = len(rows)
     grade_rank = {'强': 3, '中': 2, '弱': 1}
     rows.sort(key=lambda r: (grade_rank.get(str(r['it'].get('grade') or ''), 0),
                              -(r['tape'].get('cap') or 0)))
@@ -12081,6 +12085,8 @@ def build_darkline():
         per_theme[th] = per_theme.get(th, 0) + 1
         kept.append(r)
     rows = kept
+    print('[dl] 最终暗线 %d 只（候选 %d → 过质量门槛 %d → 赛道分散后 %d）'
+          % (len(rows), len(cands), pre_div, len(rows)))
     mains_line = '；'.join('%s(%.0f分)' % (m[0], m[1] or 0) for m in _ext_mainlines(5)) or '主线未取得'
     inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">文本源 %d 条，实质暗线 %d 只｜已剔流通市值&lt;30亿与同一赛道第4只起</div>'
              % (GREY, len(cands), len(rows)))
