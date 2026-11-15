@@ -12730,6 +12730,30 @@ def _verdict_blocks(t, limit=48, max_blocks=3):
     return ''.join(out)
 
 
+N2H_PREV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'news2h_prev.json')
+
+
+def _n2h_prev_get():
+    """上一轮两小时卡的主线判断（只认当天），用于这一轮交代「延续还是被推翻」。"""
+    try:
+        with open(N2H_PREV_PATH, encoding='utf-8') as f:
+            o = json.load(f)
+        if o.get('d') == _bj_now().strftime('%Y-%m-%d'):
+            return str(o.get('t') or '')[:160]
+    except Exception:
+        pass
+    return ''
+
+
+def _n2h_prev_put(t):
+    """记下本轮判断，供下一轮两小时卡对照。写失败不影响推送。"""
+    try:
+        with open(N2H_PREV_PATH, 'w', encoding='utf-8') as f:
+            json.dump({'d': _bj_now().strftime('%Y-%m-%d'), 't': str(t or '')[:300]}, f, ensure_ascii=False)
+    except Exception as e:
+        print('[news2h] 上轮判断写入失败:', str(e)[:60])
+
+
 def build_news2h():
     """两小时市场消息汇总（北京 12:00/14:01/16:00）：利好/利空逐条大白话 +
     预期差 + 怎么跟/怎么避 + 明日操作建议（结合持仓关键位）。"""
@@ -12842,8 +12866,11 @@ def build_news2h():
         _g_txt = (f'（当前仓位仪表盘：{_g.get("suggest", "")}，来自 {_g.get("source", "")}，不得与其矛盾）\n' if _g else '（仓位仪表盘未生成）\n')
         fmt = (_TRADER_RULES + '\n' + _g_txt
                + '当前盘面：{mkt}\n'
+               + '上一轮两小时卡说过：{prev}\n'
                + '当前消息：利好{good}｜利空{bad}｜其他/中性{neu}\n'
                + '你手上同时有盘面和消息，任务是判断「这些消息到底有没有真的在盘面上兑现」。\n'
+               + '上一轮说过的那条线，这一轮必须在【今日主线】第一句直接交代结果：继续兑现、走弱、还是被新的线替掉。\n'
+               + '上一轮为空时跳过这句，不许编造上一轮的说法。\n'
                + '请严格按以下四段输出（全大白话，禁模板句，不许罗列所有消息，严禁一问一答、严禁自问自答）：\n'
                + '【今日主线】这批消息里真正在带节奏的是哪条线。必须点名具体板块，并说清这条线今天在盘面上\n'
                + '有没有兑现（看涨停家数、板块内部有几家在涨），没有兑现就说没有兑现，不要编「资金在观望」。\n'
@@ -12863,11 +12890,13 @@ def build_news2h():
                + '5) 不许复述消息标题，不许写「综上所述」「总的来说」这类收尾。')
         t = ask_deepseek({'task': 'news2h_summary',
                           'mkt': _mkt,
+                          'prev': _n2h_prev_get() or '（上一轮无记录）',
                           'good': [g.get('title','')[:40] for g in good[:4]],
                           'bad': [b.get('title','')[:40] for b in bad[:4]],
                           'neu': '；'.join((n.get('title') or '')[:50] for n in neu[:8]) or '无',
                           'format': fmt}, purpose='news2h')
         if t:
+            _n2h_prev_put(t)
             ds_html = _verdict_blocks(t, max_blocks=4)
         else:
             # 2026-11-09：模型不回不再整卡丢弃（12:00 news2h 整槽消失的直接原因）。
