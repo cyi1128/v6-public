@@ -10854,40 +10854,53 @@ _CONCEPT_SKIP = ('昨日打二板', '红利破净', '破净股', '证金持股',
 
 
 def _ext_concepts(top_n=5):
-    """当日概念主线：东财概念板块强度打分排序。
-    分数口径＝相对强度分（板块涨幅＋上涨家数＋红绿比），不是涨停梯队分，卡面写清口径。
-    返回 [(名称, 分数, 阶段, 代表股, 板块涨幅)]；取不到返回 []。"""
-    url = ('https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=80&po=1&np=1&fltt=2&invt=2'
-           '&fid=f3&fs=m:90+t:3&fields=f12,f14,f3,f104,f105,f128')
-    try:
-        txt, ok = _getm(url, 'ext_concept')
-        if not ok or not txt:
-            print('[ext] 概念板块未取到')
-            return []
-        items = (json.loads(txt).get('data') or {}).get('diff') or []
-    except Exception as e:
-        print('[ext] 概念板块解析失败:', e)
+    """当日概念主线：同花顺涨停板块榜（按涨停家数排序，最贴"资金聚焦主线"的口径）。
+    返回 [(名称, 分数, 阶段, 代表股, 板块涨幅)]；取不到返回 []。
+    分数口径＝涨停家数驱动（涨停越多越强）＋板块涨幅＋连板效应，卡面写清。"""
+    qs = ('filter=HS,GEM2STAR&field=199112,10,9001&order_field=199112&order_type=0'
+          '&page=1&limit=30')
+    items = []
+    for i in range(3):
+        try:
+            req = urllib.request.Request('https://data.10jqka.com.cn/dataapi/limit_up/block_top?' + qs,
+                                         headers={**UA, 'Referer': 'https://data.10jqka.com.cn/'})
+            txt = urllib.request.urlopen(req, timeout=9).read().decode('utf-8', 'ignore')
+            items = (json.loads(txt) or {}).get('data') or []
+            if items:
+                break
+        except Exception as e:
+            print('[ext] 同花顺涨停板块第%d次失败: %s' % (i + 1, repr(e)[:80]))
+            time.sleep(0.8)
+    if not items:
+        print('[ext] 同花顺涨停板块未取到')
         return []
     out = []
     for x in items:
-        nm = str(x.get('f14') or '').strip()
+        nm = str(x.get('name') or '').strip()
         if not nm or any(k in nm for k in _CONCEPT_SKIP) or '风格' in nm or '权重' in nm:
             continue
         try:
-            pct = float(x.get('f3') or 0)
-            up = int(x.get('f104') or 0)
-            down = int(x.get('f105') or 0)
+            lu = int(x.get('limit_up_num') or 0)
+            cont = int(x.get('continuous_plate_num') or 0)
+            chg = float(x.get('change') or 0)
         except Exception:
             continue
-        if up < 5:                      # 上涨家数不足5家的概念撑不起一条主线
+        if lu < 2:                       # 只有 1 家涨停的板块撑不起一条主线
             continue
-        ratio = up / max(down, 1)
-        # 涨幅是主权重：宽概念"上涨家数多"不代表强，只给很小的分；
-        # 1.5% 左右 → 60分上下（分歧期），4%+ 才够 80 分（一致期），口径写在卡面。
-        score = round(min(35 + min(pct, 6) * 9 + min(up, 20) * 0.3
-                          + (5 if ratio >= 1.5 else 0) + (8 if pct >= 4 else 0), 100.0), 1)
-        stage = '一致期' if score >= 70 else ('分歧期' if score >= 50 else '退潮期')
-        out.append((nm, score, stage, str(x.get('f128') or '').strip(), pct))
+        # 涨停家数是主线强度的第一驱动：10家≈90分，5家≈65分，2-3家≈45-50分
+        score = round(min(38 + min(lu, 12) * 4 + min(max(chg, 0), 5) * 3
+                          + (6 if cont >= 3 else 0), 100.0), 1)
+        stage = '一致期' if ((lu >= 8 and chg > 0) or cont >= 3) else ('分歧期' if lu >= 3 else '退潮期')
+        # 代表股 = 板块内连板数最高的个股（最高板）
+        leader, best = '', -1
+        for s in (x.get('stock_list') or []):
+            try:
+                cn = int(s.get('continue_num') or 0)
+            except Exception:
+                cn = 0
+            if cn > best:
+                best, leader = cn, str(s.get('name') or '').strip()
+        out.append((nm, score, stage, leader, chg))
     out.sort(key=lambda t: -t[1])
     return out[:top_n]
 
@@ -10998,6 +11011,7 @@ def _ext_map_html(pack, mains, data):
         return ''.join(lines)
 
     names = [m[0] for m in (mains or []) if m[0]]
+    used_ev = []                            # 同一个外盘标的只映射一次，避免一条事件重复占用多条主线
     for it in (data.get('map') or []):
         e = str(it.get('ext') or '').strip()
         l = str(it.get('line') or '').strip()
@@ -11019,16 +11033,21 @@ def _ext_map_html(pack, mains, data):
     if rows:
         return _emit(rows)
     # 规则兜底：概念主线 × 外盘产业标的
-    for m_it in (mains or [])[:4]:
+    for m_it in (mains or []):
+        if len(rows) >= 4:          # 遍历全部主线，但最多输出 4 条，避免把第5条有交集的主线漏掉
+            break
         theme, score, stage, leader = m_it[0], m_it[1], m_it[2], m_it[3]
         ev = logic = None
         for kws, keys in _EXT_LINE_KEYS:
             if any(k in theme for k in kws):
                 for key in keys:
+                    if key in used_ev:       # 该标的已映射给更靠前的主线，换下一个标的
+                        continue
                     v = pack['us'].get(key) if key in pack['us'] else pack['stk'].get(key)
                     if v is not None:
                         ev = '%s %+.2f%%' % (key, v)
                         logic = '负向压制' if v < 0 else '正向刺激'
+                        used_ev.append(key)
                         break
                 break
         if not ev:
@@ -11075,10 +11094,16 @@ def _ext_fallback(pack, mains, news=None):
     if aapl is not None and aapl <= -2.5:
         neg.append(('苹果', aapl, apple_kw))
 
+    # 与映射段同一口径：这条主线能不能接上外盘产业标的（不看有没有跌破涨跌阈值），
+    # 否则会出现"定性说无直接传导、映射段却写了负向压制"的自相矛盾。
     hit = None
-    for nm, v, kws in neg:
+    for kws, keys in _EXT_LINE_KEYS:
         if any(k in (top_name or '') for k in kws):
-            hit = (nm, v)
+            for key in keys:
+                v = stk.get(key) if key in stk else us.get(key)
+                if v is not None:
+                    hit = (key, v)
+                    break
             break
 
     # —— 一句话定性：风险偏好定性 + 对第一主线 正向/负向/无影响 ——
@@ -11094,8 +11119,10 @@ def _ext_fallback(pack, mains, news=None):
     else:
         base = '隔夜外盘平稳，没有改变风险偏好的产业级变量'
     if top_name:
-        if hit:
-            tail = '对第一主线%s（%.0f分・%s）是负向传导，这条线开盘要吃外盘压制。' % (top_name, top_score or 0, top_stage or '')
+        if hit and abs(hit[1]) >= 1.0:
+            d = '负向传导' if hit[1] < 0 else '正向传导'
+            tail = '对第一主线%s（%.0f分・%s）是%s，%s %+.2f%%。' % (
+                top_name, top_score or 0, top_stage or '', d, hit[0], hit[1])
         elif neg:
             tail = '对第一主线%s（%.0f分・%s）无直接产业传导，只是情绪层面的压制，逻辑本身没被打断。' % (top_name, top_score or 0, top_stage or '')
         else:
