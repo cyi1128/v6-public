@@ -12062,12 +12062,15 @@ def build_darkline():
         tape = _dl_tape_desc(code)
         if tape is None:
             continue
-        # oldtag 防幻觉：LLM 写的旧主营必须能在该候选正文或公司名里找到，否则整条丢弃
+        # oldtag 防幻觉：按词拆开逐个校验，只保留能在该候选正文或公司名里找到的词
         oldtag = str(it.get('oldtag') or '').strip()
         if oldtag:
-            parts = [w for w in re.split(r'[、,，/；;]', oldtag) if w.strip()]
+            parts = [w for w in re.split(r'[、,，/；;&]|及|和|与', oldtag) if w.strip()]
             body = str(c.get('text') or '') + str(c.get('name') or '')
-            if not any(w in body for w in parts):
+            keep = [w for w in parts if w in body]
+            if keep:
+                oldtag = '、'.join(keep[:3])
+            else:
                 print('[dl] oldtag 幻觉丢弃 %s -> %s' % (c['name'], oldtag))
                 oldtag = ''
         if not oldtag:
