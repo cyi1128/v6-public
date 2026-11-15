@@ -11320,6 +11320,46 @@ def _dl_blocks(limit=30):
     return out
 
 
+DL_POOL_HIST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dl_pool_hist.json')
+
+
+def _dl_pool_save(blocks):
+    """当日涨停池按交易日滚存到 tools/dl_pool_hist.json。
+    同花顺 limit_up_pool 历史接口要鉴权（带 date 返回 -1），拿不到往期涨停名单，
+    所以自建滚动档案：下一交易日用存档反查"首板后回落洗盘"的潜伏标的。"""
+    try:
+        d = _bj_now().strftime('%Y-%m-%d')
+        old = {}
+        try:
+            with open(DL_POOL_HIST_PATH, encoding='utf-8') as f:
+                old = json.load(f) or {}
+        except Exception:
+            old = {}
+        if not isinstance(old, dict):
+            old = {}
+        lst = []
+        for b in blocks:
+            for s in b['list']:
+                cd = str(s.get('code') or '').strip()
+                if not cd:
+                    continue
+                try:
+                    cn = int(s.get('continue_num') or 0)
+                except Exception:
+                    cn = 0
+                lst.append({'code': cd, 'name': str(s.get('name') or ''), 'block': b['name'],
+                            'reason': str(s.get('reason_type') or '')[:60], 'cont': cn})
+        if lst:
+            old[d] = lst
+        for k in sorted(old.keys())[:-12]:
+            old.pop(k, None)
+        with open(DL_POOL_HIST_PATH, 'w', encoding='utf-8') as f:
+            json.dump(old, f, ensure_ascii=False)
+        print('[dl] 涨停池已存档 %s %d 只，累计 %d 个交易日' % (d, len(lst), len(old)))
+    except Exception as e:
+        print('[dl] 涨停池存档失败: %s' % repr(e)[:70])
+
+
 def _dl_kline(code, n=40):
     """暗线专用日K：腾讯优先，腾讯 501 限流时走新浪（两个源都实测可用，
     东财日K早已全节点 RemoteDisconnected，不再作为兜底）。返回 [日期,开,收,高,低,量]。"""
@@ -11382,6 +11422,18 @@ def _dl_pct5(code):
         return None
 
 
+def _dl_pct20(code):
+    """近20日累计涨幅。用户红线：20日涨幅超40%已是主升高位，不是暗线。取不到返回 None。"""
+    try:
+        arr = _dl_kline(code, 26)
+        if not arr or len(arr) < 21:
+            return None
+        c0, c1 = float(arr[-21][2]), float(arr[-1][2])
+        return ((c1 / c0 - 1) * 100) if c0 > 0 else None
+    except Exception:
+        return None
+
+
 def _dl_mktcap(code):
     """流通市值（亿元），走腾讯单票行情（字段44）。取不到返回 None。"""
     sym = ('sh' if str(code).startswith('6') else 'sz') + str(code)
@@ -11420,38 +11472,48 @@ def _dl_form(t):
     return ma, q
 
 
-def _dl_line(r, mt):
-    """一只标的一行，竖线分隔，全盘口语言，不给任何买卖价。"""
+def _dl_line(r, mt, esc=True):
+    """一只标的一行，竖线分隔，全盘口语言，不给任何买卖价。
+    名称与涨跌幅按涨红跌绿上色，用 <font color> 标签（用户指定格式）。"""
     t = r.get('tape') or {}
     mt = mt or {}
+
+    def _e(s):
+        s = '' if s is None else str(s)
+        if not esc:
+            return s
+        return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
     cap = r.get('cap')
-    head = r['name'] + (('(%.0f亿)' % cap) if cap else '')
-    if t:
-        chg = r.get('chg')
-        head += ' %.2f(%s)' % (t['cur'], ('%+.1f%%' % float(chg)) if chg is not None else '—')
-    else:
-        head += ' 现价待补'
-    old_s = str(mt.get('oldtag') or ('、'.join(r['old'][:3]) if r['old'] else ('市场按「%s」板块归类' % r['block'])))
-    new_s = str(mt.get('newlogic') or ('%s 方向有新增披露' % '、'.join(r['new'][:3])))[:56]
-    pin_s = str(mt.get('pin') or '')[:14]
+    try:
+        chg = float(r.get('chg')) if r.get('chg') is not None else None
+    except Exception:
+        chg = None
+    nm = _e(r['name']) + (('(%.0f亿)' % cap) if cap else '')
+    body = ('%.2f(%s)' % (t['cur'], ('%+.1f%%' % chg) if chg is not None else '—')) if t else '现价待补'
+    col = 'red' if (chg is not None and chg > 0) else 'green'
+    head = '<font color="%s"><b>%s %s</b></font>' % (col, nm, body)
+    old_s = _e(mt.get('oldtag') or ('、'.join(r['old'][:3]) if r['old'] else ('市场按「%s」板块归类' % r['block'])))
+    new_s = _e(str(mt.get('newlogic') or ('%s 方向有新增披露' % '、'.join(r['new'][:3])))[:56])
+    pin_s = _e(str(mt.get('pin') or '')[:14])
     if pin_s:
         new_s = new_s + '·卡位' + pin_s
-    src_s = str(mt.get('src') or '')[:30]
+    src_s = _e(str(mt.get('src') or '')[:30])
     if not src_s:
         m2 = re.search(r'(\d{4}年\d{1,2}月\d{1,2}日[^，,]{0,16})', r['reason_info'])
-        src_s = m2.group(1) if m2 else r['reason_type'][:20]
+        src_s = _e(m2.group(1) if m2 else r['reason_type'][:20])
     ma, q = _dl_form(t)
-    front = '%s%.0f分·%s' % (r['theme'], r['block_score'], r['stage'])
+    front = _e('%s%.0f分·%s' % (r['theme'], r['block_score'], r['stage']))
     grade = str(mt.get('grade') or ('强' if r['strength'] == 2 else ('中' if r['strength'] == 1 else '弱')))
-    note = '贴合度%s｜%s' % (grade, str(mt.get('falsify') or
-                                     ('公司否认「%s」即作废' % r['reason_type'][:18]))[:30])
+    fals = str(mt.get('falsify') or ('公司否认「%s」即作废' % r['reason_type'][:18]))[:30]
+    note = '贴合度%s｜%s' % (_e(grade), _e(fals))
     return ('%s | 旧:%s。新:%s（%s） | 前置:%s | 均线:%s | 量价:%s | 备注:%s'
-            % (head, old_s, new_s, src_s, front, ma, q, note))
+            % (head, old_s, new_s, src_s, front, _e(ma), _e(q), note))
 
 
 def _dl_candidates(blocks, n=2):
-    """暗线候选：涨停原因里出现新产业词、连板不超过3板、所属主线过关、
-    公司没自己澄清降温、近5日没涨过头。连板超3板的是明牌龙头，正是这套东西不推的对象。"""
+    """暗线候选：涨停原因里出现新产业词、所属主线过关、公司没自己澄清降温、
+    近20日没涨过头、只留首板（连板≥2 已是市场明牌高位，正是这套东西不推的对象）。"""
     rows = []
     for b in blocks:
         if b['score'] < 55:          # 主线本身不及格，谈暗线没有意义
@@ -11470,18 +11532,20 @@ def _dl_candidates(blocks, n=2):
                 cn = int(s.get('continue_num') or 0)
             except Exception:
                 cn = 0
-            if cn > 3:
+            if cn >= 2:             # 连板≥2 是市场已经认出来的明牌高位，只留首板
+                print('[dl] 剔除连板>=2: %s %d板' % (nm, cn))
                 continue
             # 公司自己已经澄清降温的，直接不算暗线（原文明确写收入占比极低这类）
             deny = [k for k in _DL_DENY if k in ri]
             if len(deny) >= 2:
                 print('[dl] 剔除已澄清降温: %s %s' % (nm, '、'.join(deny[:3])))
                 continue
-            # 近5日涨幅超25%的已经明牌，不是"尚未被充分定价"
-            t5 = _dl_pct5(cd)
-            if t5 is not None and t5 > 25:
-                print('[dl] 剔除近5日涨幅过高: %s %+.1f%%' % (nm, t5))
+            # 用户红线：近20日累计涨幅超40%属于主升浪，不是"尚未被充分定价"
+            t20 = _dl_pct20(cd)
+            if t20 is not None and t20 > 40:
+                print('[dl] 剔除近20日涨幅过高: %s %+.1f%%' % (nm, t20))
                 continue
+            t5 = _dl_pct5(cd)
             old = [k for k in _DL_OLD_KW if k in rt or k in ri[:80]]
             strength = 2 if any(k in ri for k in _DL_STRONG) else (1 if any(k in ri for k in _DL_WEAK) else 0)
             # 新逻辑挂哪条主线，由新词决定；它当天涨停落在哪个板块只作参考
@@ -11502,7 +11566,7 @@ def _dl_candidates(blocks, n=2):
                          'reason_type': rt, 'reason_info': ri, 'continue': cn,
                          'high': str(s.get('high') or ''), 'chg': s.get('change_rate'),
                          'new': hit_new, 'old': old, 'strength': strength,
-                         'score': sc, 'pct5': t5})
+                         'score': sc, 'pct5': t5, 'pct20': t20})
     rows.sort(key=lambda x: -x['score'])
     seen, keep = set(), []
     for r in rows:
@@ -11603,7 +11667,6 @@ def _dl_html(rows, data, mains_line):
     lines = ['<div style="color:%s;font-size:11px;margin-top:2px;">当日主线：%s</div>' % (GREY, mains_line)]
     for i, r in enumerate(rows, 1):
         one = _dl_line(r, by.get(r['code']))
-        one = one.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
         lines.append('<div style="margin-top:6px;font-size:12px;line-height:1.65;">%s</div>' % one)
     note = str((data or {}).get('note') or '').strip()
     if note:
@@ -11615,6 +11678,7 @@ def build_darkline():
     """暗线情报与爆发点预警：情报源（涨停原因原文）→ 暗线拆解 → 主线共振 → 盘面触发线 → 证伪。"""
     bj = _bj_now()
     blocks = _dl_blocks()
+    _dl_pool_save(blocks)
     rows = _dl_candidates(blocks, 20)
     if not rows:
         inner = ('<div style="margin-top:8px;font-size:13px;line-height:1.75;color:#e2e8f0;">'
@@ -11632,16 +11696,19 @@ def build_darkline():
         t = r['tape']
         ta = '' if not t else ('现价%.2f MA5%.2f MA20%.2f 平台高点%.2f 量比%.2f' % (
             t['cur'], t['ma5'], t['ma20'], t['p20'], t['vr']))
-        fact.append('%s(%s) 流通市值%s｜新逻辑主线%s %.0f分%s（当日涨停落在%s）｜涨停 %d 家｜涨停原因[%s]｜原文[%s]｜连板%d板｜近5日%s｜%s'
+        fact.append('%s(%s) 流通市值%s｜新逻辑主线%s %.0f分%s（当日涨停落在%s）｜涨停 %d 家｜涨停原因[%s]｜原文[%s]｜连板%d板（首板=1）｜近5日%s｜近20日%s｜%s'
                     % (r['name'], r['code'], ('%.0f亿' % r['cap']) if r.get('cap') else '未取到',
                        r['theme'], r['block_score'], r['stage'], r['block'], r['lu'],
                        r['reason_type'], r['reason_info'][:150].replace('\n', ' '), r['continue'],
-                       ('%+.1f%%' % r['pct5']) if r['pct5'] is not None else '未取到', ta))
+                       ('%+.1f%%' % r['pct5']) if r['pct5'] is not None else '未取到',
+                       ('%+.1f%%' % r['pct20']) if r.get('pct20') is not None else '未取到', ta))
     data = None
     if DEEPSEEK_KEY:
-        sys_txt = ('你是A股"暗线情报挖掘与盘面验证"研究员，不推高位龙头，只挖隐藏在主线下、'
-                   '还没被充分定价的个股。输出只有一个 JSON 对象：不要解释、不要 Markdown、'
-                   '不要在 JSON 之外写任何句子。反模板强化：每句必须绑定输入里的真实情报原文与真实数值。')
+        sys_txt = ('你是A股"暗线潜伏雷达"：只挖逻辑刚发酵、资金刚试探、还没走出主升浪的左侧或'
+                   '突破前夜标的，不推已连板或近20日翻倍过的明牌高位股。输出只有一个 JSON 对象：'
+                   '不要解释、不要 Markdown、不要在 JSON 之外写任何句子。反模板强化：每句必须绑定'
+                   '输入里的真实情报原文与真实数值。候选已按红线过滤（只留首板、近20日涨幅不超40%），'
+                   '"潜伏逻辑"要写清它现在处在蓄势/洗盘/待确认的哪一步。')
         fmt = ('日期：{date}\nA股主线（名称/评分/代表股，只能原样引用）：{mains}\n'
                '当日暗线候选（全部为真实涨停原因与真实盘面，数值禁止改动、禁止新增没给的信息）：\n{facts}\n'
                '只输出一个 JSON 对象：\n'
