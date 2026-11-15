@@ -11267,8 +11267,7 @@ _DL_DENY = ('收入不足', '占比极低', '比重极低', '尚未量产', '未
             '不构成重大影响', '无重大影响', '异常波动公告', '仅为概念', '存在不确定性',
             '尚处研发', '尚未形成销售', '风险提示', '不涉及')
 # 新逻辑对应的主线归属：按新词反查，而不是按它当天涨停恰好所在的板块
-_DL_THEME = (
-    (('机器人', '人形', '减速器', '丝杠', '丝杆', '灵巧手', '谐波', '伺服',
+_DL_THEME = (    (('机器人', '人形', '减速器', '丝杠', '丝杆', '灵巧手', '谐波', '伺服',
       '电子皮肤', '触觉', '仿生', '柔性', 'TPV', '弹性体'), '机器人'),
     (('固态电池', '硅碳负极'), '固态电池'),
     (('CPO', '光模块', '硅光', '液冷'), '算力'),
@@ -11278,6 +11277,9 @@ _DL_THEME = (
     (('低空', 'eVTOL', '商业航天', '卫星'), '低空航天'),
     (('超导', '磁材', '稀土永磁'), '新材料'),
 )
+# 模型爱把主线写成证监会行业名，这几个词一旦出现就判定为篡改主线
+_DL_BAD_NAME = ('通用设备', '汽车零部', '专用设备', '化学制品', '塑料制品',
+                '电子元件', '仪器仪表', '橡胶制品', '非金属矿')
 
 
 def _dl_blocks(limit=30):
@@ -11444,7 +11446,7 @@ def _dl_candidates(blocks, n=2):
     return keep[:n]
 
 
-def _dl_parse(t):
+def _dl_parse(t, srcmap=None):
     if not t:
         return None
     s = str(t).strip()
@@ -11456,6 +11458,36 @@ def _dl_parse(t):
     except Exception:
         return None
     if not isinstance(o, dict) or not o.get('items'):
+        return None
+    # 代码级护栏：模型输出先过一遍，问句/篡改主线/编造情报源的条目整条丢掉，
+    # 丢掉的条目渲染层会自动用真实涨停原因原文与真实盘面数值兜底，不出空卡。
+    keep = []
+    for it in (o.get('items') or []):
+        if not isinstance(it, dict):
+            continue
+        code = str(it.get('code') or '').strip()
+        blob = ' '.join(str(it.get(k) or '') for k in
+                        ('src', 'oldtag', 'newlogic', 'grade', 'pin', 'cycle',
+                         'fund', 'falsify', 'break'))
+        if '？' in blob or '?' in blob:
+            print('[dl] 丢弃含问句的一条: %s' % code)
+            continue
+        bad = [k for k in _DL_BAD_NAME if k in blob]
+        if bad:
+            print('[dl] 丢弃篡改主线的一条: %s %s' % (code, '、'.join(bad[:2])))
+            continue
+        src = str(it.get('src') or '').strip()
+        info = (srcmap or {}).get(code) or ''
+        if src and info:
+            # 情报源必须能在原文里找到连续6字，否则判定为模型自己编的来源
+            hit = any(src[k:k + 6] in info for k in range(0, max(1, len(src) - 5), 3))
+            if not hit:
+                print('[dl] 丢弃编造情报源: %s %s' % (code, src[:40]))
+                it['src'] = ''
+        keep.append(it)
+    o['items'] = keep
+    if not keep:
+        print('[dl] 模型输出全部被护栏拦下，整卡走规则兜底')
         return None
     return o
 
@@ -11588,7 +11620,7 @@ def build_darkline():
         t = ask_deepseek({'task': 'darkline', 'date': bj.strftime('%Y-%m-%d'),
                           'mains': mains_line, 'facts': '\n'.join(fact), 'format': fmt},
                          purpose='darkline', system_text=sys_txt)
-        data = _dl_parse(t)
+        data = _dl_parse(t, {r['code']: r['reason_info'] for r in rows})
         if data is None:
             print('[dl] LLM 未返回可解析 JSON，走规则兜底 | 原文前120字:', (t or '')[:120].replace('\n', ' '))
     if data is None:
