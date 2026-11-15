@@ -11364,7 +11364,8 @@ def _dl_pool_save(blocks):
 
 DL_TEXT_KW = ('机器人', '人形', '固态电池', '光刻胶', '减速器', '丝杠', '灵巧手',
               '谐波', '伺服', '送样', '定点', '算力', '液冷', '铜连接', '具身智能',
-              '触觉传感器', '仿生皮肤', '中试', '小批量')
+              '触觉传感器', '仿生皮肤', '中试', '小批量', '低空', '卫星', 'CPO',
+              'HBM', 'PEEK', '碳纤维', '钙钛矿', '光模块', 'AI芯片')
 
 
 def _dl_se_days(days=5):
@@ -11463,24 +11464,30 @@ _DL_KLINE_CACHE = {}
 
 
 def _dl_text_candidates(days=5):
-    """第一步：文本抓取 + 新产业词粗筛，返回含新词的公告候选（含正文）。"""
+    """第一步：文本抓取 + 新产业词粗筛（PDF 并发下载，60+ 条也能压进时间窗）。"""
+    from concurrent.futures import ThreadPoolExecutor
     items = _dl_text_fetch(days)
-    out = []
-    for x in items:
-        txt = _dl_pdf_text(x['pdf'])
+
+    def _one(x):
+        try:
+            txt = _dl_pdf_text(x['pdf'])
+        except Exception:
+            txt = ''
         if not txt:
-            continue
+            return None
         nw = [k for k in _DL_NEW_KW if k in txt]
         if not nw:
-            continue
+            return None
         ow = [k for k in _DL_OLD_KW if k in txt]
-        out.append({'code': x['code'], 'name': x['name'], 'title': x['title'],
-                    'date': x['date'], 'src_tag': x['tag'], 'new': nw, 'old': ow,
-                    'text': txt})
+        return {'code': x['code'], 'name': x['name'], 'title': x['title'],
+                'date': x['date'], 'src_tag': x['tag'], 'new': nw, 'old': ow,
+                'text': txt}
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        res = list(ex.map(_one, items))
+    out = [r for r in res if r]
     print('[dl] 文本粗筛: %d 条含新产业词' % len(out))
     return out
-
-
 def _dl_kline(code, n=40):
     """暗线专用日K：腾讯优先，腾讯 501 限流时走新浪（两个源都实测可用，
     东财日K早已全节点 RemoteDisconnected，不再作为兜底）。返回 [日期,开,收,高,低,量]。
@@ -11629,6 +11636,41 @@ def _dl_mktcap(code):
         f = raw.split('~')
         v = float(f[44])
         return v if v > 0 else None
+    except Exception:
+        return None
+
+
+def _dl_tape_desc(code):
+    """行情补全（只查询不过滤）：现价/涨跌幅/流通市值/盘面状态。取不到现价返回 None。"""
+    try:
+        arr = _dl_kline(code, 40)
+        if not arr or len(arr) < 2:
+            return None
+        closes = [float(x[2]) for x in arr]
+        vols = [float(x[5]) for x in arr]
+        cur = closes[-1]
+        if cur <= 0:
+            return None
+        chg = ((cur / closes[-2] - 1) * 100) if closes[-2] > 0 else 0.0
+        ma20 = sum(closes[-20:]) / 20.0 if len(closes) >= 20 else cur
+        v5 = sum(vols[-6:-1]) / 5.0 if len(vols) >= 6 else 1.0
+        vr = (vols[-1] / v5) if v5 > 0 else 0.0
+        cap = _dl_mktcap(code)
+        if chg >= 9.5:
+            desc = '今日涨停，已明牌'
+        elif chg <= -5 and cur < ma20:
+            desc = '放量大跌·破20线'
+        elif cur < ma20:
+            desc = '破位·跌破20线'
+        elif vr <= 0.8:
+            desc = '缩量回踩·蓄势'
+        elif vr >= 2 and chg > 0:
+            desc = '放量上攻'
+        elif chg > 0:
+            desc = '温和上行'
+        else:
+            desc = '横盘整理'
+        return {'cur': cur, 'chg': chg, 'cap': cap, 'desc': desc, 'ma20': ma20, 'vr': vr}
     except Exception:
         return None
 
@@ -11891,7 +11933,7 @@ def _dl_text_parse(t):
 
 
 def _dl_text_llm(cands, bj):
-    """把文本候选正文片段喂 LLM，提炼旧主业 vs 新暗线。失败返回 None。"""
+    """把文本候选正文片段喂 LLM，提炼"旧瓶装新酒"预期差（全赛道）。失败返回 None。"""
     mains_line = '；'.join('%s(%.0f分)' % (m[0], m[1] or 0) for m in _ext_mainlines(5)) or '未取得'
     facts = []
     for c in cands:
@@ -11899,13 +11941,16 @@ def _dl_text_llm(cands, bj):
         facts.append('%s(%s)｜类型:%s｜新词:%s｜旧词:%s｜正文片段:%s'
                      % (c['name'], c['code'], c['src_tag'], '、'.join(c['new'][:6]),
                         '、'.join(c['old'][:4]), ex))
-    sys_txt = ('你是A股"暗线潜伏雷达"：从公告/调研纪要正文里挖"旧主业掩盖新暗线"的预期差，'
-               '不推高位龙头，只找逻辑刚发酵、还没被市场定价的标的。只输出一个 JSON，不要解释、不要 Markdown。')
-    fmt = ('日期:{date}' + chr(10) + 'A股当前主线:{mains}' + chr(10) + '候选公司正文片段:{facts}' + chr(10) +
-           '只输出 JSON:{"items":[{"code":"原样抄","oldtag":"市场旧标签(它被当成什么行业)",'
-           '"newlogic":"新暗线:具体产品/技术+应用场景+产业链卡位或核心客户,不许只写方向词",'
-           '"grade":"强/中/弱","theme":"挂在输入里哪条主线(没有就写“其他”)",'
-           '"pin":"卡位痛点","falsify":"逻辑证伪的具体信号"}],"note":"一句总括"}' + chr(10) +
+    sys_txt = ('你是A股"全市场暗线情报挖掘机"：从公告/调研纪要正文里挖"旧瓶装新酒"的隐藏逻辑，'
+               '全市场全赛道扫描，机器人、固态电池、低空经济、AI算力、卫星、新材料都算，不预设行业；'
+               '只看情报逻辑硬不硬，不看K线死活。只输出一个 JSON，不要解释、不要 Markdown。')
+    fmt = ('日期:{date}' + chr(10) + 'A股当前主线(仅供参考，可自判):{mains}' + chr(10) +
+           '候选公司正文片段:{facts}' + chr(10) +
+           '只输出 JSON:{"items":[{"code":"原样抄","oldtag":"原主营业务(旧标签)",'
+           '"newlogic":"新暗线:具体产品/技术+应用场景+产业链卡位或核心客户,不许写“布局AI”“涉足机器人”这种空泛词",'
+           '"grade":"强/中/弱","theme":"所属热门赛道(机器人/固态电池/低空/算力/卫星/新材料等,自己判断)",'
+           '"why":"一句话说清预期差为什么硬:市场还没定价的点在哪","falsify":"逻辑证伪的具体信号"}],"note":"一句总括"}' +
+           chr(10) +
            '硬规则:全篇陈述句,禁止设问/反问;只写正文里真实出现的信息,禁止编造;'
            '正文只是顺口提到新词、主业与它无关的,grade 写"弱"并在 newlogic 里点明不构成暗线;'
            'items 与候选一一对应,不许换股、不许漏股。')
@@ -11920,54 +11965,52 @@ def _dl_text_fallback(cands):
     """无 LLM 时规则兜底：用正文新词/旧词直接组 items。"""
     items = [{'code': c['code'], 'oldtag': '、'.join(c['old'][:3]) or '主业未标注',
               'newlogic': '、'.join(c['new'][:4]) + ' 方向有披露', 'grade': '弱',
-              'theme': '', 'pin': '', 'falsify': ''} for c in cands]
+              'theme': (c['new'][0] if c['new'] else ''), 'why': '', 'falsify': ''} for c in cands]
     return {'items': items, 'note': ''}
 
 
 def _dl_line_text(c, it):
-    """文本版单行：涨红跌绿、竖线分隔、不给买卖价。"""
+    """单行全量输出：涨红跌绿、竖线分隔、不给买卖价。"""
     it = it or {}
     t = c.get('tape') or {}
-    cap = c.get('cap')
-    chg = c.get('chg')
+    chg = t.get('chg')
 
     def _e(s):
         s = '' if s is None else str(s)
         return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
-    nm = _e(c['name']) + (('(%.0f亿)' % cap) if cap else '')
-    body = ('%.2f(%+.1f%%)' % (t['cur'], chg)) if (t and chg is not None) else '现价待补'
-    col = 'red' if (chg is not None and chg > 0) else 'green'
-    head = '<font color="%s"><b>%s %s</b></font>' % (col, nm, body)
-    old_s = _e(str(it.get('oldtag') or ('、'.join(c['old'][:3]) if c['old'] else '主业未标注')))
-    new_s = _e(str(it.get('newlogic') or '、'.join(c['new'][:4])))[:72]
-    src_s = _e('%s·%s' % (c.get('date') or '', c.get('src_tag') or ''))
-    ma, q = _dl_form(t)
-    grade = str(it.get('grade') or '弱')
-    fals = str(it.get('falsify') or '')[:30]
-    note = ('贴合度%s｜%s' % (_e(grade), _e(fals))) if fals else '贴合度%s' % _e(grade)
-    return ('%s | 旧:%s。新:%s（%s） | 均线:%s | 量价:%s | 备注:%s'
-            % (head, old_s, new_s, src_s, _e(ma), _e(q), note))
+    nm = _e(c.get('name') or '') + (('(%.0f亿)' % t['cap']) if t.get('cap') else '')
+    body = ('%.2f(%+.1f%%)' % (t['cur'], chg)) if chg is not None else '现价待补'
+    col = 'red' if (chg is not None and chg >= 0) else 'green'
+    head = '**<font color="%s">%s %s</font>**' % (col, nm, body)
+    old_s = _e(it.get('oldtag') or '主业未标注')
+    new_s = _e(it.get('newlogic') or '')[:80]
+    src_s = _e(c.get('src') or '')
+    theme = _e(it.get('theme') or '')
+    desc = _e(t.get('desc') or '')
+    why = _e(it.get('why') or '')[:40]
+    return ('%s | 旧:%s。新:%s(%s) | 主线:%s | 盘面状态:%s | 预期差:%s'
+            % (head, old_s, new_s, src_s, theme, desc, why))
 
 
-def _dl_html_text(final, by_code, mains_line):
+def _dl_html_text(rows, mains_line):
     lines = ['<div style="color:%s;font-size:11px;margin-top:2px;">当日主线：%s</div>' % (GREY, mains_line)]
-    for c in final:
-        one = _dl_line_text(c, by_code.get(c['code']))
+    for r in rows:
+        one = _dl_line_text(r, r.get('it'))
         lines.append('<div style="margin-top:6px;font-size:12px;line-height:1.65;">%s</div>' % one)
-    if not final:
+    if not rows:
         lines.append('<div style="margin-top:8px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
-                     '今天没有同时满足"预期差够硬 + 盘面未爆发、缩量、站稳20线"的潜伏标的，不硬凑。</div>')
+                     '今天文本源里没挖出"旧主业+新暗线"同时成立的预期差，不硬凑。</div>')
     return ''.join(lines)
 
 
 def build_darkline():
-    """暗线潜伏雷达：文本源抓预期差 → LLM 提炼旧主业/新暗线 → K线盘面校验（未爆发/缩量/站稳20线）。"""
+    """暗线情报全量输出：文本源抓预期差 → LLM 判暗线 → 行情只补全不过滤。"""
     bj = _bj_now()
     cands = _dl_text_candidates(days=5)
     if not cands:
         return _wrap('<div style="margin-top:8px;font-size:13px;line-height:1.75;color:#e2e8f0;">'
-                     '近5日巨潮调研纪要与公告正文里没有含新产业词的公司，情报面不构成暗线，不硬凑标的。</div>',
+                     '近5日巨潮调研纪要与公告正文里没有含新产业词的公司，情报面不构成暗线。</div>',
                      '🔍', '暗线情报')
     data = None
     if DEEPSEEK_KEY:
@@ -11975,15 +12018,28 @@ def build_darkline():
     if data is None:
         data = _dl_text_fallback(cands)
     by_code = {str(it.get('code')): it for it in (data.get('items') or [])}
-    keep = _dl_lurk_filter(cands)
-    for c in keep:
-        c['cap'] = _dl_mktcap(c['code'])
-    final = [c for c in keep if c['code'] in by_code]
+    cmap = {c['code']: c for c in cands}
+    rows = []
+    for code, it in by_code.items():
+        c = cmap.get(code)
+        if not c:
+            continue
+        grade = str(it.get('grade') or '')
+        nlogic = str(it.get('newlogic') or '')
+        if grade == '弱' and ('未见明确暗线' in nlogic or '不构成' in nlogic):
+            continue
+        tape = _dl_tape_desc(code)
+        if tape is None:
+            continue
+        if not it.get('oldtag'):
+            it['oldtag'] = ('、'.join(c['old'][:3]) if c['old'] else '主业未标注')
+        rows.append({'code': code, 'name': c['name'], 'src': '%s·%s' % (c['date'], c['src_tag']),
+                     'it': it, 'tape': tape})
     mains_line = '；'.join('%s(%.0f分)' % (m[0], m[1] or 0) for m in _ext_mainlines(5)) or '主线未取得'
-    inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">文本源 %d 条公告里筛出潜伏暗线 %d 只｜盘面按最近交易日收盘</div>'
-             % (GREY, len(cands), len(final)))
+    inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">文本源 %d 条公告，挖出暗线 %d 只｜盘面如实展示不过滤</div>'
+             % (GREY, len(cands), len(rows)))
     inner += ('<div style="margin-top:6px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
-              + _dl_html_text(final, by_code, mains_line) + '</div>')
+              + _dl_html_text(rows, mains_line) + '</div>')
     inner += '<div style="margin-top:8px;color:%s;font-size:11px;">以上只做情报与变量提示，不构成投资建议</div>' % GREY
     return _wrap(inner, '🔍', '暗线情报')
 # ============ 跟涨三步走·埋伏补涨（follow） ============
