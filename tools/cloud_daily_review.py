@@ -11546,8 +11546,12 @@ def _dl_parse(t, srcmap=None):
         src = str(it.get('src') or '').strip()
         info = (srcmap or {}).get(code) or ''
         if src and info:
-            # 情报源必须能在原文里找到连续6字，否则判定为模型自己编的来源
-            hit = any(src[k:k + 6] in info for k in range(0, max(1, len(src) - 5), 3))
+            # 情报源必须能在原文里找到连续6字，否则判定为模型自己编的来源。
+            # 比对前双侧去空格/全角空格：模型常把"据2026年11月5日互动易"写成"据 2026 年 11 月 5 日互动易"，
+            # 不去空格会把真实来源全部误杀（run 43675257479 实测 8 条里误杀 5 条）。
+            _sq = re.sub(r'[\s\u3000]', '', src)
+            _iq = re.sub(r'[\s\u3000]', '', info)
+            hit = any(_sq[k:k + 6] in _iq for k in range(0, max(1, len(_sq) - 5), 1))
             if not hit:
                 print('[dl] 丢弃编造情报源: %s %s' % (code, src[:40]))
                 it['src'] = ''
