@@ -11664,8 +11664,10 @@ def _dl_tape_desc(code):
             limit = 29.5
         if chg >= limit:
             desc = '今日涨停，已明牌'
-        elif chg <= -5 and cur < ma20:
-            desc = '放量大跌·破20线'
+        elif chg >= 5:
+            desc = '放量大涨' if vr >= 2 else '大涨'
+        elif chg <= -5:
+            desc = '放量大跌·破20线' if cur < ma20 else '放量大跌'
         elif cur < ma20:
             desc = '破位·跌破20线'
         elif vr <= 0.8:
@@ -11939,7 +11941,7 @@ def _dl_text_parse(t):
 
 
 def _dl_text_llm(cands, bj):
-    """把文本候选正文片段喂 LLM，提炼"旧瓶装新酒"预期差（全赛道）。失败返回 None。"""
+    """喂 LLM 提炼"旧瓶装新酒"预期差：只认实质进展，拒绝行政公告与伪机器人。"""
     mains_line = '；'.join('%s(%.0f分)' % (m[0], m[1] or 0) for m in _ext_mainlines(5)) or '未取得'
     facts = []
     for c in cands:
@@ -11947,19 +11949,29 @@ def _dl_text_llm(cands, bj):
         facts.append('%s(%s)｜类型:%s｜新词:%s｜旧词:%s｜正文片段:%s'
                      % (c['name'], c['code'], c['src_tag'], '、'.join(c['new'][:6]),
                         '、'.join(c['old'][:4]), ex))
-    sys_txt = ('你是A股"全市场暗线情报挖掘机"：从公告/调研纪要正文里挖"旧瓶装新酒"的隐藏逻辑，'
-               '全市场全赛道扫描，机器人、固态电池、低空经济、AI算力、卫星、新材料都算，不预设行业；'
-               '只看情报逻辑硬不硬，不看K线死活。只输出一个 JSON，不要解释、不要 Markdown。')
+    sys_txt = ('你是A股"全市场暗线情报挖掘机"，只认实质业务进展。'
+               '行政流程一律不算暗线：股东会、董事会决议、续聘或改聘会计师、常规分红、'
+               '权益变动合规核查、募集说明书常规披露、持续督导意见，这些只是程序，不是业务。'
+               '只有送样、定点、小批量供货、量产、签重大合同、核心指标突破、点明客户名，才叫实质进展。'
+               '全市场全赛道扫描，不预设行业，输出必须跨赛道分散。只输出一个 JSON，不要解释、不要 Markdown。')
     fmt = ('日期:{date}' + chr(10) + 'A股当前主线(仅供参考，可自判):{mains}' + chr(10) +
            '候选公司正文片段:{facts}' + chr(10) +
            '只输出 JSON:{"items":[{"code":"原样抄","oldtag":"原主营业务(旧标签)",'
-           '"newlogic":"新暗线:具体产品/技术+应用场景+产业链卡位或核心客户,不许写“布局AI”“涉足机器人”这种空泛词",'
-           '"grade":"强/中/弱","theme":"所属热门赛道(机器人/固态电池/低空/算力/卫星/新材料等,自己判断)",'
+           '"newlogic":"新暗线:具体产品/技术+应用场景+产业链卡位或核心客户，写不出实质就写“无实质业务进展”",'
+           '"grade":"强/中/弱","theme":"所属赛道(固态电池/AI算力/CPO/液冷/低空/卫星/消费电子/创新药/汽车智能化/机器人/新材料等)",'
            '"why":"一句话说清预期差为什么硬:市场还没定价的点在哪","falsify":"逻辑证伪的具体信号"}],"note":"一句总括"}' +
            chr(10) +
-           '硬规则:全篇陈述句,禁止设问/反问;只写正文里真实出现的信息,禁止编造;'
-           '正文只是顺口提到新词、主业与它无关的,grade 写"弱"并在 newlogic 里点明不构成暗线;'
-           'items 与候选一一对应,不许换股、不许漏股。')
+           '硬规则:' + chr(10) +
+           '1)行政流程类(股东会/董事会决议/会计师聘任或续聘/分红/权益变动核查/持续督导/募集说明书常规披露)'
+           '一律 grade=弱，newlogic 写"行政流程，无业务实质"。' + chr(10) +
+           '2)必须写实质进展:送样/定点/供货/小批量/量产/重大合同/客户名/指标突破；'
+           '只写"布局""涉足""合作研发中"这类文字的，grade 最高只能给弱。' + chr(10) +
+           '3)禁止伪机器人:通用机械、电机、齿轮、热流道、绞盘、橡塑件 不得挂机器人，'
+           '除非正文明确出现"人形机器人"客户或人形产品，否则 grade=弱。' + chr(10) +
+           '4)赛道分散:theme 按真实赛道命名，不许把所有票都标成机器人;'
+           '整份输出尽量覆盖 2-3 个不同赛道。' + chr(10) +
+           '5)正文只是顺口提到新词、主业与它无关的，grade=弱并点明"不构成暗线"。' + chr(10) +
+           '6)items 与候选一一对应，不许换股、不许漏股。')
     t = ask_deepseek({'task': 'darkline', 'date': bj.strftime('%Y-%m-%d'),
                       'mains': mains_line, 'facts': chr(10).join(facts), 'format': fmt},
                      purpose='darkline', system_text=sys_txt)
@@ -12039,10 +12051,28 @@ def build_darkline():
             continue
         if not it.get('oldtag'):
             it['oldtag'] = ('、'.join(c['old'][:3]) if c['old'] else '主业未标注')
+        cap = tape.get('cap')
+        if cap is not None and cap < 30:
+            print('[dl] 剔除流通市值<30亿 %s %.1f亿' % (c['name'], cap))
+            continue
         rows.append({'code': code, 'name': c['name'], 'src': '%s·%s' % (c['date'], c['src_tag']),
                      'it': it, 'tape': tape})
+    # 赛道分散：同一赛道最多保留 3 只，按 grade 强弱、再按流通市值大小排
+    grade_rank = {'强': 3, '中': 2, '弱': 1}
+    rows.sort(key=lambda r: (grade_rank.get(str(r['it'].get('grade') or ''), 0),
+                             -(r['tape'].get('cap') or 0)))
+    per_theme = {}
+    kept = []
+    for r in rows:
+        th = str(r['it'].get('theme') or '其他').split('/')[0].strip() or '其他'
+        if per_theme.get(th, 0) >= 3:
+            print('[dl] 赛道分散剔除 %s（%s 已满3只）' % (r['name'], th))
+            continue
+        per_theme[th] = per_theme.get(th, 0) + 1
+        kept.append(r)
+    rows = kept
     mains_line = '；'.join('%s(%.0f分)' % (m[0], m[1] or 0) for m in _ext_mainlines(5)) or '主线未取得'
-    inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">文本源 %d 条公告，挖出暗线 %d 只｜盘面如实展示不过滤</div>'
+    inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">文本源 %d 条，实质暗线 %d 只｜已剔流通市值&lt;30亿与同一赛道第4只起</div>'
              % (GREY, len(cands), len(rows)))
     inner += ('<div style="margin-top:6px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
               + _dl_html_text(rows, mains_line) + '</div>')
