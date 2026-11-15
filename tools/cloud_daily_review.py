@@ -11243,6 +11243,340 @@ def build_ext():
     return _wrap(inner, '🌙', '外盘窗口')
 
 
+# ============ 暗线情报与爆发点预警 v1（11-15 新增）============
+# 证据链：同花顺涨停板块榜 → 板块内每只涨停股自带 reason_type（题材标签）与
+# reason_info（带日期的情报原文：官微/投资者关系活动记录表/公告），
+# 再叠加日K 做盘面验证。互动易/上证e互动直连返回 405/500 不可用，不伪造情报。
+_DL_NEW_KW = ('机器人', '人形', '减速器', '丝杠', '丝杆', '灵巧手', '谐波', '伺服',
+              '柔性', '电子皮肤', '触觉', '仿生', '弹性体', 'TPV',
+              '固态电池', '硅碳负极', 'CPO', '光模块', '硅光', '液冷',
+              '光刻胶', '先进封装', '封测', 'HBM', '存储',
+              'PEEK', '碳纤维', '轻量化', '一体化压铸', '镁合金',
+              'AI眼镜', '端侧', 'AI手机', 'AI玩具', '低空', 'eVTOL',
+              '商业航天', '卫星', '超导', '磁材', '稀土永磁')
+_DL_OLD_KW = ('化工', '塑料', '改性', '橡胶', '化纤', '纺织', '造纸', '农药', '化肥',
+              '建材', '水泥', '钢铁', '煤炭', '包装', '印刷', '食品', '养殖', '饲料',
+              '服装', '家电', '玻璃', '陶瓷', '涂料', '油墨', '轮胎', '树脂',
+              '助剂', '薄膜', '管材', '贸易', '物流', '燃气', '水务', '环保',
+              '洗涤', '磨床', '机床', '轴承', '雨刮', '印染', '五金', '泵业', '铸造')
+_DL_STRONG = ('送样', '定点', '量产', '小批量', '中试', '签署', '签约', '中标', '批量供货',
+              '专利', '导入', '验证通过', '首批', '订单', '供货')
+_DL_WEAK = ('技术储备', '研发中', '课题', '实验室', '储备')
+# 公司自己主动降温/澄清的措辞：命中两条以上就不算暗线，算逻辑已证伪（日盈电子案例）
+_DL_DENY = ('收入不足', '占比极低', '比重极低', '尚未量产', '未产生收入', '未形成批量',
+            '不构成重大影响', '无重大影响', '异常波动公告', '仅为概念', '存在不确定性',
+            '尚处研发', '尚未形成销售', '风险提示', '不涉及')
+# 新逻辑对应的主线归属：按新词反查，而不是按它当天涨停恰好所在的板块
+_DL_THEME = (
+    (('机器人', '人形', '减速器', '丝杠', '丝杆', '灵巧手', '谐波', '伺服',
+      '电子皮肤', '触觉', '仿生', '柔性', 'TPV', '弹性体'), '机器人'),
+    (('固态电池', '硅碳负极'), '固态电池'),
+    (('CPO', '光模块', '硅光', '液冷'), '算力'),
+    (('光刻胶', '先进封装', '封测', 'HBM', '存储'), '半导体'),
+    (('PEEK', '碳纤维', '轻量化', '一体化压铸', '镁合金'), '新材料'),
+    (('AI眼镜', '端侧', 'AI手机', 'AI玩具'), 'AI终端'),
+    (('低空', 'eVTOL', '商业航天', '卫星'), '低空航天'),
+    (('超导', '磁材', '稀土永磁'), '新材料'),
+)
+
+
+def _dl_blocks(limit=30):
+    """同花顺涨停板块榜：板块评分 + 板块内涨停个股（含涨停原因原文）。取不到返回 []。"""
+    qs = ('filter=HS,GEM2STAR&field=199112,10,9001&order_field=199112&order_type=0'
+          '&page=1&limit=%d' % limit)
+    items = []
+    for i in range(3):
+        try:
+            req = urllib.request.Request('https://data.10jqka.com.cn/dataapi/limit_up/block_top?' + qs,
+                                         headers={**UA, 'Referer': 'https://data.10jqka.com.cn/'})
+            txt = urllib.request.urlopen(req, timeout=9).read().decode('utf-8', 'ignore')
+            items = (json.loads(txt) or {}).get('data') or []
+            if items:
+                break
+        except Exception as e:
+            print('[dl] 涨停板块第%d次失败: %s' % (i + 1, repr(e)[:70]))
+            time.sleep(0.8)
+    if not items:
+        print('[dl] 涨停板块未取到')
+        return []
+    out = []
+    for x in items:
+        nm = str(x.get('name') or '').strip()
+        if not nm:
+            continue
+        try:
+            lu = int(x.get('limit_up_num') or 0)
+            cont = int(x.get('continuous_plate_num') or 0)
+            chg = float(x.get('change') or 0)
+        except Exception:
+            continue
+        score = round(min(38 + min(lu, 12) * 4 + min(max(chg, 0), 5) * 3
+                          + (6 if cont >= 3 else 0), 100.0), 1)
+        stage = '一致期' if ((lu >= 8 and chg > 0) or cont >= 3) else ('分歧期' if lu >= 3 else '退潮期')
+        out.append({'name': nm, 'score': score, 'stage': stage, 'lu': lu,
+                    'cont': cont, 'chg': chg, 'list': x.get('stock_list') or []})
+    return out
+
+
+def _dl_tape(code):
+    """盘面验证：20日平台高点、量比、MA5/MA20、现价、近5日涨幅。取不到返回 None。"""
+    try:
+        sym = ('sh' if str(code).startswith('6') else 'sz') + str(code)
+        arr = get_klines(sym, 40)
+        if not arr or len(arr) < 22:
+            return None
+        closes = [float(x[2]) for x in arr]
+        highs = [float(x[3]) for x in arr]
+        vols = [float(x[5]) for x in arr]
+        if closes[-1] <= 0 or closes[-20] <= 0:
+            return None
+        cur = closes[-1]
+        ma5 = sum(closes[-5:]) / 5.0
+        ma20 = sum(closes[-20:]) / 20.0
+        p20 = max(highs[-21:-1])
+        v5 = sum(vols[-6:-1]) / 5.0
+        vr = (vols[-1] / v5) if v5 > 0 else 0.0
+        pct5 = ((cur / closes[-6] - 1) * 100) if closes[-6] > 0 else None
+        return {'cur': cur, 'ma5': ma5, 'ma20': ma20, 'p20': p20, 'vr': vr, 'pct5': pct5}
+    except Exception as e:
+        print('[dl] %s 盘面取数失败: %s' % (code, repr(e)[:60]))
+        return None
+
+
+def _dl_pct5(code):
+    """近5日涨幅，用于把已经明牌化的标的挡在门外。取不到返回 None。"""
+    try:
+        sym = ('sh' if str(code).startswith('6') else 'sz') + str(code)
+        arr = get_klines(sym, 10)
+        if not arr or len(arr) < 6:
+            return None
+        c0, c1 = float(arr[-6][2]), float(arr[-1][2])
+        return ((c1 / c0 - 1) * 100) if c0 > 0 else None
+    except Exception:
+        return None
+
+
+def _dl_candidates(blocks, n=2):
+    """暗线候选：涨停原因里出现新产业词、连板不超过3板、所属主线过关、
+    公司没自己澄清降温、近5日没涨过头。连板超3板的是明牌龙头，正是这套东西不推的对象。"""
+    rows = []
+    for b in blocks:
+        if b['score'] < 55:          # 主线本身不及格，谈暗线没有意义
+            continue
+        for s in b['list']:
+            nm = str(s.get('name') or '').strip()
+            cd = str(s.get('code') or '').strip()
+            if not nm or not cd:
+                continue
+            rt = str(s.get('reason_type') or '')
+            ri = str(s.get('reason_info') or '')
+            hit_new = [k for k in _DL_NEW_KW if k in rt]
+            if not hit_new:
+                continue
+            try:
+                cn = int(s.get('continue_num') or 0)
+            except Exception:
+                cn = 0
+            if cn > 3:
+                continue
+            # 公司自己已经澄清降温的，直接不算暗线（原文明确写收入占比极低这类）
+            deny = [k for k in _DL_DENY if k in ri]
+            if len(deny) >= 2:
+                print('[dl] 剔除已澄清降温: %s %s' % (nm, '、'.join(deny[:3])))
+                continue
+            # 近5日涨幅超25%的已经明牌，不是"尚未被充分定价"
+            t5 = _dl_pct5(cd)
+            if t5 is not None and t5 > 25:
+                print('[dl] 剔除近5日涨幅过高: %s %+.1f%%' % (nm, t5))
+                continue
+            old = [k for k in _DL_OLD_KW if k in rt or k in ri[:80]]
+            strength = 2 if any(k in ri for k in _DL_STRONG) else (1 if any(k in ri for k in _DL_WEAK) else 0)
+            # 新逻辑挂哪条主线，由新词决定；它当天涨停落在哪个板块只作参考
+            theme = b['name']
+            for kws, tn in _DL_THEME:
+                if any(k in rt for k in kws):
+                    theme = tn
+                    break
+            tb = b
+            if theme != b['name']:
+                cand = [x for x in blocks if theme in x['name']]
+                if cand:
+                    tb = max(cand, key=lambda x: x['score'])
+            sc = round(tb['score'] * 0.55 + strength * 12 + min(len(hit_new), 3) * 4
+                       + (8 if old else 0), 1)
+            rows.append({'code': cd, 'name': nm, 'block': b['name'], 'theme': theme,
+                         'block_score': tb['score'], 'stage': tb['stage'], 'lu': tb['lu'],
+                         'reason_type': rt, 'reason_info': ri, 'continue': cn,
+                         'high': str(s.get('high') or ''), 'chg': s.get('change_rate'),
+                         'new': hit_new, 'old': old, 'strength': strength,
+                         'score': sc, 'pct5': t5})
+    rows.sort(key=lambda x: -x['score'])
+    seen, keep = set(), []
+    for r in rows:
+        if r['name'] in seen:
+            continue
+        seen.add(r['name'])
+        keep.append(r)
+    return keep[:n]
+
+
+def _dl_parse(t):
+    if not t:
+        return None
+    s = str(t).strip()
+    i, j = s.find('{'), s.rfind('}')
+    if i < 0 or j <= i:
+        return None
+    try:
+        o = json.loads(s[i:j + 1])
+    except Exception:
+        return None
+    if not isinstance(o, dict) or not o.get('items'):
+        return None
+    return o
+
+
+def _dl_fallback(rows):
+    """规则兜底：全部用真实情报原文与真实盘面数值拼四模块，模型不回也不出空卡。"""
+    items = []
+    for r in rows:
+        ri = r['reason_info'].replace('\n', ' ')
+        # 情报源：优先取原文里带"据…年…月…日"的那一句，它就是来源与时间
+        src = ''
+        for seg in re.split(r'[1-9]、|；', ri):
+            s2 = seg.strip()
+            if s2 and ('据20' in s2 or '公告' in s2 or '互动' in s2 or '调研' in s2):
+                src = s2[:120]
+                break
+        if not src:
+            src = ri[:110]
+        grade = '强' if r['strength'] == 2 else ('中' if r['strength'] == 1 else '弱')
+        newlogic = '%s 方向有新增披露，卡在 %s 主线的上游环节' % ('、'.join(r['new'][:3]), r['theme'])
+        pin = '涨停原因把它定位在「%s」这一环，是 %s 主线放量时先动的上游' % (r['reason_type'], r['theme'])
+        items.append({'code': r['code'], 'src': src,
+                      'oldtag': ('、'.join(r['old'][:3]) if r['old'] else '旧标签未在涨停原因中体现'),
+                      'newlogic': newlogic, 'grade': grade, 'pin': pin,
+                      'cycle': r['stage']})
+    return {'items': items, 'note': ''}
+
+
+def _dl_html(rows, data, mains_line):
+    """四模块渲染：情报判断文字可来自模型，所有数值一律由代码用真实盘面数据填。"""
+    by = {}
+    for it in ((data or {}).get('items') or []):
+        if isinstance(it, dict) and it.get('code'):
+            by[str(it.get('code'))] = it
+    lines = ['<div style="color:%s;font-size:11px;margin-top:2px;">当日主线：%s</div>' % (GREY, mains_line)]
+    for i, r in enumerate(rows, 1):
+        mt = by.get(r['code']) or {}
+        t = r.get('tape') or {}
+        if t:
+            tape_line = ('现价 %.2f｜MA5 %.2f｜MA20 %.2f（%s）｜20日平台高点 %.2f｜量比 %.2f%s'
+                         % (t['cur'], t['ma5'], t['ma20'],
+                            '站上' if t['cur'] >= t['ma20'] else '已破',
+                            t['p20'], t['vr'],
+                            ('｜近5日 %+.1f%%' % t['pct5']) if t['pct5'] is not None else ''))
+            trig = ('放量站上 %.2f 且量比大于 2 才算突破成立' % t['p20']) if t['cur'] < t['p20'] else \
+                   ('已站上 %.2f，量比放大到 2 以上才确认，缩量滞涨视为假突破' % t['p20'])
+            brk = '跌破 MA20 %.2f 或主线退潮放量补跌' % t['ma20']
+        else:
+            tape_line = '盘面数据未取到'
+            trig = '盘面数据未取到，不设触发线'
+            brk = '盘面数据未取到，不设破位线'
+        grade = str(mt.get('grade') or ('强' if r['strength'] == 2 else ('中' if r['strength'] == 1 else '弱')))
+        gcol = '#ff6b6b' if grade == '强' else ('#ffd43b' if grade == '中' else GREY)
+        lines.append(
+            '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);">'
+            '<b style="color:#ffd43b;">%d. %s（%s）</b> 暗线贴合度 <b style="color:%s">%s</b>'
+            '｜新逻辑挂 %s 主线 %.0f分・%s｜当日涨停落在 %s</div>'
+            % (i, r['name'], r['code'], gcol, grade,
+               r['theme'], r['block_score'], r['stage'], r['block']))
+        lines.append('<div style="margin-top:5px;"><b>① 情报源与暗线拆解</b></div>')
+        lines.append('<div>· 情报来源：%s</div>' % str(mt.get('src') or r['reason_info'][:110].replace('\n', ' ')))
+        lines.append('<div>· 涨停原因标签：%s</div>' % r['reason_type'])
+        lines.append('<div>· 市场旧标签：%s</div>' % str(mt.get('oldtag') or ('、'.join(r['old'][:3]) if r['old'] else '旧标签未在涨停原因中体现')))
+        lines.append('<div>· 隐藏新逻辑：%s</div>' % str(mt.get('newlogic') or ('、'.join(r['new'][:3]) + ' 方向有新增披露')))
+        lines.append('<div>· 卡位痛点：%s</div>' % str(mt.get('pin') or ('涨停原因把它定位在「%s」这一环，是 %s 主线放量时先动的上游' % (r['reason_type'], r['theme']))))
+        lines.append('<div style="margin-top:5px;"><b>② 盘面验证前置条件</b></div>')
+        lines.append('<div>· 主线企稳：%s 主线 %.0f分・%s，板块内涨停 %d 家；主线不破5日线才谈这条暗线</div>'
+                     % (r['theme'], r['block_score'], r['stage'], r['lu']))
+        lines.append('<div>· 情绪周期：%s</div>' % str(mt.get('cycle') or r['stage']))
+        lines.append('<div style="margin-top:5px;"><b>③ 爆发信号触发</b></div>')
+        lines.append('<div>· 量价：%s</div>' % tape_line)
+        lines.append('<div>· 触发线：%s</div>' % trig)
+        if str(mt.get('fund') or '').strip():
+            lines.append('<div>· 资金异动：%s</div>' % str(mt.get('fund')))
+        lines.append('<div>· 联动验证：%s 主线涨停家数扩大到 %d 家以上、板块内有票封板时，这只才算被资金认领</div>'
+                     % (r['theme'], max(r['lu'] + 1, 4)))
+        lines.append('<div style="margin-top:5px;"><b>④ 证伪与风险</b></div>')
+        lines.append('<div>· 逻辑证伪：%s</div>'
+                     % str(mt.get('falsify') or ('公司澄清未与相关客户合作，或材料未达量产标准，这条暗线当场作废')))
+        lines.append('<div>· 盘面破位：%s</div>' % str(mt.get('break') or brk))
+    note = str((data or {}).get('note') or '').strip()
+    if note:
+        lines.append('<div style="margin-top:8px;color:%s;font-size:11px;">%s</div>' % (GREY, note))
+    return ''.join(lines)
+
+
+def build_darkline():
+    """暗线情报与爆发点预警：情报源（涨停原因原文）→ 暗线拆解 → 主线共振 → 盘面触发线 → 证伪。"""
+    bj = _bj_now()
+    blocks = _dl_blocks()
+    rows = _dl_candidates(blocks, 2)
+    if not rows:
+        inner = ('<div style="margin-top:8px;font-size:13px;line-height:1.75;color:#e2e8f0;">'
+                 '当日涨停原因里没有出现"传统主业＋新产业逻辑"同时成立的个股，'
+                 '情报面不构成暗线，不硬凑标的。</div>')
+        return _wrap(inner, '🔍', '暗线情报')
+    for r in rows:
+        r['tape'] = _dl_tape(r['code'])
+    mains = _ext_mainlines(5)
+    mains_line = '；'.join('%s(%.0f分,代表股%s)' % (m[0], m[1] or 0, m[3] or '未标') for m in mains) or '主线数据未取得'
+    # 给模型的全部是真实事实，数值不许改
+    fact = []
+    for r in rows:
+        t = r['tape']
+        ta = '' if not t else ('现价%.2f MA5%.2f MA20%.2f 平台高点%.2f 量比%.2f' % (
+            t['cur'], t['ma5'], t['ma20'], t['p20'], t['vr']))
+        fact.append('%s(%s)｜新逻辑主线%s %.0f分%s（当日涨停落在%s）｜涨停 %d 家｜涨停原因[%s]｜原文[%s]｜连板%d板｜近5日%s｜%s'
+                    % (r['name'], r['code'], r['theme'], r['block_score'], r['stage'], r['block'], r['lu'],
+                       r['reason_type'], r['reason_info'][:150].replace('\n', ' '), r['continue'],
+                       ('%+.1f%%' % r['pct5']) if r['pct5'] is not None else '未取到', ta))
+    data = None
+    if DEEPSEEK_KEY:
+        sys_txt = ('你是A股"暗线情报挖掘与盘面验证"研究员，不推高位龙头，只挖隐藏在主线下、'
+                   '还没被充分定价的个股。输出只有一个 JSON 对象：不要解释、不要 Markdown、'
+                   '不要在 JSON 之外写任何句子。反模板强化：每句必须绑定输入里的真实情报原文与真实数值。')
+        fmt = ('日期：{date}\nA股主线（名称/评分/代表股，只能原样引用）：{mains}\n'
+               '当日暗线候选（全部为真实涨停原因与真实盘面，数值禁止改动、禁止新增没给的信息）：\n{facts}\n'
+               '只输出一个 JSON 对象：\n'
+               '{"items":[{"code":"候选代码，原样抄","src":"情报来源与时间，必须来自原文摘要，写清是官微/'
+               '投资者关系活动记录表/公告/专利","oldtag":"市场旧标签","newlogic":"隐藏新逻辑，写清卡在哪个环节",'
+               '"grade":"强/中/弱 三选一","pin":"卡位痛点：主线里哪个环节靠它解决","cycle":"发酵期/分歧期/主升期三选一",'
+               '"fund":"资金异动信号","falsify":"逻辑被证伪的具体信号","break":"盘面破位的具体价位或条件"}],'
+               '"note":"一句总括，可为空"}\n'
+               '硬规则：全篇陈述句，禁止任何问句、设问、反问、自问自答；'
+               'src 只能来自原文，不许编造机构名、日期、公告标题；'
+               'newlogic 必须挂到给定主线上，不许讲脱离主线的孤立故事；'
+               'falsify 必须可验证——公司澄清、未达量产、未通过验证这类具体事；'
+               'break 必须写具体价位或条件，禁止写"走势转弱"这种废话；'
+               'items 最多3条，与候选一一对应，不许换股。')
+        t = ask_deepseek({'task': 'darkline', 'date': bj.strftime('%Y-%m-%d'),
+                          'mains': mains_line, 'facts': '\n'.join(fact), 'format': fmt},
+                         purpose='darkline', system_text=sys_txt)
+        data = _dl_parse(t)
+        if data is None:
+            print('[dl] LLM 未返回可解析 JSON，走规则兜底 | 原文前120字:', (t or '')[:120].replace('\n', ' '))
+    if data is None:
+        data = _dl_fallback(rows)
+    inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">情报面 %d 只｜盘面数据以最近交易日收盘为准'
+             '</div>' % (GREY, len(rows))
+             + '<div style="margin-top:6px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
+             + _dl_html(rows, data, mains_line) + '</div>'
+             + '<div style="margin-top:8px;color:%s;font-size:11px;">以上只做情报与变量提示，不构成投资建议</div>' % GREY)
+    return _wrap(inner, '🔍', '暗线情报')
+
+
 # ============ 跟涨三步走·埋伏补涨（follow） ============
 _FOLLOW_MIN_FUND = 5e7          # 龙头封单资金下限（元，约5000万）
 _FOLLOW_MIN_SECTOR = 3          # 板块涨停家数 ≥3 才算强势板块
@@ -16085,7 +16419,7 @@ TITLES = {'pre': '盘前速递', 'auction': '竞价观察', 'tail': '尾盘竞�
          'news': '事件简报', 'news2h': '两小时市场消息汇总',
           'hourly': '盘中解读', 'warn': '启动预警', 'confirm': '竞价确认', 'ext': '外盘窗口',
           'radar': '雷达扫描', 'newsfire': '新闻发酵', 'risk': '盘中风险体检',
-          'cycle': '多周期视角研判'}
+          'cycle': '多周期视角研判', 'darkline': '暗线情报'}
 
 
 BUILDERS['warn'] = build_warn
@@ -16094,6 +16428,7 @@ BUILDERS['tail'] = build_tail
 BUILDERS['radar'] = build_radar
 BUILDERS['newsfire'] = build_newsfire
 BUILDERS['risk'] = build_risk
+BUILDERS['darkline'] = build_darkline
 
 
 
@@ -16127,7 +16462,7 @@ def _in_silence(bj=None):
         return False
 
 
-KEY_TITLES = ('盘前', '竞价', '午间', '收盘', '启动预警', '外盘窗口')
+KEY_TITLES = ('盘前', '竞价', '午间', '收盘', '启动预警', '外盘窗口', '暗线情报')
 
 
 # —— 推送卡主题（2026-11-02 多版可选）——
@@ -17462,6 +17797,27 @@ if __name__ == '__main__':
         if ok:
             _mark_slot_done(_slot_window_key('ext'))
         print('SLOT ext PUSH', ok, msg)
+        sys.exit(0)
+    if slot == 'darkline':
+        # 暗线靠当日涨停原因与涨停梯队，非交易日没有新情报，直接不出卡
+        if not is_trading_day() and not force:
+            print('SLOT darkline 非交易日无新涨停情报，跳过')
+            sys.exit(0)
+        if not force and _slot_done(_slot_key('darkline')):
+            print('SLOT darkline 今日已推（slot_done 去重），跳过')
+            sys.exit(0)
+        try:
+            _dk = build_darkline()
+        except Exception as e:
+            print('[darkline] build exception:', e)
+            _dk = None
+        if _dk is None:
+            print('SLOT darkline: 构建失败，不推送')
+            sys.exit(0)
+        ok, msg = push(_dk, f'暗线情报 {_bj_now().strftime("%H:%M")}')
+        if ok:
+            _mark_slot_done(_slot_key('darkline'))
+        print('SLOT darkline PUSH', ok, msg)
         sys.exit(0)
     if slot == 'evening':
         if not force and _slot_done(_slot_key('evening')):
