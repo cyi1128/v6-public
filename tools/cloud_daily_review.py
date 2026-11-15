@@ -2598,7 +2598,7 @@ def _ms_one(model, msgs, purpose, timeout):
                        'temperature': 0.5,
                        # v7.9x31：6000 让免费队列一辈子里跑不完，45s 必然 timeout。
                        # v7.9x33：1600 会把正文截断（实测 len=3077 被切），放宽到 4000/5000
-                       'max_tokens': (5000 if purpose == 'zforce_radar' else 4000)}).encode('utf-8')
+                       'max_tokens': (5000 if purpose == 'zforce_radar' else (6000 if purpose == 'darkline' else 4000))}).encode('utf-8')
     req = urllib.request.Request(MODELSCOPE_URL, data=body, headers={
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + MODELSCOPE_KEY,
@@ -12018,7 +12018,8 @@ def _dl_text_llm(cands, bj):
            '4)theme 按真实赛道命名，不许把通用机械/电机/齿轮硬标成机器人；不要求跨赛道，同赛道多只一并保留。' + chr(10) +
            '5)正文只是顺口提到新词、主业与它无关的，grade=弱并点明"不构成暗线"。' + chr(10) +
            '6)oldtag 只能用该候选正文里真实出现的原主营，正文没写就填“主业未标注”，严禁编造或张冠李戴。' + chr(10) +
-           '7)items 与候选一一对应，不许换股、不许漏股。')
+           '7)items 与候选一一对应，不许换股、不许漏股；不限制输出条数，凡判强/中的都要列出，'
+           '不许为了精简只给几只；判弱的也如实列出并标弱，不要主动砍候选。')
     t = ask_deepseek({'task': 'darkline', 'date': bj.strftime('%Y-%m-%d'),
                       'mains': mains_line, 'facts': chr(10).join(facts), 'format': fmt},
                      purpose='darkline', system_text=sys_txt)
