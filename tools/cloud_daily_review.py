@@ -17699,7 +17699,8 @@ if __name__ == '__main__':
         sys.exit(0)
 
     # 休市日（周末/法定节假日/调休休市）：只发当天新闻汇总（每2小时窗口去重），不推任何股票分析、不调 DeepSeek
-    if not is_trading_day():
+    # 例外：手动 --force darkline 时允许出卡（暗线靠最近交易日涨停情报，用于实测验收；自动调度仍走休市日汇总）
+    if not is_trading_day() and not (force and slot == 'darkline'):
         holiday_slot(slot)
         sys.exit(0)
     # 每2小时新闻 cron（休市日专用调度）在交易日的兜底触发点：非盘面时段直接跳过，避免多余异动推送
