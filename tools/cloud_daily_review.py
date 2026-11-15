@@ -11351,7 +11351,7 @@ def _dl_pool_save(blocks):
                             'reason': str(s.get('reason_type') or '')[:60], 'cont': cn})
         if lst:
             old[d] = lst
-        for k in sorted(old.keys())[:-12]:
+        for k in sorted(old.keys())[:-25]:
             old.pop(k, None)
         with open(DL_POOL_HIST_PATH, 'w', encoding='utf-8') as f:
             json.dump(old, f, ensure_ascii=False)
