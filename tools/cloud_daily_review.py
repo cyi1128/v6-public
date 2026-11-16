@@ -5881,11 +5881,45 @@ def build_hourly():
                        f'{float(x.get("change") or 0):+.2f}%</span>' for x in _neg) or '无'
 
     # —— 暗线：今日涨停票里「表面炒 A、实质暗线 B」最重的 3 只 ——
-    # 数据来自同花顺板块成分股的 reason_type（按公告/新闻生成的真实涨停原因标签）。
-    # 命中重组/并购/AI/机器人/国资/涨价这类「非明面主营」的词越多，暗线越重；
-    # 同分时看连板高度。全部是已涨停票，只作证据，卡面明写「只看别追」。
+    # 数据来自同花顺板块成分股的 reason_type（按公告生成的真实涨停原因标签）与 reason_info（公告原文）。
+    # 命中重组/并购/AI/机器人/国资/涨价这类「非明面主营」的词越多，暗线越重；同分时看连板高度。
+    # ★ 暗线只是「这股身上还有一条没被单独定价的腿」，它不是上涨的保证。能不能兑现要看三件事：
+    #   ① 这条腿是真的（有公告/子公司/参股/产品）② 还没进价格（换手低、首板）③ 位置还能上车。
+    #   所以每只票后面必须跟「公告依据」+「换手位置」，让用户自己核对，而不是只给一句标签。
     _DL_KEYS = ('重组', '并购', '注入', '跨界', '转型', '机器人', '算力', 'AI', '国资',
                 '新业务', '涨价', '提价', '出口', '订单', '产能', '中特估', '可控核聚变')
+
+    def _dl_evid(st):
+        """从 reason_info 里抽第一条公告依据（带日期），让暗线有出处、可查证。
+        按逗号/句号切成短句再拼，避免半个词被砍断（「…分镜、角（2026年…）」这种）。"""
+        ri = str(st.get('reason_info') or '').split('（免责声明')[0]
+        m = re.search(r'据(\d{4}年\d{1,2}月\d{1,2}日[^，,]{0,12})[，,]\s*([^。]{8,200})', ri)
+        if not m:
+            return ''
+        body = re.sub(r'^[1-9]、', '', m.group(2)).strip()
+        out = ''
+        for seg in re.split(r'[，,；;]', body):
+            seg = seg.strip()
+            if not seg:
+                continue
+            if len(out) + len(seg) > 44:
+                break
+            out = (out + '，' + seg) if out else seg
+        if not out:
+            return ''
+        return out + ('…' if len(out) >= 40 else '') + f'（{m.group(1)}）'
+
+    def _dl_verdict(cn, turn):
+        """位置判断：暗线在不在价格里，看连板数与换手。"""
+        if cn >= 4:
+            return '暗线早就全在价格里了，现在进去是接最后一棒'
+        if cn == 1 and 0 < turn <= 6:
+            return f'首板、换手才{turn:.1f}%，这条腿还没进价格，可以小仓试'
+        if cn == 1:
+            return (f'首板但换手{turn:.1f}%已经不小，筹码换过一轮，'
+                    f'看明天能不能续板再决定')
+        return f'已经{cn}板，只做回踩不追高'
+
     _dl_pool = {}
     for _b in ((_pos if _pos else _bd[:2]) + _neg):
         for st in (_b.get('list') or []):
@@ -5903,15 +5937,37 @@ def build_hourly():
                 pct = 0.0
             hit = sum(1 for k in _DL_KEYS if k in rt)
             cand = (hit, cn, nm, str(st.get('code') or ''), rt,
-                    str(st.get('high') or ''), str(_b.get('name')), pct)
+                    str(st.get('high') or ''), str(_b.get('name')), pct, st)
             if nm not in _dl_pool or cand[0] > _dl_pool[nm][0]:
                 _dl_pool[nm] = cand          # 同一只票跨板块去重，保留暗线更重的记录
     _dl_rows = []
-    for _hit, _cn, _nm, _cd, _rt, _hi, _bn, _pct in sorted(
-            _dl_pool.values(), key=lambda t: (-t[0], -t[1]))[:3]:
-        _dl_rows.append(f'· <b>{_nm}</b>（{_cd}，{_hi or "首板"}·已涨停只看别追）'
-                        f'<span style="color:{_c(_pct)};">{_pct:+.2f}%</span>｜'
-                        f'表面炒{_bn}，实质暗线是{(_rt[:30] or "纯高度卡位，没有第二条腿")}')
+    _dl_all = sorted(_dl_pool.values(), key=lambda t: (-t[0], -t[1]))
+    for _i, (_hit, _cn, _nm, _cd, _rt, _hi, _bn, _pct, _st) in enumerate(_dl_all[:3]):
+        _q = _qt(('sz' if _cd[:1] in ('0', '3') else 'sh') + _cd) or {}
+        try:
+            _turn = float(_q.get('turn') or 0)
+        except Exception:
+            _turn = 0.0
+        # 前两只给完整（暗线+公告依据+位置）；第三只只留一行做反例，压长度
+        if _i < 2:
+            _ev = _dl_evid(_st)
+            _dl_rows.append(
+                f'· <b>{_nm}</b>（{_cd}，{_hi or "首板"}·已涨停）'
+                f'<span style="color:{_c(_pct)};">{_pct:+.2f}%</span>'
+                f'｜暗线：{(_rt[:30] or "纯高度卡位，没有第二条腿")}<br>'
+                f'　依据：{_ev or "无公告依据，只有媒体描述"}<br>'
+                f'　👉 {_dl_verdict(_cn, _turn)}')
+        else:
+            _dl_rows.append(
+                f'· <b>{_nm}</b>（{_cd}，{_hi or "首板"}·已涨停）'
+                f'<span style="color:{_c(_pct)};">{_pct:+.2f}%</span>'
+                f'｜暗线：{(_rt[:30] or "—")}｜'
+                f'<span style="color:#ff8787;">{_dl_verdict(_cn, _turn)}</span>')
+
+    # —— 暗线为什么能推动上涨（这段是给「凭什么信」的答案，不是给标签） ——
+    _dl_logic = ('暗线不是保证，是「这条腿还没进价格」的候选：'
+                 '① 有公告能查到的真资产 ② 换手低、没被打过 ③ 位置还上得去，三条同时成立才算数。'
+                 '缺一条就只是故事。')
 
     # —— 经验补充：盘面数据里没人直接告诉你的那几句 ——
     _exp_rows = []
@@ -6015,7 +6071,9 @@ def build_hourly():
         + f'<div style="margin-top:4px;font-size:12.5px;color:#ced4da;">领跌：{_dn_row}</div>'
         + f'<div style="margin-top:4px;font-size:12.5px;color:{GOLD};">定性：{_mood}</div>'
         + (('<div style="margin-top:7px;font-size:12.5px;color:#ffd43b;line-height:1.7;">'
-            '🕵️ 为什么在涨（暗线，已涨停只看别追）：<br>' + '<br>'.join(_dl_rows) + '</div>')
+            '🕵️ 暗线（表面炒 A、实质 B，已涨停只看别追）：<br>'
+            + '<span style="color:#adb5bd;font-size:11.5px;">' + _dl_logic + '</span><br>'
+            + '<br>'.join(_dl_rows) + '</div>')
            if _dl_rows else '')
         + (('<div style="margin-top:7px;font-size:12.5px;color:#66d9e8;line-height:1.7;">'
             '🧠 经验补充：<br>· ' + '<br>· '.join(_exp_rows) + '</div>')
