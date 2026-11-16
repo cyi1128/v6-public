@@ -2211,3 +2211,13 @@
 02:36:27 [llm] OK purpose=risk_card len=358
 02:44:53 [llm] OK purpose=follow len=861
 02:54:04 [llm] OK purpose=follow len=848
+03:01:37 [llm] OK purpose=hourly_ds len=460
+03:02:45 [llm] 未返回 purpose=batch_deep model=Qwen/Qwen3.5-122B-A10B tag=http_502
+03:07:32 [llm] 未返回 purpose=batch_deep model=Qwen/Qwen3.5-35B-A3B tag=timeout
+03:07:32 [llm] 未返回 purpose=batch_deep model=Qwen/Qwen3.8-27B tag=timeout
+03:07:34 [llm] 未返回 purpose=batch_deep model=ZhipuAI/GLM-4.7-Flash tag=http_429
+03:08:56 [llm] OK purpose=batch_deep len=4552
+03:12:40 [llm] OK purpose=newfire_dark len=244
+03:13:08 [llm] OK purpose=health len=141
+03:14:04 [llm] OK purpose=hold_diag len=519
+03:15:32 [llm] OK purpose=event_dark len=677
