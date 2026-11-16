@@ -1,4 +1,74 @@
 {
+ "2026-11-16": {
+  "一般零售": {
+   "leaders": [
+    "广百股份",
+    "天虹股份",
+    "鹏飞绿能"
+   ],
+   "reason": "3只涨停·龙头广百股份",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 93003,
+   "divergence": false
+  },
+  "电池": {
+   "leaders": [
+    "野马电池",
+    "紫竹高科",
+    "领湃科技"
+   ],
+   "reason": "3只涨停·龙头野马电池",
+   "strength": 9,
+   "max_lbc": 1,
+   "fbt": 93649,
+   "divergence": false
+  },
+  "游戏Ⅱ": {
+   "leaders": [
+    "凯撒文化",
+    "文投控股"
+   ],
+   "reason": "2只涨停·龙头凯撒文化",
+   "strength": 9,
+   "max_lbc": 2,
+   "fbt": 93000,
+   "divergence": false
+  },
+  "汽车服务": {
+   "leaders": [
+    "上海物贸",
+    "北巴传媒"
+   ],
+   "reason": "2只涨停·龙头上海物贸",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 94634,
+   "divergence": false
+  },
+  "电视广播": {
+   "leaders": [
+    "吉视传媒",
+    "华数传媒"
+   ],
+   "reason": "2只涨停·龙头吉视传媒",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 101212,
+   "divergence": false
+  },
+  "小家电": {
+   "leaders": [
+    "小熊电器",
+    "北鼎股份"
+   ],
+   "reason": "2只涨停·龙头小熊电器",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 104254,
+   "divergence": false
+  }
+ },
  "2026-11-13": {
   "汽车零部": {
    "leaders": [
@@ -665,104 +735,6 @@
    "strength": 10,
    "max_lbc": 4,
    "fbt": 92500,
-   "divergence": false
-  }
- },
- "2026-11-04": {
-  "半导体": {
-   "leaders": [
-    "新洁能",
-    "托伦斯",
-    "先导基电"
-   ],
-   "reason": "19只涨停·龙头新洁能",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 95131,
-   "divergence": false
-  },
-  "贵金属": {
-   "leaders": [
-    "盛达资源",
-    "赤峰黄金",
-    "招金黄金"
-   ],
-   "reason": "11只涨停·龙头盛达资源",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 132439,
-   "divergence": false
-  },
-  "汽车零部": {
-   "leaders": [
-    "中马传动",
-    "三联锻造",
-    "海安集团"
-   ],
-   "reason": "7只涨停·龙头中马传动",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 102828,
-   "divergence": false
-  },
-  "元件": {
-   "leaders": [
-    "金安国纪",
-    "华正新材",
-    "海星股份"
-   ],
-   "reason": "7只涨停·龙头金安国纪",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 134706,
-   "divergence": false
-  },
-  "专用设备": {
-   "leaders": [
-    "海源复材",
-    "南矿集团",
-    "腾信精密"
-   ],
-   "reason": "6只涨停·龙头海源复材",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 130409,
-   "divergence": false
-  },
-  "自动化设": {
-   "leaders": [
-    "凯迪股份",
-    "博杰股份",
-    "大族激光"
-   ],
-   "reason": "5只涨停·龙头凯迪股份",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 101821,
-   "divergence": false
-  },
-  "光学光电": {
-   "leaders": [
-    "宝明科技",
-    "三利谱",
-    "光智科技"
-   ],
-   "reason": "5只涨停·龙头宝明科技",
-   "strength": 10,
-   "max_lbc": 2,
-   "fbt": 140157,
-   "divergence": false
-  },
-  "通用设备": {
-   "leaders": [
-    "冰山冷热",
-    "柯力传感",
-    "开勒股份"
-   ],
-   "reason": "4只涨停·龙头冰山冷热",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 102736,
    "divergence": false
   }
  }
