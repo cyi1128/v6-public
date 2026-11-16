@@ -14039,8 +14039,103 @@ _PRODUCT_HARD = {
                '暗线不在冷链在算力：子公司顿汉布什做了十几年数据中心温控，IDC专版磁悬浮和风墙2024年上市、报告期开始大批量供货，北美中东东南亚都有单；但数据中心没单独披露收入占比，逻辑顺、看得到多少利润还得等它拆出来'),
 }
 
+# 资金面专用：这些票的回购/增持背后到底在托什么，跟公告类型分开写
+_MONEY_HARD = {
+    '601208': ('绝缘材料 + 光学膜 + 高速电子树脂(PCB上游)',
+               '回购5000万到1亿、全部注销减注册资本，不是拿去发激励；今天跌9.99%，这钱是来托刚放量的电子级树脂'),
+    '688331': ('双靶点新药泰它西普 + ADC维迪西妥单抗',
+               '回购3000万到6000万，但公告写明12个月后集中竞价卖掉、3年内清完——这是护盘不是注销，买回来终归要还给市场'),
+    '688301': ('X线探测器 + 硅基微显示背板(AI眼镜/VR头显)',
+               '真暗线是微显示背板，配套硅基OLED、已和视涯深度合作；今天跌是被PCB概念带崩，跟主业没关系'),
+    '688006': ('锂电后段化成分容设备',
+               '前三季营收31亿还在增、净利却掉62%；回购托的是订单景气，不是利润'),
+    '688332': ('无线音频SoC，进了小米/漫步者供应链',
+               '耳机芯片进品牌端是真的，但价格战压着毛利；这轮回购更像估值托底，不是业绩反转信号'),
+    '002273': ('光学元件 + 车载AR-HUD + 激光雷达视窗片',
+               'AR-HUD国内份额22.95%排第二，激光雷达视窗片是智驾和机器人共用件；回购托的是光学第二曲线'),
+    '603256': ('高端电子布，AI服务器PCB核心基材',
+               '极薄超薄布全球份额20.5%第一、低CTE布国内唯一全系列量产，一季度毛利冲到55.7%；回购的底气在这'),
+    '000533': ('输配电：干式变压器、箱变、开关柜',
+               '数据中心配电是真需求，已推出AIDC专用IPM电力模组；但这是回购方案、还要过股东会，钱一分没花'),
+    '300316': ('半导体长晶设备 + 碳化硅衬底 + 蓝宝石',
+               '光伏设备是退潮的基本盘，碳化硅和金刚石才是新增量；回购托的是半导体这条腿'),
+    '688433': ('工业级3D打印设备 + 材料',
+               '金属和高分子双线，航空航天、消费电子、具身智能是新场景；今天跌15.56%还敢回购，动作值得盯'),
+    '688281': ('特种功能材料：隐身涂层、结构材料、电磁屏蔽',
+               '军工隐身材料，客户就那么几家、交付节奏不由公司定；回购托的是长周期批产预期'),
+}
 
-def _ann_future(ti, c6=''):
+
+def _ann_money(ti, c6='', pct=None):
+    """资金面每条都得说清「走到哪一步、这条对这只票意味着什么」。
+    同是回购，注销和回购后再卖掉是两回事；同是回购报告书，大跌 8% 和微跌 1%
+    也不是一个意思 —— 所以带上它自己今天的跌幅，不让 53 条重样。"""
+    t = ti or ''
+    _m = _MONEY_HARD.get(str(c6 or '')[-6:])
+    if _m:
+        return _m[1]
+    _d = '' if pct is None else (f'今天涨{pct:.2f}%' if pct > 0 else f'今天跌{abs(pct):.2f}%')
+    _dn = '' if pct is None else f'今天跌{abs(pct):.2f}%'
+    deep = (pct is not None and pct <= -8.0)
+    mid = (pct is not None and -8.0 < pct <= -3.0)
+
+    # —— 增持：内部人掏钱，比公司回购更能说明态度 ——
+    if '增持' in t:
+        if ('专项贷款' in t) or ('专项贷' in t):
+            return '控股股东借钱来增持自己的票，态度比公司回购硬；但要盯计划完成度，拿到贷款函不等于买完了'
+        if '完毕' in t or '结果' in t or '完成' in t:
+            return '增持已经走完，利好就在当下、后面没有增量了；这种常是兑现窗口，别当加仓理由'
+        if '1%' in t:
+            return '内部人累计买到1%整数倍，这是披露刻度不是新计划；说明钱真进去了，但触发披露不等于还会继续买'
+        if '首次' in t:
+            return '内部人第一次动手，通常是最强的态度表达；但首次量一般不大，要看后续还有没有'
+        return '内部人在持续买，态度明确；不过还在计划中段，得看买到什么程度'
+
+    # —— 回购 ——
+    if '回购' in t:
+        if ('专项贷款' in t) or ('专项贷' in t):
+            _x = f'{_dn}，' if deep else (f'{_d}，' if pct is not None else '')
+            return f'借钱回购，{_x}这是腾挪弹药来护盘；不动自有现金，说明账上要留一手'
+        if ('注销' in t) or ('减少注册资本' in t):
+            return '回购用来注销，股本变小、每股含金量变高，这是最实惠的一种，比发激励实在'
+        if '首次' in t:
+            if deep:
+                return f'真买了第一笔救急，{_dn}公司立刻动手，态度比金额重要'
+            return '真金白银买了第一笔，方案不再是纸面；后面看每天买多少'
+        if '1%' in t:
+            _x = f'{_dn}，' if deep else ''
+            return f'{_x}已经买到流通盘1%，比口头承诺实在；但也才1%，托得住不等于推得动'
+        if '专用证券账户' in t or ('账户' in t and '新增' in t):
+            return '只是把回购账户开好、还没开始买；这是准备动作，不是已经在买'
+        if any(k in t for k in ('进展', '持股情况', '实施结果', '变动', '披露')):
+            _x = f'，{_d}' if pct is not None else ''
+            return f'披露的是已经买到哪一步，不是又宣布买一批{_x}；看点在实际金额和买入均价'
+        if '报告书' in t:
+            if deep:
+                return f'方案刚进入执行，{_dn}说明市场没认这个回购；下周每天的真实买单才是答案'
+            if mid:
+                return f'进入执行阶段，{_dn}；护盘节奏正常，关键还是主业有没有拐点'
+            return f'进入执行阶段，{_d}；没大跌时回购更像按计划走，不是救火'
+        if '方案' in t:
+            if deep:
+                return f'董事会刚通过、还要过股东会、钱一分没花；{_dn}是先放个话稳住，落地才算'
+            return '董事会刚通过、还要过股东会，钱还没花；纸面利好，落地才算'
+        if '资金来源' in t or '调整' in t:
+            return '调整回购资金来源，是执行层面的微调（换钱、加额度），不新增实质；看后面真买了多少'
+        return '这条是回购链条上的动作，比不上一笔真实成交；看金额和进度落地'
+
+    if '激励' in t:
+        return '股权激励预留授予，是给员工发股票、不是买回来；短期摊薄股本，别当回购利好读'
+    if any(k in t for k in ('分红', '派息', '利润分配')):
+        if any(k in t for k in ('实施', '派发', '发放')):
+            return '已经到派钱这一步，钱直接进股东账户；关键是除权后填不填权，这本身不是新增利好'
+        if '调整' in t or '总额' in t:
+            return '只是把分红总额改了，说明方案定得更细；幅度不大就是例行公事，别当加码'
+        return '分的是已经赚到的钱；要看清是提高分红还是例行派息，成长期公司大方分红有时说明没处花钱'
+    return '这条对股价是托底、不改经营；力度看金额和进度'
+
+
+def _ann_future(ti, c6='', pct=None):
     """这只票的核心暗线 —— 直接给判断，不是把「你自己去看什么」丢回去。
     同类公告必须给出不同读法（控股≠参股、采购≠销售、准入≠专利），否则十条一模一样等于没说。"""
     t = ti or ''
@@ -14197,10 +14292,13 @@ def build_notice():
     _CAP_TOTAL = 160
     _shown = 0
 
-    def _dump(lst, head, cap=999, two_line=True, shared=''):
+    def _dump(lst, head, cap=999, two_line=True, shared='', tbl=None, future=None,
+              inline_event=False):
         """全量列出，但股票和内容必须一眼分得开：名头单独一行（名/代码/今日涨跌），
         下面「事」一行、「暗线」一行。资金面条目短，一条一行也不糊在一起。"""
         nonlocal _shown
+        _tbl = tbl if tbl is not None else _PRODUCT_HARD
+        _fn = future or _ann_future
         out = ['']
         out.append(head)
         if shared:
@@ -14213,6 +14311,7 @@ def build_notice():
             out.append(f'　这档多数是一个意思：<b>{major}</b>')
         for i, (code, name, ti, dt) in enumerate(sel, 1):
             c6 = str(code)[-6:]
+            _pc = None
             p = qx.get(c6)
             if p:
                 _px, _pc = p
@@ -14222,12 +14321,17 @@ def build_notice():
             _head = (f'<b>{i}. {name}</b>　<span style="color:#8b949e">{c6}</span>　{_price}')
             _br = _ann_brief(ti, name=name)
             if two_line:
-                out.append(_head)
-                _phd = _PRODUCT_HARD.get(c6)
+                if inline_event:
+                    out.append(f'{_head}　<span style="color:#8b949e">｜</span>　'
+                               f'<span style="color:#a8b3c4">{_br}</span>')
+                else:
+                    out.append(_head)
+                _phd = _tbl.get(c6)
                 if _phd:
                     out.append(f'　<span style="color:#7fb3d5">产品　</span>{_phd[0]}')
-                out.append(f'　<span style="color:#8b949e">事　</span>{_br}')
-                out.append(f'　<span style="color:#c8a06a">暗线　</span>{_ann_future(ti, c6)}')
+                if not inline_event:
+                    out.append(f'　<span style="color:#8b949e">事　</span>{_br}')
+                out.append(f'　<span style="color:#c8a06a">暗线　</span>{_fn(ti, c6, _pc)}')
             else:
                 tp = _ann_tip(ti)
                 _tail = '' if (tp == major or shared) else f'　→　{tp}'
@@ -14243,7 +14347,8 @@ def build_notice():
         rows += _dump(hard, f'🔥 <b>硬利好</b>（订单、产能、资产、涨价 —— 真正改基本面的；共 {_n_hard} 条）')
     if money:
         rows += _dump(money, f'💰 <b>资金面</b>（回购、增持、分红 —— 托底，不改经营；共 {_n_money} 条）',
-                      two_line=False, shared='短期稳住股价、减少抛压，但都不改变公司赚钱能力')
+                      two_line=True, inline_event=True,
+                      tbl=_MONEY_HARD, future=_ann_money)
     if soft:
         rows += _dump(soft, f'📈 <b>技术资质</b>（专利、获批、新产品 —— 预期，还没到进利润表；共 {_n_soft} 条）')
 
