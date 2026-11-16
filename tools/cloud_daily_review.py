@@ -13871,6 +13871,11 @@ def _ann_level(ti):
     # 老重组的例行进展（如「重大资产重组(2022年)的进展公告」）是历史事项更新，不是今晚新增利好
     if '重组' in t and ('进展' in t or '20' in t):
         return 0
+    # 解除/终止/中止合同协议 —— 是退出交易，不是拿到交易。含「合同」会被上面误判成 L1，必须先拦。
+    # （「解除质押」「解除限售」不属于这条，它们不含合同/协议/中标/收购，不会被拦）
+    if any(k in t for k in ('解除', '终止', '中止', '撤回', '取消')) and \
+            any(k in t for k in ('合同', '协议', '中标', '收购', '订单')):
+        return 0
     if any(k in t for k in _ANN_HARD_WORD) or '合同' in t:
         return 1
     if any(k in t for k in _ANN_MONEY_WORD):
@@ -13892,6 +13897,8 @@ def _ann_w(ti):
 def _ann_why(ti):
     """这条公告为什么算利好 —— 翻成一句人话，用户是小白，不给术语。"""
     t = ti or ''
+    if any(k in t for k in ('框架协议', '意向', '战略合作', '备忘录', '合作意向', '合作框架')):
+        return '只是意向或框架，还没到真金白银，属于预期不是业绩'
     if any(k in t for k in ('中标', '中选', '成交', '订单', '合同', '供货', '签订', '签署')):
         return '拿到合同或订单，钱是确定的，会一条条进后面的营收'
     if any(k in t for k in ('收购', '购买资产', '资产重组', '重大资产', '股权转让')):
@@ -13909,6 +13916,63 @@ def _ann_why(ti):
     if any(k in t for k in ('合作', '项目', '投资建设', '入选', '入围', '研发')):
         return '有了新方向，但还没到进利润表的阶段，属于预期不是业绩'
     return '业务上有进展，具体影响要看后面落地'
+
+
+def _ann_brief(ti, n=22, name=''):
+    """公告标题压成一行短句：剥掉「关于…的公告」这类套话，过长才截。
+    目的只有一个 —— 全量列出时每条占一行，不把一张卡撑成流水账。"""
+    raw = (ti or '').strip()
+    t = re.sub(r'^关于', '', raw)
+    t = re.sub(r'的?(公告|议案|通知书?|提示性公告|进展公告|说明)$', '', t)
+    t = t.replace('股份有限公司', '').replace('有限公司', '').replace('股份', '')
+    # 模板套话剥掉，留下的才是这条公告独有的事（53 条回购公告里这段字占了半行却没信息）
+    # 整段先归一，避免逐词删完只剩「回购和」这种残句
+    for a, b in (('回购事项前十大股东和前十大无限售条件股东持股情况', '回购持股披露'),
+                 ('回购事项前十大股东及前十大无限售条件股东持股情况', '回购持股披露'),
+                 ('回购事项股东会股权登记日前十名股东及前十名无限售条件股东持股情况', '回购持股披露')):
+        t = t.replace(a, b)
+    _mid = t
+    # 只剥纯套话；「回购方案 / 首次回购 / 回购比例达1% / 回购报告书」这些是不同力度的动作，必须留下
+    for w in ('以集中竞价交易方式', '以集中竞价方式', '集中竞价交易方式', '集中竞价', '公司关于', '关于'):
+        t = t.replace(w, '')
+    for a, b in (('回购的回购报告书', '回购报告书'), ('回购公司方案', '回购方案'),
+                 ('首次回购公司', '首次回购'), ('回购公司的', '回购'),
+                 ('回购方案暨回购报告书', '回购方案'), ('回购回购', '回购'), ('的方案', '方案')):
+        t = t.replace(a, b)
+    t = re.sub(r'^[暨、，的]+', '', t.strip())
+    t = re.sub(r'[暨、，的]+$', '', t)
+    t = re.sub(r'(公司|股份)$', '', t)
+    t = re.sub(r'\s+', '', t)
+    if name and t.startswith(name):      # 标题里重复了公司名，前面已经显示了，剥掉
+        t = t[len(name):]
+    if len(t) < 2:          # 只剩一两个字或删空了，才退回上一版
+        t = _mid
+    return (t[:n] + '…') if len(t) > n else t
+
+
+def _ann_tip(ti):
+    """一句短版人话，配 _ann_brief 用（全量列出时一句话太长会刷屏）。"""
+    t = ti or ''
+    # 框架/意向类先拦：带「签署」二字但只是意向，不能当成拿到钱的订单
+    if any(k in t for k in ('框架协议', '意向', '战略合作', '备忘录', '合作意向', '合作框架')):
+        return '意向，未进利润表'
+    if any(k in t for k in ('中标', '中选', '成交', '订单', '合同', '供货', '签订', '签署')):
+        return '钱确定，进后续营收'
+    if any(k in t for k in ('收购', '购买资产', '资产重组', '重大资产', '股权转让')):
+        return '并表，营收做大'
+    if any(k in t for k in ('投产', '扩产', '量产', '试产')):
+        return '产能落地，收入上台阶'
+    if any(k in t for k in ('涨价', '提价', '价格上调', '调价')):
+        return '直接进毛利'
+    if any(k in t for k in ('增持', '回购')):
+        return '托底，减抛压'
+    if any(k in t for k in ('分红', '派息', '派发现金')):
+        return '账上真有钱'
+    if any(k in t for k in ('专利', '获批', '批准', '注册证', '认证', '许可', '通过验收')):
+        return '别人短期抢不走'
+    if any(k in t for k in ('合作', '项目', '投资建设', '入选', '入围', '研发')):
+        return '预期，未进利润表'
+    return '看后面落地'
 
 
 def _market_ann(pages=16):
@@ -14002,26 +14066,44 @@ def build_notice():
 
     rows = [f'📊 今晚扫了 <b>{len(anns)}</b> 条新公告（今天+明天两个披露日），'
             f'筛出对个股有实质利好的 <b>{_n_hard + _n_money + _n_soft}</b> 条：'
-            f'订单产能类 {_n_hard} 条、回购增持分红 {_n_money} 条、技术资质 {_n_soft} 条']
+            f'订单产能类 {_n_hard} 条、回购增持分红 {_n_money} 条、技术资质 {_n_soft} 条'
+            f'<br>下面<b>全部列出，不挑不藏</b>（同一只票同一档只留一条，连夜发决议+议案的已经合并）']
+
+    # 全量展示；极端日子（年报季回购能到几百条）用总上限兜底，超了就明说超了多少，不装作列全
+    _CAP_TOTAL = 160
+    _shown = 0
+
+    def _dump(lst, head, cap=999):
+        """全量列出。同一档里绝大多数条目意思一样（53 条回购全是一句话），
+        就把那句共性含义在档头说一次，条目内只给「谁｜什么事」，不重复刷同一句话；
+        少数意思不一样的（比如夹在回购里的分红）单独加注。"""
+        nonlocal _shown
+        out = ['']
+        out.append(head)
+        room = max(0, _CAP_TOTAL - _shown)
+        sel = lst[:min(cap, room)]
+        tips = [_ann_tip(x[2]) for x in sel]
+        major = max(set(tips), key=tips.count) if tips else ''
+        if tips.count(major) >= 3:
+            out.append(f'　这档多数是一个意思：<b>{major}</b>')
+        for i, (code, name, ti, dt) in enumerate(sel, 1):
+            tp = _ann_tip(ti)
+            line = f'{i}. <b>{name}</b>{code}｜{_ann_brief(ti, name=name)}'
+            if tp != major:
+                line += f' → {tp}'
+            out.append(line)
+        _shown += len(sel)
+        if len(lst) > len(sel):
+            out.append(f'　（这档还有 {len(lst) - len(sel)} 条没列，太长会刷屏，'
+                       f'要看完整清单告诉我，我单独发一份）')
+        return out
 
     if hard:
-        rows.append('')
-        rows.append('🔥 <b>硬利好</b>（订单、产能、资产、涨价 —— 真正改基本面的）')
-        for i, (code, name, ti, dt) in enumerate(hard[:5], 1):
-            rows.append(f'{i}. <b>{name}</b>（{code}）｜{ti}')
-            rows.append(f'　👉 {_ann_why(ti)}')
+        rows += _dump(hard, f'🔥 <b>硬利好</b>（订单、产能、资产、涨价 —— 真正改基本面的；共 {_n_hard} 条）')
     if money:
-        rows.append('')
-        rows.append(f'💰 <b>资金面</b>（回购、增持、分红 —— 托底，不改经营；共 {_n_money} 条，列前 3 条）')
-        for i, (code, name, ti, dt) in enumerate(money[:3], 1):
-            rows.append(f'{i}. <b>{name}</b>（{code}）｜{ti}')
-            rows.append(f'　👉 {_ann_why(ti)}')
+        rows += _dump(money, f'💰 <b>资金面</b>（回购、增持、分红 —— 托底，不改经营；共 {_n_money} 条）')
     if soft:
-        rows.append('')
-        rows.append('📈 <b>技术资质</b>（专利、获批、新产品 —— 预期，还没到进利润表）')
-        for i, (code, name, ti, dt) in enumerate(soft[:3], 1):
-            rows.append(f'{i}. <b>{name}</b>（{code}）｜{ti}')
-            rows.append(f'　👉 {_ann_why(ti)}')
+        rows += _dump(soft, f'📈 <b>技术资质</b>（专利、获批、新产品 —— 预期，还没到进利润表；共 {_n_soft} 条）')
 
     if not hard and not money and not soft:
         rows.append('')
