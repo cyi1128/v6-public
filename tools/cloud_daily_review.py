@@ -5751,33 +5751,136 @@ def _hold_diag_card():
 
 
 def build_hourly():
-    """每小时行情解读+操作建议（09:30/10:30/13:30/14:30；纯数据播报，不调 LLM 控预算）。"""
-    idx = get_indices()
+    """每小时整点盘中体检（用户规格 2026-11-16）：📈指数一行 → 🔥盘面领涨领跌各2 + 定性 →
+    ⚠️持仓两票各一行（现价/涨跌/量价定性/操作） → 💡建议一两句 → 免责。
+    纯真实行情，不调 LLM；非交易时段不推。
+    数据：腾讯 qt.gtimg.cn（指数/个股，GBK，f3=现价 f32=涨跌幅 f43=量比 f71=均价）
+          + 同花顺涨停板块榜（板块涨幅 change / 涨停数 lu / 龙头 leader）。"""
+    now = _bj_now()
+    if not FORCE_SLOT and not _in_session(now):
+        print('[hourly] 非交易时段，跳过')
+        return ''
     d = get_pools()
-    b, r, avg, zbr = sentiment(idx, d)
-    bits = '<span style="color:#495057">｜</span>'.join(
-        f"<span style='color:{_c(x['pct'])};font-weight:700'>{x['name']}{x['pct']:+.2f}%</span>" for x in idx)
-    # 档位：情绪偏多/偏空/震荡 → 总仓档位；操作判读一律交大模型，不再出规则版建议
-    ac = TEAL if b == '偏多' else (GREEN if b == '偏空' else GOLD)
-    advice = ''
-    risk_line = (f'炸板率 {zbr*100:.0f}%｜涨停 {d["lu"]}家｜炸板 {d["zb"]}家'
-                 f'｜跌停 {d["dt"]}家｜最高 {d["max_lbc"]}板')
-    rc = GREY
-    _overall = (f'<div style="margin-top:4px;padding:8px 10px;background:#1c2830;border-left:4px solid {ac};'
-                f'border-radius:8px;font-size:13px;color:#e9ecef;">🧭 今天整体：{b}，涨停{d["lu"]}家炸板{d["zb"]}家'
-                f'（炸板率 {zbr*100:.0f}%），最高{d["max_lbc"]}板；仓位档位 {_pos_advice(b)}。</div>')
-    _ds_block = _hourly_ds(idx, d, b, zbr)
-    inner = f"""{_overall}
-<div style="font-size:14px;">{bits}</div>
-<div style="margin-top:6px;font-size:14px;">🔴涨停<b style="color:{RED}">{d['lu']}</b> 🟢炸板<b style="color:{GREEN}">{d['zb']}</b> 🟢跌停<b style="color:{GREEN}">{d['dt']}</b> 最高<b style="color:{GOLD}">{d['max_lbc']}板</b> ｜ 情绪 <b style="color:{_c(avg)}">{b}</b>（炸板率 {zbr*100:.0f}%）</div>
-<div style="margin-top:4px;font-size:13px;">{breadth_sample()}</div>
-<div style="margin-top:4px;font-size:13px;">{money_flow_note()}</div>
-{_ds_block or ''}
-<div style="margin-top:8px;padding:9px 11px;background:#2a1f22;border-left:4px solid {rc};border-radius:8px;font-size:13px;color:{rc};">⚠️ {risk_line}</div>{leader_divergence(d)}
-<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔥 当前最强 TOP10（每只带题材/量比/能否操作）</div>{_top10_cards(d)}
-{_sector_heat_block(d)}
-<div style="margin-top:8px;font-size:13px;color:{TEAL};">🔗 {coarse_linkage(d)}</div>{_health_card(d['lu'], d['zb'], zbr, d['max_lbc'], '、'.join(n for n, _ in (d.get('tops') or [])[:3]), money_flow_note())}{_hold_diag_card()}{build_events('noon')}{pos_cap_line(b, None)}"""
-    return _wrap(inner, '⏱️', '盘中解读')
+    idx = []
+    for _c0, _n0 in (('sh000001', '沪指'), ('sz399001', '深成'),
+                     ('sz399006', '创业板'), ('bj899050', '北证50')):
+        _q = _qt(_c0)
+        if _q and _q.get('pct') is not None:
+            idx.append((_n0, float(_q['pct']), float(_q.get('price') or 0)))
+    if not idx:
+        print('[hourly] 指数行情取不到，不推空卡')
+        return ''
+    _b, _r, _avg, zbr = sentiment([{'name': n, 'pct': p} for n, p, _ in idx], d)
+    _bits = '｜'.join(f'<span style="color:{_c(p)};font-weight:700;">{n}{p:+.2f}%</span>'
+                      for n, p, _ in idx)
+
+    # —— 盘面：板块涨幅前 2 / 后 2 + 一句话定性 ——
+    # 口径：同花顺涨停板块榜的 change 是板块指数涨幅（真实板块口径）。
+    # 注意不能用「涨幅榜前排个股按行业求均值」代替：涨幅榜前排天然全是涨的票，
+    # 全市场大跌的日子里它照样能算出 +13%，会把退潮日判成进攻日。
+    # 全绿日领涨为空时，按铁律改写「抗跌方向」，绝不硬造风口。
+    _bd = [x for x in (_pulse_boards(top_n=30) or []) if x.get('name')]
+    _bd.sort(key=lambda t: -float(t.get('change') or 0))
+    _pos = [x for x in _bd if float(x.get('change') or 0) > 0][:2]
+    _neg = [x for x in _bd if float(x.get('change') or 0) < 0][-2:][::-1]
+    _all_red = (not _pos) and bool(_bd)
+    _umax = float(_bd[0]['change']) if _bd else 0.0
+    _dmax = abs(float(_neg[0]['change'])) if _neg else 0.0
+    _sh = next((p for n, p, _ in idx if n == '沪指'), 0.0)
+    _cy = next((p for n, p, _ in idx if n == '创业板'), 0.0)
+    if zbr >= 0.40 or _sh <= -1.5 or _cy <= -3.0:
+        _mood = '退潮式下跌：指数破位、涨停质量差，钱在往外撤，别伸手接'
+    elif _cy >= 1.0 and _umax >= 2.0:
+        _mood = '进攻状态：指数在涨、领涨板块有幅度，资金敢往里打'
+    elif _sh < 0:
+        _mood = '防御为主：指数在跌，钱只敢躲进个别方向，涨的也不持久'
+    else:
+        _mood = '典型轮动：指数横着走，资金在各板块之间倒手，追一天就哑火'
+    _fmt_b = lambda x: (f"{x['name']} {float(x['change']):+.2f}%（涨停{int(x.get('lu') or 0)}只"
+                        f"{('，' + str(x.get('leader')) + '带队') if x.get('leader') else ''}）")
+    if _all_red:
+        _up_line = '无（全线绿）→ 抗跌方向 ' + '；'.join(_fmt_b(x) for x in _bd[:2])
+    else:
+        _up_line = '；'.join(_fmt_b(x) for x in _pos) or '无'
+    _dn_line = '；'.join(f"{x['name']} {float(x['change']):+.2f}%" for x in _neg) or '无'
+
+    # —— 持仓两票：现价 / 涨跌 / 量价定性 / 操作 ——
+    # 不用 _qt 的 avg（腾讯 f70/f71 实测会取到非均价字段，算出来是负数），
+    # 日内强弱改看开盘价与昨收，两个都是可直接核对的价格。
+    _holds = []
+    _loss_n = 0
+    for h in HOLDINGS:
+        q = _qt(h['code'])
+        if not q:
+            _holds.append(f"<b>{h['name']}</b>：<span style=\"color:{GREY}\">行情未取得</span>")
+            continue
+        pct, price = float(q['pct']), float(q['price'])
+        if pct <= -2:
+            _loss_n += 1
+        lb = float(q.get('lb') or 0)
+        _op = float(q.get('open') or 0)
+        _pv = float(q.get('prev') or 0)
+        prof = (price / h['cost'] - 1) * 100 if h.get('cost') else 0.0
+        if _op:
+            if price > _op * 1.003:
+                _where = f'在开盘价 {_op:.2f} 上方跑'
+            elif price < _op * 0.997:
+                _where = f'已跌破开盘价 {_op:.2f}'
+            else:
+                _where = f'在开盘价 {_op:.2f} 附近磨'
+        else:
+            _where = '开盘价未取到'
+        _ref = _op if _op else _pv
+        if lb >= 2.0 and pct > 3:
+            _vol = f'量比{lb:.1f}放量，是真有资金在推'
+            _act = f'放量上攻可持有，拉到 +{max(pct + 2, 6):.0f}% 一带先减一半锁利润'
+        elif pct > 0 and lb < 1.2:
+            _vol = f'量比{lb:.1f}缩量'
+            _act = '缩量反弹别加仓，持有看能不能补量，补不上来就是假反弹'
+        elif pct <= -2 and lb >= 1.5:
+            _vol = f'量比{lb:.1f}放量下杀'
+            _act = (f'放量破位，反抽到 {_ref:.2f}（开盘价）就减仓' if _ref else '放量破位，反抽就减')
+        elif pct <= -2:
+            _vol = f'量比{lb:.1f}，跌但没量'
+            _act = '没量的下跌杀伤有限，别在低点割，等反抽看量再决定'
+        elif lb >= 2.0:
+            _vol = f'量比{lb:.1f}有量'
+            _act = f'有量但涨幅不跟，站不回开盘价 {_ref:.2f} 就减' if _ref else '有量但涨幅不跟，观察后决定'
+        else:
+            _vol = f'量比{lb:.1f}，量能平静'
+            _act = '不动，等量能给方向再操作'
+        _holds.append(
+            f"<b>{h['name']}</b>（{h['code'][2:]}）<b style=\"color:{_c(pct)}\">{price:.2f}"
+            f" {pct:+.2f}%</b>｜{_where}、{_vol}｜较成本 {prof:+.1f}%"
+            f"｜<span style=\"color:{TEAL}\">{_act}</span>")
+
+    # —— 建议：一两句大白话 ——
+    _adv = []
+    if zbr >= 0.40 or _umax < 1.0:
+        _adv.append('这个时段是防守时间，别在这个位置加新仓；有浮盈的先落袋，深亏的不在低点割')
+    elif _umax >= 2.0 and zbr < 0.28:
+        _adv.append('这个时段能做多，但只打领涨板块里还没涨停的头部票，已涨停的进去就是接盘')
+    else:
+        _adv.append('这个时段挑着做，总仓别超过三成，等方向真正明确了再加')
+    if _loss_n:
+        _adv.append(f'持仓里有 {_loss_n} 只跌超 2%，看它能不能收回开盘价，收不回来就减到观察仓')
+    else:
+        _adv.append('两票今天都在正常波动区间，按上面各自的量价条件执行，不用急着动')
+
+    inner = (
+        f'<div style="font-size:14px;font-weight:700;color:#e9ecef;">📈 指数：{_bits}</div>'
+        f'<div style="margin-top:7px;font-size:13px;color:#e9ecef;">🔥 盘面：领涨 {_up_line}；'
+        f'领跌 {_dn_line}｜<span style="color:{GOLD};">{_mood}</span></div>'
+        f'<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">⚠️ 持仓</div>'
+        f'<div style="font-size:12.5px;color:#e9ecef;line-height:1.7;">'
+        + '<br>'.join(_holds) + '</div>'
+        f'<div style="margin-top:8px;font-size:13px;color:#8ce99a;">💡 建议：' + '；'.join(_adv) + '</div>'
+        f'<div style="margin-top:6px;color:{GREY};font-size:11px;">口径：指数与个股取腾讯实时，'
+        f'板块涨幅取同花顺涨停板块榜；炸板率 {zbr * 100:.0f}%、涨停 {d["lu"]} 只</div>')
+    html = _wrap(inner, '⏱️', '盘中体检', disclaimer=True)
+    ok, msg = push(html, f'⏱️ 盘中体检 {now.strftime("%H:%M")} · {_b}')
+    print(f'[hourly] 指数={[(n, round(p, 2)) for n, p, _ in idx]} 定性={_mood[:6]} → PUSH', ok, msg)
+    return html
 
 
 def _fx(code):
