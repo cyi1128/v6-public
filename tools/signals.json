@@ -509,7 +509,7 @@
   "name": "旋极信息",
   "close": 3.88,
   "pct": 17.58,
-  "next_open_pct": null
+  "next_open_pct": -6.958762886597936
  },
  {
   "date": "2026-11-13",
@@ -517,7 +517,7 @@
   "name": "星华新材",
   "close": 22.12,
   "pct": 10.43,
-  "next_open_pct": null
+  "next_open_pct": -1.7631103074141063
  },
  {
   "date": "2026-11-13",
@@ -525,7 +525,7 @@
   "name": "宁波中百",
   "close": 16.3,
   "pct": 8.67,
-  "next_open_pct": null
+  "next_open_pct": -5.214723926380371
  },
  {
   "date": "2026-11-13",
@@ -533,7 +533,7 @@
   "name": "动力源",
   "close": 4.45,
   "pct": 8.27,
-  "next_open_pct": null
+  "next_open_pct": -0.22471910112359383
  },
  {
   "date": "2026-11-13",
@@ -541,7 +541,7 @@
   "name": "长联科技",
   "close": 34.37,
   "pct": 8.42,
-  "next_open_pct": null
+  "next_open_pct": 0.0
  },
  {
   "date": "2026-11-13",
@@ -549,6 +549,6 @@
   "name": "和顺石油",
   "close": 31.71,
   "pct": 7.56,
-  "next_open_pct": null
+  "next_open_pct": -4.383475244402401
  }
 ]
