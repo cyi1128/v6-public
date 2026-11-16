@@ -286,10 +286,13 @@ jobs:
           DRIVE_SEC: ${{ steps.drive.outputs.drive_sec }}
         run: |
           H=$(date -u +%H)
-          if [ "$H" -lt 0 ] || [ "$H" -gt 15 ]; then
-            echo "RELAY_SKIP 非推送时段 UTC H=$H"
-            exit 0
-          fi
+          BJ_H=$(( (10#$H + 8) % 24 ))
+          # 2026-11-16：取消「只在 UTC 0-15 接力」的时段限制。
+          # 夜里（UTC 16-23 = 北京 00-08）正是全天最长空档（22:50 晚间汇总 -> 次日 08:30 盘前，
+          # 9.5 小时），原来在这里 exit 0，凌晨那一棒结束后没有任何下一棒接手；
+          # 11-16 平台只给了北京 03:28 一次命中，就是被这条挡住后早盘整段丢失。
+          # 秒退保护（本次跑不够 600s 不接力）仍然保留，避免空转 run 连环刷额度。
+          echo "RELAY_CHECK UTC_H=$H BJ_H=$BJ_H drive_sec=${DRIVE_SEC}"
           # v80-E15/16：DRIVE_SEC 为空说明 drive step 异常退出（被 timeout 杀 / 非零码），
           # 这种时候比正常跑满更需要下一棒，绝不能当 0 跳过。
           if [ -n "${DRIVE_SEC}" ] && [ "${DRIVE_SEC}" -lt 600 ]; then

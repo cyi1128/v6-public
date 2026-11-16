@@ -665,24 +665,35 @@ def rolling_end(bj: datetime.datetime) -> datetime.datetime:
 
     为什么需要这个延伸：17:45 触发的 run 死板算 5 小时会正好停在 22:45，
     把 22:50 的晚间消息汇总截在段外——它只能等下一个人恰好触发，等于白等。
+
+    2026-11-16 补：凌晨段同权延伸。11-16 实测平台在北京 03:29 给了唯一一次命中，
+    base 停在 08:29，08:30 盘前速递正好被截在段外 1 分钟，于是判定「窗口内无槽」
+    直接 idle 秒退；退出时 UTC 19 点又被接力条件挡住，当天早盘整段丢失。
+    所以凌晨不再裸切 300 分钟，同样吃段尾延伸（仍受 ROLL_MINUTES+20 硬上限与早盘 guard 约束）。
     """
     day_end = bj.replace(hour=DAY_END[0], minute=DAY_END[1], second=0, microsecond=0)
-    # 凌晨/天没亮就命中：直接守到早盘 09:30（受 ROLL_MINUTES 上限约束）。
-    # 这是"平台一天只给 1-7 次命中、且多半落在深夜"下唯一能把早盘 8:20/8:30/9:25 兜住的办法。
-    if bj.hour < 8:
-        guard = bj.replace(hour=EARLY_GUARD[0], minute=EARLY_GUARD[1], second=0, microsecond=0)
-        return min(bj + datetime.timedelta(minutes=ROLL_MINUTES), guard)
-    end = min(bj + datetime.timedelta(minutes=ROLL_MINUTES), day_end)
-    if end >= day_end:
+    # 凌晨/深夜命中：base 守到早盘 guard（受 ROLL_MINUTES 约束），guard 之外不许越过。
+    # 这是"平台一天只给 1-7 次命中、且多半落在深夜"下唯一能把早盘 8:30/9:12/9:25 兜住的办法。
+    # 2026-11-16：22 点后也按跨夜处理 —— 原来 23:35 起跑会被 DAY_END 23:55 截成 20 分钟，
+    # 之后每棒都只能算到 23:55，跨夜推进直接断掉。
+    early = bj.hour < 8 or bj.hour >= 22
+    ceil = day_end
+    if early:
+        guard_day = bj if bj.hour < 8 else (bj + datetime.timedelta(days=1))
+        ceil = guard_day.replace(hour=EARLY_GUARD[0], minute=EARLY_GUARD[1], second=0, microsecond=0)
+    end = min(bj + datetime.timedelta(minutes=ROLL_MINUTES), ceil)
+    if end >= ceil:
         return end
     m_end = minutes_of(end)
     best: int | None = None
+    # 注意：FIXED_SLOTS 不是按时刻排序的（10:35 follow 排在 14:01 之后），
+    # 这里不能 break，只能 continue —— break 会让后面的近邻槽被整段漏掉。
     for hour, minute, _slot, window, _late in FIXED_SLOTS:
         start = hour * 60 + minute
         if start <= m_end:
             continue
         if start - m_end > ROLL_TAIL_MINUTES:
-            break
+            continue
         cand = start + window
         best = cand if best is None else max(best, cand)
     # v80-E15 硬上限：延伸（延到下个槽窗口末端）绝不允许把段落拉到 job timeout 之外，
@@ -690,6 +701,8 @@ def rolling_end(bj: datetime.datetime) -> datetime.datetime:
     _hard = bj + datetime.timedelta(minutes=ROLL_MINUTES + 20)
     if best is not None and best <= DAY_END[0] * 60 + DAY_END[1]:
         _cand = bj.replace(hour=best // 60, minute=best % 60, second=0, microsecond=0)
+        if _cand > ceil:
+            _cand = ceil          # 凌晨不许越过早盘 guard
         return min(_cand, _hard)
     return min(end, _hard)
 
@@ -796,7 +809,9 @@ def _selftest() -> int:
     expect('17:45 启动终点（硬上限 320 -> 23:05）', rolling_end(at(17, 45)).strftime('%H:%M'), '23:05')
     # 凌晨命中必须守到早盘，不许秒退（11-06 早盘整段丢失的根因）
     expect('04:47 凌晨命中守到早盘 09:30', rolling_end(at(4, 47)).strftime('%H:%M'), '09:30')
-    expect('03:00 凌晨命中受 300 分钟上限 -> 08:00', rolling_end(at(3, 0)).strftime('%H:%M'), '08:00')
+    expect('03:00 凌晨命中受 300+延伸/硬上限 -> 08:20', rolling_end(at(3, 0)).strftime('%H:%M'), '08:20')
+    # 11-16 实测断档点：03:29 起跑 base 停 08:29，把 08:30 盘前速递截在段外 1 分钟 -> 秒退
+    expect('03:29 凌晨命中延伸覆盖 08:30 盘前速递', rolling_end(at(3, 29)).strftime('%H:%M'), '08:49')
     expect('00:27 命中受上限约束 -> 05:27', rolling_end(at(0, 27)).strftime('%H:%M'), '05:27')
 
     # 窗口键必须与主程序一致（错一个就重复推或漏推）；用当天日期动态断言
@@ -939,8 +954,14 @@ def main() -> int:
     missed: set = set()
     end = rolling_end(bj)
     if not pending_within(bj, end, executed):
-        log(f'接下来 {(end - bj).total_seconds() / 60:.0f} 分钟内已无待跑槽位，本 run 直接退出')
-        return finish('idle')
+        # 2026-11-16：深夜/凌晨"窗口内暂无槽"不是该退出，而是该把这一棒空守满交给接力棒推进。
+        # 旧逻辑在这里秒退，而秒退的 run 又被 relay 的「跑不够 10 分钟不接力」挡回，
+        # 于是 22:50 之后到 08:30 的 9.5 小时空档完全靠 cron 运气 —— 11-16 早盘整段丢失。
+        if bj.hour >= 22 or bj.hour < 8:
+            log(f'深夜/凌晨窗口内暂无槽，空守到 {end:%H:%M} 后交棒（不秒退）')
+        else:
+            log(f'接下来 {(end - bj).total_seconds() / 60:.0f} 分钟内已无待跑槽位，本 run 直接退出')
+            return finish('idle')
 
     seg_name = f'roll-{bj:%H%M}'
     if not acquire_segment(bj, seg_name, end):
@@ -981,6 +1002,11 @@ def main() -> int:
             run_slot(slot, _ph, _pm)
             continue
         if not pending_within(now, end, executed):
+            if now.hour >= 22 or now.hour < 8:
+                # 深夜/凌晨空守：本段就是用来把接力棒推到早盘的，不许提前让位
+                report_new_misses(executed, missed)
+                time.sleep(15)
+                continue
             log('本段剩余时间内已无待跑槽位，提前让位退出')
             break
         report_new_misses(executed, missed)
