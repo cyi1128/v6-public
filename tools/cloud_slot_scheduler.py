@@ -83,6 +83,7 @@ FIXED_SLOTS = [
     (9, 25, 'auction', 3, 2),      # 竞价观察：严格 09:25-09:27，超窗绝不补
     (9, 35, 'open', 5, 10),       # 开盘验证·30分钟定调（过点不补：10 分钟后已没意义）
     (10, 0, 'hourly', 20, 60),     # 盘中解读
+    (10, 20, 'pulse', 15, 60),      # 盘中全景四览（涨跌全景/板块轮动/技术池/暗线）
     (10, 30, 'newsfire', 20, 60),  # 新闻发酵
     (10, 35, 'risk', 20, 60),      # 风险体检（绿档静默）
     (11, 0, 'hourly', 20, 60),
@@ -94,6 +95,7 @@ FIXED_SLOTS = [
     (13, 0, 'hourly', 20, 60),
     (13, 30, 'newsfire', 20, 60),
     (13, 35, 'risk', 20, 60),
+    (13, 50, 'pulse', 10, 60),      # 盘中全景四览（午后档）
     (14, 0, 'hourly', 20, 60),
     (14, 1, 'news2h', 4, 60),      # 两小时消息汇总（午后，窗口窄防抢 hourly）
     (10, 35, 'follow', 20, 40),    # 跟涨三步走·盘中一档（开盘一小时后首批补涨刚启动，埋伏来得及）
@@ -108,8 +110,8 @@ FIXED_SLOTS = [
     (16, 0, 'news2h', 20, 90),     # 16:00 两小时消息汇总（原先裸靠 cron）
     (18, 0, 'news2h', 20, 90),     # 18:00 两小时消息汇总（v80-A13 补）
     (20, 0, 'news2h', 20, 90),     # 20:00 两小时消息汇总（v80-A13 补）
-    (20, 5, 'notice', 20, 90),     # 20:05 全市场公告利好晚报（2026-11-16 用户新增：
-                                   #   晚间复盘当天盘后+次日披露的全市场公告，只挑对个股有实质利好的）
+    (20, 5, 'notice', 20, 90),     # 20:05 全市场公告利好晚报（2026-11-16 用户新增：晚间复盘当天
+                                   #   盘后到次日披露的全市场公告，只挑对个股有实质利好的）
     (22, 0, 'news2h', 20, 90),     # 22:00 两小时消息汇总（v80-A13 补）
     (21, 38, 'ext', 10, 40),       # 外盘窗口（原先裸靠 cron）
     (22, 38, 'ext', 10, 40),
@@ -155,6 +157,7 @@ SLOT_BUDGET = {
     'risk':    (1200, 300, 1500),
     'follow':  (1800, 300, 2400),
     'cycle':   (1800, 300, 2400),
+    'pulse':   (1800, 300, 2400),
     'ext':     (1200, 300, 1500),
     'evening': (1800, 300, 2400),
 }
@@ -401,6 +404,9 @@ def slot_done_key(hour: int, minute: int, slot: str) -> str | None:
     if slot == 'follow':
         tag = {(10, 35): '1035', (13, 35): '1335'}.get((hour, minute))
         return 'follow|%s|%s' % (today, tag) if tag else None
+    if slot == 'pulse':
+        tag = {(10, 20): '1020', (13, 50): '1350'}.get((hour, minute))
+        return 'pulse|%s|%s' % (today, tag) if tag else None
     if slot == 'ext':
         tag = {(21, 38): '2135', (22, 38): '2235'}.get((hour, minute))
         return 'ext|%s|%s' % (today, tag) if tag else None
@@ -755,8 +761,8 @@ def _selftest() -> int:
 
     # 正点选槽（executed 为空）
     for hh, mm, want in ((9, 12, 'warn'), (8, 30, 'pre'), (9, 26, 'auction'),
-                         (10, 0, 'hourly'), (10, 31, 'newsfire'), (10, 36, 'risk'),
-                         (11, 40, 'news'), (12, 0, 'news2h'), (14, 1, 'news2h'),
+                         (10, 0, 'hourly'), (10, 20, 'pulse'), (10, 31, 'newsfire'), (10, 36, 'risk'),
+                         (11, 40, 'news'), (12, 0, 'news2h'), (14, 1, 'news2h'), (13, 50, 'pulse'),
                          (14, 55, 'tail'), (15, 2, 'eod'), (15, 20, 'cycle'),
                          (16, 0, 'news2h'), (16, 25, 'darkline'),
                          (21, 38, 'ext'), (22, 38, 'ext'),
@@ -824,6 +830,8 @@ def _selftest() -> int:
     expect('follow 10:35 键', slot_done_key(10, 35, 'follow'), f'follow|{_t}|1035')
     expect('ext 21:38 键', slot_done_key(21, 38, 'ext'), f'ext|{_t}|2135')
     expect('news2h 14:01 键', slot_done_key(14, 1, 'news2h'), f'news2h|{_t}|1400')
+    expect('pulse 10:20 键', slot_done_key(10, 20, 'pulse'), f'pulse|{_t}|1020')
+    expect('pulse 13:50 键', slot_done_key(13, 50, 'pulse'), f'pulse|{_t}|1350')
 
     print(f'\n[SELFTEST] 失败 {fails} 项')
     return 0 if fails == 0 else 1
