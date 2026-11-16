@@ -2194,3 +2194,10 @@
 01:52:02 [反模板放行:board_watch] 管住手/为什么是它
 01:52:02 [llm] OK purpose=board_watch len=2266
 01:52:02 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 今天是盘中实时判断，依据的是当前截屏的行情快照数据。市场情绪分定格在 30.6 分，这个分数直接对应情绪退潮标签，说明场内资金处于防御
+02:00:51 [llm] OK purpose=hourly_ds len=451
+02:03:51 [反模板放行:batch_deep] 为什么是它
+02:03:52 [llm] OK purpose=batch_deep len=3003
+02:05:57 [llm] OK purpose=newfire_dark len=230
+02:06:22 [llm] OK purpose=health len=120
+02:07:37 [llm] OK purpose=hold_diag len=467
+02:08:43 [llm] OK purpose=event_dark len=673
