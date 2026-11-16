@@ -2188,3 +2188,4 @@
 01:27:42 [llm] 截止已过停产 purpose=auction
 01:27:42 [ask_deepseek] 首轮无返回即止损 purpose=auction
 01:27:42 [ask_deepseek] ModelScope 两次尝试均失败，purpose=auction
+01:36:25 [llm] OK purpose=open_check len=189
