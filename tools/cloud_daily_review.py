@@ -3040,15 +3040,19 @@ def _strip_bracket_heads(html):
     return html
 
 
-def _wrap(inner, emoji, title, show_reson=False):
+def _wrap(inner, emoji, title, show_reson=False, disclaimer=False):
     """通用卡片壳。共振只作内部因子参与判定/打分，一律不上卡片（2026-11-07 用户指令）。
     参数 show_reson 仅为兼容历史调用保留，默认 False 即不渲染头部共振档位行。
+    disclaimer=True 时在卡尾追加免责句（2026-11-16 盘中机会槽用户规格要求，其它槽位保持不出现口径）。
     出口统一过 _strip_meta：卡面不出现规则性元说明。"""
     # v80-A3（用户指令）：卡面不再拼模型状态自述、数据源健康、免责口径三样尾巴。
     _body = _strip_meta(_strip_bracket_heads(inner or ''))
     # v80-A6：出口统一清掉免责口径词汇（用户反复要求卡面不出现口径/免责）
     for _kw in ('不构成投资建议', '（仅供参考）', '仅供参考'):
         _body = _body.replace(_kw, '')
+    if disclaimer:
+        _body += ('<div style="margin-top:6px;color:#6b7280;font-size:11px;">'
+                  '风险提醒：盘中追涨风险高，以上为盘面数据推演，不构成投资建议。</div>')
     return f"""<div style="background:#161b26;color:#e9ecef;font-family:-apple-system,'Microsoft YaHei',sans-serif;padding:14px;border-radius:12px;">
 <div style="font-size:20px;font-weight:800;color:{GOLD};">{emoji} {title} · {_bj_now().strftime('%m/%d %H:%M')}</div>
 {_reson_head() if show_reson else ''}{_body}</div>"""
@@ -16475,12 +16479,13 @@ def build_preclose():
 
 
 def build_intraday():
-    """盘中异动监控（用户六步规格）：涨停池指纹门→情绪定性→新进涨停七段→主线→高位预警→持仓联动→纪律。
-    大白话优先 DeepSeek 动态生成（每轮最多1次，计入当日≤8预算）；不可用/用尽自动回退规则模板并注明额度。
-    仅北京盘中 09:30-14:59 生效；指纹未变不推送；lu 异常清零发数据说明不推个股；接口失败如实报故障。"""
+    """盘中可交易机会推送（用户规格）：涨停池指纹门 → 情绪定性 → 主线判断 → 未涨停可上车候选（三件套）→ 风险。
+    核心：已涨停股只做板块热度证据，不作为推荐主体；只找还没涨停、被主线资金点燃的票。
+    仅北京盘中 09:30-14:59 生效（--force watch 跳过闸门）；指纹未变不推送；lu 异常清零发数据说明不推个股。
+    2026-11-16 改造：弃用 DS 涨停播报体，改纯真实数据规则生成，未达标直接「只看不动」。"""
     now = _bj_now()
     hm = now.hour * 60 + now.minute
-    if not (9 * 60 + 30 <= hm <= 14 * 60 + 59):
+    if not FORCE_SLOT and not (9 * 60 + 30 <= hm <= 14 * 60 + 59):
         print('[intra] 非盘中时段，跳过')
         return ''
     d = get_pools()
@@ -16550,143 +16555,162 @@ def build_intraday():
         if c and p:
             ma5_map[c] = _intra_ma5_price(c, p)
             pos_map[c] = _intra_pos60(c, p)
-    # —— DeepSeek 动态大白话（一次调用，计入预算）——
-    ds = _intra_ds(now, prev_lu, d, top_new, ma5_map, pos_map, sec_cnt)
-    if ds is not None:
-        print('[intra] DS 大白话已生成（个股覆盖', sum(1 for x in top_new if x.get('n', '') in ds['per']), '/', len(top_new), '）')
+    # —— 主线判断：涨停池只当热度证据，不推涨停票 ——
+    from collections import Counter as _C2
+    _rank = _C2(x.get('hybk') or '其他' for x in pool).most_common()
+    main_secs = [s for s, n in _rank[:2] if n >= 2] or ([_rank[0][0]] if _rank else [])
+    _top_sec, _top_n = (_rank[0] if _rank else ('', 0))
+    _lu_all = max(int(d['lu']), 1)
+    if _top_n >= 3 and _top_n * 1.0 / _lu_all >= 0.2:
+        _main_desc = f'资金顺着一条线打，{_top_sec} 一家占 {_top_n} 只涨停（全场 {_lu_all} 只）'
+    elif _top_n >= 2:
+        _main_desc = f'主线不算硬，{_top_sec} 最多 {_top_n} 只涨停，资金有点各打各的'
     else:
-        print('[intra] DS 不可用/失败，不回退规则模板，只出数据事实', '（额度用尽）' if _DS_EXHAUSTED else '')
-    mood_line = (f'<div style="color:#e9ecef;font-size:13px;">{mood_emoji} 情绪定性：{mood}'
-                 f'（涨停 {prev_lu}→{d["lu"]}，炸板率 {zb_rate*100:.0f}%'
-                 f'{f"，跌停 {d['dt']} 只（新增）" if dt_new else ""}）</div>')
-    if ds and ds.get('overall'):
-        mood_line += f'<div style="color:{GREY};font-size:12px;">👉 AI 大白话：{ds["overall"]}</div>'
-    else:
-        mood_line += ''
-    rows = []
-    for x in top_new:
-        code = x.get('c', '')
-        name = x.get('n', '')
-        sec = x.get('hybk') or '其他'
-        lbc = int(x.get('lbc') or 0)
-        fbt = str(x.get('fbt') or '')
-        price = _zt_price(x)
-        lb_txt = f'{lbc}板' if lbc >= 2 else '首板'
-        fbt_txt = f'｜首封 {fbt[:2]}:{fbt[2:]}' if fbt else ''
-        grp = sec_cnt.get(sec, 0)
-        pos60 = pos_map.get(code)
-        ma5, near5 = ma5_map.get(code, (None, False))
-        dsp = ds.get('per', {}).get(name) if ds else None
-        if not dsp and ds:
-            _kk = name[:4]
-            for _k, _v in (ds.get('per') or {}).items():
-                if _k[:4] == _kk or _kk in _k:
-                    dsp = _v
+        _main_desc = f'没成气候的主线，{_lu_all} 只涨停散在各板块，属杂乱轮动'
+    _zb_desc = ('炸板率偏高，接力资金不坚决' if zb_rate >= 0.40
+                else ('炸板率低，接力意愿还在' if zb_rate < 0.25 else '炸板率中等，资金挑着做'))
+
+    # —— 候选筛选：未涨停 + 落在主线板块 + 量能已起 ——
+    def _cand_rows(gainers, secs):
+        _out = []
+        for g in gainers:
+            code = str(g.get('code') or '')
+            nm = str(g.get('name') or '')
+            price = float(g.get('price') or 0)
+            pct = float(g.get('pct') or 0)
+            lb = float(g.get('lb') or 0)
+            turn = float(g.get('turn') or 0)
+            amt = float(g.get('amount') or 0)
+            ind = str(g.get('industry') or '')
+            if not code or not nm or price <= 0:
+                continue
+            if 'ST' in nm or '退' in nm:
+                continue
+            if pct < 2.5 or pct > 8.5:
+                continue
+            if lb < 1.6 or turn < 1.2:
+                continue
+            if amt < 6.0e7:
+                continue
+            hit = ''
+            for s in secs:
+                if not s or s == '其他':
+                    continue
+                if s[:3] in ind or (ind and ind[:3] in s):
+                    hit = s
                     break
-        _logic = (dsp.get('logic') or '') if isinstance(dsp, dict) else ''
-        if dsp:
-            why, op, buy, stop = (dsp.get('why') or ''), (dsp.get('op') or ''), (dsp.get('buy') or ''), (dsp.get('stop') or '')
-            if not (why or op or buy or stop):
-                dsp = None
-            op_col = TEAL if op in ('轻仓', '轻仓试', '看') else (GOLD if op in ('观望', '持仓不动') else RED)
-        else:
-            # 无模型判读：不出规则版结论句、不给规则版买点止损，只列已算出的数据
-            why = ''
-        # 无模型时不给规则版操作/买点/止损
-        _oprow = ''
-        if dsp:
-            _oprow = ('<div style="color:#ced4da;font-size:12px;">操作：<b style="color:' + op_col + ';">' + op
-                      + '</b> ｜ 买点：' + buy + ' ｜ 止损：' + stop + '</div>')
-        if dsp:
-            _whyrow = '<div style="color:' + GREY + ';font-size:12px;">👉 AI 大白话：' + why + '。</div>'
-        else:
-            _whyrow = ('<div style="color:#9aa4b8;font-size:12px;">'
-                       + sec + '板块共 ' + str(grp) + ' 只齐涨｜' + lb_txt + fbt_txt
-                       + (f'｜距60日高 {pos60*100:.0f}%' if pos60 is not None else '')
-                       + (f'｜5日线 {ma5:.2f}' if ma5 else '')
-                       + '</div>')
-        # v80-A2（用户指令）：只留个股暗线 + 涨停驱动暗线，题材标签/连板标签/大白话/操作买点止损全部隐藏
-        rows.append(
-            '<div style="background:#1f2635;border-left:3px solid #a78bfa;border-radius:8px;padding:9px 11px;margin:7px 0;">'
-            + '<div style="font-size:14px;font-weight:700;color:#fff;">' + name + '（' + code + '）</div>'
-            + (('<div style="color:#a78bfa;font-size:13px;margin-top:4px;">🔍 暗线：' + _logic + '</div>') if _logic else '')
-            + (('<div style="color:#ffd43b;font-size:13px;margin-top:3px;">⚡ 涨停驱动暗线：' + dsp.get('driver', '') + '</div>') if isinstance(dsp, dict) and dsp.get('driver') else '')
-            + '</div></div>')
-    new_block = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">🆕 新进涨停 ' + str(len(new_xs)) + ' 只</div>'
-                 + ''.join(rows))
-    # —— 主线归纳（DS 优先，模板回退）——
-    from collections import Counter as _C
-    cnt_new = _C(x.get('hybk') or '其他' for x in new_xs)
-    top_main = cnt_new.most_common(2)
-    if ds and ds.get('mainline'):
-        main_line = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">🧵 今日主线</div>'
-                     f'<div style="color:#e9ecef;font-size:13px;">{ds["mainline"]}</div>') if new_xs else ''
-    else:
-        # 无模型判读：只列聚类数据，不写"真·板块合力/谨防一日游"这类规则结论
-        _mp = []
-        for sec, n in top_main:
-            tot = sec_cnt.get(sec, 0)
-            _mp.append(f'{sec}（新进 {n} 只，板块共 {tot} 只）')
-        main_line = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">🧵 今日主线</div>'
-                     f'<div style="color:#e9ecef;font-size:13px;">新进票集中在 {"；".join(_mp) if _mp else "没形成合力"}。'
-                     f'同一个板块里进榜的越多，说明资金是顺着一条线打的，不是各打各的</div>') if new_xs else ''
-    # —— 高位预警（连板≥4 或 60日高位区的新高票）——
-    hi = [x for x in pool if int(x.get('lbc') or 0) >= 4]
-    hi_txt = []
-    for x in hi[:3]:
-        lbc = int(x.get('lbc') or 0)
-        hi_txt.append(f'{x.get("n", "")}（{lbc}板）')
-    pos_hi = []
-    for x in pool[:12]:
-        c, nm = x.get('c', ''), x.get('n', '')
-        p = _zt_price(x)
-        if p and c:
-            pos = _intra_pos60(c, p)
-            if pos is not None and pos > 0.85 and int(x.get('lbc') or 0) < 4:
-                pos_hi.append(nm)
-        if len(pos_hi) >= 3:
-            break
-    hi_line = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">⚠️ 高位预警</div>'
-               f'<div style="color:{RED};font-size:13px;">{"、".join(hi_txt + pos_hi)}已经连到高位或贴到60日高点，位置太靠上，这时候进去就是给别人接力</div>') if (hi_txt or pos_hi) else ''
-    # —— 持仓联动（冰轮/道恩）——
+            if not hit:
+                continue
+            _out.append(dict(g, _sec=hit))
+        _out.sort(key=lambda x: (-(float(x.get('lb') or 0)), -float(x.get('pct') or 0)))
+        return _out
+
+    try:
+        _gain = _clist_gainers() or []
+    except Exception:
+        _gain = []
+    _cands = _cand_rows(_gain, main_secs)[:4]
+    print(f'[intra] 主线={main_secs} 涨幅榜={len(_gain)} 未涨停候选={len(_cands)}')
+
+    # —— 持仓联动（有动静才提，已涨停一律标"别追"）——
     hold_hits = []
     for h in HOLDINGS:
         c6 = h['code'].replace('sh', '').replace('sz', '')
         if c6 in code2x:
-            x = code2x[c6]
-            hold_hits.append(f'{h["name"]} 涨停（{int(x.get("lbc") or 0)}板）！')
+            hold_hits.append(f'{h["name"]} 涨停（{int(code2x[c6].get("lbc") or 0)}板）')
         elif h['name'] in d.get('zb_names', set()):
-            hold_hits.append(f'{h["name"]} 炸板（注意回落）')
-    hold_line = ('<div style="margin-top:8px;padding:8px 10px;background:#3b1d1d;border-left:4px solid #ff922b;border-radius:8px;">'
-                 f'<div style="font-size:13px;font-weight:800;color:#ffd43b;">🐉 持仓有动静：{"；".join(hold_hits)}</div></div>') if hold_hits else ''
-    # —— 纪律句 + DS 风险 + 额度注 ——
-    if ds and ds.get('risk'):
-        risk_line = f'<div style="margin-top:8px;color:{RED};font-size:12px;">⚠️ AI 风险：{ds["risk"]}</div>'
+            hold_hits.append(f'{h["name"]} 炸板')
+
+    # —— 逐只可上车候选：共振类型 + 大白话 + 买点 + 止损 + 仓位 ——
+    _cards = []
+    for g in _cands:
+        code = str(g.get('code') or '')
+        nm = str(g.get('name') or '')
+        price = float(g.get('price') or 0)
+        pct = float(g.get('pct') or 0)
+        lb = float(g.get('lb') or 0)
+        turn = float(g.get('turn') or 0)
+        high = float(g.get('high') or 0)
+        sec = g.get('_sec') or ''
+        _grp = sec_cnt.get(sec, 0)
+        _lbc_max = 0
+        for x in pool:
+            if (x.get('hybk') or '') == sec:
+                _lbc_max = max(_lbc_max, int(x.get('lbc') or 0))
+        ma5, _near5 = _intra_ma5_price(code, price)
+        pos60 = _intra_pos60(code, price)
+        if _grp >= 3:
+            _reso = '板块共振（龙头封死后资金外溢同链）'
+        elif sec in (d.get('zb_names') or set()):
+            _reso = '补涨轮动（同板块高位炸板，资金找低位）'
+        elif _grp == 2:
+            _reso = '题材爆发（新消息点火，刚扩散到第二梯队）'
+        else:
+            _reso = '独立催化（个股量能先行）'
+        if ma5 and price <= ma5 * 1.015:
+            _buy = f'回踩 {ma5:.2f}（5日线）不破就买，或现价 {price:.2f} 直接挂'
+        elif high > price and (high / price - 1) <= 0.03:
+            _buy = f'站上 {high:.2f}（今日高点）放量才买，不站上不追'
+        elif ma5:
+            _buy = f'现价 {price:.2f} 分批进，回踩 {ma5:.2f}（5日线）不破再加，别等拉起来才追'
+        else:
+            _buy = f'现价 {price:.2f} 附近分批，回踩不破分时均价线就进'
+        if ma5:
+            _stop = f'跌破 {ma5 * 0.985:.2f}（5日线下沿）走人，约 -{(1 - ma5 * 0.985 / price) * 100:.1f}%'
+        else:
+            _stop = f'成本 -3%（约 {price * 0.97:.2f}）'
+        if pct <= 5.0 and lb >= 2.0:
+            _pos = '2成'
+        elif pct <= 6.5:
+            _pos = '1成试探'
+        else:
+            _pos = '1成，别追高'
+        if pos60 is not None:
+            _pos_line = ('离60日高 {:.0f}% 分位，位置不高、还有空间'.format(pos60 * 100) if pos60 < 0.7
+                         else '离60日高 {:.0f}% 分位，位置偏高、只能快进快出'.format(pos60 * 100))
+        else:
+            _pos_line = '位置数据未取到，只按量价做'
+        _hgt = f'（最高 {_lbc_max} 板）' if _lbc_max >= 2 else ''
+        _why = (f'{sec}今天已 {_grp} 只涨停{_hgt}，资金明摆着在这条线上；'
+                f'它是同板块还没涨停、量比 {lb:.1f}、换手 {turn:.1f}% 的前排，{_pos_line}，'
+                f'属于龙头封板后资金外溢到的下一站')
+        _cards.append(
+            '<div style="background:#1f2635;border-left:3px solid #ff922b;border-radius:8px;padding:9px 11px;margin:7px 0;">'
+            + f'<div style="font-size:14px;font-weight:700;color:#fff;">{nm}（{code}）'
+            + f'<span style="color:{RED};font-size:13px;font-weight:600;"> {pct:+.2f}%</span>'
+            + f'<span style="color:{GREY};font-size:11px;">｜量比{lb:.1f}｜换手{turn:.1f}%</span></div>'
+            + f'<div style="color:#ffd43b;font-size:12px;margin-top:4px;">共振类型：{_reso}</div>'
+            + f'<div style="color:#e9ecef;font-size:12.5px;margin-top:3px;">👉 {_why}</div>'
+            + f'<div style="color:#8ce99a;font-size:12.5px;margin-top:3px;">买点：{_buy}</div>'
+            + f'<div style="color:#ff8787;font-size:12.5px;margin-top:2px;">止损：{_stop}</div>'
+            + f'<div style="color:#74c0fc;font-size:12.5px;margin-top:2px;">仓位：{_pos}</div>'
+            + '</div>')
+
+    _head = (f'<div style="color:{RED};font-size:14px;font-weight:700;">⏰ {now.strftime("%H:%M")} 盘中机会'
+             f' · 涨停 {d["lu"]} / 炸板 {d["zb"]}</div>'
+             + f'<div style="color:#e9ecef;font-size:13px;margin-top:3px;">{mood_emoji} 情绪：{mood}'
+             + f'（涨停 {prev_lu}→{d["lu"]}，炸板率 {zb_rate * 100:.0f}%）</div>'
+             + f'<div style="color:#e9ecef;font-size:13px;margin-top:3px;">🧵 主线：{_main_desc}；{_zb_desc}</div>'
+             + f'<div style="color:{GREY};font-size:12px;margin-top:2px;">'
+             + '👉 大白话：涨停的只当路标看，真能上车的是还没板的那几个。</div>')
+    _title = '<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">🎯 可交易机会（未涨停股）</div>'
+    if _cards:
+        _body = _title + ''.join(_cards)
     else:
-        risk_line = ''
-    if mood in ('升温', '平稳偏强'):
-        disc = '只看龙头、不碰高位、不追炸板'
-    elif mood in ('降温', '警惕退潮'):
-        disc = '退潮期别接飞刀，先保住今天的利润'
-    else:
-        disc = '管住手，等同步启动确认再动'
-    quota_line = ('<div style="margin-top:6px;color:' + GREY + ';font-size:11px;">今日 DS 额度已用，以下为纯规则判断</div>'
-                  if _DS_EXHAUSTED else '')
-    # v80-A2（用户指令）：情绪定性/今日主线/高位预警/AI风险/纪律/额度注/免责口径 全部隐藏，只留每只票的暗线与涨停驱动暗线
-    mood_line = ''
-    main_line = ''
-    hi_line = ''
-    risk_line = ''
-    disc = ''
-    quota_line = ''
+        _body = (_title
+                 + f'<div style="color:{GOLD};font-size:13px;">当前无可上车标的，只看不动。</div>'
+                 + f'<div style="color:{GREY};font-size:12px;">原因：{_top_sec or "各板块"}那边没有'
+                 + '「涨幅2.5-8.5%、量比≥1.6、成交额≥6000万、还没涨停」的票，硬凑就是让你去接盘</div>')
+    if hold_hits:
+        _body += ('<div style="margin-top:8px;color:#ffd43b;font-size:12.5px;">🐉 持仓：'
+                  + '；'.join(hold_hits) + '（已涨停，别追，持有看明天）</div>')
     html = _wrap(
-        f'<div style="color:{RED};font-size:14px;font-weight:700;">⏰ {now.strftime("%H:%M")} 盘中异动 · 涨停 {d["lu"]} / 炸板 {d["zb"]}</div>'
-        + mood_line + new_block + main_line + hi_line + hold_line + risk_line
-        + f'<div style="margin-top:8px;color:{TEAL};font-size:12px;">📌 纪律：{disc}</div>'
-        + quota_line,
-        '🚨', '盘中异动')
-    ok, msg = push(html, f'🚨 盘中异动 {now.strftime("%H:%M")} · {mood}')
-    print(f'[intra] 指纹变化 lu={prev_lu}→{d["lu"]} zb={d["zb"]} 新进 {len(new_xs)} 只 → PUSH', ok, msg)
+        _head + _body
+        + f'<div style="margin-top:8px;color:{RED};font-size:12px;">'
+        + '⚠️ 风险：盘中追涨最容易吃面，买点不成立就不做；单票仓位上限2成，破止损立刻走。</div>',
+        '🎯', '盘中机会', disclaimer=True)
+    ok, msg = push(html, f'🎯 盘中机会 {now.strftime("%H:%M")} · {mood}')
+    print(f'[intra] 指纹变化 lu={prev_lu}→{d["lu"]} 新进{len(new_xs)}只 可上车{len(_cands)}只 → PUSH', ok, msg)
     return html
 
 
