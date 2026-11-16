@@ -589,3 +589,8 @@
 11-16 14:22:14     watch| [LLM_OUT:board_deep] {   "per": [     {       "name": "ST 豆神",       "role": "龙头",       "real_benefit": "实受益",       "verdict": "不碰",       "stage": "启动日",       "resona
 11-16 14:22:14     watch| SLOT watch PUSH True 执行成功; 执行成功
 11-16 14:22:14     watch| [radar] 今日雷达扫描已推过，跳过
+11-16 14:22:15 持久化(watch)：已推送
+11-16 14:22:15 <<< 完成槽位 watch，用时 421.3s
+11-16 14:24:01 滚动段调度结束（14:24），退出
+11-16 14:24:01 退出原因：roll-end
+11-16 14:24:01 今日已过窗未推 2 个槽：10:00news2h、13:05pmopen
