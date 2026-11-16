@@ -2237,3 +2237,9 @@
 04:05:05 [llm] OK purpose=holiday_ds len=1002
 04:05:58 [llm] OK purpose=news2h_ext len=962
 04:06:58 [llm] OK purpose=news2h len=163
+05:01:14 [llm] OK purpose=hourly_ds len=474
+05:03:41 [llm] OK purpose=batch_deep len=4287
+05:05:49 [llm] OK purpose=newfire_dark len=243
+05:06:08 [llm] OK purpose=health len=134
+05:07:03 [llm] OK purpose=hold_diag len=466
+05:08:04 [llm] OK purpose=event_dark len=712
