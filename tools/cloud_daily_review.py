@@ -3105,6 +3105,17 @@ def _sector_cards(tops, zb_names=None):
 
 
 # ============ 竞价强选（09:20 用户指定算法：全市场涨幅榜→硬过滤→双重打分→Top20+DeepSeek） ============
+def _safe_industry(v):
+    """行业字段兜底：东财部分限流行 f127 返回数值（偏离值/振幅）而非行业名，纯数值归为「其他」。"""
+    s = str(v or '').strip()
+    if not s:
+        return '其他'
+    t = s.replace('-', '').replace('.', '').replace('%', '')
+    if t.isdigit():
+        return '其他'
+    return s
+
+
 def _clist_gainers():
     """全市场涨幅榜（仅沪深主板+创业板，剔除科创/北交所）。失败返回 []。https 优先，失败换 http。
     分页取数 pn=1..3：东财 clist 单页实际只返回前 100（pz=600 也会被截断），
@@ -3173,7 +3184,7 @@ def _clist_gainers():
                     'low': float(x.get('f16') or 0),
                     'prev': float(x.get('f18') or 0),
                     'list_date': str(x.get('f26') or ''),
-                    'industry': str(x.get('f127') or '').strip() or '其他',
+                    'industry': _safe_industry(x.get('f127')),
                 })
             except Exception:
                 continue
@@ -3259,6 +3270,89 @@ def _clist_gainers_alt():
                 pass
         for r in rows:
             r['lb'] = _lbq.get(r['code'], 0.0)
+    return rows
+
+
+def _clist_losers():
+    """全市场跌幅榜（模块一弱方/变弱个股）：口径与 _clist_gainers 对齐，按涨幅升序取跌幅前列。
+    东财 clist 断连时回退新浪 hs_a 涨幅升序。失败返回 []。"""
+    rows = []
+    for scheme in ('https', 'http'):
+        merged = []
+        for pn in (1, 2, 3):
+            url = (scheme + '://push2.eastmoney.com/api/qt/clist/get?pn=%d&pz=100&po=0&np=1&fltt=2&invt=2'
+                   '&fid=f3&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23'
+                   '&fields=f2,f3,f5,f6,f8,f10,f12,f14,f15,f16,f18,f20,f26,f127') % pn
+            _rows = None
+            for _try in (1, 2, 3):
+                try:
+                    txt, ok = _getm(url, 'clist_loser_p%d' % pn)
+                    if not ok or not txt:
+                        if _try < 3:
+                            time.sleep(1.0)
+                            continue
+                        break
+                    d = json.loads(txt)
+                    _rows = [x for x in ((d.get('data') or {}).get('diff') or []) if x and str(x.get('f12', '')).strip()]
+                    break
+                except Exception:
+                    if _try < 3:
+                        time.sleep(1.0)
+                        continue
+                    break
+            if _rows:
+                merged.extend(_rows)
+            else:
+                break
+        if not merged:
+            continue
+        seen = set()
+        rows = []
+        for x in merged:
+            code = str(x.get('f12', '')).strip()
+            if code in seen:
+                continue
+            seen.add(code)
+            try:
+                rows.append({
+                    'code': code, 'name': str(x.get('f14', '')).strip(),
+                    'price': float(x.get('f2') or 0), 'pct': float(x.get('f3') or 0),
+                    'turn': float(x.get('f8') or 0), 'lb': float(x.get('f10') or 0),
+                    'industry': _safe_industry(x.get('f127')),
+                })
+            except Exception:
+                continue
+        if rows:
+            break
+    if not rows:
+        # 新浪替代：涨幅升序，只留下跌票
+        try:
+            for pn in (1, 2):
+                url = ('https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/'
+                       'Market_Center.getHQNodeData?page=%d&num=100&sort=changepercent&asc=1&node=hs_a'
+                       '&symbol=&_s_r_a=page') % pn
+                txt, ok = _getm(url, 'clist_loser_alt_p%d' % pn)
+                if not ok or not txt:
+                    continue
+                for x in json.loads(txt):
+                    code = str(x.get('code') or '').strip()
+                    name = str(x.get('name') or '').strip()
+                    if not code or not name or code.startswith(('688', '689', '8', '4', '920', '92')):
+                        continue
+                    try:
+                        pct = float(x.get('changepercent') or 0)
+                        if pct >= 0:
+                            continue
+                        rows.append({'code': code, 'name': name, 'price': float(x.get('trade') or 0),
+                                     'pct': pct, 'turn': float(x.get('turnoverratio') or 0), 'lb': 0.0,
+                                     'industry': _IND_CACHE.get(code, '其他')})
+                    except Exception:
+                        continue
+                if len(rows) >= 60:
+                    break
+        except Exception as e:
+            print('[pulse] 跌幅榜替代源失败:', repr(e)[:80])
+    rows.sort(key=lambda x: x['pct'])
     return rows
 
 
@@ -8802,6 +8896,15 @@ def _slot_key(slot):
         if '13:35' <= hm <= '13:39':
             return 'risk|%s|1335' % today
         return 'risk|%s|%s' % (today, hm)
+    if slot == 'pulse':
+        if _ph in ('1020', '1350'):
+            return 'pulse|%s|%s' % (today, _ph)
+        hm = _bj_now().strftime('%H:%M')
+        if '10:20' <= hm <= '10:24':
+            return 'pulse|%s|1020' % today
+        if '13:50' <= hm <= '13:54':
+            return 'pulse|%s|1350' % today
+        return 'pulse|%s|%s' % (today, hm)
     return '%s|%s' % (slot, today)
 
 
@@ -10853,6 +10956,48 @@ _CONCEPT_SKIP = ('昨日打二板', '红利破净', '破净股', '证金持股',
                  '专精特新', '独角兽', '核心资产', '漂亮50', 'AH股', '上证', '深证', '中证',
                  '沪深300', '中证500', '昨日涨停', '昨日连板', '龙虎榜', '参股', '举牌',
                  '壳资源', '预亏', '业绩预', '融资标的', '龙头股')
+
+
+def _pulse_boards(top_n=8):
+    """模块二/模块一板块清单：同花顺涨停板块榜，返回 [{code,name,change,lu,leader,stage}]。
+    板块指数历史K线当前无稳定源，均线状态在 builder 按当日涨幅+成分股强弱降级标注，不编造均线数值。"""
+    qs = ('filter=HS,GEM2STAR&field=199112,10,9001&order_field=199112&order_type=0&page=1&limit=30')
+    items = []
+    for i in range(3):
+        try:
+            req = urllib.request.Request('https://data.10jqka.com.cn/dataapi/limit_up/block_top?' + qs,
+                                         headers={**UA, 'Referer': 'https://data.10jqka.com.cn/'})
+            txt = urllib.request.urlopen(req, timeout=9).read().decode('utf-8', 'ignore')
+            items = (json.loads(txt) or {}).get('data') or []
+            if items:
+                break
+        except Exception as e:
+            print('[pulse] 板块榜第%d次失败: %s' % (i + 1, repr(e)[:80]))
+            time.sleep(0.8)
+    out = []
+    for x in items:
+        nm = str(x.get('name') or '').strip()
+        if not nm or any(k in nm for k in _CONCEPT_SKIP) or '风格' in nm or '权重' in nm:
+            continue
+        try:
+            lu = int(x.get('limit_up_num') or 0)
+            chg = float(x.get('change') or 0)
+            cont = int(x.get('continuous_plate_num') or 0)
+        except Exception:
+            continue
+        leader, best = '', -1
+        for s in (x.get('stock_list') or []):
+            try:
+                cn = int(s.get('continue_num') or 0)
+            except Exception:
+                cn = 0
+            if cn > best:
+                best, leader = cn, str(s.get('name') or '').strip()
+        stage = '一致期' if ((lu >= 8 and chg > 0) or cont >= 3) else ('分歧期' if lu >= 3 else '退潮期')
+        out.append({'code': str(x.get('code') or ''), 'name': nm, 'change': round(chg, 2),
+                    'lu': lu, 'leader': leader, 'stage': stage})
+    out.sort(key=lambda t: -t['lu'])
+    return out[:top_n]
 
 
 def _ext_concepts(top_n=5):
@@ -16789,6 +16934,113 @@ def _zt_pool_names():
         return set()
 
 
+# ============ 盘中全景四览（pulse）：MACD(8,21,5) 指标 + 技术面精选池核验 ============
+
+def _macd(closes, fast=8, slow=21, signal=5):
+    """标准 MACD：DIF=EMA(fast)-EMA(slow)；DEA=EMA(DIF,signal)；柱=2*(DIF-DEA)。
+    返回 dict（dif/dea/macd/golden 今日金叉/above DIF>DEA/red 红柱）；数据不足返回 None。"""
+    if not closes or len(closes) < slow + signal + 2:
+        return None
+
+    def _ema_series(series, n):
+        k = 2.0 / (n + 1)
+        e = series[0]
+        out = [e]
+        for v in series[1:]:
+            e = v * k + e * (1 - k)
+            out.append(e)
+        return out
+
+    ema_f = _ema_series(closes, fast)
+    ema_s = _ema_series(closes, slow)
+    dif = [a - b for a, b in zip(ema_f, ema_s)]
+    dea = _ema_series(dif, signal)
+    hist = [2.0 * (d - e) for d, e in zip(dif, dea)]
+    golden = dif[-1] > dea[-1] and dif[-2] <= dea[-2]
+    return {'dif': round(dif[-1], 3), 'dea': round(dea[-1], 3),
+            'macd': round(hist[-1], 3), 'golden': bool(golden),
+            'above': bool(dif[-1] > dea[-1]), 'red': hist[-1] > 0}
+
+
+def _pulse_tech_kctx(code):
+    """模块三技术面核验：MA5 贴近/缠绕 MA20（接触）+ MACD(8,21,5) 红柱或刚金叉 + 放量。
+    返回 dict 或 None。涨幅/市值/涨停门槛由候选初筛层把关，本函数只核技术形态。"""
+    try:
+        sym = ('sh' if code.startswith('6') else ('bj' if code.startswith(('4', '8')) else 'sz')) + code
+        arr = get_klines(sym, 70)
+        if not arr or len(arr) < 28:
+            return None
+        closes = [float(x[2]) for x in arr]
+        vols = [float(x[5]) for x in arr]
+        ma5 = sum(closes[-5:]) / 5.0
+        ma20 = sum(closes[-20:]) / 20.0
+        if ma20 <= 0:
+            return None
+        touch = abs(ma5 - ma20) / ma20 * 100.0
+        m = _macd(closes)
+        if not m:
+            return None
+        v5 = sum(vols[-6:-1]) / 5.0
+        vol_r = vols[-1] / v5 if v5 > 0 else 0.0
+        if touch > 2.0:                       # 5日线未贴近20日线（缠绕/接触）
+            return None
+        if not (m['above'] or m['golden']):   # MACD 不在多头、也未金叉
+            return None
+        if vol_r < 1.2:                       # 未放量
+            return None
+        return {'ma5': round(ma5, 2), 'ma20': round(ma20, 2), 'touch': round(touch, 2),
+                'dif': m['dif'], 'dea': m['dea'], 'macd': m['macd'], 'golden': m['golden'],
+                'vol_r': round(vol_r, 1)}
+    except Exception:
+        return None
+
+
+def _pulse_tech_pool(maxn=10):
+    """模块三技术面精选池：涨幅榜初筛（1~9.5%、量比≥1.5、换手≥2%、未涨停、流通市值≥30亿）→
+    K线核验（MA5贴近MA20 + MACD8,21,5多头/金叉 + 放量）。返回带 _k 核验dict的候选列表。"""
+    try:
+        rows = _clist_gainers()
+    except Exception as e:
+        print('[pulse] 涨幅榜异常:', e)
+        return []
+    zt_codes = set()
+    try:
+        for _sec, sts in get_pools()['sectors'].items():
+            for st in sts:
+                zt_codes.add(str(st.get('c') or ''))
+    except Exception:
+        pass
+    cands = []
+    for s in rows:
+        try:
+            pct = float(s.get('pct') or 0)
+            if pct < 1.0 or pct >= 9.5:
+                continue
+            if float(s.get('lb') or 0) < 1.5:
+                continue
+            if float(s.get('turn') or 0) < 2.0:
+                continue
+        except Exception:
+            continue
+        if str(s.get('code') or '') in zt_codes:
+            continue
+        cands.append(s)
+    cands.sort(key=lambda x: -float(x.get('lb') or 0))
+    out = []
+    for s in cands[:20]:
+        cap = _dl_mktcap(s.get('code') or '')
+        if cap is not None and cap < 30.0:
+            continue
+        k = _pulse_tech_kctx(s.get('code') or '')
+        if k is None:
+            continue
+        s['_k'] = k
+        out.append(s)
+        if len(out) >= maxn:
+            break
+    return out
+
+
 # ============ 雷达扫描（11-05 指令⑪）：倍量 + 实体阳线 + 5日线金叉20日线 ============
 RADAR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'radar_done.json')
 
@@ -16947,6 +17199,159 @@ def build_radar():
              + ''.join(rows)
              + f'<div style="color:{GREY};font-size:11px;margin-top:6px;">筛股口径：量比≥1.8 + 实体阳线涨幅1~9.5% + MA5上穿MA20（含今日）；高位不追，按买点纪律执行。</div>')
     return _wrap(inner, '📡', '雷达扫描')
+
+
+def _pulse_ds(boards, stocks):
+    """盘中全景 LLM 深挖：板块暗线 + 个股归因/暗线。失败返回 ({}, {})。"""
+    if not (boards or stocks) or not (MODELSCOPE_KEY or DEEPSEEK_KEY):
+        return {}, {}
+    b_txt = '\n'.join(f"- {b['name']}（涨幅{b['change']}%，涨停{b['lu']}家，龙头{b['leader'] or '无'}）" for b in boards)
+    s_txt = '\n'.join(
+        f"- {s.get('name')}({s.get('code')}) 现价{s.get('price')} 涨幅{s.get('pct')}% 量比{s.get('lb')} 换手{s.get('turn')}% "
+        f"MA5={s['_k']['ma5']} MA20={s['_k']['ma20']} MACD DIF={s['_k']['dif']} DEA={s['_k']['dea']}"
+        for s in stocks)
+    fmt = ('你是A股一线游资，做盘中全景解读。下面是今日盘面板块与技术面异动股。\n'
+           '【板块暗线】对每个板块写一句暗线：表面在炒什么题材、背后真正在动的是哪个产业环节/哪类公司，'
+           '必须引用板块内具体名词（产品/订单/事件），30-50字；禁「相关/涉及/布局/受益于」万能句，禁设问句。\n'
+           '【个股】对每只个股写 why（今天放量走强的真实归因：消息/资金/板块/业绩，≥25字，用数据说话）'
+           '和 dark（这条票真正炒的暗线业务，挖不出如实写「未见明确暗线业务」，禁标签糊弄）。\n'
+           '只输出 JSON：{"boards":[{"name":"板块名","dark":"暗线"}], "per":[{"name":"个股名","why":"归因","dark":"暗线"}]}。\n'
+           '板块清单：\n' + b_txt + '\n个股清单：\n' + s_txt)
+    t = ask_deepseek({'task': 'pulse_ds', 'boards': boards, 'stocks': stocks, 'format': fmt}, purpose='pulse')
+    bd, per = {}, {}
+    if not t:
+        return bd, per
+    try:
+        _j = json.loads(t)
+        for it in (_j.get('boards') or []):
+            nm = str(it.get('name') or '').strip()
+            if nm:
+                bd[nm] = str(it.get('dark') or '').strip()
+        for it in (_j.get('per') or []):
+            nm = str(it.get('name') or '').strip()
+            if nm:
+                per[nm] = it
+    except Exception:
+        pass
+    return bd, per
+
+
+def _board_ma_state(chg):
+    """板块均线状态降级标注：板块指数K线无稳定源，按当日涨幅贴近度定性（不写均线数值）。"""
+    if chg >= 1.5:
+        return '站上5日'
+    if chg <= -1.5:
+        return '跌破5日'
+    return '回踩贴近5日'
+
+
+def build_pulse():
+    """盘中全景四览：模块一涨跌全景 / 模块二5日线附近板块表 / 模块三技术面精选池 / 模块四暗线挖掘。
+    仅北京盘中 09:30-14:50 实时推送（--force 演示跳过闸门）。四模块全空时返回 None 不推。"""
+    bj = _bj_now()
+    if not FORCE_SLOT and not _in_session(bj):
+        print(f'[pulse] 当前北京时间 {bj.strftime("%H:%M")} 不在盘中窗口(09:30-14:50)，不推盘中全景')
+        return None
+
+    boards = _pulse_boards(8)
+    tech = _pulse_tech_pool(10)
+    try:
+        gainers = _clist_gainers()
+    except Exception:
+        gainers = []
+    try:
+        losers = _clist_losers()
+    except Exception:
+        losers = []
+
+    # 模块一：强弱个股与重灾区板块
+    strong = gainers[:2]
+    weak = losers[:2]
+    # 重灾区：跌幅榜前20个股所属行业聚合，取平均跌幅最深的行业
+    ind_stat = {}
+    for s in losers[:20]:
+        ind = s.get('industry') or '其他'
+        ind_stat.setdefault(ind, []).append(s.get('pct') or 0)
+    worst_ind, worst_pct = '', 0.0
+    for ind, vals in ind_stat.items():
+        avg = sum(vals) / len(vals)
+        if avg < worst_pct:
+            worst_ind, worst_pct = ind, avg
+
+    bd, per = _pulse_ds(boards, tech)
+
+    parts = []
+    # —— 模块一：涨跌全景与核心驱动 ——
+    m1 = ['<div style="color:#e9ecef;font-size:13px;font-weight:700;margin:8px 0 4px;">🔴 涨跌全景与核心驱动</div>']
+    top2 = boards[:2]
+    if top2:
+        for b in top2:
+            m1.append(f'<div style="color:#e9ecef;font-size:12.5px;margin:3px 0;">🔥 最强风口：<b>{b["name"]}</b>（{b["change"]:+.2f}%）'
+                       f'<span style="color:{GREY};">｜涨停{b["lu"]}家·龙头{b["leader"] or "—"}</span></div>')
+    if worst_ind:
+        m1.append(f'<div style="color:#e9ecef;font-size:12.5px;margin:3px 0;">❄️ 最弱重灾区：<b>{worst_ind}</b>（板块内个股均跌{worst_pct:.2f}%）'
+                  f'<span style="color:{GREY};">｜退潮/资金撤离</span></div>')
+    for s in strong:
+        m1.append(f'<div style="color:#e9ecef;font-size:12.5px;margin:3px 0;">📈 变强：<b>{s.get("name")}</b>（{s.get("pct"):+.2f}%·量比{s.get("lb")}）'
+                  f'<span style="color:{GREY};">｜{s.get("industry") or "其他"}</span></div>')
+    for s in weak:
+        m1.append(f'<div style="color:#e9ecef;font-size:12.5px;margin:3px 0;">📉 变弱：<b>{s.get("name")}</b>（{s.get("pct"):+.2f}%）'
+                  f'<span style="color:{GREY};">｜{s.get("industry") or "其他"}</span></div>')
+    parts.append(''.join(m1))
+
+    # —— 模块二：5日线附近板块轮动表 ——
+    near = [b for b in boards if abs(b['change']) <= 1.5] or boards[:5]
+    rows2 = ['<div style="color:#e9ecef;font-size:13px;font-weight:700;margin:10px 0 4px;">📊 5日线附近板块（轮动低吸）</div>']
+    if near:
+        rows2.append('<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+                     '<tr style="color:' + TEAL + ';"><th style="text-align:left;padding:4px 6px;">板块名称</th>'
+                     '<th style="text-align:left;padding:4px 6px;">均线状态</th>'
+                     '<th style="text-align:left;padding:4px 6px;">潜在暗线逻辑</th></tr>')
+        for b in near[:5]:
+            dark = bd.get(b['name'], '') or '板块当日强弱见左，暗线待消息面确认'
+            rows2.append(f'<tr style="border-top:1px solid #2a3242;">'
+                         f'<td style="padding:5px 6px;color:#fff;">{b["name"]}</td>'
+                         f'<td style="padding:5px 6px;color:{GREY};">{_board_ma_state(b["change"])}</td>'
+                         f'<td style="padding:5px 6px;color:#cfd6e0;">{dark}</td></tr>')
+        rows2.append('</table>')
+    else:
+        rows2.append('<div style="color:%s;font-size:12px;">今日无贴近5日线的板块。</div>' % GREY)
+    parts.append(''.join(rows2))
+
+    # —— 模块三：技术面精选池 ——
+    rows3 = ['<div style="color:#e9ecef;font-size:13px;font-weight:700;margin:10px 0 4px;">🎯 技术面精选池（5日触20日 · MACD8,21,5放量）</div>']
+    if tech:
+        for s in tech:
+            _d = per.get(s.get('name')) or {}
+            _why = str(_d.get('why') or '') or '均线缠绕+MACD多头放量，形态达标'
+            _dark = str(_d.get('dark') or '') or _dark_fact(s.get('code'), s.get('name')) or '未见明确暗线业务'
+            k = s['_k']
+            rows3.append(f'<div style="background:#1f2635;border-left:3px solid {TEAL};border-radius:8px;padding:7px 11px;margin:5px 0;">'
+                         f'<div style="color:#fff;font-size:12.5px;">🎯 {s.get("name")}（{s.get("code")}）'
+                         f'<span style="color:{_c(s.get("pct"))};">{s.get("pct"):+.2f}%</span>'
+                         f'<span style="color:{GREY};font-size:11px;">｜MA5 {k["ma5"]} / MA20 {k["ma20"]}｜量能{k["vol_r"]}x</span></div>'
+                         f'<div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.6;">🧠 {_why}</div>'
+                         f'<div style="color:#a78bfa;font-size:12px;margin-top:1px;">🕳️ {_dark}</div></div>')
+    else:
+        rows3.append('<div style="color:%s;font-size:12px;">原始数据中满足「5日触20日+MACD放量」的标的不足，本模块留空。</div>' % GREY)
+    parts.append(''.join(rows3))
+
+    # —— 模块四：暗线逻辑挖掘 ——
+    m4 = ['<div style="color:#e9ecef;font-size:13px;font-weight:700;margin:10px 0 4px;">🕵️ 暗线逻辑挖掘（预期差）</div>']
+    if boards:
+        b0 = boards[0]
+        m4.append(f'<div style="color:#e9ecef;font-size:12.5px;margin:3px 0;">🔗 板块暗线：<b>{b0["name"]}</b> —— {bd.get(b0["name"], "表面题材背后的真实产业环节待核实")}</div>')
+    if tech:
+        s0 = tech[0]
+        _d0 = per.get(s0.get('name')) or {}
+        m4.append(f'<div style="color:#e9ecef;font-size:12.5px;margin:3px 0;">🎯 个股暗线：<b>{s0.get("name")}</b> —— {_d0.get("dark") or "未见明确强预期差"}</div>')
+    parts.append(''.join(m4))
+
+    if not any(parts):
+        return None
+    inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">🧭 {bj.strftime("%H:%M")} 盘中全景四览</div>'
+             + ''.join(parts))
+    return _wrap(inner, '🧭', '盘中全景四览')
 
 
 def _radar_done(d):
@@ -17264,7 +17669,8 @@ TITLES = {'pre': '盘前速递', 'auction': '竞价观察', 'tail': '尾盘竞�
          'news': '事件简报', 'news2h': '两小时市场消息汇总',
           'hourly': '盘中解读', 'warn': '启动预警', 'confirm': '竞价确认', 'ext': '外盘窗口',
           'radar': '雷达扫描', 'newsfire': '新闻发酵', 'risk': '盘中风险体检',
-          'cycle': '多周期视角研判', 'darkline': '暗线情报'}
+          'cycle': '多周期视角研判', 'darkline': '暗线情报',
+          'pulse': '盘中全景四览'}
 
 
 BUILDERS['warn'] = build_warn
@@ -17274,6 +17680,7 @@ BUILDERS['radar'] = build_radar
 BUILDERS['newsfire'] = build_newsfire
 BUILDERS['risk'] = build_risk
 BUILDERS['darkline'] = build_darkline
+BUILDERS['pulse'] = build_pulse
 
 
 
@@ -18851,7 +19258,7 @@ if __name__ == '__main__':
         print('SLOT radar PUSH', ok, msg)
         sys.exit(0)
     # —— 多点cron 当日去重（仅定时自动run；手动 --force 不受限，用于演示/验证）——
-    if not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle'):
+    if not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle', 'pulse'):
         _k = _slot_key(slot)
         if _slot_done(_k):
             print('SLOT %s 今日已推（slot_done.json 去重），跳过' % slot)
@@ -18866,7 +19273,7 @@ if __name__ == '__main__':
         print('SLOT', slot, '构建返回 None，不推送')
         sys.exit(0)
     ok, msg = push(html, f'{TITLES[slot]} {_bj_now().strftime("%m/%d %H:%M")}')
-    if ok and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle'):
+    if ok and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle', 'pulse'):
         # force 也标记（手动演示后同日定时不再重推——双推修复①）
         _mark_slot_done(_slot_key(slot))
     print('SLOT', slot, 'PUSH', ok, msg)
