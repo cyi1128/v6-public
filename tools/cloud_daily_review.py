@@ -3190,6 +3190,8 @@ def _clist_gainers():
                 continue
         if rows:
             break
+    if not rows:
+        rows = _clist_gainers_alt()
     for x in rows:
         if x.get('industry') and x['industry'] != '其他':
             _IND_CACHE[str(x['code'])] = x['industry']
