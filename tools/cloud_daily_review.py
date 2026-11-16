@@ -17392,10 +17392,20 @@ def build_pulse():
         for i, w in enumerate(worst, 1):
             m2.append(_r(f'{i}. <b>{w["name"]}</b>（均跌{w["avg"]:+.2f}%）：原因：'
                          f'{w["leader"]}（{w["leader_pct"]:+.2f}%）领跌拖累，{w["cnt"]}只样本齐跌，机构结账/资金撤离'))
+    elif boards:
+        bneg = sorted([b for b in boards if float(b.get('change') or 0) < 0],
+                      key=lambda b: float(b.get('change') or 0))[:2]
+        if bneg:
+            m2.append(_r('📉 领跌板块 Top2：'))
+            for i, b in enumerate(bneg, 1):
+                m2.append(_r(f'{i}. <b>{b["name"]}</b>（{float(b["change"]):+.2f}%）：原因：'
+                             f'板块指数走弱、板块内仅{int(b["lu"] or 0)}家涨停，其余成分齐跌，资金撤离'))
+        else:
+            m2.append(_r(f'<span style="color:{GREY};">今日板块榜无下跌板块。</span>'))
     elif losers:
-        m2.append(_r('📉 领跌（行业归类缺失，按个股跌幅计）：'))
+        m2.append(_r('📉 领跌（按个股跌幅计）：'))
         for s in losers[:2]:
-            m2.append(_r(f'· <b>{s.get("name")}</b>（{float(s.get("pct") or 0):+.2f}%）：行业字段缺失，仅按跌幅排序取最深'))
+            m2.append(_r(f'· <b>{s.get("name")}</b>（{float(s.get("pct") or 0):+.2f}%）：跌幅居前，破位或被资金抛弃'))
     if gainers:
         m2.append(_r('🚀 变强个股（动量/异动）：'))
         for s in gainers[:2]:
