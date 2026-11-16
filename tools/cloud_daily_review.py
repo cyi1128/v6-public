@@ -5804,6 +5804,42 @@ def build_hourly():
         _up_line = '；'.join(_fmt_b(x) for x in _pos) or '无'
     _dn_line = '；'.join(f"{x['name']} {float(x['change']):+.2f}%" for x in _neg) or '无'
 
+    # —— 暗线贴合个股：每个板块只挑 1 只「暗线味道最重」的票 ——
+    # 数据来自同花顺板块成分股（stock_list）自带的 reason_type（涨停原因标签）与 high（几天几板），
+    # 挑法：原因里命中跨界/重组/AI/国资/涨价这类「非明面主营」的词优先，其次连板高度最高者。
+    # 全部是已涨停票，只作证据，卡面明写「只看别追」，符合用户铁律。
+    _DL_KEYS = ('重组', '并购', '注入', '跨界', '转型', '机器人', '算力', 'AI', '国资',
+                '新业务', '涨价', '提价', '出口', '订单', '产能', '中特估', '可控核聚变')
+
+    def _dl_pick(b, used):
+        best = []
+        for st in (b.get('list') or []):
+            nm = str(st.get('name') or '').strip()
+            if not nm or nm in used:      # 同一只票不跨板块重复出现（板块成分有交叉）
+                continue
+            rt = str(st.get('reason_type') or '').strip()
+            try:
+                cn = int(st.get('continue_num') or 0)
+            except Exception:
+                cn = 0
+            hit = sum(1 for k in _DL_KEYS if k in rt)
+            best.append((hit, cn, nm, str(st.get('code') or ''), rt, str(st.get('high') or '')))
+        if not best:
+            return None
+        best.sort(key=lambda t: (-t[0], -t[1]))
+        return best[0]
+
+    _dl_rows = []
+    _dl_used = set()
+    for _b in ((_pos if _pos else _bd[:2]) + _neg):
+        _p = _dl_pick(_b, _dl_used)
+        if not _p:
+            continue
+        _hit, _cn, _nm, _cd, _rt, _hi = _p
+        _dl_used.add(_nm)
+        _dl_rows.append(f'· <b>{_nm}</b>（{_cd}，{_hi or "首板"}·已涨停只看别追）｜'
+                        f'表面炒{str(_b["name"])}，实质暗线是{(_rt[:30] or "纯高度卡位，没有第二条腿")}')
+
     # —— 持仓两票：现价 / 涨跌 / 量价定性 / 操作 ——
     # 不用 _qt 的 avg（腾讯 f70/f71 实测会取到非均价字段，算出来是负数），
     # 日内强弱改看开盘价与昨收，两个都是可直接核对的价格。
@@ -5871,7 +5907,10 @@ def build_hourly():
         f'<div style="font-size:14px;font-weight:700;color:#e9ecef;">📈 指数：{_bits}</div>'
         f'<div style="margin-top:7px;font-size:13px;color:#e9ecef;">🔥 盘面：领涨 {_up_line}；'
         f'领跌 {_dn_line}｜<span style="color:{GOLD};">{_mood}</span></div>'
-        f'<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">⚠️ 持仓</div>'
+        + (('<div style="margin-top:6px;font-size:12.5px;color:#ffd43b;line-height:1.65;">'
+            '🔍 暗线贴合个股（已涨停只作证据，绝不追）：<br>' + '<br>'.join(_dl_rows) + '</div>')
+           if _dl_rows else '')
+        + f'<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">⚠️ 持仓</div>'
         f'<div style="font-size:12.5px;color:#e9ecef;line-height:1.7;">'
         + '<br>'.join(_holds) + '</div>'
         f'<div style="margin-top:8px;font-size:13px;color:#8ce99a;">💡 建议：' + '；'.join(_adv) + '</div>'
