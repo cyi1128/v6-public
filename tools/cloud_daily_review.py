@@ -19973,7 +19973,9 @@ if __name__ == '__main__':
 
     # 休市日（周末/法定节假日/调休休市）：只发当天新闻汇总（每2小时窗口去重），不推任何股票分析、不调 DeepSeek
     # 例外：手动 --force darkline 时允许出卡（暗线靠最近交易日涨停情报，用于实测验收；自动调度仍走休市日汇总）
-    if not is_trading_day() and not (force and slot == 'darkline'):
+    # 例外：notice（公告利好晚报）周末照出 —— 用户要求「每天晚上八点汇总」，公告不看当天有没有开盘，
+    #      周五盘后到周末照样有公司发重组预案/收购/中标，漏掉反而更亏。
+    if not is_trading_day() and not (force and slot == 'darkline') and slot != 'notice':
         holiday_slot(slot)
         sys.exit(0)
     # 每2小时新闻 cron（休市日专用调度）在交易日的兜底触发点：非盘面时段直接跳过，避免多余异动推送
