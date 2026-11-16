@@ -2189,3 +2189,8 @@
 01:27:42 [ask_deepseek] 首轮无返回即止损 purpose=auction
 01:27:42 [ask_deepseek] ModelScope 两次尝试均失败，purpose=auction
 01:36:25 [llm] OK purpose=open_check len=189
+01:49:58 [llm] OK purpose=board_deep len=815
+01:51:00 [llm] OK purpose=board_why len=340
+01:52:02 [反模板放行:board_watch] 管住手/为什么是它
+01:52:02 [llm] OK purpose=board_watch len=2266
+01:52:02 [board_watch_ds] JSON 解析失败: Expecting value: line 1 column 1 (char 0 原文前80=一、当前时间与数据可信度 今天是盘中实时判断，依据的是当前截屏的行情快照数据。市场情绪分定格在 30.6 分，这个分数直接对应情绪退潮标签，说明场内资金处于防御
