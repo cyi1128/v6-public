@@ -2201,3 +2201,9 @@
 02:06:22 [llm] OK purpose=health len=120
 02:07:37 [llm] OK purpose=hold_diag len=467
 02:08:43 [llm] OK purpose=event_dark len=673
+02:13:01 [llm] OK purpose=news2h_good len=1649
+02:14:08 [llm] OK purpose=news2h_bad len=984
+02:14:53 [llm] OK purpose=holiday_ds len=1360
+02:17:48 [llm] OK purpose=holiday_ds len=794
+02:19:10 [llm] OK purpose=news2h_ext len=1007
+02:20:17 [llm] OK purpose=news2h len=235
