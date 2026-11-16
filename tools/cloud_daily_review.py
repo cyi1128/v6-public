@@ -5878,8 +5878,9 @@ def build_hourly():
         f'<div style="margin-top:6px;color:{GREY};font-size:11px;">口径：指数与个股取腾讯实时，'
         f'板块涨幅取同花顺涨停板块榜；炸板率 {zbr * 100:.0f}%、涨停 {d["lu"]} 只</div>')
     html = _wrap(inner, '⏱️', '盘中体检', disclaimer=True)
-    ok, msg = push(html, f'⏱️ 盘中体检 {now.strftime("%H:%M")} · {_b}')
-    print(f'[hourly] 指数={[(n, round(p, 2)) for n, p, _ in idx]} 定性={_mood[:6]} → PUSH', ok, msg)
+    # 这里不自己 push：main() 拿到 html 后统一 push(html, TITLES[slot])，
+    # builder 内再推一次会导致每小时发两条（双推修复口径）。
+    print(f'[hourly] 指数={[(n, round(p, 2)) for n, p, _ in idx]} 定性={_mood[:6]} → 已出卡')
     return html
 
 
@@ -17625,8 +17626,11 @@ def build_pulse():
         cn2 = _blk_cn(b)
         if chg >= 0:
             return (f'{lu}家涨停由{ld}带头封板（{cn2}家已在2板以上），资金在{_cyc}里主动抱团这个方向')
-        return (f'全市场没有正涨幅方向，{lu}家涨停缩在这里、跌幅仅{chg:+.2f}%，'
-                f'属{_cyc}里资金被动防守的抗跌池，不是主动进攻')
+        if cn2 >= 2:
+            return (f'全市场没有正涨幅方向，这个板块{lu}家涨停、跌幅只有{chg:+.2f}%，'
+                    f'而且{cn2}家已站上2板——高度还在，资金不敢全撤才缩在这里，属抗跌不是进攻')
+        return (f'全市场没有正涨幅方向，这个板块{lu}家涨停却只靠{ld}一根独苗（其余全是首板）、'
+                f'跌幅{chg:+.2f}%，是低位票没人愿意割肉才显得抗跌，一旦这唯一的高度断了就散')
 
     def _why_lead_dn(b):
         """领跌原因：快讯利空 → 成分结构推演。"""
@@ -17654,8 +17658,10 @@ def build_pulse():
         return f'涨幅榜前排、量比{lb:.1f}，{_cyc}里资金做局部进攻，属弱市里的强票博弈'
 
     def _why_dn(s):
-        """变弱个股杀伤逻辑：快讯利空 → 板块归属 → 流动性推演。"""
-        t, _k = _pulse_news_hit([s.get('name'), s.get('industry')], news)
+        """变弱个股杀伤逻辑：快讯利空 → 板块归属 → 流动性推演。
+        只按个股名称匹配快讯：行业名（如「环保」）去做关键词会大面积误挂，
+        实测出现过「环保股深跌 → 挂到一条医药商保目录新闻」这种错因果。"""
+        t, _k = _pulse_news_hit([s.get('name')], news)
         if t:
             return f'受「{t[:44]}」压制'
         pct = float(s.get('pct') or 0)
@@ -17696,7 +17702,10 @@ def build_pulse():
     m2 = [_h('🔥 二、涨跌全景与核心驱动')]
     tup = sorted(boards, key=lambda b: -float(b.get('change') or 0))[:2]
     if tup:
-        m2.append(_r('📈 领涨板块/热门题材：'))
+        # 铁律：全市场都在跌时不能叫「最强风口」，只能叫「抗跌方向」
+        _any_pos = any(float(b.get('change') or 0) >= 0 for b in tup)
+        m2.append(_r('📈 领涨板块/热门题材：' if _any_pos
+                     else '📈 抗跌方向（全市场无正涨幅，只列跌得最少的）：'))
         for i, b in enumerate(tup, 1):
             chg = float(b.get('change') or 0)
             tag = '领涨' if chg >= 0 else '抗跌方向'
@@ -17856,10 +17865,13 @@ def build_pulse():
 
     if not any(parts):
         return None
-    inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">⚡️ {bj.strftime("%H:%M")} 盘中硬核内参</div>'
+    # 标题由 _wrap 统一生成，这里不再重复一行「盘中硬核内参」，只留时间与口径，省手机版面
+    inner = (f'<div style="color:{RED};font-size:13px;font-weight:700;">⚡️ {bj.strftime("%H:%M")} 实盘口径</div>'
              f'<div style="color:{GREY};font-size:11px;margin:2px 0 6px;">北京 {bj.strftime("%m/%d")}'
              f'｜五段：定调/涨跌驱动/5日线池/技术池/暗线｜原因给逻辑不写废话</div>' + ''.join(parts))
-    return _wrap(inner, '⚡️', '盘中硬核内参')
+    # disclaimer=True：_wrap 内部 v80-A6 旧指令会 replace 掉「不构成投资建议」，
+    # 硬核内参同样要带免责，故过滤后再补回（不改动其它槽位卡面）
+    return _wrap(inner, '⚡️', '盘中硬核内参', disclaimer=True)
 
 
 def _radar_done(d):
