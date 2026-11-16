@@ -13975,6 +13975,71 @@ def _ann_tip(ti):
     return '看后面落地'
 
 
+def _code2qt(c6):
+    """6 位代码补交易所前缀（沪 6 / 深 0、3 / 京 8、4）。"""
+    c6 = str(c6 or '')[-6:]
+    if len(c6) != 6:
+        return ''
+    if c6[0] == '6':
+        return 'sh' + c6
+    if c6[0] in ('0', '3'):
+        return 'sz' + c6
+    if c6[0] in ('8', '4'):
+        return 'bj' + c6
+    return ''
+
+
+def _qt_batch(codes):
+    """批量取现价 + 今日涨跌幅（一次 30 只，qt.gtimg.cn 支持逗号拼接）。
+    这张卡晚上跑，所以这里就是当日收盘涨跌，不是实时价 —— 卡面要标清楚。
+    返回 {六位代码: (现价, 涨跌幅%)}；取不到的票留空，不硬造数。"""
+    out = {}
+    _c = [c for c in (codes or []) if c]
+    for i in range(0, len(_c), 30):
+        chunk = _c[i:i + 30]
+        try:
+            txt = _get('http://qt.gtimg.cn/q=' + ','.join(chunk), encoding='gbk')
+        except Exception:
+            continue
+        for line in (txt or '').split(';'):
+            if '=' not in line:
+                continue
+            k, v = line.split('=', 1)
+            k = k.strip().replace('v_', '')
+            f = v.strip().strip('"').split('~')
+            if len(f) > 32:
+                try:
+                    out[k[-6:]] = (float(f[3]), float(f[32]))
+                except (ValueError, TypeError):
+                    pass
+    return out
+
+
+def _ann_future(ti):
+    """这条公告对「未来」到底有什么帮助、卡在哪一步。
+    用户要的是往后看，不是把公告标题再念一遍。"""
+    t = ti or ''
+    if any(k in t for k in ('框架协议', '意向', '战略合作', '备忘录', '合作意向', '合作框架')):
+        return '只是意向，还没签正式合同，别当业绩看'
+    if any(k in t for k in ('投产', '扩产', '量产', '试产')):
+        return '新产线爬坡要时间，第一年贡献有限，真看点是明年出货量跟不跟得上'
+    if any(k in t for k in ('中标', '中选', '成交', '订单', '合同', '供货', '签订', '签署')):
+        return '按进度确认收入，快的一两个季度见，慢的跨年；关键看金额占它一年营收多少'
+    if any(k in t for k in ('收购', '购买资产', '资产重组', '重大资产', '股权转让')):
+        return '并表后营收立刻变大，利润要看标的自己赚不赚钱、整合顺不顺'
+    if any(k in t for k in ('涨价', '提价', '价格上调', '调价')):
+        return '价格稳得住毛利率才修得起来，下游不接受就会丢订单'
+    if any(k in t for k in ('增持',)):
+        return '内部人自己掏钱买，说明他觉得便宜，但不改变公司赚钱能力'
+    if any(k in t for k in ('回购',)):
+        return '短期托底、减少抛压，长期不改变经营'
+    if any(k in t for k in ('分红', '派息', '派发现金')):
+        return '账上真有钱，但分红不等于明年还能增长'
+    if any(k in t for k in ('专利', '获批', '批准', '注册证', '认证', '许可', '通过验收')):
+        return '技术门槛有了，能不能变成订单还要看销售和招标'
+    return '要看后面落地，现在只是其中一步'
+
+
 def _market_ann(pages=16):
     """全市场公告（东财 np-anotice，按 notice_date 降序分页）。
     只保留「今天」与「明天」两个披露日 —— 晚 20 点这个时点，今天盘后新发的和明天要披露的
@@ -14067,31 +14132,48 @@ def build_notice():
     rows = [f'📊 今晚扫了 <b>{len(anns)}</b> 条新公告（今天+明天两个披露日），'
             f'筛出对个股有实质利好的 <b>{_n_hard + _n_money + _n_soft}</b> 条：'
             f'订单产能类 {_n_hard} 条、回购增持分红 {_n_money} 条、技术资质 {_n_soft} 条'
-            f'<br>下面<b>全部列出，不挑不藏</b>（同一只票同一档只留一条，连夜发决议+议案的已经合并）']
+            f'<br>下面<b>全部列出，不挑不藏</b>（同一只票同一档只留一条，连夜发决议+议案的已经合并）'
+            f'<br>每条后的涨跌幅是<b>今天收盘</b>的，不是此刻实时价；晚间发卡时就等于明天开盘前的参考价']
+
+    # 每只票补今日涨跌幅（这张卡晚上跑，涨跌幅＝当日收盘，不是实时价，卡面已标）
+    _all_rows = hard + money + soft
+    qx = _qt_batch([_code2qt(x[0]) for x in _all_rows]) if _all_rows else {}
 
     # 全量展示；极端日子（年报季回购能到几百条）用总上限兜底，超了就明说超了多少，不装作列全
     _CAP_TOTAL = 160
     _shown = 0
 
-    def _dump(lst, head, cap=999):
-        """全量列出。同一档里绝大多数条目意思一样（53 条回购全是一句话），
-        就把那句共性含义在档头说一次，条目内只给「谁｜什么事」，不重复刷同一句话；
-        少数意思不一样的（比如夹在回购里的分红）单独加注。"""
+    def _dump(lst, head, cap=999, two_line=True, shared=''):
+        """全量列出。每条带今日涨跌幅；硬利好/技术资质逐条给「未来在哪一步变现、卡在哪」，
+        资金面 53 条意思一样，共同含义只在档头说一次，条目只留「谁｜什么事」，不重复注水。"""
         nonlocal _shown
         out = ['']
         out.append(head)
+        if shared:
+            out.append(f'　这档未来帮助都一样：<b>{shared}</b>')
         room = max(0, _CAP_TOTAL - _shown)
         sel = lst[:min(cap, room)]
         tips = [_ann_tip(x[2]) for x in sel]
         major = max(set(tips), key=tips.count) if tips else ''
-        if tips.count(major) >= 3:
+        if not shared and not two_line and tips.count(major) >= 3:
             out.append(f'　这档多数是一个意思：<b>{major}</b>')
         for i, (code, name, ti, dt) in enumerate(sel, 1):
-            tp = _ann_tip(ti)
-            line = f'{i}. <b>{name}</b>{code}｜{_ann_brief(ti, name=name)}'
-            if tp != major:
-                line += f' → {tp}'
-            out.append(line)
+            c6 = str(code)[-6:]
+            p = qx.get(c6)
+            if p:
+                _px, _pc = p
+                _tag = f' <span style="color:{_c(_pc)}">{_px:.2f} {_pc:+.2f}%</span>'
+            else:
+                _tag = ' <span style="color:#6b7280">未取到行情</span>'
+            line = f'{i}. <b>{name}</b>{c6}{_tag}｜{_ann_brief(ti, name=name)}'
+            if two_line:
+                out.append(line)
+                out.append(f'　→ {_ann_future(ti)}')
+            else:
+                tp = _ann_tip(ti)
+                if tp != major and not shared:
+                    line += f' → {tp}'
+                out.append(line)
         _shown += len(sel)
         if len(lst) > len(sel):
             out.append(f'　（这档还有 {len(lst) - len(sel)} 条没列，太长会刷屏，'
@@ -14101,7 +14183,8 @@ def build_notice():
     if hard:
         rows += _dump(hard, f'🔥 <b>硬利好</b>（订单、产能、资产、涨价 —— 真正改基本面的；共 {_n_hard} 条）')
     if money:
-        rows += _dump(money, f'💰 <b>资金面</b>（回购、增持、分红 —— 托底，不改经营；共 {_n_money} 条）')
+        rows += _dump(money, f'💰 <b>资金面</b>（回购、增持、分红 —— 托底，不改经营；共 {_n_money} 条）',
+                      two_line=False, shared='短期稳住股价、减少抛压，但都不改变公司赚钱能力')
     if soft:
         rows += _dump(soft, f'📈 <b>技术资质</b>（专利、获批、新产品 —— 预期，还没到进利润表；共 {_n_soft} 条）')
 
