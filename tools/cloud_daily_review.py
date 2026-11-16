@@ -13876,6 +13876,9 @@ def _ann_level(ti):
     if any(k in t for k in ('解除', '终止', '中止', '撤回', '取消')) and \
             any(k in t for k in ('合同', '协议', '中标', '收购', '订单')):
         return 0
+    # 意向/框架/备忘录 —— 没签正式合同就没有约束力，不该占利好名额
+    if any(k in t for k in ('框架协议', '战略合作', '备忘录', '合作意向', '意向书', '合作框架')):
+        return 0
     if any(k in t for k in _ANN_HARD_WORD) or '合同' in t:
         return 1
     if any(k in t for k in _ANN_MONEY_WORD):
@@ -14016,39 +14019,49 @@ def _qt_px_map(codes):
 
 
 def _ann_future(ti):
-    """这只票的暗线逻辑：公告背后公司在干什么、真正决定成败的是哪个变量。
+    """这只票的核心暗线 —— 直接给判断，不是把「你自己去看什么」丢回去。
     同类公告必须给出不同读法（控股≠参股、采购≠销售、准入≠专利），否则十条一模一样等于没说。"""
     t = ti or ''
     _hold = any(k in t for k in ('80%', '70%', '60%', '51%', '控股', '全部股权', '100%'))
     if any(k in t for k in ('框架协议', '意向', '战略合作', '备忘录', '合作意向', '合作框架')):
-        return '暗线：关系维护型意向，落地率历来低；看有没有跟出正式合同，没有就当没发生'
+        return '只是递张名片，没签字就没约束力，这种公告一年能发十条，当没发生'
     if any(k in t for k in ('投产', '扩产', '量产', '试产')):
-        return '暗线：产能先建、订单后找，公告不会告诉你货卖给谁；看产能利用率和单吨成本，不是看公告'
+        return '产能先建、买家后到，短期只增折旧不增收入；赌的是明年这条线能不能满产'
     if any(k in t for k in ('中标', '中选', '成交')):
-        return '暗线：招标拿单，钱要等项目验收才回；看招标方是谁、结算周期多长、有没有预付款'
+        return '招标单子，金额基本已定，但要等业主验收拨款；赚的是稳定辛苦钱，不是爆发'
     if any(k in t for k in ('收购', '购买资产', '资产重组', '重大资产', '股权转让')):
         if _hold:
-            return '暗线：拿控股权是买营收体量，并表后收入全额算进来；看标的净利率和整合'
-        return '暗线：只买部分股权多为参股，不并表，只算投资收益；看后面会不会加码到控股'
+            return '直接买控制权，下季度报表收入就变大；利润能不能跟着增，全看标的自己赚不赚钱'
+        return '只买部分股权，先占坑不并表，这笔钱短期一分利润都不进账；赌的是后面追加到控股'
     if any(k in t for k in ('航空', '军工', '军品', '装备', '超材料', '航天')):
-        return '暗线：军工客户高度集中、批次性强；看是不是批产订单、后面有没有追加'
+        return '军工批产单，客户就那一家、金额常年保密；定型后锁几年收入，但节奏不由公司定'
     if ('采购' in t) and ('销售' not in t) and ('中标' not in t):
-        return '暗线：这是公司自己花钱买，指向备产能/备料，不是马上有收入；看配套的是哪条产线'
+        return '公司自己掏钱买设备或备料，说明手上有活要干；但当期只有支出、没有收入'
     if any(k in t for k in ('订单', '合同', '供货', '签订', '签署')):
-        return '暗线：金额多半避重就轻，看它占上一年营收几个点；大单往往是关系型客户锁量，不含新市场'
+        return '金额不会写全，先算它占去年营收几个点；大单多是老客户加量，不代表打开新市场'
     if any(k in t for k in ('涨价', '提价', '价格上调', '调价')):
-        return '暗线：提价=供需偏紧的信号，但落不落地看客户认不认；看执行日期和提价幅度'
+        return '敢提价说明货紧，但下游不接就是丢单；落不落地看下个季度毛利率'
     if any(k in t for k in ('增持',)):
-        return '暗线：内部人比外面清楚自己的账；看增持比例和是否触及举牌，零碎小额多是态度'
+        return '内部人最清楚自己账上什么情况，肯掏钱买就是觉得现在便宜；零碎小额定投多是做姿态'
     if any(k in t for k in ('回购',)):
-        return '暗线：多为市值管理；带专项贷款承诺函的是借钱买，决心大但也加了杠杆；看回购额占流通市值'
+        return '典型市值管理，托的是短期股价不是业绩；带专项贷款的是借钱护盘，决心大、杠杆也大'
     if any(k in t for k in ('分红', '派息', '派发现金')):
-        return '暗线：肯分现金说明账面干净，但成长中的公司大比例分红常意味着没好项目投；看股息率'
+        return '现金分得出来说明账干净；但成长期公司大比例分红，往往意味着手里没好项目'
+    if any(k in t for k in ('临床试验', '临床研究', '临床申请')):
+        return '还在人身上试，离上市至少一两年、中途失败也常见；这条当期一分收入都不产生'
+    if any(k in t for k in ('受理', '已受理')):
+        return '只是把材料递上去了，批不批还没定；一年半载内不会有结果，别当利好'
+    if any(k in t for k in ('原料药',)):
+        return '卖的是原料不是成品药，价格跟化工品一样看供需；量小、毛利薄，弹性有限'
+    if any(k in t for k in ('加拿大', '美国', '欧盟', '日本', '海外', 'FDA', 'CE认证')):
+        return '海外注册落地，能不能变成收入全看当地经销商铺不铺得开；先看第一批订单'
+    if any(k in t for k in ('注册证书', '批准通知书', '上市许可')):
+        return '药批下来了能卖，但医保和集采才是销量的闸门；短期报表不会因此变脸'
     if any(k in t for k in ('注册证', '批准', '获批', '认证', '许可', '通过验收')):
-        return '暗线：拿到准入＝产品能卖了，但卖多少看渠道和招标；看是不是进医保/集采目录'
+        return '批文到手就是产品能卖了，但卖得动卖不动看渠道；短期报表不会因此变脸'
     if any(k in t for k in ('专利',)):
-        return '暗线：专利只是保护，本身不产收入；看有没有对应产品已经在卖'
-    return '暗线：只是流程里的一步，还看不出动机；等后续动作再看'
+        return '专利是防别人抄，不带来订单；除非对应在售产品，否则就是一张纸'
+    return '现在只是走流程，看不出真实意图；等下一步动作再判断'
 
 
 def _market_ann(pages=16):
@@ -14159,8 +14172,8 @@ def build_notice():
     _shown = 0
 
     def _dump(lst, head, cap=999, two_line=True, shared=''):
-        """全量列出。每条带今日涨跌幅；硬利好/技术资质逐条给「未来在哪一步变现、卡在哪」，
-        资金面 53 条意思一样，共同含义只在档头说一次，条目只留「谁｜什么事」，不重复注水。"""
+        """全量列出，但股票和内容必须一眼分得开：名头单独一行（名/代码/今日涨跌），
+        下面「事」一行、「暗线」一行。资金面条目短，一条一行也不糊在一起。"""
         nonlocal _shown
         out = ['']
         out.append(head)
@@ -14177,18 +14190,20 @@ def build_notice():
             p = qx.get(c6)
             if p:
                 _px, _pc = p
-                _tag = f' <span style="color:{_c(_pc)}">{_px:.2f} {_pc:+.2f}%</span>'
+                _price = f'<span style="color:{_c(_pc)}">{_px:.2f}　{_pc:+.2f}%</span>'
             else:
-                _tag = ' <span style="color:#6b7280">未取到行情</span>'
-            line = f'{i}. <b>{name}</b>{c6}{_tag}｜{_ann_brief(ti, name=name)}'
+                _price = '<span style="color:#6b7280">未取到行情</span>'
+            _head = (f'<b>{i}. {name}</b>　<span style="color:#8b949e">{c6}</span>　{_price}')
+            _br = _ann_brief(ti, name=name)
             if two_line:
-                out.append(line)
-                out.append(f'　→ {_ann_future(ti)}')
+                out.append(_head)
+                out.append(f'　<span style="color:#8b949e">事　</span>{_br}')
+                out.append(f'　<span style="color:#c8a06a">暗线　</span>{_ann_future(ti)}')
             else:
                 tp = _ann_tip(ti)
-                if tp != major and not shared:
-                    line += f' → {tp}'
-                out.append(line)
+                _tail = '' if (tp == major or shared) else f'　→　{tp}'
+                out.append(f'{_head}　<span style="color:#8b949e">｜</span>　'
+                           f'<span style="color:#a8b3c4">{_br}</span>{_tail}')
         _shown += len(sel)
         if len(lst) > len(sel):
             out.append(f'　（这档还有 {len(lst) - len(sel)} 条没列，太长会刷屏，'
