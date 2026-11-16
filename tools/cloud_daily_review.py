@@ -5750,6 +5750,33 @@ def _hold_diag_card():
     return ''.join(card)
 
 
+def _sina_boards(kind='industry'):
+    """新浪板块涨幅榜（GBK 文本），返回 [(板块名, 涨跌幅%, 领涨股名)]，按涨幅降序。
+    kind='industry' → 49 个行业全集；kind='concept' → 172 个概念全集。
+    ★ 与 _pulse_boards 的分工：_pulse_boards 走同花顺涨停板块榜，只有「今天有涨停」的板块才在里面，
+      涨了 3% 但一只没封板的题材在那边根本看不到；新浪这个是全量榜，专门补这个盲区。
+    失败返回 []，不造数据。"""
+    u = ('http://money.finance.sina.com.cn/q/view/newSinaHy.php' if kind == 'industry'
+         else 'http://money.finance.sina.com.cn/q/view/newFLJK.php?param=class')
+    try:
+        req = urllib.request.Request(u, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+        txt = urllib.request.urlopen(req, timeout=8).read().decode('gbk', errors='ignore')
+        rows = []
+        for it in re.findall(r'"[^"]+":"([^"]+)"', txt):
+            f = it.split(',')
+            if len(f) < 6:
+                continue
+            try:
+                rows.append((str(f[1]).strip(), float(f[5]), str(f[-1] or '').strip()))
+            except Exception:
+                continue
+        rows.sort(key=lambda t: -t[1])
+        return rows
+    except Exception as e:
+        print(f'[hourly] 新浪板块榜({kind}) 取数失败: {e}')
+        return []
+
+
 def build_hourly():
     """每小时整点盘中体检（用户规格 2026-11-16）：📈指数一行 → 🔥盘面领涨领跌各2 + 定性 →
     ⚠️持仓两票各一行（现价/涨跌/量价定性/操作） → 💡建议一两句 → 免责。
@@ -5781,8 +5808,9 @@ def build_hourly():
     # 全绿日领涨为空时，按铁律改写「抗跌方向」，绝不硬造风口。
     _bd = [x for x in (_pulse_boards(top_n=30) or []) if x.get('name')]
     _bd.sort(key=lambda t: -float(t.get('change') or 0))
-    _pos = [x for x in _bd if float(x.get('change') or 0) > 0][:2]
-    _neg = [x for x in _bd if float(x.get('change') or 0) < 0][-2:][::-1]
+    _pos = [x for x in _bd if float(x.get('change') or 0) > 0][:3]
+    _neg = [x for x in _bd if float(x.get('change') or 0) < 0]
+    _neg = _neg[-2:][::-1]
     _all_red = (not _pos) and bool(_bd)
     _umax = float(_bd[0]['change']) if _bd else 0.0
     _dmax = abs(float(_neg[0]['change'])) if _neg else 0.0
@@ -5796,49 +5824,124 @@ def build_hourly():
         _mood = '防御为主：指数在跌，钱只敢躲进个别方向，涨的也不持久'
     else:
         _mood = '典型轮动：指数横着走，资金在各板块之间倒手，追一天就哑火'
-    _fmt_b = lambda x: (f"{x['name']} {float(x['change']):+.2f}%（涨停{int(x.get('lu') or 0)}只"
-                        f"{('，' + str(x.get('leader')) + '带队') if x.get('leader') else ''}）")
-    if _all_red:
-        _up_line = '无（全线绿）→ 抗跌方向 ' + '；'.join(_fmt_b(x) for x in _bd[:2])
-    else:
-        _up_line = '；'.join(_fmt_b(x) for x in _pos) or '无'
-    _dn_line = '；'.join(f"{x['name']} {float(x['change']):+.2f}%" for x in _neg) or '无'
+    def _bwhy(b):
+        """这个板块为什么涨：先找板块内多只涨停股 reason_type 的**共性词**（出现≥2次才算板块共因），
+        没有共性才退回龙头那只的完整原因。
+        ★ 不能直接取「标签最长的那只」当板块原因 —— 首版就这么干，绿色电力被写成了
+        「冰雪旅游保障+高速公路运营+黑龙江国资」，那是板块里某只交运股的个体原因，跟绿电毫无关系。"""
+        lst = b.get('list') or []
+        if not lst:
+            return ''
+        words = defaultdict(int)
+        for st in lst:
+            for w in re.split(r'[+、＋|]', str(st.get('reason_type') or '')):
+                w = w.strip()
+                if len(w) >= 2:
+                    words[w] += 1
+        common = [w for w, c in words.items() if c >= 2]
+        if common:
+            return '+'.join(sorted(common, key=lambda w: -words[w])[:4])
+        lead = str(b.get('leader') or '').strip()
+        for st in lst:
+            if lead and str(st.get('name') or '').strip() == lead:
+                rt = str(st.get('reason_type') or '').strip()
+                if rt:
+                    return rt
+        return ''
 
-    # —— 暗线贴合个股：每个板块只挑 1 只「暗线味道最重」的票 ——
-    # 数据来自同花顺板块成分股（stock_list）自带的 reason_type（涨停原因标签）与 high（几天几板），
-    # 挑法：原因里命中跨界/重组/AI/国资/涨价这类「非明面主营」的词优先，其次连板高度最高者。
-    # 全部是已涨停票，只作证据，卡面明写「只看别追」，符合用户铁律。
+    def _fmt_b(b):
+        ch = float(b.get('change') or 0)
+        lead = str(b.get('leader') or '').strip()
+        why = _bwhy(b)
+        return (f'<b style="color:#fff;">{b["name"]}</b> <span style="color:{_c(ch)};">{ch:+.2f}%</span>'
+                f'（涨停{int(b.get("lu") or 0)}只{("，" + lead + "带队") if lead else ""}）'
+                f'｜原因：{why or "无硬催化，纯资金普涨"}')
+
+    _show_pos = _pos if _pos else _bd[:2]
+    _up_rows = [f'{i + 1}. {_fmt_b(b)}' for i, b in enumerate(_show_pos)]
+    # 行业层：新浪 49 行业全集，专门补「涨了但一只没封板」的盲区（同花顺涨停板块榜看不到这类）
+    _ind = _sina_boards('industry')
+    _ind_up = [r for r in _ind if r[1] > 0][:2]
+    _ind_least = [r for r in _ind if r[1] < 0][:2]
+    if _pos:
+        _up_head = '🔥 在涨什么（题材层）'
+    elif _ind_up:
+        _up_head = '🔥 题材层全绿，只有少数行业逆势收红'
+    else:
+        _up_head = '🔥 没有正涨幅方向，只列跌得最少的'
+    if _ind_up:
+        _ind_row = '· 行业：' + '；'.join(f'{n} <span style="color:{_c(p)};">{p:+.2f}%</span>'
+                                        f'{("（" + ld + "领涨）") if ld else ""}' for n, p, ld in _ind_up)
+    elif _ind_least:
+        _ind_row = '· 行业：' + '；'.join(f'{n} <span style="color:{_c(p)};">{p:+.2f}%</span>'
+                                        for n, p, ld in _ind_least) + '（跌得最少）'
+    else:
+        _ind_row = ''
+    _dn_row = '；'.join(f'<b>{x["name"]}</b> <span style="color:{_c(float(x.get("change") or 0))};">'
+                       f'{float(x.get("change") or 0):+.2f}%</span>' for x in _neg) or '无'
+
+    # —— 暗线：今日涨停票里「表面炒 A、实质暗线 B」最重的 3 只 ——
+    # 数据来自同花顺板块成分股的 reason_type（按公告/新闻生成的真实涨停原因标签）。
+    # 命中重组/并购/AI/机器人/国资/涨价这类「非明面主营」的词越多，暗线越重；
+    # 同分时看连板高度。全部是已涨停票，只作证据，卡面明写「只看别追」。
     _DL_KEYS = ('重组', '并购', '注入', '跨界', '转型', '机器人', '算力', 'AI', '国资',
                 '新业务', '涨价', '提价', '出口', '订单', '产能', '中特估', '可控核聚变')
-
-    def _dl_pick(b, used):
-        best = []
-        for st in (b.get('list') or []):
+    _dl_pool = {}
+    for _b in ((_pos if _pos else _bd[:2]) + _neg):
+        for st in (_b.get('list') or []):
             nm = str(st.get('name') or '').strip()
-            if not nm or nm in used:      # 同一只票不跨板块重复出现（板块成分有交叉）
+            if not nm:
                 continue
             rt = str(st.get('reason_type') or '').strip()
             try:
                 cn = int(st.get('continue_num') or 0)
             except Exception:
                 cn = 0
+            try:
+                pct = float(st.get('change_rate') or 0)
+            except Exception:
+                pct = 0.0
             hit = sum(1 for k in _DL_KEYS if k in rt)
-            best.append((hit, cn, nm, str(st.get('code') or ''), rt, str(st.get('high') or '')))
-        if not best:
-            return None
-        best.sort(key=lambda t: (-t[0], -t[1]))
-        return best[0]
-
+            cand = (hit, cn, nm, str(st.get('code') or ''), rt,
+                    str(st.get('high') or ''), str(_b.get('name')), pct)
+            if nm not in _dl_pool or cand[0] > _dl_pool[nm][0]:
+                _dl_pool[nm] = cand          # 同一只票跨板块去重，保留暗线更重的记录
     _dl_rows = []
-    _dl_used = set()
-    for _b in ((_pos if _pos else _bd[:2]) + _neg):
-        _p = _dl_pick(_b, _dl_used)
-        if not _p:
-            continue
-        _hit, _cn, _nm, _cd, _rt, _hi = _p
-        _dl_used.add(_nm)
-        _dl_rows.append(f'· <b>{_nm}</b>（{_cd}，{_hi or "首板"}·已涨停只看别追）｜'
-                        f'表面炒{str(_b["name"])}，实质暗线是{(_rt[:30] or "纯高度卡位，没有第二条腿")}')
+    for _hit, _cn, _nm, _cd, _rt, _hi, _bn, _pct in sorted(
+            _dl_pool.values(), key=lambda t: (-t[0], -t[1]))[:3]:
+        _dl_rows.append(f'· <b>{_nm}</b>（{_cd}，{_hi or "首板"}·已涨停只看别追）'
+                        f'<span style="color:{_c(_pct)};">{_pct:+.2f}%</span>｜'
+                        f'表面炒{_bn}，实质暗线是{(_rt[:30] or "纯高度卡位，没有第二条腿")}')
+
+    # —— 经验补充：盘面数据里没人直接告诉你的那几句 ——
+    _exp_rows = []
+    if zbr >= 0.40:
+        _exp_rows.append(f'炸板率 {zbr * 100:.0f}%，封住的有一半在盘中被打掉，'
+                         f'说明接力资金不敢接第二棒，今天的首板明天大概率没溢价')
+    elif zbr <= 0.15 and int(d.get('lu') or 0) >= 50:
+        _exp_rows.append(f'炸板率只 {zbr * 100:.0f}%、涨停 {int(d.get("lu") or 0)} 只，'
+                         f'封板质量和家数都在，有人愿意承接，次日首板溢价还能看')
+    else:
+        _exp_rows.append(f'炸板率 {zbr * 100:.0f}%、涨停 {int(d.get("lu") or 0)} 只，'
+                         f'情绪处在中间档：有人敢封但封不牢，这种阶段只做最强的，不做跟风')
+    _hi_n = 0
+    for _b in _show_pos:
+        try:
+            _hi_n += sum(1 for s in (_b.get('list') or []) if int(s.get('continue_num') or 0) >= 2)
+        except Exception:
+            pass
+    if not _pos:
+        # 全绿日：先给定性，别再谈「高度还在」——退潮日里两板票是最先被砸的
+        _exp_rows.append('所有板块涨幅都是负的，今天比的不是谁涨得多，而是谁跌得少，'
+                         '这种日子只适合减仓和看戏，不适合找票')
+        if _hi_n >= 3:
+            _exp_rows.append(f'全绿里还有 {_hi_n} 只两板以上硬撑，这种票最容易先被砸，'
+                             f'别拿「它涨停最多」当理由去接')
+    elif _hi_n == 0 and _show_pos:
+        _exp_rows.append('领涨方向里一个两板以上的都没有，全是首板在顶，'
+                         '这种高度撑不到明天，只能当日内情绪看，别当趋势做')
+    elif _hi_n >= 3:
+        _exp_rows.append(f'领涨方向里有 {_hi_n} 只两板以上，高度还在，资金没打算一天就走')
 
     # —— 持仓两票：现价 / 涨跌 / 量价定性 / 操作 ——
     # 不用 _qt 的 avg（腾讯 f70/f71 实测会取到非均价字段，算出来是负数），
@@ -5905,17 +6008,24 @@ def build_hourly():
 
     inner = (
         f'<div style="font-size:14px;font-weight:700;color:#e9ecef;">📈 指数：{_bits}</div>'
-        f'<div style="margin-top:7px;font-size:13px;color:#e9ecef;">🔥 盘面：领涨 {_up_line}；'
-        f'领跌 {_dn_line}｜<span style="color:{GOLD};">{_mood}</span></div>'
-        + (('<div style="margin-top:6px;font-size:12.5px;color:#ffd43b;line-height:1.65;">'
-            '🔍 暗线贴合个股（已涨停只作证据，绝不追）：<br>' + '<br>'.join(_dl_rows) + '</div>')
+        f'<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">{_up_head}</div>'
+        f'<div style="font-size:12.5px;color:#e9ecef;line-height:1.75;">'
+        + '<br>'.join(_up_rows) + '</div>'
+        + (f'<div style="margin-top:4px;font-size:12.5px;color:#ced4da;">{_ind_row}</div>' if _ind_row else '')
+        + f'<div style="margin-top:4px;font-size:12.5px;color:#ced4da;">领跌：{_dn_row}</div>'
+        + f'<div style="margin-top:4px;font-size:12.5px;color:{GOLD};">定性：{_mood}</div>'
+        + (('<div style="margin-top:7px;font-size:12.5px;color:#ffd43b;line-height:1.7;">'
+            '🕵️ 为什么在涨（暗线，已涨停只看别追）：<br>' + '<br>'.join(_dl_rows) + '</div>')
            if _dl_rows else '')
+        + (('<div style="margin-top:7px;font-size:12.5px;color:#66d9e8;line-height:1.7;">'
+            '🧠 经验补充：<br>· ' + '<br>· '.join(_exp_rows) + '</div>')
+           if _exp_rows else '')
         + f'<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">⚠️ 持仓</div>'
         f'<div style="font-size:12.5px;color:#e9ecef;line-height:1.7;">'
         + '<br>'.join(_holds) + '</div>'
         f'<div style="margin-top:8px;font-size:13px;color:#8ce99a;">💡 建议：' + '；'.join(_adv) + '</div>'
         f'<div style="margin-top:6px;color:{GREY};font-size:11px;">口径：指数与个股取腾讯实时，'
-        f'板块涨幅取同花顺涨停板块榜；炸板率 {zbr * 100:.0f}%、涨停 {d["lu"]} 只</div>')
+        f'题材涨幅取同花顺涨停板块榜、行业取新浪全量榜；炸板率 {zbr * 100:.0f}%、涨停 {d["lu"]} 只</div>')
     html = _wrap(inner, '⏱️', '盘中体检', disclaimer=True)
     # 这里不自己 push：main() 拿到 html 后统一 push(html, TITLES[slot])，
     # builder 内再推一次会导致每小时发两条（双推修复口径）。
