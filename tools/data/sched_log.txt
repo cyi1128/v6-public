@@ -618,3 +618,13 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-16 14:47:48     watch| [intra] 指纹变化 lu=0→31 zb=17 新进 31 只 → PUSH True 执行成功
 11-16 14:47:48     watch| SLOT watch PUSH True 执行成功
 11-16 14:47:48     watch| [radar] 今日雷达扫描已推过，跳过
+11-16 14:47:50 持久化(watch)：已推送
+11-16 14:47:50 <<< 完成槽位 watch，用时 166.5s
+11-16 14:53:07 心跳推送失败：To https://github.com/cyi1128/v6-public
+ ! [remote rejected] HEAD -> main (cannot lock ref 'refs/heads/main': is at 4c09
+11-16 14:55:07 >>> 执行槽位 tail @ 14:55:07
+11-16 14:55:07 >>> 计划槽时刻 1455（去重键按此生成，防补跑重复推）
+11-16 14:55:07 >>> 预算：LLM 900s / 单模型 300s / 子进程上限 1200s
+11-16 14:56:32     tail| [tail] 第1批 LLM 未返回，跳过该批（不编暗线）
+11-16 14:56:32     tail| [tail] 第2批 LLM 未返回，跳过该批（不编暗线）
+11-16 14:56:32     tail| SLOT tail PUSH True 执行成功
