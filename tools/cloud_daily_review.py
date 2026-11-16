@@ -17271,6 +17271,9 @@ def _pulse_emotion():
     elif zbr >= 0.35 or dt >= 8:
         cyc = '退潮期'
         strat = '管住手，只做右侧，不接力高标'
+    elif lu >= 70 and zbr < 0.25 and dt <= 5:
+        cyc = '高潮期'
+        strat = '只做最强身位龙，别碰跟风票，随时兑现'
     elif lu >= 55 and zbr < 0.28 and dt <= 5:
         cyc = '主升期'
         strat = '重仓出击，只做右侧跟龙头'
@@ -17331,7 +17334,10 @@ def _pulse_reason_first(txt, n=72):
         t = re.sub(r'^\s*\d+[、.．]', '', t.strip(), flags=re.M)
         t = re.sub(r'\s+', ' ', t).strip(' :：\n、')
         parts = re.split(r'[。；]', t)
-        return ((parts[0] if parts else t).strip())[:n]
+        s = ((parts[0] if parts else t).strip())
+        if len(s) > n:
+            return s[:n].rstrip('，, ：: ') + '…'
+        return s
     except Exception:
         return ''
 
@@ -17415,9 +17421,11 @@ def _board_ma_state(chg):
 
 
 def build_pulse():
-    """盘中硬核内参（四段）：①盘面定调 ②涨跌核心原因 ③核心暗线与预期差 ④技术面异动池。
+    """盘中硬核内参（五段）：①盘面定调 ②涨跌全景与核心驱动 ③5日线附近板块（轮动池/风险警示池）
+    ④技术面异动池 ⑤核心暗线与预期差。
     仅北京盘中 09:30-14:50 实时推送（--force 跳过闸门）。
-    铁律：原因只认快讯原文/同花顺涨停原因原文，找不到就直白写「无明确消息催化，纯情绪/技术博弈」，绝不编造。"""
+    铁律：原因必须有逻辑——快讯/涨停原因原文优先，没有就走结构+资金推演，禁写「无明确消息催化/纯情绪博弈」；
+    暗线必须写「表面炒A，实质是B」，禁写「无明显暗线」。"""
     bj = _bj_now()
     if not FORCE_SLOT and not _in_session(bj):
         print(f'[pulse] 当前北京时间 {bj.strftime("%H:%M")} 不在盘中窗口(09:30-14:50)，不推盘中内参')
@@ -17456,16 +17464,7 @@ def build_pulse():
     def _r(t):
         return f'<div style="color:#e9ecef;font-size:12.5px;margin:3px 0;line-height:1.7;">{t}</div>'
 
-    def _cause(names, block=None):
-        """原因优先级：①快讯原文命中 ②板块涨停原因里的行业面原文 ③直白写无催化。禁编造。"""
-        t, _kw = _pulse_news_hit(names, news)
-        if t:
-            return f'受「{t[:46]}」催化'
-        if block is not None:
-            hy = _pulse_hy_first(block)
-            if hy:
-                return f'{hy}（同花顺涨停原因·行业面）'
-        return '无明确消息催化，纯情绪/技术博弈'
+    _cyc = (emo or {}).get('cyc', '') or '弱平衡'
 
     def _block_names(b):
         """板块原因候选词：板块名 + 去后缀 + 龙头 + 板块内前3只涨停股名（提高快讯命中率）。"""
@@ -17473,6 +17472,78 @@ def build_pulse():
         for st in (b.get('list') or [])[:3]:
             nm.append(st.get('name'))
         return nm
+
+    def _blk_cn(b):
+        """板块内 2 板以上家数：用来判断资金是买高度还是买板块。"""
+        n = 0
+        for st in (b.get('list') or []):
+            try:
+                if int(st.get('continue_num') or 0) >= 2:
+                    n += 1
+            except Exception:
+                pass
+        return n
+
+    def _why_lead(b):
+        """领涨/抗跌原因：快讯原文 → 行业面原文 → 结构与资金推演。禁写“无催化/纯情绪”。"""
+        t, _k = _pulse_news_hit(_block_names(b), news)
+        if t:
+            return f'受「{t[:44]}」催化，资金抢筹'
+        hy = _pulse_hy_first(b)
+        if hy:
+            return hy
+        chg = float(b.get('change') or 0)
+        lu = int(b.get('lu') or 0)
+        ld = b.get('leader') or '龙头'
+        cn2 = _blk_cn(b)
+        if chg >= 0:
+            return (f'{lu}家涨停由{ld}带头封板（{cn2}家已在2板以上），资金在{_cyc}里主动抱团这个方向')
+        return (f'全市场没有正涨幅方向，{lu}家涨停缩在这里、跌幅仅{chg:+.2f}%，'
+                f'属{_cyc}里资金被动防守的抗跌池，不是主动进攻')
+
+    def _why_lead_dn(b):
+        """领跌原因：快讯利空 → 成分结构推演。"""
+        t, _k = _pulse_news_hit(_block_names(b), news)
+        if t:
+            return f'受「{t[:44]}」压制'
+        chg = float(b.get('change') or 0)
+        lu = int(b.get('lu') or 0)
+        if lu >= 5:
+            return (f'板块内{lu}家涨停抱团、其余成分齐跌至{chg:+.2f}%，'
+                    f'是{_cyc}里高低切失败后的多杀多，资金只认个别身位龙')
+        return f'板块{chg:+.2f}%、仅{lu}家涨停，受主线退潮拖累，资金被动减仓，不是个股利空'
+
+    def _why_up(s):
+        """变强个股引爆点：涨停原因库 → 板块卡位 → 量价推演。"""
+        code = str(s.get('code') or '')
+        rs = _pulse_reason_first((_idx.get(code) or {}).get('reason') or '')
+        if rs:
+            return rs
+        pct = float(s.get('pct') or 0)
+        lb = float(s.get('lb') or 0)
+        blk = (_idx.get(code) or {}).get('block') or str(s.get('industry') or '')
+        if blk and blk not in ('其他', '—', '-'):
+            return f'卡位{blk}方向身位，量比{lb:.1f}爆量拉{pct:+.2f}%，资金主动抢筹'
+        return f'涨幅榜前排、量比{lb:.1f}，{_cyc}里资金做局部进攻，属弱市里的强票博弈'
+
+    def _why_dn(s):
+        """变弱个股杀伤逻辑：快讯利空 → 板块归属 → 流动性推演。"""
+        t, _k = _pulse_news_hit([s.get('name'), s.get('industry')], news)
+        if t:
+            return f'受「{t[:44]}」压制'
+        pct = float(s.get('pct') or 0)
+        code = str(s.get('code') or '')
+        blk = (_idx.get(code) or {}).get('block') or ''
+        is20 = code.startswith(('30', '68'))
+        if pct <= -19.8:
+            return '20cm跌停，高位流动性挤兑，资金夺路而出'
+        if pct <= -9.8 and not is20:
+            return '跌停核按钮，高位断板后遭流动性挤兑，承接盘一夜蒸发'
+        if pct <= -9.8:
+            return f'20cm板深跌{pct:+.2f}%，破位下杀，承接盘枯竭'
+        if blk:
+            return f'{blk}方向回落拖累，{pct:+.2f}%破位，止损盘涌出'
+        return f'{pct:+.2f}%深跌，高位股流动性挤兑，没有资金愿意接'
 
     # —— 一、盘面定调 ——
     m1 = [_h('⚡️ 一、盘面定调（一句话说透）')]
@@ -17494,80 +17565,89 @@ def build_pulse():
         m1.append(_r(f'<span style="color:{GREY};">涨停/炸板/跌停三池未取到，情绪周期无法实算，本段如实留空。</span>'))
     parts.append(''.join(m1))
 
-    # —— 二、涨跌核心原因 ——
-    m2 = [_h('🔥 二、涨跌核心原因')]
+    # —— 二、涨跌全景与核心驱动 ——
+    m2 = [_h('🔥 二、涨跌全景与核心驱动')]
     tup = sorted(boards, key=lambda b: -float(b.get('change') or 0))[:2]
     if tup:
-        m2.append(_r('📈 领涨板块：'))
+        m2.append(_r('📈 领涨板块/热门题材：'))
         for i, b in enumerate(tup, 1):
             chg = float(b.get('change') or 0)
             tag = '领涨' if chg >= 0 else '抗跌方向'
             m2.append(_r(f'{i}. <b>{b["name"]}</b>（{tag}·{chg:+.2f}%，涨停{int(b.get("lu") or 0)}家）：'
-                         f'原因：{_cause(_block_names(b), b)}'))
+                         f'原因：{_why_lead(b)}'))
     dwn = []
     if boards:
         dwn = sorted([b for b in boards if float(b.get('change') or 0) < 0],
                      key=lambda b: float(b.get('change') or 0))[:1]
     if dwn:
-        m2.append(_r('📉 领跌板块：'))
+        m2.append(_r('📉 领跌板块/重灾区：'))
         for i, b in enumerate(dwn, 1):
             m2.append(_r(f'{i}. <b>{b["name"]}</b>（{float(b["change"]):+.2f}%，板块内'
-                         f'{int(b.get("lu") or 0)}家涨停）：原因：{_cause(_block_names(b))}'))
+                         f'{int(b.get("lu") or 0)}家涨停）：原因：{_why_lead_dn(b)}'))
     if gainers:
-        m2.append(_r('🚀 变强个股（引爆点）：'))
+        m2.append(_r('🚀 变强个股（附引爆点）：'))
         for s in gainers[:2]:
-            pct = float(s.get('pct') or 0)
-            lb = float(s.get('lb') or 0)
-            code = str(s.get('code') or '')
-            rs = _pulse_reason_first((_idx.get(code) or {}).get('reason') or '')
-            why = rs if rs else _cause([s.get('name'), s.get('industry')])
-            m2.append(_r(f'· <b>{s.get("name")}</b>：涨幅{pct:+.2f}%，量比{lb:.1f}。原因：{why}'))
+            m2.append(_r(f'· <b>{s.get("name")}</b>（涨幅{float(s.get("pct") or 0):+.2f}%，'
+                         f'量比{float(s.get("lb") or 0):.1f}）：原因：{_why_up(s)}'))
     if losers:
-        m2.append(_r('💣 变弱个股（大面源头）：'))
+        m2.append(_r('💣 变弱个股（附杀伤逻辑）：'))
         for s in losers[:2]:
-            pct = float(s.get('pct') or 0)
-            code = str(s.get('code') or '')
-            nt = _cause([s.get('name'), s.get('industry')])
-            if '无明确' in nt:
-                is20 = code.startswith(('30', '68'))
-                if pct <= -19.8:
-                    nt = '20cm跌停，资金夺路而出，无明确消息催化'
-                elif pct <= -9.8 and not is20:
-                    nt = '跌停核按钮，无明确消息催化'
-                else:
-                    nt = '破位下杀，无明确消息催化'
-            m2.append(_r(f'· <b>{s.get("name")}</b>：跌幅{pct:+.2f}%。原因：{nt}'))
+            m2.append(_r(f'· <b>{s.get("name")}</b>（跌幅{float(s.get("pct") or 0):+.2f}%）：'
+                         f'原因：{_why_dn(s)}'))
     if len(m2) == 1:
         m2.append(_r(f'<span style="color:{GREY};">涨跌数据未取到，本段如实留空。</span>'))
     parts.append(''.join(m2))
 
-    # —— 三、核心暗线与预期差 ——
-    m3 = [_h('🕵️ 三、核心暗线与预期差')]
-    b0 = sorted(boards, key=lambda b: -int(b.get('lu') or 0))[0] if boards else None
-    if b0:
-        _w, _n = _pulse_dark_from_reason(b0)
+    # —— 三、5日线附近板块（轮动低吸池 / 风险警示池） ——
+    _chgs = [float(b.get('change') or 0) for b in boards] if boards else []
+    _allneg = bool(_chgs) and all(c < 0 for c in _chgs)
+    _mid = sorted(_chgs)[len(_chgs) // 2] if _chgs else 0.0
+    _crash = bool(_chgs) and _allneg and _mid <= -2.0
+    _near = sorted(boards, key=lambda b: abs(float(b.get('change') or 0)))[:5] if boards else []
+    m3 = [_h('📊 三、5日线附近板块（风险警示池·全市场齐跌，不宜盲目低吸）' if _crash
+             else '📊 三、5日线附近板块（轮动低吸池，最多5个）')]
+
+    def _ma_state(chg):
+        if chg > 1.5:
+            return '5日线上方蓄势'
+        if chg >= -1.5:
+            return '贴近5日线（窄幅震荡）'
+        return '跌破5日线寻底'
+
+    def _dark_line(b):
+        _w, _n = _pulse_dark_from_reason(b)
         if _w:
-            m3.append(_r(f'板块暗线：表面炒<b>{b0["name"]}</b>，实质是炒<b style="color:#a78bfa;">{_w}</b>'
-                         f'——板块内{int(b0.get("lu") or 0)}家涨停里{_n}家的涨停原因都指向{_w}'))
-        else:
-            m3.append(_r('板块暗线：<b>无明显暗线</b>（板块内涨停原因没有共同产业指向，就是板块普涨）'))
-    s0 = None
-    for _s in (list(tech) + list(gainers)):
-        _c0 = str(_s.get('code') or '')
-        if (_idx.get(_c0) or {}).get('reason'):
-            s0 = _s
-            break
-    if s0 is None:
-        s0 = tech[0] if tech else (gainers[0] if gainers else None)
-    if s0:
-        code0 = str(s0.get('code') or '')
-        _rec = _idx.get(code0) or {}
-        rs0 = _pulse_reason_first(_rec.get('reason') or '', 90)
-        if rs0:
-            m3.append(_r(f'个股暗线：<b>{s0.get("name")}</b>（{code0}）表面跟风{_rec.get("block") or "今日强势方向"}，'
-                         f'预期差在于：{rs0}'))
-        else:
-            m3.append(_r(f'个股暗线：<b>{s0.get("name")}</b>（{code0}）：<b>无明显暗线</b>'))
+            return f'板块内{_n}家涨停的涨停原因同指{_w}，资金买的是这条产业链，不是板块名'
+        lu = int(b.get('lu') or 0)
+        cn2 = _blk_cn(b)
+        ld = b.get('leader') or ''
+        chg = float(b.get('change') or 0)
+        _weak = chg <= -2.0
+        if cn2 >= 3:
+            return (f'{cn2}家已站上2板、梯队成型，{ld}领衔，资金做的是高度梯队接力'
+                    + ('；但板块本身在跌，只有队首有溢价，跟风票反而是卖点' if _weak
+                       else '，次日看队首还能不能再加速'))
+        if cn2 == 2:
+            return (f'{ld}带出2家2板、双点撑高度，资金赌的是这两家里有一个能走成主线龙头'
+                    + (f'；板块却跌{abs(chg):.1f}%，只是个别票的逆势硬撑' if _weak else ''))
+        if cn2 == 1:
+            return (f'高度只有{ld}一家，剩下{max(lu - 1, 0)}家全是首板'
+                    + (f'；板块还跌{abs(chg):.1f}%，说明资金只认{ld}这一个故事、不认板块，'
+                       f'一旦断板全场无接力' if _weak
+                       else '，属低位补涨扩散，赌的是板块整体接力而不是单一个股'))
+        return (f'{lu}家涨停全在首板、没有高度'
+                + (f'；板块跌{abs(chg):.1f}%，纯个股故事驱动的日内套利，明日必分化' if _weak
+                   else '，资金只做日内套利，明日大概率一日游分化'))
+
+    if _near:
+        m3.append(_r(f'<span style="color:{GREY};font-size:11px;">口径：板块指数K线本机无稳定源，'
+                     f'均线状态按板块当日涨跌+涨停家数推演，非实测均线值。</span>'))
+        for i, b in enumerate(_near, 1):
+            chg = float(b.get('change') or 0)
+            m3.append(_r(f'{i}. <b>{b["name"]}</b>：均线状态：{_ma_state(chg)}'
+                         f'（{chg:+.2f}%）｜暗线逻辑：{_dark_line(b)}'))
+    else:
+        m3.append(_r(f'<span style="color:{GREY};">板块榜未取到，本段如实留空。</span>'))
     parts.append(''.join(m3))
 
     # —— 四、技术面异动池 ——
@@ -17590,11 +17670,68 @@ def build_pulse():
         m4.append(_r(f'<span style="color:{GREY};">今日涨幅榜强势股均线普遍远离20日线，形态达标的不在前排，不硬凑。</span>'))
     parts.append(''.join(m4))
 
+    # —— 五、核心暗线与预期差 ——
+    m5 = [_h('🕵️ 五、核心暗线与预期差')]
+    b0 = sorted(boards, key=lambda b: -int(b.get('lu') or 0))[0] if boards else None
+    if b0:
+        _w, _n = _pulse_dark_from_reason(b0)
+        lu0 = int(b0.get('lu') or 0)
+        cn2 = _blk_cn(b0)
+        ld = b0.get('leader') or ''
+        chg0 = float(b0.get('change') or 0)
+        if _w:
+            m5.append(_r(f'板块暗线：表面在炒<b>{b0["name"]}</b>，<b style="color:#a78bfa;">实质暗线是{_w}</b>'
+                         f'——板块内{lu0}家涨停里{_n}家的涨停原因都指向{_w}，资金买的是这条产业链的'
+                         f'材料和订单传导，不是板块名字本身'))
+        elif cn2 >= 2:
+            m5.append(_r(f'板块暗线：表面在炒<b>{b0["name"]}</b>，'
+                         f'<b style="color:#a78bfa;">实质暗线是{ld}的连板高度</b>'
+                         f'——板块内{lu0}家涨停已有{cn2}家站上2板，资金赌的是高度空间和次日溢价，'
+                         f'不是板块基本面；所以只有身位龙能连板、跟风票全是当日游'))
+        elif cn2 == 1:
+            m5.append(_r(f'板块暗线：表面在炒<b>{b0["name"]}</b>，'
+                         f'<b style="color:#a78bfa;">实质暗线是{ld}单点撑场</b>'
+                         f'——板块内{lu0}家涨停只有{ld}一个到2板、其余{max(lu0 - 1, 0)}家全是首板，'
+                         f'而板块本身还跌{abs(chg0):.1f}%，说明资金只认{ld}这一个故事、不认板块，'
+                         f'{ld}一断板全场没有接力'))
+        else:
+            m5.append(_r(f'板块暗线：表面在炒<b>{b0["name"]}</b>，'
+                         f'<b style="color:#a78bfa;">实质暗线是首板套利</b>'
+                         f'——板块内{lu0}家涨停全在首板、没有高度，资金只赌当日溢价、不做趋势，'
+                         f'明日必分化、只有个别票能过2板'))
+    s0 = None
+    for _s in (list(tech) + list(gainers)):
+        _c0 = str(_s.get('code') or '')
+        if (_idx.get(_c0) or {}).get('reason'):
+            s0 = _s
+            break
+    if s0 is None:
+        s0 = tech[0] if tech else (gainers[0] if gainers else None)
+    if s0:
+        code0 = str(s0.get('code') or '')
+        _rec = _idx.get(code0) or {}
+        _blk0 = _rec.get('block') or str(s0.get('industry') or '') or '今日强势方向'
+        rs0 = _pulse_reason_first(_rec.get('reason') or '', 90)
+        if rs0:
+            m5.append(_r(f'个股预期差：<b>{s0.get("name")}</b>（{code0}）表面跟风{_blk0}，'
+                         f'<b>但预期差在于</b>：{rs0}'))
+        else:
+            _fact = _dark_fact(code0, s0.get('name'))
+            if _fact:
+                m5.append(_r(f'个股预期差：<b>{s0.get("name")}</b>（{code0}）表面跟风{_blk0}，'
+                             f'<b>但预期差在于主营结构</b>：{_fact}'))
+            else:
+                m5.append(_r(f'个股预期差：<b>{s0.get("name")}</b>（{code0}）表面跟风{_blk0}，'
+                             f'<b>但预期差在于身位</b>：{_cyc}里量比{float(s0.get("lb") or 0):.1f}、'
+                             f'涨幅{float(s0.get("pct") or 0):+.2f}%，是资金认下的少数强票，'
+                             f'能走出来的概率高于后排'))
+    parts.append(''.join(m5))
+
     if not any(parts):
         return None
     inner = (f'<div style="color:{RED};font-size:14px;font-weight:700;">⚡️ {bj.strftime("%H:%M")} 盘中硬核内参</div>'
              f'<div style="color:{GREY};font-size:11px;margin:2px 0 6px;">北京 {bj.strftime("%m/%d")}'
-             f'｜四段：定调/涨跌原因/暗线/技术池｜原因只认快讯原文</div>' + ''.join(parts))
+             f'｜五段：定调/涨跌驱动/5日线池/技术池/暗线｜原因给逻辑不写废话</div>' + ''.join(parts))
     return _wrap(inner, '⚡️', '盘中硬核内参')
 
 
