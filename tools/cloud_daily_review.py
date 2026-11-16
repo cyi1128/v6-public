@@ -5920,6 +5920,52 @@ def build_hourly():
                     f'看明天能不能续板再决定')
         return f'已经{cn}板，只做回踩不追高'
 
+    def _dl_chain(rt, cn=1, turn=0.0):
+        """这条暗线为什么会变成买盘 —— 用户那句「凭什么信它会涨」。
+        2026-11-16 用户反馈「只给标签不够相信」，所以这里做三件事：
+          ① 点名具体是哪条腿（杭州国资 / AI短剧 / PBAT 产能），不是笼统说「国资」「AI」；
+          ② 讲清这条腿凭什么吸引**真金白银**（谁因为这个理由买、为什么敢拿）；
+          ③ 给一句明天就能核对的验证信号 —— 说得对不对，开盘后自己看得到。
+        这是判断，卡面标「判断」，不当事实卖。"""
+        k = rt or ''
+        # 从「AI短剧+AI应用+杭州国资」里挑出命中的那一段原始标签，卡面才具体
+        _tags = [x.strip() for x in re.split(r'[+＋|、]', k) if x.strip()]
+
+        def _pick(keys):
+            for _t in _tags:
+                if any(w in _t for w in keys):
+                    return _t
+            for w in keys:
+                if w in k:
+                    return w
+            return ''
+
+        if cn <= 1:
+            _sig = '明天看它能不能顶出二板，顶出来才算真有人接第二棒'
+        else:
+            _sig = '明天看回踩时有没有资金接，没人接就是最后一棒'
+
+        for _keys, _mech in (
+            (('国资', '央企', '国企', '中特估', '国资委', '地方国资'),
+             '这是资产整合与重估的入口 —— 手上真有资产可以往里装，又有国资托底的底线，'
+             '跌得动的地方少，资金敢拿着过夜'),
+            (('重组', '并购', '注入', '跨界', '转型', '借壳', '重整'),
+             '壳或者资产注入的故事，真装进来就改基本面 —— 资金愿意在公告落地前先蹲着等'),
+            (('AI', '算力', '大模型', '机器人', '智能', '芯片', '短剧', '应用', '算网'),
+             '把估值锚从旧主业换到新叙事 —— 题材资金只认标签、不看当期利润，'
+             '所以只要标签还在，就一直有人愿意接力'),
+            (('涨价', '提价', '订单', '产能', '投产', '量产', '中标', '供货'),
+             '能直接进利润表 —— 业绩算得出数，机构和游资都敢跟，'
+             '这类暗线最容易被当真'),
+        ):
+            _tag = _pick(_keys)
+            if _tag:
+                return f'<b>{_tag}</b>这条腿，{_mech}。验证：{_sig}'
+        _t0 = _tags[0] if _tags else '多条腿'
+        return (f'<b>{_t0}</b>等几条腿一起讲故事，不同的钱各认一条 '
+                f'—— 也就意味着哪条腿一熄火，票就没人抬。验证：{_sig}')
+
+
     _dl_pool = {}
     for _b in ((_pos if _pos else _bd[:2]) + _neg):
         for st in (_b.get('list') or []):
@@ -5956,6 +6002,7 @@ def build_hourly():
                 f'<span style="color:{_c(_pct)};">{_pct:+.2f}%</span>'
                 f'｜暗线：{(_rt[:30] or "纯高度卡位，没有第二条腿")}<br>'
                 f'　依据：{_ev or "无公告依据，只有媒体描述"}<br>'
+                f'　为什么会涨：{_dl_chain(_rt, _cn, _turn)}<br>'
                 f'　👉 {_dl_verdict(_cn, _turn)}')
         else:
             _dl_rows.append(
@@ -13771,6 +13818,261 @@ def _lhb_html(lhb, limit=5):
             + '<div style="color:' + GREY + ';font-size:11px;margin-top:4px;">机构净买加分、拉萨天团与一日游席位扣分；次日溢价样本仍在累积，暂不并入评分</div></div>')
 
 
+# ==================== 全市场公告利好晚报（2026-11-16 用户新增需求） ====================
+# 用户原话：「新增晚上复盘全市场个股公告新增对公司利好的内容，比如道恩股份新材料等利好信息，
+#            每天晚上八点汇总」。
+# 所以这张卡不做公告流水账，只挑「对公司有实质利好」的，且每条必须翻成一句人话：
+# 这条公告到底改了公司什么。持仓两票单独一栏，利空也必须说，不能让用户漏看。
+_ANN_SKIP_WORD = ['决议公告', '法律意见', '审计报告', '核查意见', '会议通知', '召开',
+                  '年度报告', '半年度报告', '季度报告', '年报', '半年报', '季报',
+                  '募集说明书', '保荐', '持续督导', '内部控制', '管理制度', '章程',
+                  '独立董事', '监事', '候选人', '选举', '换届', '提示性公告', '权益变动',
+                  '简式', '收购报告书', '要约收购', '问询', '回复', '更正', '补充公告',
+                  '澄清', '股票交易异常波动', '业绩说明会', '投资者关系活动', '调研活动',
+                  '募集资金', '会计师事务所', '资产评估',
+                  # 2026-11-16 首跑踩到的误判（这几条曾被当成利好推出去，实际不是）：
+                  '重整',            # 亚泰「与重整投资人签署重整投资协议」= 债务重整，不是拿订单
+                  '回报规划',        # 「未来三年股东分红回报规划」是规划，不是真分红
+                  '价格上限',        # 「调整回购价格上限」是流程细节，不构成新利好
+                  '注销', '终止', '失败', '未获', '不予', '停牌', '复牌',
+                  '租赁', '借款', '担保', '授信', '关联交易', '日常经营']
+
+_ANN_HARD_WORD = ['中标', '中选', '订单', '供货', '采购',
+                  '收购', '购买资产', '资产重组', '重大资产',
+                  '投产', '扩产', '量产', '试产',
+                  '涨价', '提价', '价格上调', '调价']
+
+_ANN_MONEY_WORD = ['增持', '回购', '分红', '派息', '派发现金']
+
+# 「框架协议/战略合作」是意向，不是确定订单 —— 2026-11-16 首跑把罗欣药业
+# 「签署《战略合作框架协议》的进展公告」当硬利好推了出去，落这里降级。
+_ANN_SOFT_WORD = ['专利', '获批', '批准', '注册证', '认证', '许可', '通过验收',
+                  '新产品', '新项目', '投资建设', '战略合作', '框架协议', '合作协议',
+                  '技术突破', '研发成功', '入选', '入围']
+
+# L1 内部排序权重：越改基本面的排越前（产能与订单最硬，光涨价次之）
+_ANN_RANK = [('投产', 0), ('量产', 0), ('试产', 0), ('扩产', 1),
+             ('中标', 2), ('中选', 2), ('订单', 3), ('框架协议', 4), ('供货', 4),
+             ('收购', 5), ('购买资产', 5), ('资产重组', 6),
+             ('涨价', 7), ('提价', 8), ('调价', 8)]
+
+
+def _ann_level(ti):
+    """公告分级：1=硬利好（订单/产能/资产/涨价，改基本面）
+               2=资金面（回购/增持/分红，托底不改经营）
+               3=业务进展（技术/资质/新产品，预期不是业绩）
+               0=不算利好（含程序性公告与利空词）
+    先排程序性公告与利空词，避免把「股东大会决议」当成利好推给用户。"""
+    t = ti or ''
+    if any(k in t for k in _ANN_SKIP_WORD):
+        return 0
+    if any(k in t for k in _ANN_BAD):
+        return 0
+    # 老重组的例行进展（如「重大资产重组(2022年)的进展公告」）是历史事项更新，不是今晚新增利好
+    if '重组' in t and ('进展' in t or '20' in t):
+        return 0
+    if any(k in t for k in _ANN_HARD_WORD) or '合同' in t:
+        return 1
+    if any(k in t for k in _ANN_MONEY_WORD):
+        return 2
+    if any(k in t for k in _ANN_SOFT_WORD):
+        return 3
+    return 0
+
+
+def _ann_w(ti):
+    """L1 内部排序：投产/量产最硬，涨价最软。命中越靠前的词排越前。"""
+    t = ti or ''
+    for w, r in _ANN_RANK:
+        if w in t:
+            return r
+    return 9
+
+
+def _ann_why(ti):
+    """这条公告为什么算利好 —— 翻成一句人话，用户是小白，不给术语。"""
+    t = ti or ''
+    if any(k in t for k in ('中标', '中选', '成交', '订单', '合同', '供货', '签订', '签署')):
+        return '拿到合同或订单，钱是确定的，会一条条进后面的营收'
+    if any(k in t for k in ('收购', '购买资产', '资产重组', '重大资产', '股权转让')):
+        return '把外面的资产买进来直接并表，营收体量做大，故事变实'
+    if any(k in t for k in ('投产', '扩产', '量产', '试产')):
+        return '产能真落地了，出货量和收入能跟着上台阶'
+    if any(k in t for k in ('涨价', '提价', '价格上调', '调价')):
+        return '产品卖得更贵，多出来的钱直接进毛利'
+    if any(k in t for k in ('增持', '回购')):
+        return '真金白银在二级市场买，托底、减少抛压'
+    if any(k in t for k in ('分红', '派息', '派发现金')):
+        return '肯拿现金出来分，说明账上真的有钱'
+    if any(k in t for k in ('专利', '获批', '批准', '注册证', '认证', '许可', '通过验收')):
+        return '技术或资质拿到手，别人短期抢不走这门生意'
+    if any(k in t for k in ('合作', '项目', '投资建设', '入选', '入围', '研发')):
+        return '有了新方向，但还没到进利润表的阶段，属于预期不是业绩'
+    return '业务上有进展，具体影响要看后面落地'
+
+
+def _market_ann(pages=16):
+    """全市场公告（东财 np-anotice，按 notice_date 降序分页）。
+    只保留「今天」与「明天」两个披露日 —— 晚 20 点这个时点，今天盘后新发的和明天要披露的
+    才是用户第二天开盘前真正需要看的东西，更早的都是已知信息。
+    返回 [(date, code, name, title)]。翻到早于今天就停，不白拉历史。"""
+    _now = _bj_now()
+    today = _now.strftime('%Y-%m-%d')
+    tom = (_now + timedelta(days=1)).strftime('%Y-%m-%d')
+    want = (today, tom)
+    out = []
+    for pi in range(1, pages + 1):
+        u = ('https://np-anotice-stock.eastmoney.com/api/security/ann?sr=-1&page_size=100'
+             '&page_index=%d&ann_type=A&client_source=web&f_node=0&s_node=0' % pi)
+        try:
+            rq = urllib.request.Request(u, headers=UA)
+            d = json.loads(urllib.request.urlopen(rq, timeout=8).read().decode('utf-8', 'ignore'))
+            lst = ((d.get('data') or {}).get('list')) or []
+        except Exception as e:
+            print('[notice] 公告第%d页取数失败: %s' % (pi, e))
+            break
+        if not lst:
+            break
+        stop = False
+        for x in lst:
+            dt = (x.get('notice_date') or '')[:10]
+            if dt and dt < today:
+                stop = True
+                break
+            if dt not in want:
+                continue
+            ti = re.sub(r'<[^>]+>', '', (x.get('title') or '')).strip()
+            ti = re.sub(r'^[^:：]{2,10}[:：]', '', ti)      # 去掉「股票名:」前缀
+            cs = x.get('codes') or []
+            if not cs:
+                continue
+            code = str(cs[0].get('stock_code') or '').strip()
+            name = str(cs[0].get('short_name') or '').strip()
+            # 只要 A 股正股：060/068 开头是转债（如 118065 艾为转债），不是用户要的「个股」
+            if not (len(code) == 6 and code[0] in ('0', '3', '6', '8', '4')):
+                continue
+            if 'ST' in name.upper() or '退' in name:      # ST/退市股不做交易标的
+                continue
+            if ti and code and name:
+                out.append((dt, code, name, ti[:72]))
+        if stop:
+            break
+    print('[notice] 全市场公告扫描 %d 条（披露日 %s / %s）' % (len(out), today, tom))
+    return out
+
+
+def build_notice():
+    """全市场公告利好晚报（每晚 20:05，用户 2026-11-16 新增）。
+    只列「对公司有实质利好」的公告，每条带大白话解释；持仓两票单列，利空也照说。"""
+    anns = _market_ann()
+    if not anns:
+        return _wrap('今晚全市场公告接口没取到数据（东财 np-anotice 无响应），'
+                     '这次不硬编内容、不拿旧闻充数。明天再试。', '🌙', '公告利好晚报', disclaimer=True)
+
+    _hold = {str(h['code'])[-6:]: h['name'] for h in HOLDINGS}
+    hard, money, soft, mine = [], [], [], {}
+    _seen = set()
+    _cseen = set()          # 同一只票同一档只留一条（同一公司常连夜发决议+议案+附件，会刷屏）
+    for dt, code, name, ti in anns:
+        lv = _ann_level(ti)
+        key = (code, ti[:20])
+        if key in _seen:
+            continue
+        _seen.add(key)
+        _c6 = code[-6:]
+        if _c6 in _hold:
+            mine.setdefault(_c6, []).append((lv, code, name, ti, dt))
+            continue
+        if lv == 0:
+            continue
+        if (code, lv) in _cseen:
+            continue
+        _cseen.add((code, lv))
+        if lv == 1:
+            hard.append((code, name, ti, dt))
+        elif lv == 2:
+            money.append((code, name, ti, dt))
+        else:
+            soft.append((code, name, ti, dt))
+
+    hard.sort(key=lambda x: _ann_w(x[2]))       # 投产/量产排最前，涨价排最后
+    # 回购是人人都看得懂的托底，排增持、分红前面
+    money.sort(key=lambda x: (0 if '回购' in x[2] else (1 if '增持' in x[2] else 2)))
+    _n_hard, _n_money, _n_soft = len(hard), len(money), len(soft)
+
+    rows = [f'📊 今晚扫了 <b>{len(anns)}</b> 条新公告（今天+明天两个披露日），'
+            f'筛出对个股有实质利好的 <b>{_n_hard + _n_money + _n_soft}</b> 条：'
+            f'订单产能类 {_n_hard} 条、回购增持分红 {_n_money} 条、技术资质 {_n_soft} 条']
+
+    if hard:
+        rows.append('')
+        rows.append('🔥 <b>硬利好</b>（订单、产能、资产、涨价 —— 真正改基本面的）')
+        for i, (code, name, ti, dt) in enumerate(hard[:5], 1):
+            rows.append(f'{i}. <b>{name}</b>（{code}）｜{ti}')
+            rows.append(f'　👉 {_ann_why(ti)}')
+    if money:
+        rows.append('')
+        rows.append(f'💰 <b>资金面</b>（回购、增持、分红 —— 托底，不改经营；共 {_n_money} 条，列前 3 条）')
+        for i, (code, name, ti, dt) in enumerate(money[:3], 1):
+            rows.append(f'{i}. <b>{name}</b>（{code}）｜{ti}')
+            rows.append(f'　👉 {_ann_why(ti)}')
+    if soft:
+        rows.append('')
+        rows.append('📈 <b>技术资质</b>（专利、获批、新产品 —— 预期，还没到进利润表）')
+        for i, (code, name, ti, dt) in enumerate(soft[:3], 1):
+            rows.append(f'{i}. <b>{name}</b>（{code}）｜{ti}')
+            rows.append(f'　👉 {_ann_why(ti)}')
+
+    if not hard and not money and not soft:
+        rows.append('')
+        rows.append('今晚全市场没有筛出实质利好公告 —— 这种日子明天开盘就别指望公告给动力，'
+                    '靠盘面和题材，公告这条线今晚是空的')
+
+
+    # 持仓两票单独一栏：利好照列，利空也必须说，不能让用户漏看
+    rows.append('')
+    rows.append('⚠️ <b>你的持仓</b>')
+    for h in HOLDINGS:
+        _c6 = str(h['code'])[-6:]
+        _lst = mine.get(_c6) or []
+        if not _lst:
+            rows.append(f'· {h["name"]}：今晚无公告')
+            continue
+        _good = [x for x in _lst if x[0] > 0]
+        _badl = [x for x in _lst if x[0] == 0 and any(k in x[3] for k in _ANN_BAD)]
+        _line = f'· {h["name"]}：今晚 {len(_lst)} 条'
+        if _good:
+            _line += f'，其中利好 {len(_good)} 条'
+            for _g in _good[:1]:
+                _line += f'（{_g[3][:34]} → {_ann_why(_g[3])}）'
+        else:
+            _line += '，没有实质利好'
+        if _badl:
+            _line += f'｜<span style="color:{RED};">需要留意：{_badl[0][3][:30]}</span>'
+        rows.append(_line)
+
+    rows.append('')
+    if _n_hard >= 5:
+        rows.append('💡 明天开盘：今晚硬利好不算少，重点看这几只开盘有没有资金接；'
+                    '公告只给理由，不给买点，开盘半小时的量才是答案')
+    elif _n_hard:
+        rows.append('💡 明天开盘：今晚只有零星硬利好，别为一条公告去追高开，'
+                    '高开 5% 以上的公告票最容易变成接盘位')
+    else:
+        rows.append('💡 明天开盘：公告这条线今晚是空的，明天靠盘面和题材，'
+                    '开盘别急着动手，等主线自己走出来')
+
+    rows.append('')
+    rows.append('口径：公告取东财全市场披露列表（np-anotice），只保留今天与明天两个披露日；'
+                '「利好」按公告标题的订单/资产/产能/涨价/回购/资质词做规则筛，'
+                '不是评级，公告原文以交易所披露为准')
+    return _wrap('<br>'.join(rows), '🌙', '公告利好晚报', disclaimer=True)
+
+
+# 注册必须在函数定义之后（BUILDERS 字典建在 10104 行，早于本函数，直接写进去会 NameError）
+BUILDERS['notice'] = build_notice      # 全市场公告利好晚报（每晚 20:05）
+
+
 def build_evening():
     """晚间消息汇总（北京 22:50）：今日A股全景 + 全球晚间行情/消息 → DS 大白话
     「今日大事 + 明日关注」。DS 失败/用尽 → 规则兜底（行情+新闻列表）。"""
@@ -18397,7 +18699,7 @@ TITLES = {'pre': '盘前速递', 'auction': '竞价观察', 'tail': '尾盘竞�
           'hourly': '盘中解读', 'warn': '启动预警', 'confirm': '竞价确认', 'ext': '外盘窗口',
           'radar': '雷达扫描', 'newsfire': '新闻发酵', 'risk': '盘中风险体检',
           'cycle': '多周期视角研判', 'darkline': '暗线情报',
-          'pulse': '盘中全景四览'}
+          'pulse': '盘中全景四览', 'notice': '公告利好晚报'}
 
 
 BUILDERS['warn'] = build_warn
@@ -19985,7 +20287,7 @@ if __name__ == '__main__':
         print('SLOT radar PUSH', ok, msg)
         sys.exit(0)
     # —— 多点cron 当日去重（仅定时自动run；手动 --force 不受限，用于演示/验证）——
-    if not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle', 'pulse'):
+    if not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle', 'pulse', 'notice'):
         _k = _slot_key(slot)
         if _slot_done(_k):
             print('SLOT %s 今日已推（slot_done.json 去重），跳过' % slot)
@@ -20000,7 +20302,7 @@ if __name__ == '__main__':
         print('SLOT', slot, '构建返回 None，不推送')
         sys.exit(0)
     ok, msg = push(html, f'{TITLES[slot]} {_bj_now().strftime("%m/%d %H:%M")}')
-    if ok and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle', 'pulse'):
+    if ok and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle', 'pulse', 'notice'):
         # force 也标记（手动演示后同日定时不再重推——双推修复①）
         _mark_slot_done(_slot_key(slot))
     print('SLOT', slot, 'PUSH', ok, msg)
