@@ -13989,10 +13989,10 @@ def _code2qt(c6):
     return ''
 
 
-def _qt_batch(codes):
-    """批量取现价 + 今日涨跌幅（一次 30 只，qt.gtimg.cn 支持逗号拼接）。
-    这张卡晚上跑，所以这里就是当日收盘涨跌，不是实时价 —— 卡面要标清楚。
-    返回 {六位代码: (现价, 涨跌幅%)}；取不到的票留空，不硬造数。"""
+def _qt_px_map(codes):
+    """批量取 (现价, 昨收)，key 是完整六位代码。
+    单独写一个，因为已有的 _qt_batch 把 key 截成了 4 位（600519→0519）且另有调用方，
+    不能为了这张卡去改它的返回结构。"""
     out = {}
     _c = [c for c in (codes or []) if c]
     for i in range(0, len(_c), 30):
@@ -14002,42 +14002,53 @@ def _qt_batch(codes):
         except Exception:
             continue
         for line in (txt or '').split(';'):
+            line = line.strip()
             if '=' not in line:
                 continue
-            k, v = line.split('=', 1)
-            k = k.strip().replace('v_', '')
-            f = v.strip().strip('"').split('~')
+            _k, _v = line.split('=', 1)
+            f = _v.strip().strip('"').split('~')
             if len(f) > 32:
                 try:
-                    out[k[-6:]] = (float(f[3]), float(f[32]))
-                except (ValueError, TypeError):
+                    out[str(f[2])[-6:]] = (float(f[3]), float(f[4]))
+                except (ValueError, TypeError, IndexError):
                     pass
     return out
 
 
 def _ann_future(ti):
-    """这条公告对「未来」到底有什么帮助、卡在哪一步。
-    用户要的是往后看，不是把公告标题再念一遍。"""
+    """这只票的暗线逻辑：公告背后公司在干什么、真正决定成败的是哪个变量。
+    同类公告必须给出不同读法（控股≠参股、采购≠销售、准入≠专利），否则十条一模一样等于没说。"""
     t = ti or ''
+    _hold = any(k in t for k in ('80%', '70%', '60%', '51%', '控股', '全部股权', '100%'))
     if any(k in t for k in ('框架协议', '意向', '战略合作', '备忘录', '合作意向', '合作框架')):
-        return '只是意向，还没签正式合同，别当业绩看'
+        return '暗线：关系维护型意向，落地率历来低；看有没有跟出正式合同，没有就当没发生'
     if any(k in t for k in ('投产', '扩产', '量产', '试产')):
-        return '新产线爬坡要时间，第一年贡献有限，真看点是明年出货量跟不跟得上'
-    if any(k in t for k in ('中标', '中选', '成交', '订单', '合同', '供货', '签订', '签署')):
-        return '按进度确认收入，快的一两个季度见，慢的跨年；关键看金额占它一年营收多少'
+        return '暗线：产能先建、订单后找，公告不会告诉你货卖给谁；看产能利用率和单吨成本，不是看公告'
+    if any(k in t for k in ('中标', '中选', '成交')):
+        return '暗线：招标拿单，钱要等项目验收才回；看招标方是谁、结算周期多长、有没有预付款'
     if any(k in t for k in ('收购', '购买资产', '资产重组', '重大资产', '股权转让')):
-        return '并表后营收立刻变大，利润要看标的自己赚不赚钱、整合顺不顺'
+        if _hold:
+            return '暗线：拿控股权是买营收体量，并表后收入全额算进来；看标的净利率和整合'
+        return '暗线：只买部分股权多为参股，不并表，只算投资收益；看后面会不会加码到控股'
+    if any(k in t for k in ('航空', '军工', '军品', '装备', '超材料', '航天')):
+        return '暗线：军工客户高度集中、批次性强；看是不是批产订单、后面有没有追加'
+    if ('采购' in t) and ('销售' not in t) and ('中标' not in t):
+        return '暗线：这是公司自己花钱买，指向备产能/备料，不是马上有收入；看配套的是哪条产线'
+    if any(k in t for k in ('订单', '合同', '供货', '签订', '签署')):
+        return '暗线：金额多半避重就轻，看它占上一年营收几个点；大单往往是关系型客户锁量，不含新市场'
     if any(k in t for k in ('涨价', '提价', '价格上调', '调价')):
-        return '价格稳得住毛利率才修得起来，下游不接受就会丢订单'
+        return '暗线：提价=供需偏紧的信号，但落不落地看客户认不认；看执行日期和提价幅度'
     if any(k in t for k in ('增持',)):
-        return '内部人自己掏钱买，说明他觉得便宜，但不改变公司赚钱能力'
+        return '暗线：内部人比外面清楚自己的账；看增持比例和是否触及举牌，零碎小额多是态度'
     if any(k in t for k in ('回购',)):
-        return '短期托底、减少抛压，长期不改变经营'
+        return '暗线：多为市值管理；带专项贷款承诺函的是借钱买，决心大但也加了杠杆；看回购额占流通市值'
     if any(k in t for k in ('分红', '派息', '派发现金')):
-        return '账上真有钱，但分红不等于明年还能增长'
-    if any(k in t for k in ('专利', '获批', '批准', '注册证', '认证', '许可', '通过验收')):
-        return '技术门槛有了，能不能变成订单还要看销售和招标'
-    return '要看后面落地，现在只是其中一步'
+        return '暗线：肯分现金说明账面干净，但成长中的公司大比例分红常意味着没好项目投；看股息率'
+    if any(k in t for k in ('注册证', '批准', '获批', '认证', '许可', '通过验收')):
+        return '暗线：拿到准入＝产品能卖了，但卖多少看渠道和招标；看是不是进医保/集采目录'
+    if any(k in t for k in ('专利',)):
+        return '暗线：专利只是保护，本身不产收入；看有没有对应产品已经在卖'
+    return '暗线：只是流程里的一步，还看不出动机；等后续动作再看'
 
 
 def _market_ann(pages=16):
@@ -14135,9 +14146,13 @@ def build_notice():
             f'<br>下面<b>全部列出，不挑不藏</b>（同一只票同一档只留一条，连夜发决议+议案的已经合并）'
             f'<br>每条后的涨跌幅是<b>今天收盘</b>的，不是此刻实时价；晚间发卡时就等于明天开盘前的参考价']
 
-    # 每只票补今日涨跌幅（这张卡晚上跑，涨跌幅＝当日收盘，不是实时价，卡面已标）
+    # 每只票补今日涨跌幅（_qt_px_map 返回 (现价, 昨收)，涨跌幅在这里换算）
     _all_rows = hard + money + soft
-    qx = _qt_batch([_code2qt(x[0]) for x in _all_rows]) if _all_rows else {}
+    qx = {}
+    if _all_rows:
+        for _k, _v in (_qt_px_map([_code2qt(x[0]) for x in _all_rows]) or {}).items():
+            _px, _prev = _v
+            qx[_k] = (_px, (float(_px) / float(_prev) - 1) * 100 if _prev else 0.0)
 
     # 全量展示；极端日子（年报季回购能到几百条）用总上限兜底，超了就明说超了多少，不装作列全
     _CAP_TOTAL = 160
