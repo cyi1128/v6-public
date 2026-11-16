@@ -19195,15 +19195,26 @@ def _hard_split_div(s, budget):
     for m in re.finditer(r'<div[^>]*>|</div>', s):
         piece = s[pos:m.start()]
         tag = m.group(0)
-        # 纯文本段无标签，可任意断开：按预算逐段填满，超了就先收口再重开容器
+        # 纯文本段无标签：优先切在 <br> 之后（保证一条票不被腰斩），实在没有才按字符切
         while piece:
             _room = budget - len(cur)
             if _room <= 0:
                 out.append(cur + '</div>' * len(stack))
                 cur = ''.join(stack)
                 _room = budget - len(cur)
-            cur += piece[:_room]
-            piece = piece[_room:]
+            if len(piece) <= _room:
+                cur += piece
+                break
+            _cut = piece.rfind('<br>', 0, _room)
+            if _cut > 0:
+                _cut += 4
+            else:
+                _c2 = piece.rfind('<br/>', 0, _room)
+                _cut = (_c2 + 5) if _c2 > 0 else 0
+            if _cut <= 0 or _cut < _room // 2:
+                _cut = _room
+            cur += piece[:_cut]
+            piece = piece[_cut:]
             if piece:
                 out.append(cur + '</div>' * len(stack))
                 cur = ''.join(stack)
@@ -19257,6 +19268,14 @@ def _split_html(html, limit):
         else:
             _fixed.append(s)
     segs = _fixed
+    # 首段太短（例如只有一个卡头）就别单独发一条，并进后面的正文
+    if len(segs) > 1 and len(segs[0]) < 3000:
+        _a = segs.pop(0)
+        _b = segs[0]
+        if len(_a) + len(_b) > budget:
+            segs[0:1] = _hard_split_div(_a + _b, budget)
+        else:
+            segs[0] = _a + _b
     n = len(segs)
     out = []
     for i, s in enumerate(segs, 1):
