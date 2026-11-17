@@ -2691,3 +2691,10 @@
 06:10:36 [llm] OK purpose=news2h_ext len=1003
 06:12:38 [llm] OK purpose=news2h len=208
 06:31:20 [llm] OK purpose=preclose len=122
+06:49:35 [llm] OK purpose=news2h_good len=1308
+06:50:57 [llm] OK purpose=news2h_bad len=1384
+06:52:06 [llm] OK purpose=holiday_ds len=1510
+06:53:23 [llm] OK purpose=holiday_ds len=811
+06:54:50 [反模板放行:news2h_ext] 管住手
+06:54:50 [llm] OK purpose=news2h_ext len=1017
+06:56:02 [llm] OK purpose=news2h len=185
