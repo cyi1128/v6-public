@@ -2701,3 +2701,13 @@
 07:01:26 [反模板放行:tail] 管住手
 07:01:27 [llm] OK purpose=tail len=1431
 07:02:42 [llm] OK purpose=tail len=769
+07:09:18 [反模板放行:sec2_deep] 管住手
+07:09:19 [llm] OK purpose=sec2_deep len=1291
+07:11:26 [llm] OK purpose=theme_health_card len=669
+07:12:37 [llm] OK purpose=signal_review len=223
+07:14:32 [llm] OK purpose=eod_review_ds len=964
+07:15:37 [llm] OK purpose=eod len=720
+07:16:36 [llm] OK purpose=miss_deep len=290
+07:17:39 [llm] OK purpose=resonance_verdict len=212
+07:19:03 [llm] OK purpose=event_dark len=188
+07:20:00 [llm] OK purpose=health_dark len=201
