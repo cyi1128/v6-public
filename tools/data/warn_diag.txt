@@ -2684,3 +2684,9 @@
 05:06:21 [llm] OK purpose=pm_relay len=175
 05:39:41 [llm] OK purpose=follow len=725
 05:41:38 [llm] OK purpose=follow len=1029
+06:02:49 [llm] OK purpose=news2h_good len=1338
+06:04:30 [llm] OK purpose=news2h_bad len=1286
+06:08:02 [llm] OK purpose=holiday_ds len=2016
+06:09:15 [llm] OK purpose=holiday_ds len=809
+06:10:36 [llm] OK purpose=news2h_ext len=1003
+06:12:38 [llm] OK purpose=news2h len=208
