@@ -258,5 +258,6 @@
  "hourly|2026-11-17|14": true,
  "news2h|2026-11-17|1412": true,
  "preclose|2026-11-17": true,
- "news2h|2026-11-17|1456": true
+ "news2h|2026-11-17|1456": true,
+ "tail|2026-11-17": true
 }
