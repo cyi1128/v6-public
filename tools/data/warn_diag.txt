@@ -2698,3 +2698,6 @@
 06:54:50 [反模板放行:news2h_ext] 管住手
 06:54:50 [llm] OK purpose=news2h_ext len=1017
 06:56:02 [llm] OK purpose=news2h len=185
+07:01:26 [反模板放行:tail] 管住手
+07:01:27 [llm] OK purpose=tail len=1431
+07:02:42 [llm] OK purpose=tail len=769
