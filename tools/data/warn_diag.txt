@@ -2661,3 +2661,4 @@
 02:21:39 [llm] 未返回 purpose=board model=Qwen/Qwen3.8-27B tag=timeout
 02:21:40 [llm] 未返回 purpose=board model=ZhipuAI/GLM-4.7-Flash tag=http_429
 02:23:05 [llm] OK purpose=board len=144
+02:32:47 [llm] OK purpose=warn_news_ds len=2709
