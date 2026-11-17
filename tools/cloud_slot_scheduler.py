@@ -66,6 +66,10 @@ MARKER = os.path.join(DATA_DIR, 'sched_active.json')
 # 「这份标记还是我的吗」——不是我的就一个字节都不许改。
 _CUR_SEG = ''
 _CUR_DATE = ''
+# 本段的 end（ISO）；远端标记被自己写坏时用它原地重建，不用再猜
+_CUR_END = ''
+# 本次 run 真正执行过的槽数；workflow 的接力 step 靠它判断"这一棒有没有价值"
+_EXEC_N = 0
 SLOT_DONE = os.path.join(DATA_DIR, 'slot_done.json')
 # 收盘复盘另用一套去重：主程序 eod_push_done() 读的是仓库根 data/eod_status.json
 # （结构 {"date": "YYYY-MM-DD", "pushed_at": ...}），不是 tools/data/slot_done.json。
@@ -291,13 +295,25 @@ def _touch_marker() -> None:
     try:
         if not _CUR_SEG:
             return
-        pull_latest()
+        # 2026-11-17：这里原来先 pull_latest()。刚写入的段标记远端还没有，
+        # pull --rebase --autostash 一旦撞上远端的空标记，autostash pop 会失败、
+        # 工作区被退回 HEAD 版本，紧随其后的 persist_state 就判成「无可提交改动」，
+        # 段权永远推不上远端；4 分钟后的段标记复查再把本地读成「空」而让位退出
+        # （11-16 18:10 preempted → 18:10-23:23 无调度 → 20:05 notice 整段漏推）。
+        # 现在只看本地标记的归属：是自己就续写心跳，是别人的段就一律不动。
         m = _read_json(MARKER)
-        if (m.get('seg') or '') != _CUR_SEG or (m.get('date') or '') != _CUR_DATE:
+        _seg_now = (m.get('seg') or '')
+        if _seg_now and (_seg_now != _CUR_SEG or (m.get('date') or '') != _CUR_DATE):
             return
-        m['hb'] = bj_now().isoformat(timespec='seconds')
+        marker = {
+            'date': _CUR_DATE,
+            'seg': _CUR_SEG,
+            'started': m.get('started') or bj_now().isoformat(timespec='seconds'),
+            'seg_end': m.get('seg_end') or _CUR_END,
+            'hb': bj_now().isoformat(timespec='seconds'),
+        }
         with open(MARKER, 'w', encoding='utf-8') as fh:
-            json.dump(m, fh, ensure_ascii=False)
+            json.dump(marker, fh, ensure_ascii=False)
     except Exception:  # noqa: BLE001
         pass
 
@@ -314,17 +330,28 @@ def heartbeat() -> None:
     if not _CUR_SEG:
         return
     try:
-        pull_latest()
+        # 2026-11-17：与 _touch_marker 同因。原来先 pull_latest()，一旦远端的段标记
+        # 是空的（自己上一次写回丢了），pull 会把本地的段标记一起冲掉，这里就判成
+        # 「段标记已不是本段」直接跳过心跳 → 45 分钟后被判死段接管，整段时间表空转。
+        # 改成只看本地归属：空标记视为自己的写回丢了，直接续写并推送（顺手把远端修好）。
         m = _read_json(MARKER)
-        if (m.get('seg') or '') != _CUR_SEG or (m.get('date') or '') != _CUR_DATE:
-            log(f'心跳跳过：段标记已不是本段（{m.get("seg") or "空"}）')
+        _seg_now = (m.get('seg') or '')
+        if _seg_now and (_seg_now != _CUR_SEG or (m.get('date') or '') != _CUR_DATE):
+            log(f'心跳跳过：段标记已不是本段（{_seg_now}）')
             return
         _hb = bj_now().isoformat(timespec='seconds')
-        if (m.get('hb') or '')[:16] == _hb[:16]:
+        if _seg_now and (m.get('hb') or '')[:16] == _hb[:16]:
             return
-        m['hb'] = _hb
+        marker = {
+            'date': _CUR_DATE,
+            'seg': _CUR_SEG,
+            'started': m.get('started') or _hb,
+            'seg_end': m.get('seg_end') or _CUR_END,
+            'hb': _hb,
+        }
+        os.makedirs(DATA_DIR, exist_ok=True)
         with open(MARKER, 'w', encoding='utf-8') as fh:
-            json.dump(m, fh, ensure_ascii=False)
+            json.dump(marker, fh, ensure_ascii=False)
         git('add', 'tools/data/sched_active.json')
         if git('diff', '--cached', '--quiet').returncode == 0:
             return
@@ -611,6 +638,8 @@ def run_slot(slot: str, hour: int | None = None, minute: int | None = None) -> N
         persist_state(slot)
     except Exception as exc:  # noqa: BLE001
         log(f'状态落盘失败（{slot}）: {exc}')
+    global _EXEC_N
+    _EXEC_N += 1
     log(f'<<< 完成槽位 {slot}，用时 {time.time() - t0:.1f}s')
 
 
@@ -660,11 +689,35 @@ def acquire_segment(bj: datetime.datetime, seg: str, seg_end: datetime.datetime)
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(MARKER, 'w', encoding='utf-8') as fh:
         json.dump(marker, fh, ensure_ascii=False)
-    global _CUR_SEG, _CUR_DATE
+    global _CUR_SEG, _CUR_DATE, _CUR_END
     _CUR_SEG, _CUR_DATE = seg, day
+    _CUR_END = seg_end.isoformat(timespec='seconds')
     persist_state('sched-active')
     log(f'已占用 {day} {seg} 段调度权（至 {seg_end:%H:%M}）')
     return True
+
+
+def _resign_segment(seg: str, seg_end: datetime.datetime) -> None:
+    """远端段标记是空的时候，重新宣示本段调度权。
+
+    2026-11-17：原先「远端 seg 为空」被当成「被别的 run 接管」直接让位退出。
+    实际最常见的成因是**自己**的写回丢了（autostash 冲突 / push 失败），
+    远端留下的就是空标记；把它读成「别人抢走了」等于自己去撞自己的影子，
+    一撞就让位、一让位就断链（11-16 18:10 preempted 就是这么来的）。
+    """
+    try:
+        day = bj_now().strftime('%Y-%m-%d')
+        hb = bj_now().isoformat(timespec='seconds')
+        marker = {'date': day, 'seg': seg, 'started': hb,
+                  'seg_end': seg_end.isoformat(timespec='seconds'), 'hb': hb}
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(MARKER, 'w', encoding='utf-8') as fh:
+            json.dump(marker, fh, ensure_ascii=False)
+        global _CUR_SEG, _CUR_DATE, _CUR_END
+        _CUR_SEG, _CUR_DATE, _CUR_END = seg, day, marker['seg_end']
+        persist_state('sched-active')
+    except Exception as exc:  # noqa: BLE001
+        log(f'重新宣示段权失败（不退出，继续跑）：{exc}')
 
 
 def rolling_end(bj: datetime.datetime) -> datetime.datetime:
@@ -724,6 +777,12 @@ def release_segment() -> None:
     try:
         with open(MARKER, 'w', encoding='utf-8') as fh:
             json.dump({}, fh)
+        # 2026-11-17：必须同时把本段归属清掉。_touch_marker 现在会在「标记为空」
+        # 时把本段重新写回去（防自己的写回丢失导致自杀），如果这里不清归属，
+        # 紧接着 finish() → persist_state → _touch_marker 会把刚清空的标记又写成
+        # 本段，等于没释放，下一棒要等 seg_end+10 分钟才敢接管。
+        global _CUR_SEG, _CUR_DATE, _CUR_END
+        _CUR_SEG, _CUR_DATE, _CUR_END = '', '', ''
     except Exception as exc:  # noqa: BLE001
         log(f'释放调度权失败: {exc}')
 
@@ -869,6 +928,21 @@ def report_gaps() -> None:
         log(f'缺口统计失败: {exc}')
 
 
+def _write_exit_info(tag: str) -> None:
+    """把退出原因 + 本次落地槽数落成文件，供 workflow 的接力 step 判定。
+
+    云端 job 日志拿不到（匿名下载 403），只能靠仓库内文件传递这一棒的价值：
+    「跑满 600 秒」不该是唯一接力理由 —— 一棒只跑 279 秒但已经推了一张卡，
+    断在这里照样会让后面几个小时全空（11-16 20:05 notice 就是这么丢的）。
+    """
+    try:
+        with open(os.path.join(DATA_DIR, 'sched_exit.txt'), 'w', encoding='utf-8') as fh:
+            fh.write('%s|executed=%d|%s\n' % (tag, _EXEC_N,
+                                              bj_now().isoformat(timespec='seconds')))
+    except Exception:  # noqa: BLE001  这条写不出来不该影响退出
+        pass
+
+
 def finish(tag: str) -> int:
     """退出前把日志与状态写回仓库，保证云端每次都留下可追溯痕迹。
 
@@ -877,6 +951,7 @@ def finish(tag: str) -> int:
     （idle 是"接下来窗口里没槽"，一天最多几次，不会把历史刷脏）；weekend-busy 让位不写。
     """
     log(f'退出原因：{tag}')
+    _write_exit_info(tag)
     report_gaps()
     if tag == 'preempted':
         # 让位者的本地 marker 可能是过期的旧段：再推一次就会把接管者覆盖掉。
@@ -937,9 +1012,13 @@ def main() -> int:
                 try:
                     pull_latest()
                     m_now = _read_json(MARKER)
-                    if (m_now.get('seg') or '') != seg:
-                        log(f'段标记已切到 {m_now.get("seg") or "空"}，本 run 让位退出')
+                    _seg_now = (m_now.get('seg') or '')
+                    if _seg_now and _seg_now != seg:
+                        log(f'段标记已切到 {_seg_now}，本 run 让位退出')
                         return finish('preempted')
+                    if not _seg_now:
+                        log('远端段标记为空（自己的写回丢了，不是被接管），重新宣示本段权后继续')
+                        _resign_segment(seg, end)
                 except Exception as _e:  # noqa: BLE001
                     log(f'段标记复查异常（不影响继续）：{_e}')
                 # 守候期空转心跳：证明自己活着，避免被 SEG_HB_STALE 判死
@@ -997,9 +1076,13 @@ def main() -> int:
             try:
                 pull_latest()
                 m_now = _read_json(MARKER)
-                if (m_now.get('seg') or '') != seg_name:
-                    log(f'段标记已切到 {m_now.get("seg") or "空"}，本 run 让位退出')
+                _seg_now = (m_now.get('seg') or '')
+                if _seg_now and _seg_now != seg_name:
+                    log(f'段标记已切到 {_seg_now}，本 run 让位退出')
                     return finish('preempted')
+                if not _seg_now:
+                    log('远端段标记为空（自己的写回丢了，不是被接管），重新宣示本段权后继续')
+                    _resign_segment(seg_name, end)
             except Exception as _e:  # noqa: BLE001
                 log(f'段标记复查异常（不影响继续）：{_e}')
             # 空转期心跳：段里长时间没有槽要跑时也要证明自己活着（v9）
@@ -1028,4 +1111,13 @@ def main() -> int:
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception as _crash:  # noqa: BLE001
+        # 2026-11-17：异常崩掉时也要留下退出信息文件，否则 workflow 的接力 step
+        # 读不到 tools/data/sched_exit.txt，会把一次崩溃当成「零槽落地」跳过接力，
+        # 后面几个小时无人接手 —— 与 11-16 那条断链是同一个后果。
+        log(f'调度器异常退出：{_crash}')
+        _write_exit_info('crash')
+        _flush_log()
+        sys.exit(1)

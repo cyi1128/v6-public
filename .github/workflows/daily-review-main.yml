@@ -20,10 +20,10 @@ on:
         required: false
         type: string
       slot:
-        description: '强制时段（演示/手动）：pre/auction/tail/hourly/noon/eod/watch/warn/ext/darkline/news/news2h/evening/follow/deep6/zscan/radar/newsfire/risk/cycle/pulse，留空=按当前时刻；填 scheduler=手动启动云端自驱调度器（覆盖整段）'
+        description: '强制时段（演示/手动）：pre/auction/tail/hourly/noon/eod/watch/warn/ext/darkline/news/news2h/evening/notice/follow/deep6/zscan/radar/newsfire/risk/cycle/pulse，留空=按当前时刻；填 scheduler=手动启动云端自驱调度器（覆盖整段）'
         required: false
         type: choice
-        options: ['scheduler', 'pre', 'auction', 'tail', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'darkline', 'news', 'news2h', 'evening', 'follow', 'deep6', 'zscan', 'radar', 'newsfire', 'risk', 'cycle', 'pulse', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3', 'demo-4', 'demo-5', 'demo-6']
+        options: ['scheduler', 'pre', 'auction', 'tail', 'hourly', 'noon', 'eod', 'watch', 'warn', 'ext', 'darkline', 'news', 'news2h', 'evening', 'notice', 'follow', 'deep6', 'zscan', 'radar', 'newsfire', 'risk', 'cycle', 'pulse', 'demo-all', 'demo-0', 'demo-1', 'demo-2', 'demo-3', 'demo-4', 'demo-5', 'demo-6']
   schedule:
     # —— 2026-11-07 全天候改造：判槽从"run 启动时刻"改为"北京时间 + 欠槽补跑"——
     # 原 6 条分散 cron 的实测问题：
@@ -296,10 +296,20 @@ jobs:
           # 11-16 平台只给了北京 03:28 一次命中，就是被这条挡住后早盘整段丢失。
           # 秒退保护（本次跑不够 600s 不接力）仍然保留，避免空转 run 连环刷额度。
           echo "RELAY_CHECK UTC_H=$H BJ_H=$BJ_H drive_sec=${DRIVE_SEC}"
+          # 2026-11-17 修复：门槛从「跑满 600 秒」改成「跑满了 OR 这一棒真的落地过槽位」。
+          # 11-16 18:05 那一棒只跑 279s，被这里挡回；可它已经真推了 18:00 news2h、
+          # 还占着至 23:05 的段，挡回后 18:10 自己让位、后面没有任何一棒接手，
+          # 平台直到 23:23 才给下一次 cron，20:05 公告利好晚报整段漏推，只能人工补。
+          # 现在读调度器写的 tools/data/sched_exit.txt（"退出原因|executed=N|时间"）：
+          # 只有「不足 600s 且一个槽都没落地」的纯空转 run 才跳过，防无限自派发。
+          INFO=$(cat tools/data/sched_exit.txt 2>/dev/null || echo '')
+          EXEC_N=$(printf '%s' "$INFO" | tr '|' '\n' | sed -n 's/^executed=//p' | head -1)
+          case "$EXEC_N" in ''|*[!0-9]*) EXEC_N=0 ;; esac
+          echo "RELAY_INFO=${INFO:-无} EXEC_N=$EXEC_N"
           # v80-E15/16：DRIVE_SEC 为空说明 drive step 异常退出（被 timeout 杀 / 非零码），
           # 这种时候比正常跑满更需要下一棒，绝不能当 0 跳过。
-          if [ -n "${DRIVE_SEC}" ] && [ "${DRIVE_SEC}" -lt 600 ]; then
-            echo "RELAY_SKIP 本次只跑了 ${DRIVE_SEC}s（<600s），不接力"
+          if [ -n "${DRIVE_SEC}" ] && [ "${DRIVE_SEC}" -lt 600 ] && [ "$EXEC_N" -eq 0 ]; then
+            echo "RELAY_SKIP 本次只跑了 ${DRIVE_SEC}s 且零槽落地（${INFO:-无退出信息}），不接力"
             exit 0
           fi
           CODE=$(curl -sS -o /tmp/relay_body.txt -w '%{http_code}' \
