@@ -557,7 +557,7 @@
   "name": "尚水智能",
   "close": 65.02,
   "pct": 14.21,
-  "next_open_pct": null
+  "next_open_pct": -4.613964933866487
  },
  {
   "date": "2026-11-16",
@@ -565,7 +565,7 @@
   "name": "安培龙",
   "close": 83.2,
   "pct": 9.73,
-  "next_open_pct": null
+  "next_open_pct": -2.0793269230769296
  },
  {
   "date": "2026-11-16",
@@ -573,7 +573,7 @@
   "name": "节能铁汉",
   "close": 1.94,
   "pct": 10.86,
-  "next_open_pct": null
+  "next_open_pct": -2.577319587628868
  },
  {
   "date": "2026-11-16",
@@ -581,7 +581,7 @@
   "name": "大胜达",
   "close": 15.16,
   "pct": 8.67,
-  "next_open_pct": null
+  "next_open_pct": -3.298153034300788
  },
  {
   "date": "2026-11-16",
@@ -589,7 +589,7 @@
   "name": "ST豆神",
   "close": 4.12,
   "pct": 15.08,
-  "next_open_pct": null
+  "next_open_pct": -2.4271844660194275
  },
  {
   "date": "2026-11-16",
@@ -597,6 +597,6 @@
   "name": "通力科技",
   "close": 22.0,
   "pct": 8.91,
-  "next_open_pct": null
+  "next_open_pct": -5.227272727272725
  }
 ]
