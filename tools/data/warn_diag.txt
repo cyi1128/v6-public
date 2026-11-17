@@ -2673,3 +2673,11 @@
 03:39:24 [llm] OK purpose=newfire_dark len=236
 03:41:39 [llm] OK purpose=batch_deep len=1735
 03:46:36 [llm] OK purpose=event_dark len=653
+04:01:25 [反模板放行:news2h_good] 管住手
+04:01:25 [llm] OK purpose=news2h_good len=1262
+04:02:30 [llm] OK purpose=news2h_bad len=1326
+04:02:32 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-122B-A10B tag=http_429
+04:03:36 [llm] OK purpose=holiday_ds len=1261
+04:04:42 [llm] OK purpose=holiday_ds len=768
+04:06:02 [llm] OK purpose=news2h_ext len=942
+04:06:55 [llm] OK purpose=news2h len=208
