@@ -598,5 +598,53 @@
   "close": 22.0,
   "pct": 8.91,
   "next_open_pct": -5.227272727272725
+ },
+ {
+  "date": "2026-11-17",
+  "code": "300824",
+  "name": "北鼎股份",
+  "close": 9.98,
+  "pct": 16.05,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-17",
+  "code": "300721",
+  "name": "怡达股份",
+  "close": 17.58,
+  "pct": 15.51,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-17",
+  "code": "688244",
+  "name": "永信至诚",
+  "close": 16.18,
+  "pct": 14.02,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-17",
+  "code": "301421",
+  "name": "波长光电",
+  "close": 78.0,
+  "pct": 13.42,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-17",
+  "code": "301395",
+  "name": "仁信新材",
+  "close": 18.08,
+  "pct": 19.18,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-17",
+  "code": "688372",
+  "name": "伟测科技",
+  "close": 87.19,
+  "pct": 14.35,
+  "next_open_pct": null
  }
 ]
