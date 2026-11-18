@@ -2943,3 +2943,15 @@
 14:50:44 [llm] 两波并发均无返回 purpose=holiday_ds
 14:50:44 [ask_deepseek] 首轮无返回即止损 purpose=holiday_ds
 14:50:44 [ask_deepseek] ModelScope 两次尝试均失败，purpose=holiday_ds
+00:30:23 [llm] 未返回 purpose=sec_wind_dark model=Qwen/Qwen3.5-35B-A3B tag=http_429
+00:30:23 [llm] 未返回 purpose=sec_wind_dark model=Qwen/Qwen3.8-27B tag=http_429
+00:31:09 [llm] OK purpose=sec_wind_dark len=434
+00:32:04 [llm] OK purpose=pre_news_deep len=1357
+00:33:12 [llm] OK purpose=pre_news_deep len=1776
+00:34:25 [llm] OK purpose=pre_news_deep len=1379
+00:35:29 [llm] OK purpose=pre_news_deep len=1779
+00:37:00 [llm] OK purpose=focus_deep len=2041
+00:38:08 [llm] OK purpose=pre len=353
+00:39:29 [llm] OK purpose=pre_main_dark len=1077
+00:41:00 [llm] OK purpose=focus_deep len=1675
+00:43:24 [llm] OK purpose=event_dark len=801
