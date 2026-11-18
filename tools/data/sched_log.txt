@@ -1281,3 +1281,10 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-18 10:20:35 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-18 10:23:56     pulse| [pulse] 板块榜第1次失败: URLError(TimeoutError('_ssl.c:994: The handshake operation timed out'))
 11-18 10:23:56     pulse| SLOT pulse PUSH True 执行成功
+11-18 10:23:57 持久化(pulse)：已推送
+11-18 10:23:57 <<< 完成槽位 pulse，用时 201.8s
+11-18 10:24:44 心跳已刷新至 2026-11-18T10:24:42+08:00
+11-18 10:30:14 >>> 执行槽位 newsfire @ 10:30:14
+11-18 10:30:14 >>> 计划槽时刻 1030（去重键按此生成，防补跑重复推）
+11-18 10:30:14 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
+11-18 10:37:42     newsfire| SLOT newsfire PUSH True 执行成功
