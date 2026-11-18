@@ -3052,3 +3052,9 @@
 07:20:36 [llm] OK purpose=event_dark len=623
 07:27:05 [llm] OK purpose=cycle len=2295
 07:36:25 [llm] OK purpose=event_dark len=715
+08:01:38 [llm] OK purpose=news2h_good len=1346
+08:02:54 [llm] OK purpose=news2h_bad len=568
+08:04:04 [llm] OK purpose=holiday_ds len=1630
+08:05:30 [llm] OK purpose=holiday_ds len=456
+08:06:50 [llm] OK purpose=news2h_ext len=835
+08:07:44 [llm] OK purpose=news2h len=183
