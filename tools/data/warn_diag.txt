@@ -2980,3 +2980,6 @@
 01:27:00 [llm] 两波并发均无返回 purpose=auction
 01:27:00 [ask_deepseek] 首轮无返回即止损 purpose=auction
 01:27:00 [ask_deepseek] ModelScope 两次尝试均失败，purpose=auction
+01:32:35 [llm] OK purpose=board_deep len=1861
+01:33:38 [llm] OK purpose=board_why len=309
+01:35:08 [llm] OK purpose=board len=138
