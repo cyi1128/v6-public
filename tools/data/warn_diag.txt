@@ -3058,3 +3058,5 @@
 08:05:30 [llm] OK purpose=holiday_ds len=456
 08:06:50 [llm] OK purpose=news2h_ext len=835
 08:07:44 [llm] OK purpose=news2h len=183
+08:28:58 [llm] 输出截断 purpose=darkline len=12960
+08:28:59 [llm] OK purpose=darkline len=12960
