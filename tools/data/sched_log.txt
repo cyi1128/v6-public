@@ -1274,3 +1274,10 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-18 10:15:14 >>> 预算：LLM 600s / 单模型 120s / 子进程上限 750s
 11-18 10:20:34     watch| SLOT watch PUSH True 执行成功; 执行成功; 执行成功; 执行成功
 11-18 10:20:34     watch| [radar] 今日雷达扫描已推过，跳过
+11-18 10:20:35 持久化(watch)：已推送
+11-18 10:20:35 <<< 完成槽位 watch，用时 321.8s
+11-18 10:20:35 >>> 执行槽位 pulse @ 10:20:35
+11-18 10:20:35 >>> 计划槽时刻 1020（去重键按此生成，防补跑重复推）
+11-18 10:20:35 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
+11-18 10:23:56     pulse| [pulse] 板块榜第1次失败: URLError(TimeoutError('_ssl.c:994: The handshake operation timed out'))
+11-18 10:23:56     pulse| SLOT pulse PUSH True 执行成功
