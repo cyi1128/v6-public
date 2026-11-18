@@ -3039,3 +3039,13 @@
 06:54:06 [llm] OK purpose=news2h len=241
 06:58:42 [llm] OK purpose=tail len=1292
 06:59:49 [llm] OK purpose=tail len=730
+07:06:02 [反模板放行:sec2_deep] 管住手
+07:06:03 [llm] OK purpose=sec2_deep len=2002
+07:07:53 [llm] OK purpose=theme_health_card len=522
+07:08:59 [llm] OK purpose=signal_review len=263
+07:10:30 [llm] OK purpose=eod_review_ds len=1316
+07:11:32 [llm] OK purpose=eod len=855
+07:12:33 [llm] OK purpose=miss_deep len=334
+07:13:22 [llm] OK purpose=resonance_verdict len=218
+07:14:12 [llm] OK purpose=event_dark len=167
+07:15:01 [llm] OK purpose=health_dark len=204
