@@ -1454,3 +1454,9 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-18 14:46:06     watch| [intra] 指纹变化 lu=41→40 新进0只 可上车0只 → PUSH True 执行成功
 11-18 14:46:06     watch| SLOT watch PUSH True 执行成功
 11-18 14:46:06     watch| [radar] 今日雷达扫描已推过，跳过
+11-18 14:46:07 持久化(watch)：已推送
+11-18 14:46:07 <<< 完成槽位 watch，用时 67.4s
+11-18 14:46:07 本段剩余时间内已无待跑槽位，提前让位退出
+11-18 14:46:07 滚动段调度结束（14:46），退出
+11-18 14:46:07 退出原因：roll-end
+11-18 14:46:07 今日已过窗未推 3 个槽：10:35risk、10:00news2h、13:35risk
