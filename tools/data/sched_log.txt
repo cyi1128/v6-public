@@ -1217,3 +1217,11 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-18 08:30:10 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-18 08:45:52     pre| [pre] 主线评分异常: JSONDecodeError('Expecting value: line 1 column 1 (char 0)')
 11-18 08:45:52     pre| SLOT pre PUSH True 执行成功; 执行成功
+11-18 08:45:54 持久化(pre)：已推送
+11-18 08:45:54 <<< 完成槽位 pre，用时 944.0s
+11-18 09:01:56 心跳已刷新至 2026-11-18T09:01:55+08:00
+11-18 09:12:11 >>> 执行槽位 warn @ 09:12:11
+11-18 09:12:11 >>> 计划槽时刻 0912（去重键按此生成，防补跑重复推）
+11-18 09:12:11 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
+11-18 09:17:16     warn| [LLM_OUT:warn_news_ds] {   "fire": [     {       "sector": "综合市场情绪研判",       "grade": "政策级/产业级混合",       "vanguard": "无明确龙头",       "mid": "无明确中军",       "tail": "无明确跟风",
+11-18 09:17:16     warn| SLOT warn PUSH True 执行成功
