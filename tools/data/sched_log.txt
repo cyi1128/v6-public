@@ -1225,3 +1225,9 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-18 09:12:11 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-18 09:17:16     warn| [LLM_OUT:warn_news_ds] {   "fire": [     {       "sector": "综合市场情绪研判",       "grade": "政策级/产业级混合",       "vanguard": "无明确龙头",       "mid": "无明确中军",       "tail": "无明确跟风",
 11-18 09:17:16     warn| SLOT warn PUSH True 执行成功
+11-18 09:17:17 持久化(warn)：已推送
+11-18 09:17:17 <<< 完成槽位 warn，用时 305.4s
+11-18 09:25:02 >>> 执行槽位 auction @ 09:25:02
+11-18 09:25:02 >>> 计划槽时刻 0925（去重键按此生成，防补跑重复推）
+11-18 09:25:02 >>> 预算：LLM 150s / 单模型 40s / 子进程上限 240s
+11-18 09:27:09     auction| SLOT auction PUSH True 执行成功
