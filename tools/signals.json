@@ -646,5 +646,53 @@
   "close": 87.19,
   "pct": 14.35,
   "next_open_pct": 3.4522307604083036
+ },
+ {
+  "date": "2026-11-18",
+  "code": "688276",
+  "name": "百克生物",
+  "close": 17.15,
+  "pct": 14.64,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-18",
+  "code": "301288",
+  "name": "清研环境",
+  "close": 22.83,
+  "pct": 13.36,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-18",
+  "code": "301259",
+  "name": "艾布鲁",
+  "close": 16.95,
+  "pct": 14.45,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-18",
+  "code": "300571",
+  "name": "平治信息",
+  "close": 25.9,
+  "pct": 13.95,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-18",
+  "code": "301077",
+  "name": "星华新材",
+  "close": 24.0,
+  "pct": 16.05,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-18",
+  "code": "301209",
+  "name": "联合化学",
+  "close": 60.01,
+  "pct": 13.31,
+  "next_open_pct": null
  }
 ]
