@@ -2995,3 +2995,7 @@
 02:06:10 [反模板放行:news2h_ext] 半山腰
 02:06:10 [llm] OK purpose=news2h_ext len=1000
 02:07:46 [llm] OK purpose=news2h len=212
+02:17:09 [反模板放行:board_deep] 半山腰
+02:17:10 [llm] OK purpose=board_deep len=2129
+02:18:13 [llm] OK purpose=board_why len=262
+02:19:33 [llm] OK purpose=board len=128
