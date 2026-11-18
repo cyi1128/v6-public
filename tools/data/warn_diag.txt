@@ -3029,3 +3029,11 @@
 06:08:18 [llm] OK purpose=news2h_ext len=1064
 06:09:28 [llm] OK purpose=news2h len=213
 06:31:16 [llm] OK purpose=preclose len=150
+06:48:13 [llm] OK purpose=news2h_good len=1020
+06:48:59 [llm] OK purpose=news2h_bad len=1592
+06:50:14 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-122B-A10B tag=http_502
+06:50:29 [llm] OK purpose=holiday_ds len=1709
+06:51:15 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-35B-A3B tag=http_502
+06:51:40 [llm] OK purpose=holiday_ds len=1024
+06:53:02 [llm] OK purpose=news2h_ext len=761
+06:54:06 [llm] OK purpose=news2h len=241
