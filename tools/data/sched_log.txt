@@ -1388,3 +1388,9 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-18 13:31:37     watch| [intra] 指纹变化 lu=31→45 新进14只 可上车0只 → PUSH True 执行成功
 11-18 13:31:37     watch| SLOT watch PUSH True 执行成功
 11-18 13:31:37     watch| [radar] 今日雷达扫描已推过，跳过
+11-18 13:31:39 持久化(watch)：已推送
+11-18 13:31:39 <<< 完成槽位 watch，用时 85.5s
+11-18 13:35:09 >>> 执行槽位 risk @ 13:35:09
+11-18 13:35:09 >>> 计划槽时刻 1335（去重键按此生成，防补跑重复推）
+11-18 13:35:09 >>> 预算：LLM 1200s / 单模型 300s / 子进程上限 1500s
+11-18 13:35:16     risk| SLOT risk 构建返回 None，不推送
