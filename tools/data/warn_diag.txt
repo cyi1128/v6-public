@@ -3513,3 +3513,35 @@
 12:00:16 [llm] 两波并发均无返回 purpose=news2h
 12:00:16 [ask_deepseek] 首轮无返回即止损 purpose=news2h
 12:00:16 [ask_deepseek] ModelScope 两次尝试均失败，purpose=news2h
+12:06:20 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.5-35B-A3B tag=http_429
+12:06:20 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.8-27B tag=http_429
+12:06:20 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.5-122B-A10B tag=http_429
+12:06:21 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.8-Flash-Next tag=http_429
+12:06:21 [llm] 未返回 purpose=news2h_good model=ZhipuAI/GLM-4.7-Flash tag=http_429
+12:06:21 [llm] 两波并发均无返回 purpose=news2h_good
+12:06:21 [ask_deepseek] 首轮无返回即止损 purpose=news2h_good
+12:06:21 [ask_deepseek] ModelScope 两次尝试均失败，purpose=news2h_good
+12:06:23 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.8-27B tag=http_429
+12:06:23 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-35B-A3B tag=http_429
+12:06:23 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-122B-A10B tag=http_429
+12:06:24 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.8-Flash-Next tag=http_429
+12:06:24 [llm] 未返回 purpose=holiday_ds model=ZhipuAI/GLM-4.7-Flash tag=http_429
+12:06:24 [llm] 两波并发均无返回 purpose=holiday_ds
+12:06:24 [ask_deepseek] 首轮无返回即止损 purpose=holiday_ds
+12:06:24 [ask_deepseek] ModelScope 两次尝试均失败，purpose=holiday_ds
+12:06:26 [llm] 未返回 purpose=news2h_ext model=Qwen/Qwen3.5-122B-A10B tag=http_429
+12:06:26 [llm] 未返回 purpose=news2h_ext model=Qwen/Qwen3.8-27B tag=http_429
+12:06:26 [llm] 未返回 purpose=news2h_ext model=Qwen/Qwen3.5-35B-A3B tag=http_429
+12:06:27 [llm] 未返回 purpose=news2h_ext model=ZhipuAI/GLM-4.7-Flash tag=http_429
+12:06:27 [llm] 未返回 purpose=news2h_ext model=Qwen/Qwen3.8-Flash-Next tag=http_429
+12:06:27 [llm] 两波并发均无返回 purpose=news2h_ext
+12:06:27 [ask_deepseek] 首轮无返回即止损 purpose=news2h_ext
+12:06:27 [ask_deepseek] ModelScope 两次尝试均失败，purpose=news2h_ext
+12:06:32 [llm] 未返回 purpose=news2h model=Qwen/Qwen3.5-35B-A3B tag=http_429
+12:06:32 [llm] 未返回 purpose=news2h model=Qwen/Qwen3.5-122B-A10B tag=http_429
+12:06:32 [llm] 未返回 purpose=news2h model=Qwen/Qwen3.8-27B tag=http_429
+12:06:34 [llm] 未返回 purpose=news2h model=ZhipuAI/GLM-4.7-Flash tag=http_429
+12:06:34 [llm] 未返回 purpose=news2h model=Qwen/Qwen3.8-Flash-Next tag=http_429
+12:06:34 [llm] 两波并发均无返回 purpose=news2h
+12:06:34 [ask_deepseek] 首轮无返回即止损 purpose=news2h
+12:06:34 [ask_deepseek] ModelScope 两次尝试均失败，purpose=news2h
