@@ -3326,3 +3326,7 @@
 04:06:54 [llm] OK purpose=news2h_ext len=872
 04:08:09 [llm] OK purpose=news2h len=232
 05:07:37 [llm] OK purpose=pm_relay len=114
+05:18:11 [llm] OK purpose=board_deep len=1984
+05:18:56 [llm] OK purpose=board_deep_fill len=302
+05:19:52 [llm] OK purpose=board_why len=451
+05:21:51 [llm] OK purpose=board len=127
