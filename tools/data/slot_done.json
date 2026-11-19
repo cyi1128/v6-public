@@ -311,5 +311,6 @@
  "pre|2026-11-19": true,
  "warn|2026-11-19": true,
  "auction|2026-11-19": true,
- "open|2026-11-19": true
+ "open|2026-11-19": true,
+ "hourly|2026-11-19|10": true
 }
