@@ -3351,3 +3351,26 @@
 06:54:59 [llm] OK purpose=news2h len=203
 07:01:34 [llm] OK purpose=tail len=1226
 07:02:44 [llm] OK purpose=tail len=1283
+07:12:04 [llm] OK purpose=sec2_deep len=1844
+07:16:31 [llm] OK purpose=theme_health_card len=667
+07:17:33 [llm] OK purpose=signal_review len=280
+07:19:09 [llm] OK purpose=eod_review_ds len=496
+07:20:35 [llm] OK purpose=eod len=1032
+07:22:50 [llm] OK purpose=miss_deep len=414
+07:24:06 [llm] OK purpose=resonance_verdict len=199
+07:24:10 [llm] 未返回 purpose=event_dark model=Qwen/Qwen3.8-27B tag=http_429
+07:24:10 [llm] 未返回 purpose=event_dark model=Qwen/Qwen3.5-35B-A3B tag=http_429
+07:24:10 [llm] 未返回 purpose=event_dark model=Qwen/Qwen3.5-122B-A10B tag=http_429
+07:24:11 [llm] 未返回 purpose=event_dark model=Qwen/Qwen3.8-Flash-Next tag=http_429
+07:24:11 [llm] 未返回 purpose=event_dark model=ZhipuAI/GLM-4.7-Flash tag=http_429
+07:24:11 [llm] 两波并发均无返回 purpose=event_dark
+07:24:11 [ask_deepseek] 首轮无返回即止损 purpose=event_dark
+07:24:11 [ask_deepseek] ModelScope 两次尝试均失败，purpose=event_dark
+07:24:54 [llm] 未返回 purpose=health_dark model=Qwen/Qwen3.8-27B tag=http_429
+07:24:54 [llm] 未返回 purpose=health_dark model=Qwen/Qwen3.5-122B-A10B tag=http_429
+07:24:54 [llm] 未返回 purpose=health_dark model=Qwen/Qwen3.5-35B-A3B tag=http_429
+07:24:56 [llm] 未返回 purpose=health_dark model=ZhipuAI/GLM-4.7-Flash tag=http_429
+07:24:56 [llm] 未返回 purpose=health_dark model=Qwen/Qwen3.8-Flash-Next tag=http_429
+07:24:56 [llm] 两波并发均无返回 purpose=health_dark
+07:24:56 [ask_deepseek] 首轮无返回即止损 purpose=health_dark
+07:24:56 [ask_deepseek] ModelScope 两次尝试均失败，purpose=health_dark
