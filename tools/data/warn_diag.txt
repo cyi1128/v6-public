@@ -3344,3 +3344,8 @@
 06:12:09 [llm] OK purpose=news2h len=146
 06:17:42 [llm] OK purpose=link_confirm len=92
 06:31:34 [llm] OK purpose=preclose len=148
+06:49:44 [llm] OK purpose=news2h_good len=1483
+06:50:55 [llm] OK purpose=holiday_ds len=1367
+06:52:23 [llm] OK purpose=news2h_ext len=772
+06:53:49 [llm] OK purpose=news2h_ext_retry len=1219
+06:54:59 [llm] OK purpose=news2h len=203
