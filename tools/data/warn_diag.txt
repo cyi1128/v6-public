@@ -3293,3 +3293,9 @@
 01:40:03 [llm] OK purpose=board len=84
 01:42:30 [llm] OK purpose=open_check len=176
 01:47:15 [llm] OK purpose=link_confirm len=123
+02:01:15 [llm] OK purpose=news2h_good len=1227
+02:02:56 [llm] OK purpose=news2h_bad len=591
+02:04:25 [llm] OK purpose=holiday_ds len=1625
+02:05:07 [llm] OK purpose=holiday_ds len=211
+02:06:44 [llm] OK purpose=news2h_ext len=973
+02:07:53 [llm] OK purpose=news2h len=190
