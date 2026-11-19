@@ -3334,3 +3334,11 @@
 05:36:10 [llm] OK purpose=risk_card len=364
 05:44:15 [llm] OK purpose=follow len=879
 06:03:18 [llm] OK purpose=link_confirm len=112
+06:04:57 [llm] 未返回 purpose=news2h_good model=Qwen/Qwen3.8-27B tag=http_502
+06:06:06 [llm] OK purpose=news2h_good len=1029
+06:07:32 [llm] OK purpose=news2h_good_retry len=1278
+06:08:48 [llm] OK purpose=news2h_bad len=695
+06:10:03 [llm] OK purpose=holiday_ds len=1406
+06:10:19 [llm] OK purpose=holiday_ds len=377
+06:11:08 [llm] OK purpose=news2h_ext len=1314
+06:12:09 [llm] OK purpose=news2h len=146
