@@ -3258,3 +3258,13 @@
 14:50:35 [llm] 两波并发均无返回 purpose=holiday_ds
 14:50:35 [ask_deepseek] 首轮无返回即止损 purpose=holiday_ds
 14:50:35 [ask_deepseek] ModelScope 两次尝试均失败，purpose=holiday_ds
+00:31:12 [llm] OK purpose=sec_wind_dark len=383
+00:32:17 [llm] OK purpose=pre_news_deep len=1871
+00:33:12 [llm] OK purpose=pre_news_deep len=1803
+00:34:19 [llm] OK purpose=pre_news_deep len=1797
+00:35:38 [llm] OK purpose=pre_news_deep len=1841
+00:37:13 [llm] OK purpose=focus_deep len=2004
+00:38:27 [llm] OK purpose=pre len=314
+00:39:49 [llm] OK purpose=pre_main_dark len=1362
+00:41:50 [llm] OK purpose=focus_deep len=1247
+00:43:31 [llm] OK purpose=event_dark len=713
