@@ -1678,3 +1678,8 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-19 09:25:13 >>> 预算：LLM 150s / 单模型 40s / 子进程上限 240s
 11-19 09:27:44     auction| [auction] 持仓深挖超时/失败，只印数据: TimeoutError()
 11-19 09:27:44     auction| SLOT auction PUSH True 执行成功
+11-19 09:27:46 持久化(auction)：已推送
+11-19 09:27:46 <<< 完成槽位 auction，用时 152.5s
+11-19 09:30:01 滚动段调度结束（09:30），退出
+11-19 09:30:01 退出原因：roll-end
+11-19 09:30:01 已过窗槽位全部已落地（无漏推）；还没到点的 34 个：09:35open、10:00hourly、10:20pulse、10:30newsfire、10:35risk、11:00hourly、11:30noon、11:40news
