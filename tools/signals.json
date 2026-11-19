@@ -653,7 +653,7 @@
   "name": "百克生物",
   "close": 17.15,
   "pct": 14.64,
-  "next_open_pct": null
+  "next_open_pct": -2.9154518950437303
  },
  {
   "date": "2026-11-18",
@@ -661,7 +661,7 @@
   "name": "清研环境",
   "close": 22.83,
   "pct": 13.36,
-  "next_open_pct": null
+  "next_open_pct": -9.767849321068756
  },
  {
   "date": "2026-11-18",
@@ -669,7 +669,7 @@
   "name": "艾布鲁",
   "close": 16.95,
   "pct": 14.45,
-  "next_open_pct": null
+  "next_open_pct": -2.0648967551622266
  },
  {
   "date": "2026-11-18",
@@ -677,7 +677,7 @@
   "name": "平治信息",
   "close": 25.9,
   "pct": 13.95,
-  "next_open_pct": null
+  "next_open_pct": -1.4671814671814665
  },
  {
   "date": "2026-11-18",
@@ -685,7 +685,7 @@
   "name": "星华新材",
   "close": 24.0,
   "pct": 16.05,
-  "next_open_pct": null
+  "next_open_pct": -9.166666666666668
  },
  {
   "date": "2026-11-18",
@@ -693,6 +693,6 @@
   "name": "联合化学",
   "close": 60.01,
   "pct": 13.31,
-  "next_open_pct": null
+  "next_open_pct": 1.8163639393434572
  }
 ]
