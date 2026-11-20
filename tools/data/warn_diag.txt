@@ -3705,3 +3705,8 @@
 03:39:39 [反模板放行:batch_deep] 没有安全垫/管住手
 03:39:40 [llm] OK purpose=batch_deep len=2030
 03:42:28 [llm] OK purpose=event_dark len=636
+04:01:34 [llm] OK purpose=news2h_good len=1351
+04:02:41 [llm] OK purpose=news2h_bad len=331
+04:03:47 [llm] OK purpose=holiday_ds len=1575
+04:05:03 [llm] OK purpose=news2h_ext len=897
+04:06:08 [llm] OK purpose=news2h len=166
