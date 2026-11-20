@@ -3690,3 +3690,7 @@
 02:31:45 [llm] OK purpose=warn_news_ds len=2220
 02:37:05 [llm] OK purpose=risk_card len=396
 02:40:31 [llm] OK purpose=follow len=1013
+02:47:28 [llm] OK purpose=board_deep len=1942
+02:47:49 [llm] OK purpose=board_deep_fill len=419
+02:49:20 [llm] OK purpose=board_why len=487
+02:50:41 [llm] OK purpose=board len=142
