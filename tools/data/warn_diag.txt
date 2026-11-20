@@ -3704,3 +3704,4 @@
 03:38:33 [llm] OK purpose=newfire_dark len=184
 03:39:39 [反模板放行:batch_deep] 没有安全垫/管住手
 03:39:40 [llm] OK purpose=batch_deep len=2030
+03:42:28 [llm] OK purpose=event_dark len=636
