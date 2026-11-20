@@ -364,5 +364,6 @@
  "pulse|2026-11-20|1350": true,
  "hourly|2026-11-20|14": true,
  "news2h|2026-11-20|1409": true,
- "preclose|2026-11-20": true
+ "preclose|2026-11-20": true,
+ "news2h|2026-11-20|1455": true
 }
