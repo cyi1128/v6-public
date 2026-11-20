@@ -3674,3 +3674,9 @@
 01:35:07 [llm] OK purpose=board_why len=284
 01:36:25 [llm] OK purpose=board len=110
 01:38:57 [llm] OK purpose=open_check len=184
+01:47:31 [llm] OK purpose=board_deep len=1875
+01:48:32 [llm] OK purpose=board_deep_fill len=392
+01:49:41 [llm] OK purpose=board_why len=397
+01:50:04 [llm] 未返回 purpose=board model=Qwen/Qwen3.5-122B-A10B tag=http_429
+01:51:31 [llm] OK purpose=board len=144
+01:53:32 [llm] OK purpose=radar_ds len=402
