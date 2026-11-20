@@ -701,7 +701,7 @@
   "name": "任子行",
   "close": 4.86,
   "pct": 9.95,
-  "next_open_pct": null
+  "next_open_pct": -4.73251028806585
  },
  {
   "date": "2026-11-19",
@@ -709,7 +709,7 @@
   "name": "卡莱特",
   "close": 55.98,
   "pct": 19.97,
-  "next_open_pct": null
+  "next_open_pct": -3.608431582708105
  },
  {
   "date": "2026-11-19",
@@ -717,7 +717,7 @@
   "name": "*ST美丽",
   "close": 1.03,
   "pct": 8.42,
-  "next_open_pct": null
+  "next_open_pct": -2.9126213592232997
  },
  {
   "date": "2026-11-19",
@@ -725,7 +725,7 @@
   "name": "晶合集成",
   "close": 29.98,
   "pct": 10.26,
-  "next_open_pct": null
+  "next_open_pct": -1.8012008005336866
  },
  {
   "date": "2026-11-19",
@@ -733,7 +733,7 @@
   "name": "荣盛发展",
   "close": 1.02,
   "pct": 9.68,
-  "next_open_pct": null
+  "next_open_pct": -1.9607843137254943
  },
  {
   "date": "2026-11-19",
@@ -741,6 +741,6 @@
   "name": "燕东微",
   "close": 37.51,
   "pct": 11.37,
-  "next_open_pct": null
+  "next_open_pct": -1.2796587576646146
  }
 ]
