@@ -352,5 +352,6 @@
  "pulse|2026-11-20|1020": true,
  "newsfire|2026-11-20": true,
  "risk|2026-11-20|1035": true,
- "follow|2026-11-20|1035": true
+ "follow|2026-11-20|1035": true,
+ "hourly|2026-11-20|11": true
 }
