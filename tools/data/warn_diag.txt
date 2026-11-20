@@ -3695,3 +3695,12 @@
 02:49:20 [llm] OK purpose=board_why len=487
 02:50:41 [llm] OK purpose=board len=142
 03:01:52 [llm] OK purpose=link_confirm len=127
+03:31:27 [llm] OK purpose=noon_extra_dark len=415
+03:32:20 [llm] OK purpose=mf_dark len=905
+03:33:25 [llm] OK purpose=noon_v4 len=261
+03:34:44 [llm] OK purpose=noon_dark len=522
+03:36:08 [llm] OK purpose=event_dark len=778
+03:37:22 [llm] OK purpose=health_dark len=196
+03:38:33 [llm] OK purpose=newfire_dark len=184
+03:39:39 [反模板放行:batch_deep] 没有安全垫/管住手
+03:39:40 [llm] OK purpose=batch_deep len=2030
