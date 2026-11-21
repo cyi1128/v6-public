@@ -506,8 +506,8 @@ RED, GREEN, GOLD, TEAL, GREY = '#c2504a', '#3e9863', '#b1852e', '#2f8fa1', '#6b7
 # ============ 小白友好版新增配置（可调） ============
 AUCTION_TOP_N = 10         # 竞价输出数量（v3：Top10，尾盘用）
 AUCTION_TOP_MAIN = 3      # 早盘竞价只出 Top3（用户指令：回到小白速判 TOP3 口径，因子加太多走势反而差）
-AUCTION_TOP_LIST = 10     # v80-E3（用户 2026-11-10「今日可关注增加10支股票变成TOP10」）：
-                          #   卡尾「今日可关注」名单从 3 只扩到 10 只，三只重点口径不动
+AUCTION_TOP_LIST = 5      # 2026-11-21 用户指令「今天可关注改成top5，只筛选五只」：
+                          #   卡尾「今日可关注」名单从 10 只收回到 5 只，三只重点口径不动
 TRACK_POOL_N = 6           # 收盘可跟踪池数量（可配置）
 FOCUS_N = 6                # 盘前重点个股数（可配置）
 
@@ -2598,7 +2598,7 @@ def _ms_one(model, msgs, purpose, timeout):
                        'temperature': 0.5,
                        # v7.9x31：6000 让免费队列一辈子里跑不完，45s 必然 timeout。
                        # v7.9x33：1600 会把正文截断（实测 len=3077 被切），放宽到 4000/5000
-                       'max_tokens': (5000 if purpose == 'zforce_radar' else (6000 if purpose == 'darkline' else 4000))}).encode('utf-8')
+                       'max_tokens': (5000 if purpose in ('zforce_radar', 'auction') else (6000 if purpose == 'darkline' else 4000))}).encode('utf-8')
     req = urllib.request.Request(MODELSCOPE_URL, data=body, headers={
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + MODELSCOPE_KEY,
@@ -3362,6 +3362,88 @@ def _clist_losers():
     return rows
 
 
+# ============ 2026-11-21 TOP5改造：竞价K线预取缓存（暗线缺失治本） ============
+# 根因（11-20 线上实测）：槽 09:25:11 起跑，过滤+打分逐只串行拉K线耗约 61s，
+# 轮到 _auction_ds 时只剩 38s，模型全超时 → ds_map 空 → 重点与可关注名单都没有暗线。
+# 历史K线在 09:25 前就已存在：先本地粗滤（零网络），再并发预取 130 根日K，
+# 过滤(2根/6根)、打分(130根)、共振预拉、近5日涨幅(40根)全部命中同一份缓存。
+# 评分口径、硬过滤规则、卡片结构零改动；缓存未命中一律回落 get_klines，行为与原实现一致。
+_AU_KL_CACHE = {}
+
+
+def _au_klines(sym, n):
+    """竞价链路K线读取：预取缓存命中直接切片，未命中回落 get_klines。"""
+    bars = _AU_KL_CACHE.get(sym)
+    if bars and len(bars) >= n:
+        return bars[-n:]
+    return get_klines(sym, n)
+
+
+def _auction_cheap_pass(s, today):
+    """本地粗滤（零网络）：板块/ST/次新/高开区间/换手区间，与 _auction_filter 同一口径。"""
+    code, name = s.get('code'), s.get('name')
+    if not code or not name:
+        return False
+    # 板块：仅沪深主板 + 创业板（688/689/8xx/4xx/920=科创/北交所 剔除）
+    if code.startswith(('688', '689', '8', '4', '920', '92')):
+        return False
+    if code.startswith('6'):
+        s['board'] = 'main'
+    elif code.startswith(('000', '001', '002', '003')):
+        s['board'] = 'main'
+    elif code.startswith(('300', '301')):
+        s['board'] = 'gem'
+    else:
+        return False
+    # ST / 退市
+    if 'ST' in name.upper() or '退' in name:
+        return False
+    # 次新：上市 < 365 天剔除
+    if s.get('list_date') and len(s['list_date']) == 8 and today:
+        try:
+            from datetime import date as _d
+            ld = _d(int(s['list_date'][:4]), int(s['list_date'][4:6]), int(s['list_date'][6:8]))
+            if (today - ld).days < 365:
+                return False
+        except Exception:
+            pass
+    # 高开幅度区间：主板 2%~7%，创业板 4%~14%
+    lo, hi = (2, 7) if s['board'] == 'main' else (4, 14)
+    if not (lo <= s['pct'] <= hi):
+        return False
+    # 换手率：主板 0.5%~15%，创业板 ≤30%
+    turn_max = 30.0 if s['board'] == 'gem' else 15.0
+    if not (0.5 <= s['turn'] <= turn_max):
+        return False
+    return True
+
+
+def _au_prefetch(rows, max_workers=12):
+    """并发预取粗滤后候选的 130 根日K（历史数据，09:25 前即可拉）。先清缓存防跨日串数据。"""
+    _AU_KL_CACHE.clear()
+    syms = []
+    for s in rows:
+        c = s.get('code') or ''
+        if c:
+            syms.append(('sh' if c.startswith('6') else 'sz') + c)
+    syms = list(dict.fromkeys(syms))
+    _t0 = time.time()
+
+    def _one(sym):
+        try:
+            arr = get_klines(sym, 130)
+            if arr:
+                _AU_KL_CACHE[sym] = arr
+        except Exception:
+            pass
+    try:
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            list(ex.map(_one, syms))
+    except Exception:
+        pass
+    print('[auction] K线预取 %d/%d 只 用时 %.1fs' % (len(_AU_KL_CACHE), len(syms), time.time() - _t0))
+
+
 def _auction_filter(rows, zt_lbc=None):
     """硬过滤：仅沪深主板+创业板；剔除ST/退市、次新(<365天)、高开/换手区间外、
     竞价量/昨量不足（主板<8%/创业<12%）、近5日累计涨幅>25%（连板龙头除外）。
@@ -3374,43 +3456,13 @@ def _auction_filter(rows, zt_lbc=None):
     except Exception:
         today = None
     for s in rows:
-        code, name = s['code'], s['name']
-        if not code or not name:
+        if not _auction_cheap_pass(s, today):
             continue
-        # 板块：仅沪深主板 + 创业板（688/689/8xx/4xx/920=科创/北交所 剔除）
-        if code.startswith(('688', '689', '8', '4', '920', '92')):
-            continue
-        if code.startswith('6'):
-            s['board'] = 'main'
-        elif code.startswith(('000', '001', '002', '003')):
-            s['board'] = 'main'
-        elif code.startswith(('300', '301')):
-            s['board'] = 'gem'
-        else:
-            continue
-        # ST / 退市
-        if 'ST' in name.upper() or '退' in name:
-            continue
-        # 次新：上市 < 365 天剔除
-        if s['list_date'] and len(s['list_date']) == 8 and today:
-            try:
-                ld = date(int(s['list_date'][:4]), int(s['list_date'][4:6]), int(s['list_date'][6:8]))
-                if (today - ld).days < 365:
-                    continue
-            except Exception:
-                pass
-        # 高开幅度区间：主板 2%~7%，创业板 4%~14%
-        lo, hi = (2, 7) if s['board'] == 'main' else (4, 14)
-        if not (lo <= s['pct'] <= hi):
-            continue
-        # 换手率：主板 0.5%~15%，创业板 ≤30%
-        turn_max = 30.0 if s['board'] == 'gem' else 15.0
-        if not (0.5 <= s['turn'] <= turn_max):
-            continue
+        code = s['code']
         sym = ('sh' if code.startswith('6') else 'sz') + code
         # 竞价量/昨量：主板≥8%，创业板≥12%（K线失败放行）
         try:
-            arr = get_klines(sym, 2)
+            arr = _au_klines(sym, 2)
             if len(arr) >= 2 and float(arr[-2][5]) > 0:
                 vq = (s['vol'] * 100) / float(arr[-2][5]) * 100
                 vq_min = 8.0 if s['board'] == 'main' else 12.0
@@ -3420,7 +3472,7 @@ def _auction_filter(rows, zt_lbc=None):
             pass
         # 近5日累计涨幅>25% 剔除（连板龙头除外：今日涨停池内且连板≥2）
         try:
-            arr = get_klines(sym, 6)
+            arr = _au_klines(sym, 6)
             if len(arr) >= 6 and float(arr[-6][2]) > 0:
                 chg5 = (float(arr[-1][2]) / float(arr[-6][2]) - 1) * 100
                 if chg5 > 25 and not (zt_lbc and zt_lbc.get(code, 0) >= 2):
@@ -4647,7 +4699,7 @@ def _calc_resonance(cands, heat, cnt, mem_days=None, is_tail=False):
             avg_vol5 = ref_vol = 0.0
             bars = []
             try:
-                arr = get_klines(sym, 130)
+                arr = _au_klines(sym, 130)
                 if arr:
                     today_s = _bj_now().strftime('%Y-%m-%d')
                     b = arr[:-1] if str(arr[-1][0]) == today_s else arr
@@ -4799,7 +4851,7 @@ def _auction_score_v3(s, heat, cnt, mem_days=None):
         pos60 = s.get('_pos60')
     else:
         try:
-            arr = get_klines(sym, 130)
+            arr = _au_klines(sym, 130)
             if arr:
                 today_s = _bj_now().strftime('%Y-%m-%d')
                 b = arr[:-1] if str(arr[-1][0]) == today_s else arr
@@ -5204,7 +5256,7 @@ def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, 
         return {}
     out = {}
     try:
-        j = json.loads(t[t.find('{'):t.rfind('}') + 1])
+        j = _json_loose(t)
         if isinstance(j, dict):
             out['overall'] = str(j.get('overall', '') or '')
             out['reson_reason'] = str(j.get('reson_reason', '') or '')
@@ -6962,6 +7014,15 @@ def build_auction(title='竞价观察'):
     for sec, sts in d['sectors'].items():
         for st in sts:
             zt_lbc[st.get('c')] = int(st.get('lbc') or 0)
+    # 2026-11-21 TOP5改造：先本地粗滤再并发预取K线，过滤/打分/共振全走缓存，
+    # 把取数段从约 61s 压到十几秒，给 _auction_ds 留足预算（暗线缺失治本）
+    try:
+        from datetime import date as _dt_date
+        _yy, _mm, _dd = map(int, _bj_now().strftime('%Y-%m-%d').split('-'))
+        _today = _dt_date(_yy, _mm, _dd)
+    except Exception:
+        _today = None
+    _au_prefetch([s for s in rows_all if _auction_cheap_pass(s, _today)])
     cands = _auction_filter(rows_all, zt_lbc)
     heat, cnt = _theme_heat(cands)
     # v80-A36：弱共振剔除已取消（这条会把「同题材只有它一家、题材还没热」的独苗启动票砍掉，
@@ -7020,7 +7081,8 @@ def build_auction(title='竞价观察'):
     _zt_top = _zt_list[:6]
     _mkt_ctx = (f'大盘：涨停{_lu}家/炸板{_zb}家({_zbr:.0f}%) 情绪分{int(_mscore)}({_mlabel}) '
                 f'最强板块{(_zt_top[0][0] if _zt_top else "—")}')
-    _ds_fut = _ex.submit(_auction_ds, tops, heat, _zt_top, _mkt_ctx, _mscore, _lu, _zb)
+    # 2026-11-21：深挖覆盖 TOP5 可关注全名单（原只传重点3只，第4名起永远没有暗线）
+    _ds_fut = _ex.submit(_auction_ds, _list10, heat, _zt_top, _mkt_ctx, _mscore, _lu, _zb)
     _cf_fut = _ex.submit(_confirm_ds, _cinfos, _mkt_ctx)
     try:
         _auction_pool_record(tops)
@@ -16968,7 +17030,7 @@ def _chg5_of(code, price):
     """
     try:
         sym = ('sh' if code.startswith('6') else 'sz') + code
-        arr = get_klines(sym, 40)
+        arr = _au_klines(sym, 40)
         if arr and len(arr) >= 6:
             today_s = _bj_now().strftime('%Y-%m-%d')
             b = arr[:-1] if str(arr[-1][0]) == today_s else arr
