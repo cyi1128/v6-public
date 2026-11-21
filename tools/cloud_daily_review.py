@@ -2598,7 +2598,7 @@ def _ms_one(model, msgs, purpose, timeout):
                        'temperature': 0.5,
                        # v7.9x31：6000 让免费队列一辈子里跑不完，45s 必然 timeout。
                        # v7.9x33：1600 会把正文截断（实测 len=3077 被切），放宽到 4000/5000
-                       'max_tokens': (5000 if purpose in ('zforce_radar', 'auction') else (6000 if purpose == 'darkline' else 4000))}).encode('utf-8')
+                       'max_tokens': (5000 if purpose in ('zforce_radar', 'auction', 'auction_dark_fix') else (6000 if purpose == 'darkline' else 4000))}).encode('utf-8')
     req = urllib.request.Request(MODELSCOPE_URL, data=body, headers={
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + MODELSCOPE_KEY,
@@ -5192,6 +5192,120 @@ def _auction_pool_stats(date_str=None):
         return ''
 
 
+def _auction_stock_facts(s, heat):
+    """喂给模型的真实素材：主营拆分（含报告期/占比/项目名）+ 量价事实；缺业务数据打标记，防编造。"""
+    code = s.get('code') or ''
+    name = s.get('name') or ''
+    hot = [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]]
+    try:
+        _d, _items = _mainop_of(code)
+    except Exception:
+        _d, _items = '', []
+    terms = [n for n, _r in (_items or [])][:4]
+    biz = _dark_fact(code, name, hot)
+    return {'name': name, 'code': code,
+            'score': round(float(s.get('score') or 0), 1),
+            'pct': s.get('pct'), 'industry': s.get('industry'),
+            'vr': round(float(s.get('_vr') or 0), 1),
+            'revise': round(float(s.get('_revise') or 0), 1),
+            'rtag': s.get('_rtag', ''),
+            'biz': biz or '', 'biz_period': _d or '', 'biz_terms': terms,
+            'biz_missing': not bool(biz)}
+
+
+_DARK_LABELS = ('龙头', '概念', '受益', '相关', '涉及', '布局', '赛道', '风口')
+
+
+def _dark_fit_ok(txt, terms, biz_missing=False):
+    """暗线是否贴合：必须落到它自己财报里的业务词；纯标签、空话、太短一律判不贴合。
+
+    biz_missing=true（主营取不到）时，只接受如实写「未见明确暗线业务」，不许编。
+    """
+    t = str(txt or '').strip()
+    if len(t) < 8:
+        return False
+    if biz_missing:
+        return ('未见' in t) or ('未取到' in t)
+    if '未见' in t:
+        return True
+    if not terms:
+        return not any(w in t for w in _DARK_LABELS)
+    return any(_bigram_hit(term, t) for term in terms)
+
+
+def _fill_missing_dark(out, tops, heat, zt_txt, mkt):
+    """缺失/不贴合的暗线补挖一轮（只补缺口、只带业务事实），保证 TOP5 每只都贴着自家业务。"""
+    if not tops or not isinstance(out, dict):
+        return out
+    per = out.get('per') or {}
+    facts = [_auction_stock_facts(s, heat) for s in tops]
+    miss = []
+    for f in facts:
+        _cur = (per.get(f['name']) or {}).get('dark')
+        if not _dark_fit_ok(_cur, f['biz_terms'], f['biz_missing']):
+            miss.append(f)
+    if not miss:
+        out['per'] = per
+        print('[auction] 暗线贴合校验：%d/%d 全部贴合' % (len(facts), len(facts)))
+        return out
+    print('[auction] 暗线缺失/不贴合 %d/%d：%s' % (len(miss), len(facts), '、'.join(f['name'] for f in miss)))
+    try:
+        _n = _bj_now()
+        if _n.hour == 9 and _n.minute >= 25:
+            _room = (_n.replace(hour=9, minute=26, second=50, microsecond=0) - _n).total_seconds()
+        else:
+            _room = 90
+    except Exception:
+        _room = 90
+    if _room < 20:
+        print('[auction] 暗线补挖跳过（剩余 %.0fs 不足）' % _room)
+        out['per'] = per
+        return out
+    payload = {'task': 'auction_dark_fix', 'stocks': miss,
+               'hot_sectors': sorted(heat.items(), key=lambda kv: -kv[1])[:6],
+               'zt_themes': zt_txt, 'mkt_ctx': mkt,
+               'format': ('这是补挖缺口：只给下面 stocks 里这几只写暗线，已有结论的不重写。\n'
+                          '每只 dark 必须同时做到三件事：①从 biz_terms 里原样挑一个它自己财报里的业务项目名写进去；'
+                          '②带该业务的收入占比（biz 里有数）或产业链环节；③说清跟今日最强主线是【实受益】【沾边】还是【纯蹭】。\n'
+                          '禁止「XX概念/XX龙头/受益于/布局/涉及/相关」这类不落到产品的空话；禁止把板块名当公司业务；'
+                          'biz_missing=true 的票只写「未见明确暗线业务（主营数据未取到）」，一个字都不许编。\n'
+                          '只输出 JSON：{"per":[{"name":"股票名称","dark":"15-35字，必须含业务词+占比或环节","'
+                          'logic":"这条暗线的因果：业务→订单/客户/产能→业绩兑现还是纯预期，至少50字","'
+                          'why":"一句话戳穿真假+该不该追，至少20字"}]}，per 必须覆盖我给的每只。'),
+               }
+    t = ask_deepseek(payload, purpose='auction_dark_fix', system_text=_ASK_DS_SYS_AC)
+    if not t:
+        out['per'] = per
+        return out
+    hit = 0
+    try:
+        j = _json_loose(t)
+        for it in (j.get('per') or []):
+            nm = str(it.get('name', '')).split('（')[0].split('(')[0].strip()
+            if not nm:
+                continue
+            _f = next((x for x in miss if x['name'] == nm), None)
+            if not _f:
+                continue
+            _dk = str(it.get('dark', '') or '').strip()
+            if not _dark_fit_ok(_dk, _f['biz_terms'], _f['biz_missing']):
+                print('[auction] 补挖仍不贴合：%s' % nm)
+                continue
+            _cur = per.get(nm) or {}
+            _cur['dark'] = _dk
+            if it.get('logic'):
+                _cur['logic'] = str(it['logic']).strip()
+            if it.get('why'):
+                _cur['why'] = str(it['why']).strip()
+            per[nm] = _cur
+            hit += 1
+    except Exception as _e:
+        print('[auction] 补挖解析异常:', _e)
+    out['per'] = per
+    print('[auction] 暗线补挖 命中 %d/%d' % (hit, len(miss)))
+    return out
+
+
 def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=None):
     """竞价深挖（模板型回答版）：单次 LLM 调用同时输出
     per（每只：dark 暗线/ reason 选中原因/ why 大白话/ op 建议/ buy/ stop/ drop 放弃）
@@ -5222,18 +5336,18 @@ def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, 
     _mkt = mkt_ctx or ''
     payload = {
         'task': 'auction_top_deep',
-        'stocks': [{'name': s['name'], 'code': s['code'], 'score': round(float(s['score']), 1),
-                    'pct': s['pct'], 'industry': s['industry'],
-                    'vr': round(float(s.get('_vr') or 0), 1), 'revise': round(float(s.get('_revise') or 0), 1),
-                    'rtag': s.get('_rtag', ''),
-                    'biz': _dark_fact(s.get('code') or '', s.get('name') or '',
-                                      [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]])} for s in tops],
+        'stocks': [_auction_stock_facts(s, heat) for s in tops],
         'hot_sectors': sorted(heat.items(), key=lambda kv: -kv[1])[:6],
         'zt_themes': _zt_txt,
         'mkt_ctx': _mkt,
         'holding_diagnosis': '\n'.join(hold_txt) or '无持仓',
         'format': ('你是A股竞价短线交易员。对以下每只竞价强票做「暗线业务深挖+题材+市场关联」多因素深挖（禁止单条件结论）：\n'
                    '0.【暗线业务深挖·每只必做】先一句话说清公司本质（靠什么赚钱，禁「XX龙头/XX概念」标签）；再挖暗线业务——具体产品/技术/业务是什么、进展到哪个阶段、在产业链哪个环节、有没有卡位壁垒、对业绩是真实贡献还是纯故事/预期；然后判断跟今日最强主线（{hot_sectors}）是【实受益】【沾边】还是【纯蹭】、弹性大不大。挖不出来如实写「未见明确暗线业务」，禁止用「相关」「涉及」「布局」「受益于」等词糊弄。\n'
+                   '0.5【贴合硬规则·每条暗线必须落在它自己的业务上】stocks 里每只都带 biz（主营拆分：项目+占比+报告期）和 biz_terms（主营项目名）：\n'
+                   '   ① dark 必须从 biz_terms 里原样挑至少一个它自己财报的业务项目名写进去，并带占比或产业链环节；\n'
+                   '   ② 再说清这条业务跟今日主线是【实受益】【沾边】还是【纯蹭】、业绩是已兑现还是纯预期；\n'
+                   '   ③ 禁止只写「XX概念/XX龙头/受益于/布局/涉及/相关」这种不落到产品的空话，禁止把板块名当公司业务；\n'
+                   '   ④ biz_missing=true 的票只许写「未见明确暗线业务（主营数据未取到）」，一个字都不许编。\n'
                    '1. 题材归属：判断属于什么题材、是不是今日主线、题材里的地位（龙头/中军/跟风/补涨）。\n'
                    '2. 板块共振：看同题材几只一起动，判断是真合力还是一只独涨。\n'
                    '3. 资金逻辑：用量比/竞价量比/反推修正说明谁在抢，判断抢筹还是出货。\n'
@@ -5248,7 +5362,7 @@ def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, 
                    '{"cap_advice":"当前档位建议：结合 mkt_ctx（涨停家数/炸板/情绪分/指数涨跌）直接给仓位档位建议与一句话理由，禁止万能句，至少20字",'
                    '"wind_strong":"最强题材的暗线原因：一句话说透它今天为什么最强（涨停家数/催化/资金逻辑），至少20字",'
                    '"wind_weak":"最弱题材的暗线原因：一句话说透它为什么最弱（为什么别碰），至少15字",'
-                   '"per":[{"name":"股票名称","dark":"一句话暗线（这条票真正炒的是什么，禁标签糊弄，10-30字）","reason":"选中原因/暗线逻辑：为什么筛出它（主业匹配+位置+筹码+业绩+催化，真实数据，至少20字）","logic":"暗线业务深挖+题材归属+市场关联：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+资金逻辑+位置+预期差+共振判断(主题X家+量价共振强/弱+板块热度共振强/中/无)→破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件","stop":"具体止损条件","drop":"放弃条件：什么情况出现就不做（破位/量能/情绪/高开透支等具体条件，10-25字）"}]}，'
+                   '"per":[{"name":"股票名称","dark":"一句话暗线（必须含 biz_terms 里一个真实业务项目名+占比或环节定位，禁标签糊弄，15-35字）","reason":"选中原因/暗线逻辑：为什么筛出它（主业匹配+位置+筹码+业绩+催化，真实数据，至少20字）","logic":"暗线业务深挖+题材归属+市场关联：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+资金逻辑+位置+预期差+共振判断(主题X家+量价共振强/弱+板块热度共振强/中/无)→破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件","stop":"具体止损条件","drop":"放弃条件：什么情况出现就不做（破位/量能/情绪/高开透支等具体条件，10-25字）"}]}，'
                    'per 必须覆盖我给的每只股票。'),
     }
     t = ask_deepseek(payload, purpose='auction', system_text=_ASK_DS_SYS_AC)
@@ -5276,6 +5390,7 @@ def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, 
                                'stop': str(it.get('stop', '') or ''),
                                'drop': str(it.get('drop', '') or '')}
             out['per'] = per
+            _fill_missing_dark(out, tops, heat, _zt_txt, _mkt)
     except Exception:
         return {}
     return out
@@ -7127,7 +7242,7 @@ def build_auction(title='竞价观察'):
         stop = round(buy_low * 0.97, 2)
         brk_txt = '站上昨收' if s['price'] > (s.get('prev') or 0) else '未站上昨收'
         _deep = (ds_map or {}).get(s['name'])
-        if _deep and _deep.get('logic'):
+        if _deep and (_deep.get('logic') or _deep.get('dark')):
             _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(_deep.get('op', ''), GOLD)
             _dk = str(_deep.get('dark') or '').strip()
             _rsn = str(_deep.get('reason') or '').strip()
