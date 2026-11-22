@@ -5268,7 +5268,7 @@ def _fill_missing_dark(out, tops, heat, zt_txt, mkt):
             _room = 90
     except Exception:
         _room = 90
-    if _room < 20:
+    if _room < 8:
         print('[auction] 暗线补挖跳过（剩余 %.0fs 不足）' % _room)
         out['per'] = per
         return out
@@ -5315,6 +5315,44 @@ def _fill_missing_dark(out, tops, heat, zt_txt, mkt):
     out['per'] = per
     print('[auction] 暗线补挖 命中 %d/%d' % (hit, len(miss)))
     return out
+
+
+def _auction_dark_topup(miss, per, heat, zt_top, mkt, budget=12.0):
+    """2026-11-22 用户指令：三只重点必须每条都有贴合个股的暗线。
+    主深挖没覆盖到/超时的票，只给这几只再要一轮短的；超 budget 秒就放弃（不拖 09:27 出卡）。"""
+    if not miss:
+        return per or {}
+    _o = {'per': dict(per or {})}
+    _zt_txt = '、'.join('%s(涨停%d家)' % (n, int(c)) for n, c in (zt_top or [])[:8]) or '暂无'
+    try:
+        with ThreadPoolExecutor(max_workers=1) as _e1:
+            _ft = _e1.submit(_fill_missing_dark, _o, miss, heat, _zt_txt, mkt or '')
+            _ft.result(timeout=budget)
+    except Exception as _e:
+        print('[auction] 三只重点补挖超时/异常(%s): %s' % (budget, str(_e)[:60]))
+    return _o.get('per') or per or {}
+
+
+def _auction_ensure_dark(ds_map, tops, extra, heat):
+    """三只重点 + 可关注列表的暗线最终兜底：模型没给就用手里的真实主营拆分写，绝不留空白。
+    只用 _mainop_of 拉到的业务项目名+占比（取不到才写 _dark_solid 的实话），不编业务。"""
+    ds_map = ds_map if isinstance(ds_map, dict) else {}
+    for s0 in list((tops or [])[:3]) + list(extra or []):
+        nm0 = str((s0 or {}).get('name') or '')
+        if not nm0:
+            continue
+        d0 = ds_map.get(nm0) or {}
+        if str(d0.get('dark') or '').strip():
+            continue
+        try:
+            f0 = _auction_stock_facts(s0, heat)
+        except Exception:
+            f0 = {}
+        fb0 = str((f0 or {}).get('biz') or '').strip() or _dark_solid(s0.get('code'), nm0)
+        d0['dark'] = fb0
+        d0['_src'] = 'biz'
+        ds_map[nm0] = d0
+    return ds_map
 
 
 def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, zb=None):
@@ -5378,7 +5416,13 @@ def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, 
     }
     t = ask_deepseek(payload, purpose='auction', system_text=_ASK_DS_SYS_AC)
     if not t:
-        return {}
+        # 2026-11-22 用户指令：三只重点不许空白暗线 —— 主深挖空返回也走一轮缺口补挖
+        _empty = {'per': {}}
+        try:
+            _fill_missing_dark(_empty, tops, heat, _zt_txt, _mkt)
+        except Exception as _e:
+            print('[auction] 主深挖空返回补挖异常:', _e)
+        return _empty
     out = {}
     try:
         j = _json_loose(t)
@@ -7229,6 +7273,22 @@ def build_auction(title='竞价观察'):
         _ds_res = {}
         print(f'[auction] 深挖超时({_llm_budget}s)，渲染数据事实行(非规则模板)')
     ds_map = _ds_res.get('per') or {}
+    # 2026-11-22 用户指令：三只重点的暗线不许空白 —— 先补挖缺口，再退到真实主营（只用真数据）
+    try:
+        _m3 = [s for s in (tops or [])[:3]
+               if not str(((ds_map or {}).get(s.get('name')) or {}).get('dark') or '').strip()]
+        if _m3:
+            print('[auction] 三只重点暗线缺口 %d 只：%s' % (len(_m3), '、'.join(x['name'] for x in _m3)))
+            ds_map = _auction_dark_topup(_m3, ds_map, heat, _zt_top, _mkt_ctx)
+    except Exception as _e:
+        print('[auction] 重点暗线补挖异常:', _e)
+    try:
+        ds_map = _auction_ensure_dark(ds_map, tops, _list10, heat)
+        _lst0 = list((tops or [])[:3]) + list(_list10)
+        _cov0 = sum(1 for _x0 in _lst0 if str(((ds_map or {}).get(_x0.get('name')) or {}).get('dark') or '').strip())
+        print('[auction] 暗线兜底后覆盖 %d/%d' % (_cov0, len(_lst0)))
+    except Exception as _e:
+        print('[auction] 暗线主营兜底异常:', _e)
     ds_overall = _ds_res.get('overall') or ''
     reson_reason = _ds_res.get('reson_reason') or ''
     cap_advice = _ds_res.get('cap_advice') or ''
@@ -7257,9 +7317,17 @@ def build_auction(title='竞价观察'):
             _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(_deep.get('op', ''), GOLD)
             _dk = str(_deep.get('dark') or '').strip()
             _rsn = str(_deep.get('reason') or '').strip()
-            _deep_html = (f"""<div style="color:#a78bfa;font-size:13px;margin-top:4px;">🔍 暗线：{_dk or ''}</div>
-<div style="color:#a78bfa;font-size:13px;margin-top:3px;">🧠 {_deep.get('logic','')}</div>
-<div style="color:#e9ecef;font-size:13px;margin-top:3px;">👉 {_deep.get('why','')}</div>""")
+            # 2026-11-22：暗线兜底只回填 dark 时，不印空的 🧠/👉 行
+            _dp = []
+            if _dk:
+                _dp.append('<div style="color:#a78bfa;font-size:13px;margin-top:4px;">🔍 暗线：%s</div>' % _dk)
+            _lg0 = str(_deep.get('logic') or '').strip()
+            _wy0 = str(_deep.get('why') or '').strip()
+            if _lg0:
+                _dp.append('<div style="color:#a78bfa;font-size:13px;margin-top:3px;">🧠 %s</div>' % _lg0)
+            if _wy0:
+                _dp.append('<div style="color:#e9ecef;font-size:13px;margin-top:3px;">👉 %s</div>' % _wy0)
+            _deep_html = ''.join(_dp)
         else:
             # v80-D：模型没回就不印暗线（绝不回落主营构成），只留下面的事实与近5日
             _deep_html = ''
@@ -19373,12 +19441,307 @@ def build_warn():
              + '<div style="color:' + GREY + ';font-size:11px;margin-top:8px;">① 验证：板块竞价量比明显放大+多股联动才算真启动；② 纪律：高位连板不追，低吸为主。</div>')
     return _wrap(inner, '🚨', '启动预警'), '【消息面点火预判】' + bj.strftime('%H:%M')
 
+# ============ 选股池：周期筛选 / 五日线筛选（2026-11-22 用户规格） ============
+_POOL_BAR_N = 260          # 日K根数：覆盖「一年涨停统计」+「近8个月最高价」
+_POOL_HI_WIN = 170         # 近 8+ 个月窗口（约170个交易日）
+_POOL_LU_WIN = 250         # 一年内涨停次数统计窗口（约250个交易日）
+_POOL_WORKERS = 16
+_POOL_MAX_ROWS = 12        # 单池最多列 12 只（按「离8月高最近」排序）
+_POOL_K_CACHE = {}
+
+
+def _pool_limit_pct(code):
+    """该票当日涨停阈值：主板10%/创业板20%/北交所30%，留0.4%容错给四舍五入。"""
+    c = str(code or '')
+    if c.startswith(('30', '68', '69')):
+        return 0.195
+    if c.startswith(('4', '8', '92')):
+        return 0.295
+    return 0.095
+
+
+def _pool_code_ok(code):
+    """只要沪深主板(60/00)与创业板(30)，剔科创688/689、北交所4/8/9。"""
+    return str(code or '').startswith(('60', '00', '30'))
+
+
+def _pool_kline(code, n=_POOL_BAR_N):
+    """池子专用日K：腾讯直连(8s/不重试) → 新浪日K(8s/不重试)，两源都失败就当这只没数据。
+    走 _dl_kline 的 3 次重试(每次 15s)会在大池子上把 1200s 预算吃穿，这里全部短路。"""
+    if code in _POOL_K_CACHE:
+        return _POOL_K_CACHE[code]
+    sym = ('sh' if str(code).startswith('6') else 'sz') + str(code)
+    arr = []
+    try:
+        req = urllib.request.Request(
+            'https://ifzq.gtimg.cn/appstock/app/fqkline/get?param=%s,day,,,%d,qfq' % (sym, n),
+            headers={'User-Agent': 'Mozilla/5.0'})
+        d = json.loads(urllib.request.urlopen(req, timeout=8).read().decode('utf-8', 'ignore'))
+        node = (d.get('data') or {}).get(sym) or {}
+        ks = node.get('qfqday') or node.get('day') or []
+        if ks and len(ks) >= 6:
+            arr = ks
+    except Exception:
+        pass
+    if not arr:
+        try:
+            u = ('https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData'
+                 '?symbol=%s&scale=240&ma=no&datalen=%d' % (sym, n))
+            req = urllib.request.Request(u, headers={'User-Agent': 'Mozilla/5.0',
+                                                     'Referer': 'https://finance.sina.com.cn/'})
+            d = json.loads(urllib.request.urlopen(req, timeout=8).read().decode('utf-8', 'ignore'))
+            arr = [[str(k['day']), float(k['open']), float(k['close']),
+                    float(k['high']), float(k['low']), float(k['volume'])] for k in d]
+        except Exception:
+            arr = []
+    _POOL_K_CACHE[code] = arr
+    return arr
+
+
+def _pool_snapshot_em():
+    """东财 clist：按流通市值降序分页，跌破 30 亿即停（后面的都更小）。
+    部分网络环境会被东财直接断连，失败返回 []，由新浪全市场兜底。"""
+    out, seen = [], set()
+    for scheme in ('https', 'http'):
+        rows = []
+        for pn in range(1, 46):
+            url = (scheme + '://push2.eastmoney.com/api/qt/clist/get?pn=%d&pz=100&po=1&np=1&fltt=2&invt=2'
+                   '&fid=f21&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23'
+                   '&fields=f2,f3,f12,f14,f20,f21') % pn
+            try:
+                txt, ok = _getm(url, 'pool_clist', timeout=12)
+            except Exception:
+                ok = False
+            if not ok or not txt:
+                break
+            try:
+                diff = (json.loads(txt).get('data') or {}).get('diff') or []
+            except Exception:
+                break
+            if not diff:
+                break
+            page_min = None
+            for x in diff:
+                try:
+                    code = str(x.get('f12') or '').strip()
+                    name = str(x.get('f14') or '').strip()
+                    price = float(x.get('f2') or 0)
+                    pct = float(x.get('f3') or 0)
+                    cap = float(x.get('f21') or 0) / 1e8
+                except Exception:
+                    continue
+                if not code or not name:
+                    continue
+                if page_min is None or cap < page_min:
+                    page_min = cap
+                if code in seen:
+                    continue
+                seen.add(code)
+                if not _pool_code_ok(code) or 'ST' in name.upper() or '退' in name:
+                    continue
+                if not (5.0 <= price <= 200.0) or not (30.0 <= cap <= 800.0):
+                    continue
+                rows.append({'code': code, 'name': name, 'price': price,
+                             'pct': pct, 'cap': cap})
+            if page_min is not None and page_min < 30.0:
+                break
+        if rows:
+            out = rows
+            break
+    return out
+
+
+def _pool_snapshot_sina():
+    """新浪 hs_a 全市场（约 55 页 × 100 条）：nmc 单位万元 = 流通市值。
+    东财被断连时的主源；只在本机/云端都取不到东财时才走，慢 1-2 分钟。"""
+    out, seen = [], set()
+    pages = 0
+    for pn in range(1, 62):
+        url = ('https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/'
+               'Market_Center.getHQNodeData?page=%d&num=100&sort=symbol&asc=1&node=hs_a'
+               '&symbol=&_s_r_a=page') % pn
+        try:
+            txt, ok = _getm(url, 'pool_sina', timeout=12)
+        except Exception:
+            ok = False
+        if not ok or not txt:
+            break
+        try:
+            rows = json.loads(txt)
+        except Exception:
+            break
+        if not rows:
+            break
+        pages += 1
+        for x in rows:
+            try:
+                code = str(x.get('code') or '').strip()
+                name = str(x.get('name') or '').strip()
+                price = float(x.get('trade') or 0)
+                pct = float(x.get('changepercent') or 0)
+                cap = float(x.get('nmc') or 0) / 1e4        # 万元 -> 亿元
+            except Exception:
+                continue
+            if not code or not name or code in seen:
+                continue
+            seen.add(code)
+            if not _pool_code_ok(code) or 'ST' in name.upper() or '退' in name:
+                continue
+            if not (5.0 <= price <= 200.0) or not (30.0 <= cap <= 800.0):
+                continue
+            out.append({'code': code, 'name': name, 'price': price, 'pct': pct, 'cap': cap})
+    print('[pool] 新浪全市场扫了 %d 页' % pages)
+    return out
+
+
+def _pool_snapshot():
+    """全市场快照：东财优先（按流通市值降序，30亿以下即停），断连则新浪全市场扫全量。
+    返回 [{code,name,price,pct,cap}]，cap 单位亿元；只做板块/ST/价格/市值粗筛。"""
+    out = _pool_snapshot_em()
+    if not out:
+        print('[pool] 东财 clist 不可达，切换新浪全市场')
+        out = _pool_snapshot_sina()
+    print('[pool] 粗筛池 %d 只（主板+创业板 / 非ST / 流通市值30-800亿 / 价5-200）' % len(out))
+    return out
+
+
+def _pool_metrics(item, today):
+    """单票指标：价/近8月最高价、一年涨停次数、当日是否涨停（=次日的「前一天涨停」）、
+    MA5、周线价升量涨。数据不足返回 None。"""
+    code = item['code']
+    arr = _pool_kline(code)
+    if not arr or len(arr) < 40:
+        return None
+    try:
+        rows = [(str(r[0])[:10], float(r[2]), float(r[3]), float(r[5])) for r in arr]
+    except Exception:
+        return None
+    closes = [r[1] for r in rows]
+    highs = [r[2] for r in rows]
+    vols = [r[3] for r in rows]
+    cur = item['price'] if item['price'] > 0 else closes[-1]
+    hi8 = max(highs[-_POOL_HI_WIN:]) if len(highs) >= 10 else 0.0
+    if hi8 <= 0 or cur <= 0:
+        return None
+    ratio = cur / hi8
+    lim = _pool_limit_pct(code)
+    lu_today = False
+    lu_cnt = 0
+    start = max(1, len(closes) - _POOL_LU_WIN)
+    for i in range(start, len(closes)):
+        if closes[i - 1] > 0 and (closes[i] / closes[i - 1] - 1) >= lim - 0.004:
+            lu_cnt += 1
+            if i == len(closes) - 1:
+                lu_today = True
+    ma5 = sum(closes[-5:]) / 5.0
+    # 周线聚合：ISO 周 → (周收盘, 周成交量)。周一~周四本周未走完，只比最近两个完整周；
+    # 周五收盘后本周已完整，直接比本周与上周。
+    weeks = {}
+    for (d, c, _h, v) in rows:
+        try:
+            y, m, dd = (int(z) for z in d.split('-'))
+            k = datetime(y, m, dd).isocalendar()[:2]   # datetime 是类（from datetime import datetime），不是模块
+        except Exception:
+            continue
+        if k in weeks:
+            weeks[k][0] = c
+            weeks[k][1] += v
+        else:
+            weeks[k] = [c, v]
+    keys = sorted(weeks.keys())
+    if today.weekday() < 4 and len(keys) >= 3:
+        keys = keys[:-1]
+    wk_up = False
+    if len(keys) >= 2:
+        w1, w2 = weeks[keys[-2]], weeks[keys[-1]]
+        wk_up = (w2[0] > w1[0]) and (w2[1] > w1[1])
+    return {'code': code, 'name': item['name'], 'pct': item['pct'], 'cap': item['cap'],
+            'cur': cur, 'hi8': hi8, 'ratio': ratio, 'lu1y': lu_cnt, 'lu_today': lu_today,
+            'ma5': ma5, 'wk_up': wk_up}
+
+
+def _pool_row(m, extra):
+    _col = _c(float(m.get('pct') or 0))
+    return ('<div style="background:#1f2635;border-left:3px solid #4dabf7;border-radius:8px;'
+            'padding:8px 10px;margin:6px 0;">'
+            '<div style="font-size:13.5px;color:#e9ecef;"><b>%s</b> '
+            '<span style="color:%s;font-size:12px;">%s</span>　'
+            '<span style="color:#fff;font-weight:700;">%.2f</span> '
+            '<span style="color:%s;font-weight:700;">%+.2f%%</span></div>'
+            '<div style="color:#adb5bd;font-size:12px;margin-top:3px;line-height:1.6;">'
+            '价/8月高 <b style="color:#e9ecef;">%.0f%%</b>　一年涨停 <b style="color:#e9ecef;">%d</b> 次　'
+            '流通 <b style="color:#e9ecef;">%.0f</b>亿　%s</div></div>'
+            % (m['name'], GREY, m['code'], float(m['cur']), _col, float(m['pct'] or 0),
+               m['ratio'] * 100.0, int(m['lu1y']), float(m['cap']), extra))
+
+
+def build_pool():
+    """双池选股（收盘后）：周期池 + 五日线池，逐条按用户 2026-11-22 给的条件硬算。"""
+    bj = _bj_now()
+    today = bj.date()
+    snap = _pool_snapshot()
+    if not snap:
+        return _wrap('<div style="margin-top:8px;color:#e2e8f0;font-size:13px;">'
+                     '全市场快照没取到，今天两个池子不出票（不拿旧数据凑）。</div>', '🪙', '双池选股')
+    metrics = []
+    _deadline = time.time() + 600          # 日K阶段硬时限：到点就用已拿到的继续算，绝不拖穿槽位预算
+    try:
+        with ThreadPoolExecutor(max_workers=_POOL_WORKERS) as _ex:
+            _futs = [_ex.submit(_pool_metrics, _it, today) for _it in snap]
+            try:
+                for _f in as_completed(_futs, timeout=max(30.0, _deadline - time.time())):
+                    try:
+                        _r = _f.result()
+                    except Exception:
+                        _r = None
+                    if _r:
+                        metrics.append(_r)
+            except Exception:
+                print('[pool] 日K阶段到 600s 时限，用已拿到的 %d 只继续算' % len(metrics))
+    except Exception as e:
+        print('[pool] 日K并发异常:', e)
+    print('[pool] 日K可用 %d/%d' % (len(metrics), len(snap)))
+    base = [m for m in metrics
+            if 0.85 <= m['ratio'] <= 1.30 and (not m['lu_today'])
+            and m['lu1y'] >= 3 and 30.0 <= m['cap'] <= 800.0]
+    cyc = [m for m in base if 5.0 <= m['cur'] <= 200.0 and m['wk_up']]
+    ma5p = [m for m in base if 5.0 <= m['cur'] <= 100.0 and m['cur'] > m['ma5']]
+    cyc.sort(key=lambda x: -x['ratio'])
+    ma5p.sort(key=lambda x: -x['ratio'])
+    print('[pool] 基准通过 %d 只｜周期池 %d 只｜五日线池 %d 只' % (len(base), len(cyc), len(ma5p)))
+
+    def _sec(title, lst, extra_fn, empty_txt):
+        if not lst:
+            return ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#4dabf7;">%s</div>'
+                    '<div style="color:%s;font-size:12.5px;margin-top:4px;">%s</div>' % (title, GREY, empty_txt))
+        body = ''.join(_pool_row(m, extra_fn(m)) for m in lst[:_POOL_MAX_ROWS])
+        more = ('<div style="color:%s;font-size:11.5px;margin-top:2px;">另有 %d 只同条件，按离8月高由近到远截断显示</div>'
+                % (GREY, len(lst) - _POOL_MAX_ROWS)) if len(lst) > _POOL_MAX_ROWS else ''
+        return ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#4dabf7;">%s（%d 只）</div>%s%s'
+                % (title, len(lst), body, more))
+
+    cyc_html = _sec('🧱 周期池', cyc,
+                    lambda m: '周线价升量涨', '今天没有同时满足〔价≥8月高85%、≤130%、今日未涨停、一年涨停≥3次、'
+                                          '市值30-800亿、价5-200、周线价升量涨〕的票，宁缺不凑。')
+    ma_html = _sec('📈 五日线池', ma5p,
+                   lambda m: '5日线乖离 <b style="color:#e9ecef;">%+.1f%%</b>　站上5日线'
+                             % ((m['cur'] / m['ma5'] - 1) * 100.0 if m['ma5'] else 0.0),
+                   '今天没有同时满足〔价≥8月高85%、≤130%、今日未涨停、一年涨停≥3次、市值30-800亿、'
+                   '价5-100、站上5日线〕的票，宁缺不凑。')
+    foot = ('<div style="color:%s;font-size:11.5px;margin-top:9px;line-height:1.7;">'
+            '口径：日K %d 根｜近8个月高点取最近 %d 根最高价｜涨停按主板9.5%%/创业板19.5%%判定｜'
+            '周线=最近两个完整周的收盘与成交量同升｜数据 %s 收盘后</div>'
+            % (GREY, _POOL_BAR_N, _POOL_HI_WIN, bj.strftime('%m/%d %H:%M')))
+    inner = cyc_html + ma_html + foot
+    return _wrap(inner, '🪙', '双池选股')
+
+
 TITLES = {'pre': '盘前速递', 'auction': '竞价观察', 'tail': '尾盘竞价筛选', 'noon': '午间作战', 'eod': '收盘复盘',
          'news': '事件简报', 'news2h': '两小时市场消息汇总',
           'hourly': '盘中解读', 'warn': '启动预警', 'confirm': '竞价确认', 'ext': '外盘窗口',
           'radar': '雷达扫描', 'newsfire': '新闻发酵', 'risk': '盘中风险体检',
           'cycle': '多周期视角研判', 'darkline': '暗线情报',
-          'pulse': '盘中全景四览', 'notice': '公告利好晚报'}
+          'pulse': '盘中全景四览', 'notice': '公告利好晚报', 'pool': '双池选股'}
 
 
 BUILDERS['warn'] = build_warn
@@ -19389,6 +19752,7 @@ BUILDERS['newsfire'] = build_newsfire
 BUILDERS['risk'] = build_risk
 BUILDERS['darkline'] = build_darkline
 BUILDERS['pulse'] = build_pulse
+BUILDERS['pool'] = build_pool
 
 
 
@@ -20673,11 +21037,14 @@ if __name__ == '__main__':
             _mark_slot_done(_fwk)
         sys.exit(0)
 
+    if slot == 'pool' and not is_trading_day() and not force:
+        print('SLOT pool 非交易日不出池，跳过')
+        sys.exit(0)
     # 休市日（周末/法定节假日/调休休市）：只发当天新闻汇总（每2小时窗口去重），不推任何股票分析、不调 DeepSeek
     # 例外：手动 --force darkline 时允许出卡（暗线靠最近交易日涨停情报，用于实测验收；自动调度仍走休市日汇总）
     # 例外：notice（公告利好晚报）周末照出 —— 用户要求「每天晚上八点汇总」，公告不看当天有没有开盘，
     #      周五盘后到周末照样有公司发重组预案/收购/中标，漏掉反而更亏。
-    if not is_trading_day() and not (force and slot == 'darkline') and slot != 'notice':
+    if not is_trading_day() and not (force and slot in ('darkline', 'pool')) and slot != 'notice':
         holiday_slot(slot)
         sys.exit(0)
     # 每2小时新闻 cron（休市日专用调度）在交易日的兜底触发点：非盘面时段直接跳过，避免多余异动推送
@@ -20991,7 +21358,7 @@ if __name__ == '__main__':
         print('SLOT radar PUSH', ok, msg)
         sys.exit(0)
     # —— 多点cron 当日去重（仅定时自动run；手动 --force 不受限，用于演示/验证）——
-    if not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle', 'pulse', 'notice'):
+    if not force and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle', 'pulse', 'notice', 'pool'):
         _k = _slot_key(slot)
         if _slot_done(_k):
             print('SLOT %s 今日已推（slot_done.json 去重），跳过' % slot)
@@ -21006,7 +21373,7 @@ if __name__ == '__main__':
         print('SLOT', slot, '构建返回 None，不推送')
         sys.exit(0)
     ok, msg = push(html, f'{TITLES[slot]} {_bj_now().strftime("%m/%d %H:%M")}')
-    if ok and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle', 'pulse', 'notice'):
+    if ok and slot in ('auction', 'tail', 'pre', 'noon', 'hourly', 'risk', 'cycle', 'pulse', 'notice', 'pool'):
         # force 也标记（手动演示后同日定时不再重推——双推修复①）
         _mark_slot_done(_slot_key(slot))
     print('SLOT', slot, 'PUSH', ok, msg)
