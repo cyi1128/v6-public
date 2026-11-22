@@ -4151,3 +4151,7 @@
 02:00:59 [llm] OK purpose=holiday_ds len=1387
 02:02:34 [llm] OK purpose=holiday_ds len=2066
 02:04:17 [llm] OK purpose=holiday_ds len=1679
+04:01:10 [llm] OK purpose=holiday_ds len=1364
+04:02:23 [反模板放行:holiday_ds] 值得关注
+04:02:23 [llm] OK purpose=holiday_ds len=1486
+04:02:48 [llm] OK purpose=holiday_ds len=294
