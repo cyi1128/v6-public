@@ -749,7 +749,7 @@
   "name": "苏州规划",
   "close": 15.2,
   "pct": 9.35,
-  "next_open_pct": null
+  "next_open_pct": -1.7105263157894735
  },
  {
   "date": "2026-11-20",
@@ -757,7 +757,7 @@
   "name": "高乐股份",
   "close": 7.76,
   "pct": 7.78,
-  "next_open_pct": null
+  "next_open_pct": -4.896907216494839
  },
  {
   "date": "2026-11-20",
@@ -765,7 +765,7 @@
   "name": "绿通科技",
   "close": 41.33,
   "pct": 8.25,
-  "next_open_pct": null
+  "next_open_pct": -2.516331962255014
  },
  {
   "date": "2026-11-20",
@@ -773,7 +773,7 @@
   "name": "*ST瑞和",
   "close": 5.59,
   "pct": 7.92,
-  "next_open_pct": null
+  "next_open_pct": -10.017889087656517
  },
  {
   "date": "2026-11-20",
@@ -781,7 +781,7 @@
   "name": "金禄电子",
   "close": 30.84,
   "pct": 8.17,
-  "next_open_pct": null
+  "next_open_pct": -0.5188067444876765
  },
  {
   "date": "2026-11-20",
@@ -789,6 +789,6 @@
   "name": "*ST仕净",
   "close": 3.29,
   "pct": 14.24,
-  "next_open_pct": null
+  "next_open_pct": -0.3039513677811634
  }
 ]
