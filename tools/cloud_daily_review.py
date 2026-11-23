@@ -2201,6 +2201,9 @@ def build_events(slot, news=None, cap=12, light=False):
         text = nw['title'] + nw['summary']
         if len(text) < 12:
             continue
+        if any(k in text for k in _N2H_MACRO) or any(
+                k in text for k in ('央行', '降息', '加息', '国债收益率', '目标价', '评级')):
+            continue                    # 宏观/外资观点不进事件卡，只在两小时卡的宏观块出现
         tag, color = classify_news(text)
         # 关联板块/个股（昨日强势题材 > 行业关键词映射 > 如实兜底）
         rel = []
@@ -2283,6 +2286,10 @@ def build_events(slot, news=None, cap=12, light=False):
         if pct >= _lim_of(c6):
             return ('<div style="font-size:11.5px;color:%s;line-height:1.55;">'
                     '🔒 %s(%s) %.2f %+.2f%% 已封，今天不追</div>' % (GREY, nm or '—', c6, p, pct))
+        if pct >= 8.5:
+            return ('<div style="font-size:11.5px;color:%s;line-height:1.55;">'
+                    '🔺 %s(%s) %.2f %+.2f%% 已大涨，超出 8.5%% 打法区，不追，等回踩再看</div>'
+                    % (GREY, nm or '—', c6, p, pct))
         return ('<div style="font-size:11.5px;color:%s;line-height:1.55;">'
                 '<b style="color:#fff;">%s(%s)</b> %.2f %+.2f%% · 买 %.2f / 止 %.2f（-4.5%%）</div>'
                 % (GREY, nm or '—', c6, p, pct, round(p * 0.98, 2), round(p * 0.955, 2)))
@@ -2307,6 +2314,9 @@ def build_events(slot, news=None, cap=12, light=False):
         _nl = '、'.join(_nums[:2])
         if c6:
             try:
+                _tx = _ext_from_text(t)          # 标题里的具体名词优先（染发原料不该写成创新药）
+                if _tx and _tx[0]:
+                    return _tx[1]
                 _mo = _mainop_of(c6)
                 _dir, _why = _board_dark_link(_mo[1] if _mo else [])
                 if _dir:
@@ -2340,6 +2350,7 @@ def build_events(slot, news=None, cap=12, light=False):
 
     cards = []
     _kept = []
+    _no = 0                 # 展示序号，跳过的不占号
     for i, x in enumerate(out, 1):
         _dk = (_darks[i - 1] if i - 1 < len(_darks) else '') or ''
         if any(k in _dk for k in _bad_kw):
@@ -2355,6 +2366,7 @@ def build_events(slot, news=None, cap=12, light=False):
         _stock_html = _ev_stock(x, _dk)
         if not _dk and not _stock_html:
             continue                      # 会见/表态类没个股没暗线，不占版面
+        _no += 1
         _kept.append(x)
         _dk_html = ('<div style="font-size:11.5px;color:#a78bfa;line-height:1.55;">暗线：%s</div>'
                     % _dk) if _dk else ''
@@ -2363,7 +2375,7 @@ def build_events(slot, news=None, cap=12, light=False):
             '<div style="font-size:12.5px;color:#fff;line-height:1.5;">'
             '<b style="color:%s;">%02d %s</b> <span style="color:%s;font-size:11px;">%s</span>　%s</div>'
             '%s%s</div>'
-            % (x['color'], x['color'], i, x['tag'], GREY, x['time'] or '', x['title'],
+            % (x['color'], x['color'], _no, x['tag'], GREY, x['time'] or '', x['title'],
                _stock_html, _dk_html))
     cards = ''.join(cards)
     out = _kept or out[:1]
@@ -15047,6 +15059,7 @@ def build_news2h():
             if not c['lu'] and c['code'] not in _codes:
                 _codes.append(c['code'])
     _dir_of = {}
+    _ind_of = {str(s['code']): str(s.get('industry') or '') for s in (rows or [])}
     if _codes:
         try:
             with ThreadPoolExecutor(max_workers=8) as ex:
@@ -15054,7 +15067,10 @@ def build_news2h():
                 for f in as_completed(fs, timeout=15):
                     try:
                         _mo = f.result()
-                        _dir_of[fs[f]] = _board_dark_link(_mo[1] if _mo else [])[0]
+                        _d = _board_dark_link(_mo[1] if _mo else [])[0]
+                        if not _d:
+                            _d = _ext_from_text(_ind_of.get(fs[f], ''))[0]
+                        _dir_of[fs[f]] = _d
                     except Exception:
                         pass
         except Exception as e:
@@ -15062,7 +15078,10 @@ def build_news2h():
             for c in _codes:
                 try:
                     _mo = _mainop_of(c)
-                    _dir_of[c] = _board_dark_link(_mo[1] if _mo else [])[0]
+                    _d = _board_dark_link(_mo[1] if _mo else [])[0]
+                    if not _d:
+                        _d = _ext_from_text(_ind_of.get(c, ''))[0]
+                    _dir_of[c] = _d
                 except Exception:
                     pass
 
@@ -15081,6 +15100,8 @@ def build_news2h():
         t = str(title or '')
         if any(k in t for k in ('不涉及', '澄清', '未涉及', '不存在')):
             return '澄清'
+        if any(k in t for k in ('增持', '减持')):
+            return '增减持'
         if any(k in t for k in ('回购',)):
             return '回购'
         if any(k in t for k in ('收购', '并购', '重组', '股权转让', '控股', '要约')):
@@ -15215,6 +15236,9 @@ def build_news2h():
                 _act = ('回购%s落在 %s 身上是护盘动作，按 %.2f 折算撑不起一根阳线；它量比 %.1f，'
                         '明天开盘半小时不放量就当没这条消息' % (('（' + _nl + '）' if _nl else ''),
                                                      _subj[0], _p, _lbv))
+            elif _kind == '增减持':
+                _act = ('股东%s是信心表态，不改基本面；它今天量比 %.1f，跟不上就只是护盘，'
+                        '别当催化追' % ('增持' if '增持' in str(it['title']) else '减持', _lbv))
             elif _kind == '并购':
                 _act = ('%s 做的是资产重组，看标的评估值和问询回复，不看公告字数；重组票不追高，'
                         '等方案落地看它开板后的量，回踩 %.2f 才算安全位' % (_subj[0], _buy))
@@ -16602,6 +16626,9 @@ _BOARD_DARK_LINK = (
     (('连接器', '线束', '端子'),
      '机器人/汽车电子',
      '一台机器人几百个连接点，连接器是通用件'),
+    (('制冷', '冷链', '冷冻', '速冻', '冷库', '压缩机'),
+     '冷链/算力液冷',
+     '制冷设备往数据中心液冷与冷链走，是同一套换热能力换场景'),
     (('液冷', '冷却', '温控', '热管理', '散热', '冷板'),
      'AI算力液冷',
      'AI服务器功率上台阶，液冷从选配变标配'),
@@ -16626,6 +16653,9 @@ _BOARD_DARK_LINK = (
     (('军工', '航天', '卫星', '北斗', '雷达', '导弹', '低空', 'eVTOL'),
      '商业航天/低空',
      '军工与低空是政策与订单双驱动的方向'),
+    (('染发', '化妆品', '护肤', '日化', '香精', '香水'),
+     '化妆品原料/国货美妆',
+     '染发剂与护肤原料是化妆品链最上游，新品注册证先体现在原料端放量'),
     (('创新药', '多肽', 'GLP', '抗体', 'CXO', '原料药', '医药'),
      '创新药/减重药',
      '创新药看订单和临床进度，弹性在预期差'),
@@ -16663,7 +16693,104 @@ _BOARD_DARK_LINK = (
     (('磁性材料', '电感', '电容', '电阻', '被动件'),
      'AI服务器/机器人电子',
      '被动件是服务器和机器人主板的基础料，量随整机走'),
+    (('航运', '船舶', '港口', '集装箱', '散货', '多用途船', '油运', '干散'),
+     '出口链/运价',
+     '运价指数和出口箱量是它的直接变量，外贸回暖与一带一路先体现在运价'),
+    (('物流', '仓储', '输送', '分拣', '搬运'),
+     '仓储自动化/机器人产线',
+     '输送分拣与搬运是机器人产线最现成的落地场景，订单跟着资本开支走'),
+    (('幕墙', '建筑装饰', '装修', '园林', '钢结构', '门窗'),
+     'BIPV/光伏幕墙',
+     '幕墙做光伏一体化是建筑端接分布式光伏的现成接口，属延伸不是订单'),
+    (('航空', '机载', '航电', '无人机', '飞机', '通航'),
+     '低空经济/无人机',
+     '低空放量先要机体、机载和复材，军工技术转民用是延伸'),
+    (('智能装备', '自动化', '机器人本体', '机床', '数控', '刀具', '模具'),
+     '人形机器人结构件/产线',
+     '做产线和机床的厂，转机器人结构件与总装线最快，属产能复用'),
+    (('家电', '白电', '厨电', '小家电', '空调', '冰箱'),
+     'AI家居/机器人代工',
+     '家电产线与注塑能力是机器人整机代工和外壳件的现成产能'),
+    (('轮胎', '橡胶', '胶带', '胶管'),
+     '橡胶涨价/海外产能',
+     '天然胶与合成胶是成本主变量，海外基地决定关税与毛利'),
+    (('汽车', '整车', '汽零', '底盘', '车灯'),
+     '智驾/人形机器人',
+     '汽零与整车是最先被智驾和人形机器人复用的产能，看定点不看口号'),
+    (('银行', '保险', '信托', '租赁'),
+     '金融科技/并购重组',
+     '牌照和资本金是并购重组的底牌，成交量放大才轮得到它们'),
+    (('地产', '物业', '置业', '房地产'),
+     '地产后周期/化债',
+     '地产链弹性在后周期的家居、物业和化债，不在开发本身'),
+    (('钢铁', '水泥', '建材', '玻璃', '玻纤'),
+     '设备更新/基建',
+     '建材看基建与设备更新的实物量，价格弹性跟随开工'),
+    (('煤炭', '石油', '天然气', '油服', '炼化'),
+     '能源涨价/化工成本',
+     '能源价格直接改下游化工与电力的成本曲线'),
+    (('电力', '水电', '火电', '核电', '绿电', '燃气'),
+     '电网设备/储能',
+     '电源投资先落到变压器、开关和储能，运营端只是收电价'),
+    (('环保', '水务', '污水', '固废', '垃圾'),
+     '资源化/新能源材料',
+     '固废与污水里提锂、提镍是新能源材料的延伸来源'),
+    (('养殖', '饲料', '生猪', '禽', '水产'),
+     '食品加工/预制菜',
+     '养殖往下走是屠宰与预制菜，价格周期决定利润'),
+    (('化肥', '农药', '磷肥', '钾肥'),
+     '粮食安全/农资涨价',
+     '农资涨价直接进种粮成本，粮食安全是政策抓手'),
+    (('纺织', '服装', '面料', '印染'),
+     '功能性面料/户外',
+     '功能性面料是户外与工装的高毛利段，看订单结构'),
+    (('造纸', '包装', '印刷', '纸浆'),
+     '纸浆涨价/包装一体化',
+     '纸浆价格是成本端主变量，包装一体化抬毛利'),
+    (('传媒', '游戏', '影视', '出版', '广告'),
+     'AI内容/短剧',
+     'AI降本先落在内容生产和短剧分发，看平台分成'),
+    (('软件', '云', '计算机', 'IT服务', '数据', '信创'),
+     'AI应用/算力租赁',
+     '软件端接AI应用与算力租赁，看订单和续费率'),
+    (('医疗器械', '器械', '医疗', '诊断', '影像'),
+     '手术机器人/创新器械',
+     '器械往上是手术机器人与影像AI，注册证只是入场券'),
+    (('酒店', '旅游', '景区', '免税', '餐饮'),
+     '消费复苏/免税',
+     '客流和客单价是直接变量，弹性不如科技'),
+    (('零售', '超市', '电商', '百货'),
+     '即时零售/AI选品',
+     '即时零售与AI选品改的是周转率，看单店数据'),
+    (('化纤', '涤纶', '氨纶', '锦纶'),
+     '功能性纤维/机器人柔性材料',
+     '化纤的功能性纤维与弹性体，是机器人柔性皮肤的材料端联想'),
+    (('光伏', '组件', '硅片', '逆变器', '电池片'),
+     '储能/绿电',
+     '光伏往储能和绿电走，看装机与电价机制'),
+    (('风电', '叶片', '塔筒', '海风'),
+     '海风/绿电',
+     '海风放量先落到塔筒、叶片和安装船'),
+    (('氢能', '燃料电池', '电解槽'),
+     '氢能重卡/绿氢',
+     '氢能落地看重卡与绿氢项目，订单先于盈利'),
+    (('面板', '显示', 'OLED', '液晶'),
+     'AI终端/车载显示',
+     '面板往车载与AI终端走，看尺寸升级带来的单价'),
+    (('半导体', '芯片', '封测', '晶圆', '设备', '材料'),
+     'AI算力芯片/国产替代',
+     '芯片往AI算力与国产替代走，设备材料是卡位'),
 )
+
+def _ext_from_text(txt):
+    """从一段文本（F10 简介、核心题材、盘面行业名）撞产业延伸，返回 (方向, 一句)。"""
+    t = str(txt or '')
+    if not t:
+        return ('', '')
+    for kws, direction, why in _BOARD_DARK_LINK:
+        if any(str(k).lower() in t.lower() for k in kws):
+            return (direction, why)
+    return ('', '')
 
 _BOARD_THEME_WORDS = (
     '人形机器人', '具身智能', '灵巧手', '减速器', '丝杠', '电子皮肤', '仿生皮肤',
@@ -19088,6 +19215,9 @@ def _n2h_grade(txt):
         if g == 'B':
             continue
         if any(k in t for k in kws):
+            if g == 'S' and any(k in t for k in ('增持', '回购')) \
+                    and any(k in t for k in ('银行', '保险', '券商', '证券', '信托')):
+                return 'A'          # 金融股的股东增持/回购是信心表态，给不了 S
             return g
     return 'B'
 
@@ -21647,11 +21777,19 @@ def _pool_dark_line(code, name, blocks):
             if _dir:
                 base = _why                      # 已含「项目（占比%）→ 方向：为什么」
             elif _items:
-                try:
-                    base = '无（%s %.0f%% 是主业本体，题材接不上，按自身趋势做）' % (
+                base = ''                    # 主营撞不上延伸，交给 F10 核心题材兜底，不再写“无”
+            if not base:
+                _f10 = _stock_f10(c6) or ''
+                _d2, _w2 = _ext_from_text(_f10)
+                if _d2:
+                    base = '主营%s → 延伸 %s：%s' % (
+                        (str(_items[0][0]) + ' %.0f%%' % float(_items[0][1] or 0)) if _items else '构成',
+                        _d2, _w2)
+                elif _items:
+                    base = '%s（%.0f%%）→ 看下游需求与订单兑现，题材没发酵时按主业和价格做' % (
                         str(_items[0][0]), float(_items[0][1] or 0))
-                except Exception:
-                    base = ''
+                else:
+                    base = '主业 → 看下游需求与订单兑现，题材没发酵时按主业和价格做'
             if base and _dir:
                 hit = _dark_hit_block(_dir, blocks)
         except Exception as e:  # noqa: BLE001
