@@ -4266,3 +4266,8 @@
 06:08:32 [llm] OK purpose=news2h len=210
 06:31:51 [llm] OK purpose=preclose len=159
 06:50:47 [llm] OK purpose=radar_ds len=258
+06:52:46 [llm] OK purpose=news2h_good len=1064
+06:54:08 [llm] OK purpose=news2h_bad len=450
+06:55:19 [llm] OK purpose=holiday_ds len=1601
+06:56:39 [llm] OK purpose=news2h_ext len=887
+06:57:49 [llm] OK purpose=news2h len=209
