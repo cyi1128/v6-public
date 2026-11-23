@@ -790,5 +790,53 @@
   "close": 3.29,
   "pct": 14.24,
   "next_open_pct": -0.3039513677811634
+ },
+ {
+  "date": "2026-11-23",
+  "code": "300945",
+  "name": "曼卡龙",
+  "close": 9.81,
+  "pct": 16.09,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-23",
+  "code": "300654",
+  "name": "世纪天鸿",
+  "close": 10.96,
+  "pct": 15.98,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-23",
+  "code": "301051",
+  "name": "信濠光电",
+  "close": 13.78,
+  "pct": 15.9,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-23",
+  "code": "688090",
+  "name": "瑞松科技",
+  "close": 51.45,
+  "pct": 19.29,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-23",
+  "code": "688165",
+  "name": "埃夫特-U",
+  "close": 14.1,
+  "pct": 17.21,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-23",
+  "code": "301030",
+  "name": "*ST仕净",
+  "close": 3.95,
+  "pct": 20.06,
+  "next_open_pct": null
  }
 ]
