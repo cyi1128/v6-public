@@ -12104,6 +12104,72 @@ def _ext_items(pack):
     return kept + risks
 
 
+# 没有第二曲线时按公告类型说实话，18 只共用一句就是复读（用户 2026-11-23 点名）
+_ANN_GAP = {
+    'ma': '同行业并购，没跨赛道',
+    'bid': '单子还在原业务里',
+    'order': '单子还在原业务里',
+    'cap': '扩的是现有产线',
+    'intent': '意向阶段，资产没定',
+    'buyback': '回购托底，不产新业务',
+    'hold': '股东态度，不涉业务',
+    'inc': '股东态度，不涉业务',
+    'div': '分钱，不是新业务',
+    'approve': '合规动作，产业无增量',
+    'reg': '合规动作，产业无增量',
+    'tech': '专利，还没落到产品',
+    '_': '只动了资本，没有新业务线索',
+}
+
+
+_EXT_AMBUSH = {
+    '算力硬件': ('002436', '兴森科技',
+                'IC载板/ABF：主营是PCB样板小批量，真正值钱的是ABF载板——芯片封装最卡的一层材料，'
+                '国内能量产的没几家，算力越猛载板越缺'),
+    '半导体': ('300567', '精测电子',
+              '前道量检测：主营是面板检测，暗线是半导体量检测设备，前道国产化率最低的一段，'
+              '晶圆厂扩产绕不开它'),
+    '半导体制造': ('600460', '士兰微',
+                  '车规SiC：主营还是硅基功率器件，暗线是SiC产线，电车主驱上量才轮到它放利润'),
+    '机器人/汽零': ('300580', '贝斯特',
+                   '滚柱丝杠：主营是涡轮增压器精密件，暗线是机器人丝杠——同一套磨床同一批设备，'
+                   '已经送样，这是汽零转机器人最顺的一条'),
+    '消费电子': ('002600', '领益智造',
+                '散热与关节模组：主营是模切结构件，暗线是AI眼镜/机器人的散热和关节模组，'
+                '整机轻量化先卡这两块'),
+    '石化/航空': ('603225', '新凤鸣',
+                 '再生涤纶：主营是常规长丝，暗线是再生与差别化纤维，品牌服饰的再生料订单先落到它头上'),
+    '黄金': ('002155', '湖南黄金',
+            '锑：主营是金，暗线是锑——光伏玻璃和阻燃剂都要，金价涨它跟，锑价涨它更猛'),
+    '有色': ('000878', '云南铜业',
+            '冶炼副产：主营是铜，暗线是硫酸和贵金属副产品，铜价一动副产跟着放大利润'),
+    '出口链': ('301260', '格力博',
+              '割草机器人：主营是锂电园林工具，暗线是割草机器人——欧洲渠道现成的，'
+              '美元弱对它海外收入是顺风'),
+    '久期/成长': ('300803', '指南针',
+                 '麦高证券：主营是金融信息服务，暗线是控股券商——成交一放大，'
+                 '经纪和两融直接进利润表，这是行情来了弹性最大的那条'),
+}
+
+
+def _ext_low(c6, px):
+    """真实K线判低位：返回 (20日位置%, 距20日高%) 或 None。
+    位置= (今收-20日低)/(20日高-20日低)，越低越靠底部；距高=今收/20日高-1。"""
+    try:
+        kl = get_klines(('sz' if c6.startswith(('00', '30')) else 'sh') + c6, 30)
+    except Exception:
+        return None
+    if not kl or len(kl) < 15:
+        return None
+    hi = max(float(r[3]) for r in kl[-20:])
+    lo = min(float(r[4]) for r in kl[-20:])
+    if hi <= lo:
+        return None
+    pos = (px - lo) / (hi - lo) * 100
+    gap = (px / hi - 1) * 100
+    return (pos, gap)
+
+
 def _ext_dom_html(pack):
     """外盘变量 → 国内具体票（真价真涨幅），每条写清利好/利空与明早验证点。"""
     items = _ext_items(pack)
@@ -12115,6 +12181,9 @@ def _ext_dom_html(pack):
     for nm, v, kind in items:
         for it in (_EXT_DOM.get(nm) or ())[1:]:
             codes.append(_code2qt(it[0]))
+        _amb = _EXT_AMBUSH.get((_EXT_DOM.get(nm) or ('',))[0])
+        if _amb:
+            codes.append(_code2qt(_amb[0]))
     qm = _qt_px_map([c for c in codes if c]) or {}
     blocks = []
     for i, (nm, v, kind) in enumerate(items, 1):
@@ -12131,10 +12200,10 @@ def _ext_dom_html(pack):
         if not link:
             continue
         chain, cands = link[0], link[1:]
+        good = (v > 0)
         if nm == '原油' and not good:
             # 油价跌：航空/化纤是成本利好，油服/海油是收入受损，顺序和标签必须分开
             cands = (('601111', '中国国航'), ('601233', '桐昆股份'), ('601808', '中海油服'))
-        good = (v > 0)
         if nm in _EXT_INVERT:
             pass
         head = ('%d. <b>%s</b> <span style="color:%s">%+.2f%%</span> → <b style="color:#ffd43b">%s</b>'
@@ -12189,9 +12258,32 @@ def _ext_dom_html(pack):
         _dir = (_pair[0] if good is False else _pair[1]) if _pair else (
             '外盘偏强，国内同链顺风，但业绩不看外盘涨跌' if good else
             '外盘偏弱，国内同链承压，先看它有没有自己的订单逻辑')
+        _amb_html = ''
+        _amb = _EXT_AMBUSH.get(chain)
+        if _amb and _amb[0] not in [c for c, _n in cands]:
+            # 埋伏票不能就是上面那只对照票，否则一条链给同一只票写两遍
+            pass
+            _q2 = qm.get(_amb[0])
+            if _q2:
+                _px2, _pv2 = _q2
+                _pc2 = (_px2 / _pv2 - 1) * 100 if _pv2 else 0.0
+                if 'ST' not in _amb[1] and _px2 >= 3 and -3.0 <= _pc2 <= 6.0:
+                    _lowv = _ext_low(_amb[0], _px2)
+                    # 低位口径：20日位置 ≤45%，且距20日高 ≥6% 回撤；不够低就不上卡
+                    if _lowv and _lowv[0] <= 45 and _lowv[1] <= -6:
+                        _amb_html = ('<br><span style="color:#a78bfa">◇ 低位埋伏　</span>'
+                                     '<b>%s</b> <span style="color:#8b949e">%s</span> '
+                                     '<span style="color:%s">%.2f %+.2f%%</span>'
+                                     '<span style="color:#6b7280;font-size:11px;">'
+                                     '　20日位置%.0f%%、距20日高%.1f%%</span>'
+                                     '<br><span style="color:#c4b5e8;font-size:12px;">'
+                                     '　　　　%s</span>'
+                                     % (_amb[1], _amb[0], _c(_pc2), _px2, _pc2, _lowv[0], _lowv[1],
+                                        _amb[2]))
         blocks.append('<div style="margin-top:7px;font-size:12.5px;line-height:1.65;color:#e2e8f0;">'
                       + head + '<br><span style="color:%s">国内对照　</span>%s'
                       % (GREY, '｜'.join(picks))
+                      + _amb_html
                       + '<br><span style="color:%s">怎么读　%s</span></div>' % (GREY, _dir))
     if not blocks:
         return ('<div style="color:%s">外盘异动都落在没有国内产业对应的标的上，今晚不硬凑个股</div>'
@@ -14911,6 +15003,21 @@ _ANN_IMPACT = {
 }
 
 
+def _ma_target(t):
+    """从标题里抠出并购标的与比例：写进落地句，避免八条并购共用一句话。"""
+    t = t or ''
+    m = re.search(r'(?:收购|购买|取得|受让|竞得)(.{2,26}?)(\d+(?:\.\d+)?%)?(?:的)?(股权|资产|矿权)', t)
+    if not m:
+        return '', ''
+    nm = m.group(1)
+    for w in ('公司持有的', '持有的', '部分', '少数', '全部', '控股权', '的'):
+        nm = nm.replace(w, '')
+    nm = re.sub(r'(股份有限公司|有限公司|科技|集团)$', '', nm).strip('，、 ')
+    if len(nm) < 2:
+        return '', (m.group(2) or '')
+    return nm, (m.group(2) or '')
+
+
 def _imp_var(kind, t, prod):
     """按公告里的主体、数量、产品名把作用句写具体，避免同档十几条共用一句话。
     取不到细节时返回空串，交给 _ANN_IMPACT 的通用句兜底。"""
@@ -14974,6 +15081,31 @@ def _imp_var(kind, t, prod):
         if '专利' in t and p1:
             return '%s这条专利挡同行，不带来订单，除非对应在售产品' % p1
         return '批文只代表能卖，卖得动看渠道和招标，短期报表不变脸'
+    if kind == 'ma':
+        nm, pc = _ma_target(t)
+        if '增资' in t and nm:
+            return '增资%s，钱投进去看它拿这笔钱扩什么，短期不产生利润' % nm
+        if nm and pc and float(pc.rstrip('%') or 0) >= 50:
+            return '拿下%s %s股权，下季度起并表，赚不赚看标的自己' % (nm, pc)
+        if nm and pc:
+            return '只买%s %s股权，当期不并表，利润要等追加控股' % (nm, pc)
+        if nm and ('部分' in t or '少数' in t):
+            return '只买%s的部分股权，当期一分利润不进，赌后续追加控股' % nm
+        if nm and '资产' in t:
+            return '买的是%s资产，先看这资产有没有订单和毛利' % nm
+        if nm:
+            return '%s这笔交易结构没写全，等预案披露对价和业绩承诺' % nm
+        if '补充协议' in t:
+            return '协议补签，交易还没交割，对价和标的都没变'
+        if any(k in t for k in ('符合', '管理办法', '监管指引', '审核规则')):
+            return '这是合规性说明，不是交易进展，别当成利好'
+        if '重组报告书' in t or '报告书' in t:
+            return '重组报告书还是申报稿，过会前对价和标的都能改'
+        if any(k in t for k in ('发行股份', '发行及支付现金', '支付现金购买资产')):
+            return '发股付现买资产要过会和审核，流程最长，先看批文'
+        if '购买资产' in t or '收购资产' in t:
+            return '买资产的对价和标的没写全，等预案披露'
+        return ''
     if kind == 'cap':
         if p1:
             return '扩的是%s产能，建完先背折旧，满产才见收入' % p1
@@ -15059,7 +15191,7 @@ def _ann_deep(ti, c6='', name='', pct=None):
     for d in (_PRODUCT_HARD, _MONEY_HARD, _TECH_HARD):
         hit = d.get(c6)
         if hit:
-            return hit[0], hit[1]
+            return hit[0], '', '', hit[1], 'hard'
     prod, themes = _ann_prof(c6)
     _th = [k for k in (themes or '').split('/') if k and not any(
         b in k for b in _CONCEPT_SKIP + ('融资融券', '沪股通', '深股通', '转债标的',
@@ -15102,23 +15234,19 @@ def _ann_deep(ti, c6='', name='', pct=None):
         imp = cand[0]
     if pct is not None and pct <= -5:
         imp += '；今天跌%.1f%%，市场没提前认这条' % abs(pct)
-    if dir_:
-        dark = '%s：%s｜%s' % (dir_, why, imp)
-    else:
+    # 落地判断：这条公告本身能不能变成钱，跟第二曲线分开写
+    _land = imp
+    if not dir_:
         _th = (themes.split('/')[0] if themes else '')
         if _th:
-            dark = '%s（题材挂靠）：%s｜%s' % (_th, '这条题材能不能落到订单要看后续公告', imp)
-        else:
-            # 撞不上热链时按动作类型补一句实话，产品行已经写过主营，这里不重复
-            if kind in ('hold', 'buyback', 'div', 'approve', 'reg'):
-                dark = imp
-            else:
-                _extra = (_ma_talk(t) if kind == 'ma'
-                          else _ANN_NOCHAIN.get(kind, '这条跟热链没关系，按它自己节奏看'))
-                dark = imp if (_extra and _extra[:6] in imp) else '%s；%s' % (imp, _extra)
-    if not prod:
-        prod = (themes.split('/')[0] if themes else (name or '主业'))
-    return prod, dark
+            return prod, _th, '这条题材能不能落到订单要看后续公告', _land, 'theme'
+        if kind not in ('hold', 'buyback', 'div', 'approve', 'reg'):
+            _extra = (_ma_talk(t) if kind == 'ma'
+                      else _ANN_NOCHAIN.get(kind, '这条跟热链没关系，按它自己节奏看'))
+            if not (_extra and _extra[:6] in _land):
+                _land = '%s；%s' % (_land, _extra)
+        return prod, '', _ANN_GAP.get(kind, _ANN_GAP['_']), _land, 'gap'
+    return prod, dir_, why, _land, 'chain'
 
 def _market_ann(pages=16):
     """全市场公告（东财 np-anotice，按 notice_date 降序分页）。
@@ -15168,6 +15296,13 @@ def _market_ann(pages=16):
             break
     print('[notice] 全市场公告扫描 %d 条（披露日 %s / %s）' % (len(out), today, tom))
     return out
+
+
+_CIRC = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'
+
+
+def _circ(i):
+    return _CIRC[i - 1] if 1 <= i <= len(_CIRC) else '(%d)' % i
 
 
 def build_notice():
@@ -15259,16 +15394,35 @@ def build_notice():
             else:
                 _px, _pc = None, None
                 _price = '<span style="color:#6b7280">未取到行情</span>'
-            _br = _ann_brief(ti, name=name)
-            _head = (f'<b>{i}. {name}</b>　<span style="color:#8b949e">{c6}</span>　{_price}')
-            out.append(f'{_head}　<span style="color:#8b949e">｜</span>　'
-                       f'<span style="color:#a8b3c4">{_br}</span>')
-            _prod, _dark = _ann_deep(ti, c6, name, _pc)
-            _txt = f'{_prod}｜{_dark}' if _prod else _dark
-            if _txt in _used:                       # 重复就补这只票自己的主营，禁止共用一句
-                _txt = f'{_prod}（{name}自己的底子是{_prod}）｜{_dark}'
-            _used.add(_txt)
-            out.append(f'　<span style="color:#c8a06a">暗线　</span>{_txt}')
+            _br = _ann_brief(ti, 44, name=name)
+            _no = _circ(i)
+            _head = (f'<b style="color:#ffd43b">{_no}</b> '
+                     f'<b style="color:#e6edf3">{name}</b>　'
+                     f'<span style="color:#8b949e">{c6}</span>　{_price}')
+            out.append(_head)
+            out.append(f'　<span style="color:#5aa9e6">▸ 事　</span>'
+                       f'<span style="color:#c9d4e2">{_br}</span>')
+            _prod, _dir, _why, _land, _grade = _ann_deep(ti, c6, name, _pc)
+            if _prod:
+                out.append(f'　<span style="color:#6b7280;font-size:11px;">· 主营　{_prod}</span>')
+            if _grade == 'chain':
+                out.append(f'　<span style="color:#ffd43b">◆ 暗线·第二曲线</span>'
+                           f'<span style="color:#ffd43b">　{_dir}</span>'
+                           f'<span style="color:#e8d28a">　{_why}</span>')
+            elif _grade == 'theme':
+                out.append(f'　<span style="color:#a78bfa">◆ 暗线·题材挂靠</span>'
+                           f'<span style="color:#c4b5e8">　{_dir}　{_why}</span>')
+            elif _grade == 'hard':
+                out.append(f'　<span style="color:#ffd43b">◆ 暗线　</span>'
+                           f'<span style="color:#e8d28a">{_land}</span>')
+                _land = ''
+            else:
+                out.append(f'　<span style="color:#6b7280">◆ 无暗线　{_why}</span>')
+            if _land:
+                _tag = {'hard': '◇ 原文', 'chain': '◇ 落地',
+                        'theme': '◇ 落地', 'gap': '◇ 对它的作用'}.get(_grade, '◇ 对它的作用')
+                out.append(f'　<span style="color:#7fb3d5">{_tag}　</span>'
+                           f'<span style="color:#9aa4b2">{_land}</span>')
         _shown += len(sel)
         if len(lst) > len(sel):
             out.append(f'　（这档还有 {len(lst) - len(sel)} 条没列，太长会刷屏，'
@@ -15319,11 +15473,23 @@ def build_notice():
             if _badl:
                 _line += f'｜<span style="color:{RED}">留意 {_badl[0][3][:24]}</span>'
             rows.append(_line)
-        _prod, _dark = _ann_deep(_lst[0][3] if _lst else '', _c6, h['name'],
-                                _pv[1] if _pv else None)
+        _prod, _dir, _why, _land, _grade = _ann_deep(_lst[0][3] if _lst else '', _c6,
+                                                     h['name'], _pv[1] if _pv else None)
         if _prod:
-            rows.append(f'　<span style="color:#7fb3d5">产品　</span>{_prod}')
-        rows.append(f'　<span style="color:#c8a06a">暗线　</span>{_dark}')
+            rows.append(f'　<span style="color:#7fb3d5">▸ 产品　</span>{_prod}')
+        if _grade == 'hard':
+            rows.append(f'　<span style="color:#ffd43b">◆ 暗线　</span>'
+                        f'<span style="color:#e8d28a">{_land}</span>')
+        elif _dir:
+            rows.append(f'　<span style="color:#ffd43b">◆ 暗线　{_dir}</span>'
+                        f'<span style="color:#e8d28a">　{_why}</span>')
+            rows.append(f'　<span style="color:#7fb3d5">◇ 落地　</span>'
+                        f'<span style="color:#9aa4b2">{_land}</span>')
+        else:
+            rows.append(f'　<span style="color:#6b7280">◆ 无暗线　{_why}</span>')
+            if _land:
+                rows.append(f'　<span style="color:#7fb3d5">◇ 对它的作用　</span>'
+                            f'<span style="color:#9aa4b2">{_land}</span>')
 
     rows.append('')
     if _n_hard >= 5:
