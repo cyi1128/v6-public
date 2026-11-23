@@ -19192,7 +19192,9 @@ def build_preclose():
         else:
             _buy_txt = ('现价 %.2f 挂，挂单不超过 %.2f（+1%%）；已跌破均价 %.2f，只做反抽不追'
                         % (price, price * 1.01, avg))
-        stop = min(low * 0.985, buy * 0.975)
+        stop = max(buy * 0.95, min(low * 0.985, buy * 0.975))  # 隔夜止损不超 -5%
+        _stop_lab_t = ('今日低点 %.2f 下方' % low if abs(stop - low * 0.985) < 1e-9
+                       else '按 -5%% 硬止损，今日低点 %.2f 更远' % low)
         _cap = 20.0 if str(it['code']).startswith(('30', '68')) else 10.0
         _gap = _cap - it['pct']
         if 0 < _gap <= 3.0:
@@ -19215,10 +19217,11 @@ def build_preclose():
              '<div style="font-size:12px;color:#a78bfa;line-height:1.62;margin-top:3px;">暗线：%s</div>'
              '<div style="font-size:12px;color:#8ce99a;line-height:1.62;margin-top:2px;">买点：%s</div>'
              '<div style="font-size:12px;color:#ff8787;line-height:1.62;margin-top:2px;">'
-             '止损：跌破 %.2f 不留（今日低点 %.2f 下方）</div>'
+             '止损：跌破 %.2f 不留（%s）</div>'
              '%s</div>')
             % (k + 1, it['name'], it['code'], RED if it['pct'] >= 0 else GREEN, it['pct'],
-               GREY, it['hit'][:8], it['lb'], it['turn'], it['score'], _dirtxt, _buy_txt, stop, low,
+               GREY, it['hit'][:8], it['lb'], it['turn'], it['score'], _dirtxt, _buy_txt, stop,
+               _stop_lab_t,
                _gapw))
 
     _hits = [it['hit'] for it in picks]
