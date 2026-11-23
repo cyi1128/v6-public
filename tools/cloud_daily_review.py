@@ -19516,9 +19516,11 @@ def build_intraday():
             _rsn = _ign_reason.get(str(_blk.get('name') or '')) or ''
             if len(str(_rsn)) > 46:
                 _rsn = str(_rsn)[:46] + '…'
-            _ign_txt = ('%s 板块 %+.2f%%，%d 家涨停、%d 家连板，龙头 %s；催化：%s'
+            _ign_txt = ('%s 板块 %+.2f%%，%d 家涨停、%d 家连板，龙头 %s'
                         % (_blk['name'], float(_blk.get('chg') or 0), int(_blk.get('lu') or 0),
-                           int(_blk.get('cont') or 0), _blk.get('leader') or '未标注', _rsn))
+                           int(_blk.get('cont') or 0), _blk.get('leader') or '未标注'))
+            if _rsn:
+                _ign_txt += '；催化：%s' % _rsn
         else:
             _ign_txt = '%s 今天 %d 只涨停；板块榜没对上，按涨停池口径看' % (sec, _grp)
         _mo = _mainop_of(code)
@@ -19614,7 +19616,7 @@ def build_intraday():
                              ('<div style="font-size:11.5px;color:#a78bfa;line-height:1.6;margin-top:2px;">'
                               '↕ 联动链：%s</div>' % _ch2[0]) if _ch2 else ''))
 
-    _head = (f'<div style="color:{RED};font-size:14px;font-weight:700;">⏰ {now.strftime("%H:%M")} 盘中机会'
+    _head = (f'<div style="color:{RED};font-size:13px;font-weight:700;">⏰ 数据时点 {now.strftime("%H:%M")}'
              f' · 涨停 {d["lu"]} / 炸板 {d["zb"]}</div>'
              + f'<div style="color:#e9ecef;font-size:13px;margin-top:3px;">{mood_emoji} 情绪：{mood}'
              + f'（涨停 {prev_lu}→{d["lu"]}，炸板率 {zb_rate * 100:.0f}%）</div>'
