@@ -4224,3 +4224,9 @@
 01:55:04 [llm] 截止已过停产 purpose=board
 01:55:04 [ask_deepseek] 首轮无返回即止损 purpose=board
 01:55:04 [ask_deepseek] ModelScope 两次尝试均失败，purpose=board
+02:02:14 [llm] OK purpose=news2h_good len=1419
+02:03:27 [llm] OK purpose=news2h_bad len=907
+02:04:55 [llm] OK purpose=holiday_ds len=1816
+02:06:11 [llm] OK purpose=holiday_ds len=567
+02:08:00 [llm] OK purpose=news2h_ext len=918
+02:09:04 [llm] OK purpose=news2h len=199
