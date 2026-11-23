@@ -15147,6 +15147,8 @@ _ANN_NOCHAIN = {
 }
 
 _ANN_TITLE_CHAIN = (
+    (('电子树脂', '高频树脂', '高速树脂'), '电子树脂/覆铜板上游',
+     '电子树脂是高频高速覆铜板的核心原料，AI服务器板材升级先拉动这一段'),
     (('锂矿', '盐湖', '锂盐', '提锂', '锂电'), '锂电上游/盐湖提锂',
      '这条买的是锂资源本身，先看资源量和成本，别按收购方老本行看'),
     (('算力', 'IDC', '数据中心', '智算'), '算力/IDC',
@@ -15169,6 +15171,15 @@ _ANN_TITLE_CHAIN = (
      '算力资产看机柜上架率和租金单价，不看投资额'),
 )
 
+# 只有这些词才算「题材」，经营范围里的行业名（铜、化工、环保）不能挂题材
+_ANN_THEME_HOT = (
+    '机器人', '人形', '算力', 'AI', '人工智能', '芯片', '半导体', '光模块', 'CPO',
+    '液冷', '固态电池', '稀土', '低空', '卫星', '创新药', '医美', '化妆品', '预制菜',
+    '培育钻石', '数据中心', 'IDC', 'PCB', '智驾', '自动驾驶', '一体化压铸', '减速器',
+    '丝杠', '传感器', 'PEEK', '碳纤维', 'BIPV', '特高压', '核电', '储能', '氢能',
+)
+
+
 _ANN_THEME_OK = (
     '机器人', '人形', '算力', 'AI', '人工智能', '芯片', '半导体', '光模块', 'CPO', '液冷',
     '光伏', '储能', '风电', '氢能', '锂电', '固态电池', '稀土', '军工', '低空', '卫星',
@@ -15181,6 +15192,47 @@ _ANN_THEME_OK = (
     '服装', '食品', '饲料', '养殖', '种业', '化肥', '农药', '工程机械', '机床', '刀具',
     '工业母机', '减速器', '丝杠', '传感器', '增材', '3D打印', '碳纤维', 'PEEK',
 )
+
+
+# 这些方向只是本行业的 beta 或就是主营本身，不能算第二曲线（2026-11-23 实测误挂后收紧）
+_ANN_WEAK_DIR = {'资源涨价', '能源涨价/化工成本', '券商/牛市旗手',
+                 '基建/一带一路', '设备更新/基建'}
+# 方向要成立，主营里必须出现这些「接口」，否则就是硬挂
+_ANN_DIR_GATE = {
+    'AI服务器/光模块': ('PCB', '覆铜板', '电路板', '铜箔', '连接器', '光模块', '服务器',
+                    '电子', '通信', '载板', '基板'),
+    '金融科技/并购重组': ('地产', '物业', '信托', '基金', '券商', '保险', '资产管理'),
+    '海风/绿电': ('电缆', '海缆', '塔筒', '安装', '施工', '储能', '变压器', '桩'),
+    '固态电池': ('锂', '电池', '材料', '电解液', '正极', '负极'),
+}
+
+
+def _gap_tag(kind, t):
+    """无暗线时的短标签：回购按子类型分，不让十只票共用一句。"""
+    base = _ANN_GAP.get(kind, _ANN_GAP['_'])
+    t = t or ''
+    if kind == 'buyback':
+        for kws, tag in ((('注销',), '注销缩股本'),
+                         (('员工持股', '激励'), '激励备货'),
+                         (('专项贷款',), '贷款回购'),
+                         (('提议',), '提议未定'),
+                         (('首次',), '首次表态'),
+                         (('报告书',), '执行手续'),
+                         (('进度', '进展'), '看剩余额度')):
+            if any(k in t for k in kws):
+                return '%s·%s' % (base, tag)
+        if '方案' in t:
+            return '%s·方案未掏钱' % base
+    if kind == 'ma':
+        if '补充协议' in t:
+            return '%s·协议补签' % base
+        if any(k in t for k in ('符合', '管理办法', '监管指引')):
+            return '%s·合规说明' % base
+        if '报告书' in t:
+            return '%s·申报稿' % base
+        if any(k in t for k in ('发行股份', '发行及支付现金', '支付现金购买资产')):
+            return '%s·发股付现' % base
+    return base
 
 
 def _ann_deep(ti, c6='', name='', pct=None):
@@ -15234,18 +15286,23 @@ def _ann_deep(ti, c6='', name='', pct=None):
         imp = cand[0]
     if pct is not None and pct <= -5:
         imp += '；今天跌%.1f%%，市场没提前认这条' % abs(pct)
+    # 方向只是本行业 beta，或主营里没有对应接口 → 不能当第二曲线
+    if dir_:
+        _gate = _ANN_DIR_GATE.get(dir_)
+        if dir_ in _ANN_WEAK_DIR or (_gate is not None and not any(g in (prod or '') for g in _gate)):
+            dir_, why = '', ''
     # 落地判断：这条公告本身能不能变成钱，跟第二曲线分开写
     _land = imp
     if not dir_:
         _th = (themes.split('/')[0] if themes else '')
-        if _th:
+        if _th and len(_th) <= 12 and any(h in _th for h in _ANN_THEME_HOT):
             return prod, _th, '这条题材能不能落到订单要看后续公告', _land, 'theme'
         if kind not in ('hold', 'buyback', 'div', 'approve', 'reg'):
             _extra = (_ma_talk(t) if kind == 'ma'
                       else _ANN_NOCHAIN.get(kind, '这条跟热链没关系，按它自己节奏看'))
             if not (_extra and _extra[:6] in _land):
                 _land = '%s；%s' % (_land, _extra)
-        return prod, '', _ANN_GAP.get(kind, _ANN_GAP['_']), _land, 'gap'
+        return prod, '', _gap_tag(kind, t), _land, 'gap'
     return prod, dir_, why, _land, 'chain'
 
 def _market_ann(pages=16):
