@@ -1733,7 +1733,8 @@ _ANN_NOISE = ['季度报告', '半年度报告', '年度报告', '审计报告',
               '持续督导', '保荐', '专项核查', '问询函回复', '定期报告']
 
 _ANN_BAD = ['减持', '质押', '诉讼', '处罚', '立案', '问询', '退市', '终止', '亏损',
-            '下调', '风险提示', '权益变动', '预亏', '被执行', '冻结']
+            '下调', '风险提示', '权益变动', '预亏', '被执行', '冻结',
+            '前十名股东', '前十名无限售条件股东', '持股披露']
 
 _ANN_GOOD = ['中标', '签订', '合同', '订单', '增持', '回购', '分红', '派息', '获批',
              '投产', '量产', '扩产', '收购', '涨价', '提价', '补贴', '进展公告',
@@ -14822,9 +14823,14 @@ def _ann_prof(c6):
     try:
         mo = _mainop_of(c6)
         if mo and mo[1]:
-            items = [('%s%.0f%%' % (str(x[0]), float(x[1] or 0))) if x[1] else str(x[0])
-                     for x in mo[1][:2]]
-            prod = '＋'.join(items)[:34]
+            items, names = [], set()
+            for x in mo[1][:3]:
+                _nm = str(x[0] or '').replace('其中:', '').replace('其中：', '').strip()
+                if not _nm or _nm in names:
+                    continue
+                names.add(_nm)
+                items.append(('%s%.0f%%' % (_nm, float(x[1] or 0))) if x[1] else _nm)
+            prod = '＋'.join(items[:2])[:34]
     except Exception as e:  # noqa: BLE001
         print('[ann_prof] mainop 失败', c6, repr(e)[:50])
     try:
@@ -14860,7 +14866,8 @@ def _ann_kind(ti):
         return 'bid'
     if any(k in t for k in ('订单', '合同', '供货', '签订', '签署')):
         return 'order'
-    if any(k in t for k in ('投产', '扩产', '量产', '试产', '项目开工')):
+    if any(k in t for k in ('投产', '扩产', '量产', '试产', '项目开工', '投资建设',
+                            '建设项目', '开工建设', '拟建设')):
         return 'cap'
     if any(k in t for k in ('涨价', '提价', '价格上调', '调价')):
         return 'price'
@@ -14904,6 +14911,146 @@ _ANN_IMPACT = {
 }
 
 
+def _imp_var(kind, t, prod):
+    """按公告里的主体、数量、产品名把作用句写具体，避免同档十几条共用一句话。
+    取不到细节时返回空串，交给 _ANN_IMPACT 的通用句兜底。"""
+    t = t or ''
+    p1 = re.split(r'[＋+]', prod or '')[0] if prod else ''
+    p1 = re.sub(r'\d+(?:\.\d+)?\s*%', '', p1).strip()
+    nums = _ann_nums(t)
+    n = nums[0] if nums else ''
+    if kind in ('hold', 'buyback', 'div'):
+        if '控股股东' in t or '实际控制人' in t or '实控人' in t:
+            who = '控股股东'
+        elif any(k in t for k in ('董事长', '总经理', '董监高', '高管', '董事', '监事')):
+            who = '董监高'
+        elif '员工' in t:
+            who = '员工持股平台'
+        else:
+            who = '股东'
+        if kind == 'buyback':
+            if '注销' in t:
+                return '回购%s直接注销，股本真缩了，这是每股增厚不是口号' % (n or '')
+            if '员工持股' in t or '激励' in t:
+                return '回购%s是给股权激励备的，钱在账上转一圈，不改供需' % (n or '')
+            if '首次' in t:
+                return '首次动手只买了一笔，表态意味重，累计金额才是答案'
+            if '专项贷款' in t:
+                return '钱是银行借的，额度批下来不等于买了，看它真花多少'
+            if '提议' in t:
+                return '还停在董事长提议，董事会批完再买，中间还能变'
+            if '增加' in t and ('资金' in t or '规模' in t):
+                return '加钱回购是加分项，但要看最终成交额占计划几成'
+            if '进展' in t:
+                return '进度公告只说明买到哪一步，剩下的额度买不买才是关键'
+            if '报告书' in t:
+                return '报告书把预案落成执行手续，后面看每周成交披露'
+            if '方案' in t:
+                return '方案只写了金额上限和价格区间，董事会点头不等于掏钱'
+            return '回购%s不注销就不缩股本，预案不等于成交' % (n or '')
+        if kind == 'div':
+            return ('分红%s，除权后填不填回去看后面业绩，分红本身不加利润' % n) if n \
+                else '分红是账上现金的分配，除权后填不填回去看业绩'
+        if '减持' in t:
+            return '%s减持%s，是股东自己拿钱走，跟公司经营好坏没关系' % (who, n or '')
+        _q = 0.0
+        m = re.search(r'(\d+(?:\.\d+)?)\s*万股', t)
+        if m:
+            _q = float(m.group(1))
+        if '计划' in t or '拟' in t:
+            tail = '计划还没执行完，公告只是表个态'
+        elif _q and _q < 50:
+            tail = '这个量在流通盘里很小，态度大于力度'
+        elif _q and _q < 500:
+            tail = '这个量算得上一笔，后面看有没有继续加'
+        elif _q:
+            tail = '这是真金白银在加仓，动作比口号值钱'
+        else:
+            tail = '金额没写，看后续有没有真买单'
+        return '%s增持%s，%s' % (who, n or '', tail)
+    if kind == 'approve':
+        if '注册证' in t and p1:
+            return '批文对应的是%s，能不能卖动看医院准入和招标' % p1
+        if '专利' in t and p1:
+            return '%s这条专利挡同行，不带来订单，除非对应在售产品' % p1
+        return '批文只代表能卖，卖得动看渠道和招标，短期报表不变脸'
+    if kind == 'cap':
+        if p1:
+            return '扩的是%s产能，建完先背折旧，满产才见收入' % p1
+        return '产能建完先背折旧，满产才见收入，赌的是明年开工率'
+    if kind == 'price':
+        if p1:
+            return '%s提价能不能落到毛利，看下季度客户接不接' % p1
+        return '提价函落地要看下季度毛利率，客户不接就是丢单'
+    return ''
+
+
+def _ma_talk(t):
+    """并购类收尾话：按标题里的交易结构分开说，不让十几条票共用一句。"""
+    t = t or ''
+    if '进展' in t or '提示' in t or '报告书' in t:
+        return '还在走流程，没过会、没交割就不算落地'
+    if '100%' in t or '全部股权' in t or '全部资产' in t:
+        return '全资拿下，下季度起并表，赚不赚看标的自己'
+    if '增资' in t:
+        return '增资是把钱投进标的，看它拿这笔钱扩什么'
+    if '部分' in t or '少数' in t:
+        return '只买一部分，短期不进合并报表，利润要等追加控股'
+    if '资产' in t:
+        return '注入的是资产，先看这资产有没有订单和毛利'
+    return '标的质地没披露，先看对价和业绩承诺'
+
+
+_ANN_NOCHAIN = {
+    'ma': '标的的产能、客户、订单一个字没提，先等它披露，别把收购当业绩',
+    'bid': '金额和工期还没落地，等合同签回来才算数',
+    'order': '合同金额和交付节奏是关键，光有合同不等于利润',
+    'cap': '扩产要等投产，短期进不了报表',
+    'intent': '只是意向，随时能黄，别当已落地',
+    'price': '涨价能不能传导到毛利，看下一个季报',
+    'buyback': '回购是托底不是反转，看金额和买完没有',
+    'hold': '增减持是股东自己的账，跟公司经营没关系',
+    'reg': '批文只代表能卖，卖得动看渠道和招标',
+    'div': '分红是账上现金的分配，不改经营',
+}
+
+_ANN_TITLE_CHAIN = (
+    (('锂矿', '盐湖', '锂盐', '提锂', '锂电'), '锂电上游/盐湖提锂',
+     '这条买的是锂资源本身，先看资源量和成本，别按收购方老本行看'),
+    (('算力', 'IDC', '数据中心', '智算'), '算力/IDC',
+     '标的是算力资产，按机柜与上架率算账，不按收购方原行业算'),
+    (('半导体', '芯片', '晶圆', '封测'), '半导体/国产替代',
+     '标的在芯片链上，看它卡的是哪一段工艺'),
+    (('机器人', '人形', '减速器'), '机器人/人形',
+     '标的直接落在机器人链，看定点与出货节奏'),
+    (('光伏', '储能', '风电', '氢能'), '新能源/储能',
+     '标的是新能源资产，看装机、电价与消纳'),
+    (('医药', '生物', '创新药', '医疗'), '创新药/医疗',
+     '标的在医药链，看临床节点与放量'),
+    (('铜', '镍', '钴', '稀土', '钨', '金矿'), '有色资源',
+     '标的是资源，先看品位、储量与开采成本'),
+    (('电解二氧化锰', '四氧化三锰', '锰'), '锰系/电池材料',
+     '锰系是磷酸锰铁锂与三元材料的正极原料，扩产先看下游电池排产'),
+    (('电池', '正极', '负极', '隔膜', '电解液'), '锂电材料',
+     '这条扩的是电池材料产能，能不能赚钱看下游排产和加工费'),
+    (('算力租赁', '智算中心'), '算力租赁',
+     '算力资产看机柜上架率和租金单价，不看投资额'),
+)
+
+_ANN_THEME_OK = (
+    '机器人', '人形', '算力', 'AI', '人工智能', '芯片', '半导体', '光模块', 'CPO', '液冷',
+    '光伏', '储能', '风电', '氢能', '锂电', '固态电池', '稀土', '军工', '低空', '卫星',
+    '创新药', '医美', '化妆品', '预制菜', '白酒', '啤酒', '乳业', '培育钻石', '黄金',
+    '有色', '铜', '铝', '钢', '煤炭', '石油', '天然气', '化工', '化纤', '轮胎', '纸',
+    '航运', '港口', '物流', '跨境电商', '免税', '旅游', '酒店', '券商', '银行', '保险',
+    '地产', '建筑', '幕墙', 'BIPV', '电网', '特高压', '核电', '水电', '环保', '水务',
+    '数据中心', 'IDC', '通信', '5G', '6G', '消费电子', '果链', '面板', 'OLED', 'PCB',
+    '汽车', '汽零', '整车', '智驾', '一体化压铸', '充电桩', '家电', '家居', '纺织',
+    '服装', '食品', '饲料', '养殖', '种业', '化肥', '农药', '工程机械', '机床', '刀具',
+    '工业母机', '减速器', '丝杠', '传感器', '增材', '3D打印', '碳纤维', 'PEEK',
+)
+
+
 def _ann_deep(ti, c6='', name='', pct=None):
     """返回 (产品行, 暗线一句话)。产品行走主营构成，暗线=延伸方向＋为什么延伸＋这条对它的实际作用。
     入库过的个股直接给写好的硬逻辑；没入库的用主营产品名＋核心题材撞延伸表，禁止拿注册史凑。"""
@@ -14917,16 +15064,35 @@ def _ann_deep(ti, c6='', name='', pct=None):
     _th = [k for k in (themes or '').split('/') if k and not any(
         b in k for b in _CONCEPT_SKIP + ('融资融券', '沪股通', '深股通', '转债标的',
                                         '机构重仓', '基金重仓', 'MSCI', '富时罗素',
-                                        '标普', 'AH股', 'AB股', '次新股', '昨日涨停'))]
+                                        '标普', 'AH股', 'AB股', '次新股', '昨日涨停',
+                                        '经营范围', '主营业务', '公司简介'))]
+    # 只让真题材词参与延伸撞表：主营描述里的“木门/园林绿化/试验设备”会把票带到不相干的链条上
+    _th = [k for k in _th if any(w in k for w in _ANN_THEME_OK)]
     themes = '/'.join(_th)
-    clean = ' '.join([prod or '', themes or '', t])
+    # 只拿占主营 15% 以上的段去撞延伸：5% 的门业产品不该把一家饮品公司带到光伏幕墙上
+    _seg = []
+    for _p in re.split(r'[＋+]', prod or ''):
+        _m = re.search(r'(\d+(?:\.\d+)?)\s*%', _p)
+        if _m and float(_m.group(1)) < 15:
+            continue
+        _seg.append(_p)
+    clean = ' '.join([' '.join(_seg), themes or '', t])
     clean = re.sub(r'(股份有限公司|有限公司|股份公司|证券代码|股票代码|以下简称)', ' ', clean)
-    dir_, why = _ext_from_text(clean)
     kind = _ann_kind(t)
+    dir_, why = _ext_from_text(clean)
+    # 公告本身写明了标的行业，暗线就按标的行业走，不能还按收购方主营读
+    if kind in ('ma', 'bid', 'order', 'cap', 'intent'):
+        for _kws, _dir, _why in _ANN_TITLE_CHAIN:
+            if any(k in t for k in _kws):
+                dir_, why = _dir, _why
+                break
     nums = _ann_nums(t)
     _amt = nums[0] if nums else ''
     cand = _ANN_IMPACT.get(kind, ('',))
-    if kind == 'bid' and len(cand) > 1:
+    _var = _imp_var(kind, t, prod)
+    if _var:
+        imp = _var
+    elif kind == 'bid' and len(cand) > 1:
         imp = cand[1] % _amt if _amt else cand[0]
     elif kind == 'order' and len(cand) > 1:
         imp = cand[0] % _amt if _amt else cand[-1]
@@ -14940,8 +15106,16 @@ def _ann_deep(ti, c6='', name='', pct=None):
         dark = '%s：%s｜%s' % (dir_, why, imp)
     else:
         _th = (themes.split('/')[0] if themes else '')
-        dark = ('%s（题材挂靠）：%s｜%s' % (_th, '这条题材能不能落到订单要看后续公告', imp)
-                if _th else imp)
+        if _th:
+            dark = '%s（题材挂靠）：%s｜%s' % (_th, '这条题材能不能落到订单要看后续公告', imp)
+        else:
+            # 撞不上热链时按动作类型补一句实话，产品行已经写过主营，这里不重复
+            if kind in ('hold', 'buyback', 'div', 'approve', 'reg'):
+                dark = imp
+            else:
+                _extra = (_ma_talk(t) if kind == 'ma'
+                          else _ANN_NOCHAIN.get(kind, '这条跟热链没关系，按它自己节奏看'))
+                dark = imp if (_extra and _extra[:6] in imp) else '%s；%s' % (imp, _extra)
     if not prod:
         prod = (themes.split('/')[0] if themes else (name or '主业'))
     return prod, dark
@@ -15015,14 +15189,18 @@ def build_notice():
             continue
         _seen.add(key)
         _c6 = code[-6:]
+        # 用户只做沪深主板与创业板：科创板 688/689、北交所 8xx/92x 直接不进卡
+        if not _c6.startswith(('600', '601', '603', '605', '000', '001', '002', '003',
+                               '300', '301')):
+            continue
         if _c6 in _hold:
             mine.setdefault(_c6, []).append((lv, code, name, ti, dt))
             continue
         if lv == 0:
             continue
-        if (code, lv) in _cseen:
+        if code in _cseen:
             continue
-        _cseen.add((code, lv))
+        _cseen.add(code)
         if lv == 1:
             hard.append((code, name, ti, dt))
         elif lv == 2:
@@ -15030,10 +15208,13 @@ def build_notice():
         else:
             soft.append((code, name, ti, dt))
 
-    hard.sort(key=lambda x: _ann_w(x[2]))       # 投产/量产排最前，涨价排最后
+    hard.sort(key=lambda x: _ann_w(x[2]))
+    _MONEY_CAP = 24
+    _money_cut = money[_MONEY_CAP:]
+    money = money[:_MONEY_CAP]       # 投产/量产排最前，涨价排最后
     # 回购是人人都看得懂的托底，排增持、分红前面
     money.sort(key=lambda x: (0 if '回购' in x[2] else (1 if '增持' in x[2] else 2)))
-    _n_hard, _n_money, _n_soft = len(hard), len(money), len(soft)
+    _n_hard, _n_money, _n_soft = len(hard), len(money) + len(_money_cut), len(soft)
 
     rows = [f'📊 扫了 <b>{len(anns)}</b> 条公告（今+明两个披露日），筛出实质利好 '
             f'<b>{_n_hard + _n_money + _n_soft}</b> 条：订单产能 {_n_hard}、资金面 {_n_money}、资质 {_n_soft}'
@@ -15100,6 +15281,11 @@ def build_notice():
         rows += _dump(money, f'💰 <b>资金面</b>（回购、增持、分红 —— 托底，不改经营；共 {_n_money} 条）',
                       two_line=True, inline_event=True,
                       tbl=_MONEY_HARD, future=_ann_money)
+        if _money_cut:
+            rows.append('<div style="margin-top:6px;color:%s;font-size:11.5px;">'
+                        '另有 %d 条同类回购/增持预案没逐条列（多为方案、报告书、进度公告，'
+                        '同一家公司会连发好几份），真要看原始条款去交易所公告页</div>'
+                        % (GREY, len(_money_cut)))
     if soft:
         rows += _dump(soft, f'📈 <b>技术资质</b>（专利、获批、新产品 —— 预期，还没到进利润表；共 {_n_soft} 条）',
                       two_line=True, inline_event=True, tbl=_TECH_HARD, future=_ann_tech)
@@ -17002,7 +17188,7 @@ _BOARD_DARK_LINK = (
     (('物流', '仓储', '输送', '分拣', '搬运'),
      '仓储自动化/机器人产线',
      '输送分拣与搬运是机器人产线最现成的落地场景，订单跟着资本开支走'),
-    (('幕墙', '建筑装饰', '装修', '园林', '钢结构', '门窗'),
+    (('幕墙', '光伏幕墙', '建筑装饰', '建筑节能', '钢结构'),
      'BIPV/光伏幕墙',
      '幕墙做光伏一体化是建筑端接分布式光伏的现成接口，属延伸不是订单'),
     (('航空', '机载', '航电', '无人机', '飞机', '通航'),
@@ -17017,7 +17203,7 @@ _BOARD_DARK_LINK = (
     (('轮胎', '橡胶', '胶带', '胶管'),
      '橡胶涨价/海外产能',
      '天然胶与合成胶是成本主变量，海外基地决定关税与毛利'),
-    (('汽车', '整车', '汽零', '底盘', '车灯'),
+    (('整车', '汽零', '汽车零部件', '底盘', '车灯'),
      '智驾/人形机器人',
      '汽零与整车是最先被智驾和人形机器人复用的产能，看定点不看口号'),
     (('银行', '保险', '信托', '租赁'),
@@ -17038,6 +17224,9 @@ _BOARD_DARK_LINK = (
     (('电力', '水电', '火电', '核电', '绿电', '燃气'),
      '电网设备/储能',
      '电源投资先落到变压器、开关和储能，运营端只是收电价'),
+    (('工程建设', '工程施工', '基建', '施工总承包', 'EPC', '工程总承包'),
+     '基建/一带一路',
+     '施工主业看新签订单和在手合同，跟资源涨价没关系'),
     (('环保', '水务', '污水', '固废', '垃圾'),
      '资源化/新能源材料',
      '固废与污水里提锂、提镍是新能源材料的延伸来源'),
@@ -17083,7 +17272,7 @@ _BOARD_DARK_LINK = (
     (('面板', '显示', 'OLED', '液晶'),
      'AI终端/车载显示',
      '面板往车载与AI终端走，看尺寸升级带来的单价'),
-    (('半导体', '芯片', '封测', '晶圆', '设备', '材料'),
+    (('半导体', '芯片', '封测', '晶圆', '集成电路', '半导体设备'),
      'AI算力芯片/国产替代',
      '芯片往AI算力与国产替代走，设备材料是卡位'),
 )
