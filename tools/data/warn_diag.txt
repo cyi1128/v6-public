@@ -4250,3 +4250,9 @@
 03:40:57 [llm] OK purpose=newfire_dark len=90
 03:42:08 [llm] OK purpose=batch_deep len=1739
 03:47:33 [llm] OK purpose=event_dark len=838
+04:01:28 [llm] OK purpose=news2h_good len=937
+04:02:36 [llm] OK purpose=news2h_bad len=1329
+04:03:46 [llm] OK purpose=holiday_ds len=1545
+04:04:41 [llm] OK purpose=holiday_ds len=940
+04:06:00 [llm] OK purpose=news2h_ext len=1019
+04:07:36 [llm] OK purpose=news2h len=249
