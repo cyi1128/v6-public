@@ -4170,3 +4170,17 @@
 14:01:53 [llm] OK purpose=holiday_ds len=1834
 14:02:51 [llm] OK purpose=holiday_ds len=1467
 14:04:02 [llm] OK purpose=holiday_ds len=1422
+00:30:23 [llm] 未返回 purpose=sec_wind_dark model=Qwen/Qwen3.5-35B-A3B tag=http_429
+00:31:09 [llm] OK purpose=sec_wind_dark len=300
+00:32:17 [反模板放行:pre_news_deep] 管住手
+00:32:18 [llm] OK purpose=pre_news_deep len=1433
+00:33:38 [llm] OK purpose=pre_news_deep len=1467
+00:35:02 [llm] OK purpose=pre_news_deep len=1538
+00:36:35 [反模板放行:pre_news_deep] 管住手
+00:36:36 [llm] OK purpose=pre_news_deep len=2258
+00:38:02 [llm] OK purpose=focus_deep len=1435
+00:39:23 [llm] OK purpose=pre len=478
+00:40:23 [反模板放行:pre_main_dark] 管住手
+00:40:24 [llm] OK purpose=pre_main_dark len=639
+00:42:15 [llm] OK purpose=focus_deep len=1711
+00:43:47 [llm] OK purpose=event_dark len=697
