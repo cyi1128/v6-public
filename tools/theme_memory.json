@@ -1,4 +1,102 @@
 {
+ "2026-11-23": {
+  "汽车零部": {
+   "leaders": [
+    "克来机电",
+    "长华集团",
+    "光洋股份"
+   ],
+   "reason": "23只涨停·龙头克来机电",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "通用设备": {
+   "leaders": [
+    "冰山冷热",
+    "宁波东力",
+    "锋龙股份"
+   ],
+   "reason": "15只涨停·龙头冰山冷热",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 135918,
+   "divergence": false
+  },
+  "元件": {
+   "leaders": [
+    "中京电子",
+    "东晶电子",
+    "崇达技术"
+   ],
+   "reason": "7只涨停·龙头中京电子",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 93051,
+   "divergence": false
+  },
+  "专用设备": {
+   "leaders": [
+    "天奇股份",
+    "北矿科技",
+    "南矿集团"
+   ],
+   "reason": "7只涨停·龙头天奇股份",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 100248,
+   "divergence": false
+  },
+  "自动化设": {
+   "leaders": [
+    "亿嘉和",
+    "凯迪股份",
+    "宏英智能"
+   ],
+   "reason": "6只涨停·龙头亿嘉和",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 94544,
+   "divergence": false
+  },
+  "IT服务Ⅱ": {
+   "leaders": [
+    "真视通",
+    "荣联科技",
+    "新炬网络"
+   ],
+   "reason": "5只涨停·龙头真视通",
+   "strength": 10,
+   "max_lbc": 5,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "化学制品": {
+   "leaders": [
+    "鼎龙科技",
+    "金丹科技",
+    "兴欣新材"
+   ],
+   "reason": "5只涨停·龙头鼎龙科技",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 112954,
+   "divergence": false
+  },
+  "计算机设": {
+   "leaders": [
+    "魅视科技",
+    "维海德",
+    "淳中科技"
+   ],
+   "reason": "4只涨停·龙头魅视科技",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 93015,
+   "divergence": false
+  }
+ },
  "2026-11-20": {
   "元件": {
    "leaders": [
@@ -672,99 +770,6 @@
    "strength": 9,
    "max_lbc": 1,
    "fbt": 93037,
-   "divergence": false
-  }
- },
- "2026-11-09": {
-  "通用设备": {
-   "leaders": [
-    "冰山冷热",
-    "腾达科技",
-    "泰尔股份"
-   ],
-   "reason": "5只涨停·龙头冰山冷热",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 93221,
-   "divergence": false
-  },
-  "汽车零部": {
-   "leaders": [
-    "华培动力",
-    "光洋股份",
-    "日盈电子"
-   ],
-   "reason": "5只涨停·龙头华培动力",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 93241,
-   "divergence": false
-  },
-  "元件": {
-   "leaders": [
-    "世运电路",
-    "超声电子",
-    "奥士康"
-   ],
-   "reason": "3只涨停·龙头世运电路",
-   "strength": 9,
-   "max_lbc": 1,
-   "fbt": 94353,
-   "divergence": false
-  },
-  "化学制品": {
-   "leaders": [
-    "保利联合",
-    "晶华新材"
-   ],
-   "reason": "2只涨停·龙头保利联合",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 92500,
-   "divergence": false
-  },
-  "一般零售": {
-   "leaders": [
-    "大东方",
-    "上海九百"
-   ],
-   "reason": "2只涨停·龙头大东方",
-   "strength": 9,
-   "max_lbc": 2,
-   "fbt": 93005,
-   "divergence": false
-  },
-  "计算机设": {
-   "leaders": [
-    "苏州科达",
-    "声迅股份"
-   ],
-   "reason": "2只涨停·龙头苏州科达",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 93034,
-   "divergence": false
-  },
-  "游戏Ⅱ": {
-   "leaders": [
-    "文投控股",
-    "大晟文化"
-   ],
-   "reason": "2只涨停·龙头文投控股",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 93542,
-   "divergence": false
-  },
-  "焦炭Ⅱ": {
-   "leaders": [
-    "安泰集团",
-    "云煤能源"
-   ],
-   "reason": "2只涨停·龙头安泰集团",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 93706,
    "divergence": false
   }
  }
