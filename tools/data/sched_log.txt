@@ -1087,3 +1087,10 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-23 14:00:10 >>> 计划槽时刻 1400（去重键按此生成，防补跑重复推）
 11-23 14:00:10 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-23 14:02:49     hourly| SLOT hourly PUSH True 执行成功
+11-23 14:02:50 持久化(hourly)：已推送
+11-23 14:02:50 <<< 完成槽位 hourly，用时 159.4s
+11-23 14:02:50 >>> 执行槽位 news2h @ 14:02:50
+11-23 14:02:50 >>> 计划槽时刻 1401（去重键按此生成，防补跑重复推）
+11-23 14:02:50 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
+11-23 14:10:31     news2h| [holiday] 流通市值批量失败: HTTP Error 502: Bad Gateway
+11-23 14:10:31     news2h| SLOT news2h PUSH True 执行成功
