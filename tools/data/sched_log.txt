@@ -1265,3 +1265,14 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-23 22:38:11 >>> 预算：LLM 1200s / 单模型 300s / 子进程上限 1500s
 11-23 22:45:38     ext| [ext] 同花顺涨停板块第1次失败: URLError(TimeoutError('_ssl.c:994: The handshake operation timed out'))
 11-23 22:45:38     ext| SLOT ext PUSH True 执行成功
+11-23 22:45:38 状态推送失败（第1次）：To https://github.com/cyi1128/v6-public
+ ! [rejected]        HEAD -> main (fetch first)
+error: failed to push some refs to 'https://github.com/cyi1128/v6-public
+11-23 22:45:41 持久化(ext)：已推送
+11-23 22:45:41 <<< 完成槽位 ext，用时 449.8s
+11-23 22:49:43 心跳已刷新至 2026-11-23T22:49:42+08:00
+11-23 22:50:13 >>> 执行槽位 evening @ 22:50:13
+11-23 22:50:13 >>> 计划槽时刻 2250（去重键按此生成，防补跑重复推）
+11-23 22:50:13 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
+11-23 22:56:32     evening| [holiday] 流通市值批量失败: HTTP Error 502: Bad Gateway
+11-23 22:56:32     evening| SLOT evening PUSH True 执行成功; 执行成功

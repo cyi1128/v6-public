@@ -4290,3 +4290,8 @@
 08:27:11 [llm] OK purpose=darkline len=2480
 13:39:41 [llm] OK purpose=ext_window len=661
 14:39:33 [llm] OK purpose=ext_window len=690
+14:51:13 [llm] OK purpose=evening len=251
+14:52:42 [llm] OK purpose=holiday_ds len=1660
+14:52:46 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-122B-A10B tag=http_429
+14:52:46 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-35B-A3B tag=http_429
+14:56:15 [llm] OK purpose=holiday_ds len=2050
