@@ -5774,20 +5774,27 @@ def _chain_dark(s, short=False):
         _ptxt = '位置没取到'
     _lb = float(_s.get('lb') or _s.get('_vr') or 0)
     if _kind == 'ext' and _leg:
+        if _pos and float(_pos[0]) > 55:
+            _tail = ('它已到高位（%.0f%%），这一层还没见订单，追进去是给情绪买单' % float(_pos[0]))
+        elif _pos and float(_pos[0]) <= 30:
+            _tail = ('它还在低位（%.0f%%），这一层真放量才有人认，等订单公告再谈业绩' % float(_pos[0]))
+        elif _pos:
+            _tail = ('它在中位（%.0f%%），这一层订单还没落地，按题材强度做、别按业绩' % float(_pos[0]))
+        else:
+            _tail = '位置没取到，这一层订单没落地，只看盘面'
         if _lg:
-            return ('%s——%s；「%s」今天 %+.1f%%，它%s，'
-                    '这一层订单还没落到公告上，仓位按题材强度给，别当业绩'
-                    % (_leg, _lg, _con, _pct, _ptxt))
-        return ('%s——「%s」今天 %+.1f%%，它%s，'
-                '这一层订单还没落到公告上，仓位按题材强度给，别当业绩'
-                % (_leg, _con, _pct, _ptxt))
+            return '%s——%s；「%s」今天 %+.1f%%，%s' % (_leg, _lg, _con, _pct, _tail)
+        return '%s——「%s」今天 %+.1f%%，%s' % (_leg, _con, _pct, _tail)
     if _kind == 'main':
         _lt = ('（%s）' % _leg) if _leg else ''
-        return ('「%s」%+.1f%% 这条腿%s就是它自己的产品线，属明面逻辑、不给延伸溢价；'
-                '量比 %.2f 倍、它%s，按题材强度做'
-                % (_con, _pct, _lt, _lb, _ptxt))
-    return ('挂的是「%s」(%+.1f%%)，这条链上它供的是哪一截没核到，只能算蹭；'
-            '它%s，盘面强才跟，别当逻辑买' % (_con, _pct, _ptxt))
+        if _lb >= 3:
+            _tail = '量比 %.2f 倍，量能是真的，按题材节奏做，别给延伸溢价'
+        else:
+            _tail = '量比 %.2f 倍，量能一般，只在回踩时接，别给延伸溢价'
+        return (('「%s」%+.1f%% 这条腿%s就是它自己的产品线，属明面逻辑；' + _tail)
+                % (_con, _pct, _lt, _lb))
+    return ('挂的是「%s」(%+.1f%%)，这条链上它供的是哪一截没核到，只能算蹭；它%s，盘面强才跟，别当逻辑买'
+            % (_con, _pct, _ptxt))
 
 def _chain_prefetch(codes):
     _cs = [str(c) for c in (codes or []) if c]
