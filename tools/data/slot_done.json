@@ -437,5 +437,6 @@
  "hourly|2026-11-24|14": true,
  "news2h|2026-11-24|1400": true,
  "preclose|2026-11-24": true,
- "tail|2026-11-24": true
+ "tail|2026-11-24": true,
+ "cycle|2026-11-24": true
 }
