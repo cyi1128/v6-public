@@ -3639,7 +3639,7 @@ def _au_prefetch(rows, max_workers=8):
     except Exception:
         pass
     _au_cache_save()
-    print('[auction] K线预取 %d/%d 只（补拉 %d）用时 %.1fs' % (
+    print('[auction] K线缓存 %d 只，本轮候选 %d 只（补拉 %d）用时 %.1fs' % (
         len(_AU_KL_CACHE), len(syms), len(todo), time.time() - _t0))
 
 
