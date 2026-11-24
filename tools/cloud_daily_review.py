@@ -5417,6 +5417,202 @@ _EXT_OK = ('参股', '控股', '子公司', '并购', '收购', '入股', '供�
            '新业务', '第二增长', '第二曲线', '转型', '切入', '进入', '打入', '技术路线', '专利',
            '代工', '配套', '渠道', '认证', '下游', '上游', '合作', '绑定')
 
+# ══════════════════════════════════════════════════════════════════════════
+# 2026-11-24 竞价卡·概念延伸暗线（用户口径：要道恩股份那种）
+# 「新材料 → 人形机器人皮肤那层柔性料」：题材腿是真的（东财个股所属概念），
+# 环节用行业/主营项目名去路由，只用来选哪一截，绝不印到卡面上，也不许出现主营口径。
+_CHAIN_SKIP = ('昨日', '涨停', '连板', '首板', '融资融券', '沪股通', '深股通', '专精特新',
+               '机构重仓', '基金重仓', '社保', 'QFII', '预盈', '预增', '预亏', '破净',
+               '低价股', '百元股', '微盘', '小盘股', '小盘价值', '大盘', '中盘', 'MSCI',
+               '富时', '标准普尔', '中证', '转债标的', '股权转让', '举牌', '次新股', '高股息',
+               '高振幅', '换手率', '热股', '题材股', '回购', '增持', '减持', '并购重组',
+               '壳资源', '国资', '央企', '国企改革', '创投', '板块', '指数', 'AH股', 'B股',
+               '摘帽', 'ST', '年报', '季报', '中报', '业绩', '注册制', '新股', '北交所')
+
+# 题材 → [(环节词，只用于匹配行业/主营项目名), (环节描述，印到卡上)]
+_CHAIN_KB = [
+    (('机器人', '具身智能', '减速器'),
+     [(('塑料', '橡胶', '弹性体', 'TPV', '硅胶', '改性', '薄膜', '胶', '新材料', '化工', '树脂'),
+       '机器人皮肤、柔性触感外层那一层料（TPV 一类热塑弹性体）'),
+      (('减速', '齿轮', '传动', '轴承', '丝杠', '导轨'), '机器人关节减速器、丝杠这一截传动件'),
+      (('电机', '伺服', '驱动', '电控'), '机器人空心杯电机、伺服驱动'),
+      (('传感', '视觉', '光学', '镜头', '激光', '雷达'), '机器人视觉与触觉传感'),
+      (('铸', '锻', '结构件', '精密', 'CNC', '金属', '模具', '压铸'), '机器人轻量化结构件与精密壳体'),
+      (('电池', '电源', '储能'), '机器人电源与电池包')]),
+    (('固态电池', '钠电', '锂电池'),
+     [(('电解', '锂', '膜', '材料', '化学', '前驱体'), '固态电解质、干法电极这条新路线'),
+      (('设备', '装备', '涂布', '辊压'), '固态电池产线设备')]),
+    (('液冷', '算力', '数据中心', '服务器'),
+     [(('冷', '散热', '泵', '管', '接头', '流体', '温控'), '服务器冷板、CDU、快接头这条散热硬件腿'),
+      (('铜', '缆', '连接', 'PCB', '覆铜'), '高速铜连接、服务器 PCB')]),
+    (('CPO', '光模块', '光通信', '硅光'),
+     [(('光', '通信', '光纤', '激光', '芯片', '光电'), '光模块与 CPO 光引擎'),
+      (('铜', '缆', '连接'), '高速铜缆连接')]),
+    (('稀土', '永磁', '磁材'),
+     [(('磁', '稀土', '合金', '金属'), '高性能钕铁硼磁材')]),
+    (('低空', '无人机', '飞行汽车', '通用航空'),
+     [(('复合', '碳纤维', '复材', '结构', '航空', '轻量化'), 'eVTOL 机体复材与结构件'),
+      (('电池', '电源', '储'), '低空飞行器高倍率电池')]),
+    (('光伏', 'HJT', 'TOPCon', '钙钛矿', 'BC电池'),
+     [(('硅', '电池', '组件', '逆变', '支架', '胶膜', '焊带', '银浆'), '光伏电池与组件这一截'),
+      (('设备', '真空', '镀', '激光'), '光伏产线设备')]),
+    (('储能', '虚拟电厂', '电网', '特高压'),
+     [(('变流', '逆变', 'PCS', '电力电子', '电源'), '储能变流器 PCS 与电力电子'),
+      (('电池', '电芯', '锂'), '储能电芯与系统集成')]),
+    (('半导体', '芯片', '先进封装', '存储'),
+     [(('封装', '测试', '设备', '材料', '光刻', '硅片'), '先进封装、设备与材料这一截')]),
+    (('军工', '航空装备', '卫星', '航天'),
+     [(('锻', '铸', '钛', '合金', '复材', '紧固'), '军工锻件、钛合金与紧固件'),
+      (('电子', '雷达', '通信', '导航'), '星载电子与导航载荷')]),
+    (('复合铜箔', '铜箔'),
+     [(('箔', '铜', '膜', '镀'), '复合铜箔与极薄铜箔这条降本路线')]),
+    (('智能驾驶', '汽车零部件', '汽车电子'),
+     [(('座舱', '内饰', '塑料', '弹性体', '改性'), '智能座舱内外饰与改性材料'),
+      (('雷达', '摄像', '传感', '线控'), '智驾感知与线控执行件')]),
+    (('创新药', '减肥药', 'GLP', 'ADC', 'CRO', 'CDMO'),
+     [(('药', '医', '生物', '制剂', '原料药', 'CDMO'), '新药管线与 CDMO 产能')]),
+]
+
+_CHAIN_CACHE = {}
+
+
+def _chain_sid(code):
+    c = str(code or '').strip()
+    if not c:
+        return ''
+    return ('1.' if c[0] in '65' else '0.') + c
+
+
+def _chain_biz_name(nm):
+    for k in _CHAIN_SKIP:
+        if k in nm:
+            return False
+    return True
+
+
+def _concepts_of(code, ttl_min=8):
+    """东财个股所属概念（真实归属，含该概念板块当日涨幅）。失败返回空，不猜。"""
+    c = str(code or '')
+    if not c:
+        return []
+    _now = time.time()
+    _hit = _CHAIN_CACHE.get(c)
+    if _hit and (_now - _hit[0]) < ttl_min * 60:
+        return _hit[1]
+    url = ('https://push2.eastmoney.com/api/qt/slist/get?spt=3&fltt=1&invt=2'
+           '&fields=f12,f14,f3,f104&secid=%s&pn=1&pz=60&po=1&np=1&fid=f3'
+           '&ut=bd1d9ddb04089700cf9c27f6f7426281' % _chain_sid(c))
+    out = []
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0',
+                                                 'Referer': 'https://quote.eastmoney.com/'})
+        d = json.loads(urllib.request.urlopen(req, timeout=6).read().decode('utf-8'))
+        for x in ((d.get('data') or {}).get('diff') or []):
+            _n = str(x.get('f14') or '').strip()
+            if not _n:
+                continue
+            _v = x.get('f3')
+            if isinstance(_v, (int, float)):
+                _p = float(_v)
+                if abs(_p) > 40:
+                    _p = _p / 100.0
+            else:
+                _p = 0.0
+            out.append((_n, _p))
+    except Exception as e:
+        print('[auction] 概念归属取不到 %s：%s' % (c, str(e)[:40]))
+    _CHAIN_CACHE[c] = (_now, out)
+    return out
+
+
+def _chain_pick(code, industry='', biz_terms=None):
+    """在它的真实概念里挑今天最强的一条题材腿，并判断它落在链上哪一截。
+    主营项目名只作路由信号，不出现在卡面文字里。"""
+    cons = _concepts_of(code)
+    if not cons:
+        return None
+    _ctx = (str(industry or '') + ' ' + ' '.join([str(x) for x in (biz_terms or [])])).strip()
+    best = None
+    best_gen = None
+    for nm, pv in cons:
+        if not _chain_biz_name(nm):
+            continue
+        _p = float(pv or 0)
+        _matched = False
+        for _t, _legs in _CHAIN_KB:
+            _ks = [k for k in _t if k in nm]
+            if not _ks:
+                continue
+            _matched = True
+            _leg = None
+            for needles, desc in _legs:
+                if any(k in _ctx for k in needles):
+                    _leg = desc
+                    break
+            _cand = {'concept': nm, 'pct': _p, 'leg': _leg,
+                     'theme': _ks[0], 'rank': max(len(k) for k in _ks)}
+            if best is None or (_cand['pct'], _cand['rank']) > (best['pct'], best['rank']):
+                best = _cand
+            break
+        if not _matched:
+            if best_gen is None or _p > best_gen['pct']:
+                best_gen = {'concept': nm, 'pct': _p, 'leg': None, 'theme': '', 'rank': 0}
+    return best or best_gen
+
+
+def _chain_dark(s, short=False):
+    """道恩口径的暗线延伸：真实概念归属 + 落在哪一截 + 今天这条链走没走。"""
+    code = str((s or {}).get('code') or '')
+    if not code:
+        return ''
+    try:
+        hit = _chain_pick(code, str((s or {}).get('industry') or ''),
+                          (s or {}).get('ban_terms') or (s or {}).get('_biz_terms') or [])
+    except Exception as e:
+        print('[auction] 概念暗线异常 %s：%s' % (code, str(e)[:40]))
+        return ''
+    if not hit:
+        return ''
+    _leg = hit.get('leg')
+    _con = hit.get('concept') or ''
+    _pct = float(hit.get('pct') or 0)
+    if short:
+        if _leg:
+            return '%s（「%s」%+.1f%%）' % (_leg, _con, _pct)
+        return '「%s」%+.1f%%，具体供哪一截没核到' % (_con, _pct)
+    try:
+        _pos = _au_pos_of(code, float((s or {}).get('price') or 0))
+    except Exception:
+        _pos = None
+    if _pos:
+        _pp = float(_pos[0])
+        _ptxt = ('还在低位（%.0f%%）' % _pp) if _pp <= 30 else                 (('在中位（%.0f%%）' % _pp) if _pp <= 55 else ('已到高位（%.0f%%）' % _pp))
+    else:
+        _ptxt = '位置没取到'
+    if _leg:
+        return ('%s——「%s」这条腿上的配套延伸，自己那摊子跟它不搭；板块今天 %+.1f%%，它%s，'
+                '只算沾边，没见订单落地别当业绩买' % (_leg, _con, _pct, _ptxt))
+    return ('「%s」的成分股，板块今天 %+.1f%%，它%s；具体供哪一截没核到，只能算蹭概念'
+            % (_con, _pct, _ptxt))
+
+
+def _chain_prefetch(codes):
+    _cs = [str(c) for c in (codes or []) if c]
+    if not _cs:
+        return
+    _t0 = time.time()
+    try:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            _fs = [ex.submit(_concepts_of, c) for c in _cs]
+            for f in as_completed(_fs, timeout=25):
+                try:
+                    f.result()
+                except Exception:
+                    pass
+    except Exception as e:
+        print('[auction] 概念归属预取异常：%s' % str(e)[:40])
+    print('[auction] 概念归属 %d 只，用时 %.1fs' % (len(_cs), time.time() - _t0))
+
 
 def _auction_stock_facts(s, heat):
     """喂给模型的真实素材：量价事实 + 主营项目名（只作「禁写词」，不许当答案）。
@@ -7657,6 +7853,10 @@ def build_auction(title='竞价观察'):
         except Exception as _je:
             print(f'[factor-auction] 情绪分异常 {str(_je)[:60]}')
     _hot_names = [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]]
+    try:
+        _chain_prefetch([x.get('code') for x in _list10])
+    except Exception:
+        pass
     rows = ''
     for i, s in enumerate(_list10[3:], 4):
         buy_low = round(max(0.0, s['price'] * 0.995), 2)
@@ -7682,8 +7882,13 @@ def build_auction(title='竞价观察'):
                 _dp.append('<div style="color:#e9ecef;font-size:13px;margin-top:3px;">👉 %s</div>' % _wy0)
             _deep_html = ''.join(_dp)
         else:
-            # v80-D：模型没回就不印暗线（绝不回落主营构成），只留下面的事实与近5日
-            _deep_html = ''
+            # v80-D：模型没回不拿主营顶；2026-11-24 改用真实概念归属生成延伸暗线
+            try:
+                _ch4 = _chain_dark(s, short=True)
+            except Exception:
+                _ch4 = ''
+            _deep_html = ('<div style="color:#a78bfa;font-size:13px;margin-top:4px;">'
+                          '🔍 暗线延伸：%s</div>' % _ch4) if _ch4 else ''
         _fl_line = ''
         if _FACTOR_OK and _jq_res is not None:
             _fres = _factor_for_auction(s, heat, cnt, _jq_res)
@@ -7751,8 +7956,16 @@ def build_auction(title='竞价观察'):
             _dk3 = str(_d3.get('dark') or '').strip()
             # 2026-11-24 用户铁律：暗线延伸禁止明面主营业务
             if _dk3 and _DARK_BAN_RE.search(_dk3):
-                print('[auction] %s 暗线含主营，改出盘面事实' % s_['name'])
+                print('[auction] %s 暗线含主营，改用概念延伸' % s_['name'])
                 _dk3 = ''
+            if not _dk3:
+                try:
+                    _ch3 = _chain_dark(s_)
+                except Exception:
+                    _ch3 = ''
+                if _ch3:
+                    _dk3 = _ch3
+                    print('[auction] %s 暗线走概念延伸：%s' % (s_['name'], _ch3[:26]))
             _lg3 = str(_d3.get('logic') or '').strip() or str(_d3.get('why') or '').strip()
             _dk3_html = ('<div style="color:#a78bfa;font-size:13px;margin-top:2px;">🔍 暗线延伸：%s</div>' % _dk3
                          if _dk3 else '')
