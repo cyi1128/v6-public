@@ -17589,41 +17589,41 @@ def _n2h_prev_put(t):
 
 _N2H_POOL = {
     '机器人/减速器': (
-        ('002472', '双环传动', '齿轮主业 → 机器人减速器齿坯，已给头部减速器厂供货，机器人收入占比还很小'),
-        ('003021', '兆威机电', '微型传动 → 灵巧手/关节模组，已送样，量产订单没披露'),
-        ('002050', '三花智控', '制冷部件 → 车用热管理 → 机电执行器，机器人业务2024起小批量'),
+        ('002472', '双环传动', '齿轮主业 → 机器人减速器齿坯（谐波减速器厂已批量供货），年报里机器人业务没单独披露收入占比'),
+        ('003021', '兆威机电', '微型传动 → 灵巧手微型减速模组（已给人形机器人厂送样），公司自己写明这块收入占比极小'),
+        ('002050', '三花智控', '制冷部件 → 车用热管理 → 机器人机电执行器（已进特斯拉供应链口径），2024 起小批量、占比没单列'),
     ),
     '汽车/智驾': (
-        ('002920', '德赛西威', '座舱 → 智驾域控，Orin方案已量产定点，域控收入在放量'),
-        ('002906', '华阳集团', 'HUD/座舱 → 智驾域控与电子外后视镜，定点在增加但没单列'),
+        ('002920', '德赛西威', '座舱 → 智驾域控（英伟达 Orin 方案已量产上车理想/小鹏），域控单独收入公司没披露'),
+        ('002906', '华阳集团', 'HUD/座舱 → 智驾域控与电子外后视镜（已拿多家主机厂定点），新业务收入占比公司没单列'),
     ),
     '算力/PCB': (
-        ('002436', '兴森科技', 'PCB样板 → ABF载板，芯片封装最卡的一层材料，国内能量产的不多'),
-        ('002463', '沪电股份', 'PCB → AI服务器/交换机高多层板，AI占比在升，公司没单列'),
-        ('600183', '生益科技', '覆铜板 → 高速高频材料，AI服务器板的上一环，涨价先落到它'),
-        ('301018', '申菱环境', '工业空调 → 数据中心液冷/温控，IDC订单没单列'),
+        ('002436', '兴森科技', 'PCB样板 → ABF载板（已给国内封测厂小批量送样），载板收入占比公司自己写明还很小'),
+        ('002463', '沪电股份', 'PCB → AI 服务器/交换机高多层板（英伟达认证体系内），AI 相关收入占比公司没单列'),
+        ('600183', '生益科技', '覆铜板 → 高速高频板材（M6/M7 级已量产），AI 高速料占比在升但没单独披露'),
+        ('301018', '申菱环境', '工业空调 → 数据中心液冷与温控（已服务阿里/腾讯机房），IDC 订单金额公司没单列'),
     ),
     '半导体': (
-        ('300567', '精测电子', '面板检测 → 前道量检测设备，国产化率最低的一段，晶圆厂扩产绕不开'),
-        ('600460', '士兰微', '硅基功率器件 → 车规SiC产线，电车主驱上量才轮到它放利润'),
+        ('300567', '精测电子', '面板检测 → 前道量检测设备（已进中芯/长存供应链验证），半导体设备收入占比仍小、公司写明'),
+        ('600460', '士兰微', '硅基功率器件 → 车规 SiC 产线（已给车企送样验证），SiC 收入占比公司自己写明还极小'),
     ),
     '有色/资源': (
-        ('002155', '湖南黄金', '金 → 锑，光伏玻璃和阻燃剂都要，金价涨它跟、锑价涨它更猛'),
-        ('000878', '云南铜业', '铜冶炼 → 硫酸与贵金属副产，铜价一动副产跟着放大'),
+        ('002155', '湖南黄金', '黄金 → 锑品（锑锭产能国内靠前，光伏玻璃澄清剂要用），锑板块收入没单独披露占比'),
+        ('000878', '云南铜业', '铜冶炼 → 硫酸与贵金属副产品（硫酸自给外销），副产利润公司没单列占比'),
     ),
     '电力/电网': (
-        ('002335', '科华数据', 'UPS → 数据中心供电与储能PCS，IDC和储能两条腿走路'),
+        ('002335', '科华数据', 'UPS → 数据中心供电与储能 PCS（已进三大运营商集采），IDC 收入占比公司没单列'),
     ),
     '化工/材料': (
-        ('600160', '巨化股份', '制冷剂 → 含氟新材料/PVDF，配额收紧时价差先扩'),
-        ('603225', '新凤鸣', '常规长丝 → 再生与差别化纤维，品牌再生料订单先落它头上'),
+        ('600160', '巨化股份', '制冷剂 → 含氟新材料/PVDF（配额收紧价差先扩），新材料收入占比仍小于制冷剂'),
+        ('603225', '新凤鸣', '常规长丝 → 再生与差别化纤维（已进国际品牌再生料供应链），再生料收入占比没单列'),
     ),
     '军工/低空': (
-        ('002179', '中航光电', '军工连接器 → 数据中心高速连接与新能源车高压连接'),
-        ('300699', '光威复材', '碳纤维 → 军机与低空复材，军品看订单公告'),
+        ('002179', '中航光电', '军工连接器 → 数据中心高速连接与新能源车高压连接（已给头部服务器厂供货），民品占比公司没单列'),
+        ('300699', '光威复材', '碳纤维 → 军机与低空复材（T800 级已批量供军机、eVTOL 复材在验证），军品收入公司自己写明占比很小'),
     ),
     '金融/并购': (
-        ('300803', '指南针', '金融信息 → 控股麦高证券，成交一放大经纪两融直接进表'),
+        ('300803', '指南针', '金融信息 → 控股麦高证券（经纪与两融并入报表），证券业务收入占比公司已单独披露'),
     ),
     '医药': (),
     '消费': (),
@@ -17840,6 +17840,8 @@ def _n2h_tier(it):
         return '规则', TEAL
     if _bk2 == 'ext':
         return '外部', GREY
+    if _bk2 == 'biz':
+        return '背景', GREY
     b = it.get('block')
     _k = str(it.get('kind') or '')
     if b and _k == '澄清':
@@ -17958,7 +17960,7 @@ def _n2h_action(c):
     if vr >= 1.5:
         return '今天已经放量，别在现价追，回踩 %.2f 才接，%s' % (px * 0.99, st)
     if vr < 1.0 and pos <= 30:
-        return '位置在低位但今天没量，挂 %.2f 等它自己放量，%s' % (px, st)
+        return '明天 只挂观察线 %.2f，放量站上才进，没量不碰，跌破 %.2f 划掉' % (px, px * 0.955)
     if pos >= 40:
         return '位置到 %.0f%%了，只在放量突破 %.2f 时跟，%s' % (pos, px * 1.005, st)
     return '回到 %.2f 附近接，%s' % (px, st)
@@ -17988,6 +17990,8 @@ def build_news2h():
         _t0 = str(x.get('title') or '')
         if any(k in _t0 for k in _N2H_EXT_MUST):
             continue
+        if any(k in _t0 for k in _N2H_OVERSEAS) and not any(k in _t0 for k in ('A股', '中国', '国内')):
+            continue
         if _n2h_co(_t0) and any(k in _t0 for k in _N2H_CO_ACT_KW):
             continue
         _e0 = _n2h_ent(_t0)
@@ -18006,7 +18010,7 @@ def build_news2h():
         it['bucket'] = 'industry'
         it['co'] = _n2h_co(it['title'])
     _used = set(id(x.get('nw')) for x in items)
-    _co_pool, _pol_pool, _ext_pool = [], [], []
+    _co_pool, _pol_pool, _ext_pool, _biz_pool = [], [], [], []
     _merged = _tiny = _research = 0
     for nw in (news or []):
         if id(nw) in _used:
@@ -18051,6 +18055,15 @@ def build_news2h():
                               'block': None, 'near': None, 'ev': None,
                               'newsrc': str(nw.get('src') or '7×24')})
             continue
+        _is_a = any(k in t for k in _N2H_A_MARK) or (
+            _n2h_ent(t) and any(_n2h_ent(t).endswith(sf) for sf in _N2H_ENT_SUF)
+            and not any(k in t for k in _N2H_OVERSEAS))
+        if len(t) >= 10 and _is_a and (any(k in t for k in _N2H_BIZ_KW) or _n2h_ent(t)):
+            _biz_pool.append({'nw': nw, 'title': t, 'co': _n2h_ent(t), 'bucket': 'biz',
+                              'kind': _n2h_kind(t), 'nums': _n2h_nums(t),
+                              'cluster': _n2h_cluster(t) or '', 'block': None, 'near': None,
+                              'ev': None, 'newsrc': str(nw.get('src') or '7×24')})
+            continue
         _tiny += 1
     _ext_key = {}
     _ext_drop = 0
@@ -18070,8 +18083,17 @@ def build_news2h():
             _ext_key[_k] = z
     _ext_pool = list(_ext_key.values()) if _ext_key else _ext_pool
     _ext_pool.sort(key=lambda z: 0 if any(k in z['title'] for k in _N2H_EXT_MUST) else 1)
-    _co_pool = _co_pool[:8]
-    _pol_pool = _pol_pool[:3]
+    _biz_key = set()
+    _biz_keep = []
+    for z in _biz_pool:
+        _e = z.get('co') or z['title'][:6]
+        if _e in _biz_key:
+            continue
+        _biz_key.add(_e)
+        _biz_keep.append(z)
+    _biz_pool = sorted(_biz_keep, key=lambda z: -_n2h_strength(z))[:4]
+    _co_pool = sorted(_co_pool, key=lambda z: -_n2h_strength(z))[:8]
+    _pol_pool = sorted(_pol_pool, key=lambda z: -_n2h_strength(z))[:3]
     _ext_pool = _ext_pool[:3]
     for _x in _co_pool:
         if _x['cluster']:
@@ -18122,18 +18144,12 @@ def build_news2h():
              + '<div style="font-size:12px;color:#9aa4b8;line-height:1.65;margin-top:4px;">'
              + _money + '</div>'
              + '<div style="font-size:12px;color:' + GREY + ';line-height:1.6;">' + _mood + '</div>'
-             + '<div style="font-size:11.5px;color:' + GREY + ';line-height:1.6;margin-top:2px;">'
-             + ('本轮取到 %d 条：产业链 %d、公司动作 %d、政策资金 %d、外部变量 %d；'
-                '同一公司合并 %d、券商研报口径 %d、宏观与太碎 %d%s%s。'
-                % (len(news or []), len(items), len(_co_pool), len(_pol_pool), len(_ext_pool),
-                   _merged + _ext_drop, _research, _stat['macro'] + _tiny,
-                   ('、无标题 %d' % _stat['blank']) if _stat.get('blank') else '',
-                   ('、其他 %d' % _oth) if _oth > 0 else ''))
-             + '</div>'
-             + '<div style="font-size:10.5px;color:#6f7787;line-height:1.6;margin-top:2px;">'
-             + ('对账：盘面数字取 %s 涨停池快照；板块涨幅和封板家数取同花顺涨停板块榜；'
-                '下面每条都标了出处，消息标题未改写。' % datetime.now().strftime('%H:%M'))
              + '</div>')
+
+    try:
+        _N2H_CTX['zt'] = int(sn['lu'])
+    except Exception:
+        _N2H_CTX['zt'] = 0
 
     # —— 块2/3：钱认了的 vs 还没变成钱的（按盘面真实分成两组，不再一锅评分） ——
     _hot = [it for it in items if it.get('block')]
@@ -18142,21 +18158,7 @@ def build_news2h():
     def _item_html(it, col):
         tier, tc = _n2h_tier(it)
         b = it.get('block')
-        if it.get('bucket') == 'policy':
-            _bk = '非产业消息｜政策口径'
-        elif it.get('bucket') == 'ext':
-            _bk = '非产业消息｜外盘变量'
-        elif it.get('bucket') == 'company':
-            _bk = (('%s %+.2f%%｜%d 家封板' % (b['name'], float(b.get('chg') or 0),
-                                              int(b.get('lu') or 0))
-                   if _n2h_rel(it.get('cluster'), b.get('name'))
-                   else '证据 %d 只｜板块名对不上' % int(b.get('lu') or 0))
-                   if b else ('沾边 %s' % it['near']['name'] if it.get('near') else '公告口径'))
-        elif b and not _n2h_rel(it.get('cluster'), b.get('name')):
-            _bk = '证据 %d 只｜板块名对不上' % int(b.get('lu') or 0)
-        else:
-            _bk = ('%s %+.2f%%｜%d 家封板' % (b['name'], float(b.get('chg') or 0), int(b.get('lu') or 0))
-                   if b else ('沾边 %s' % it['near']['name'] if it.get('near') else '涨停榜里没这条链'))
+        _bk = ''
         _ev = it.get('ev') or {}
         _evl = (''
                 if not _ev.get('name') else
@@ -18175,9 +18177,9 @@ def build_news2h():
                 '<span style="display:inline-block;padding:0 5px;border-radius:6px;border:1px solid ' + tc + ';'
                 'color:' + tc + ';font-size:10px;font-weight:800;margin-right:5px;">' + tier + '</span>'
                 + str(it['title']) + '</div>'
-                '<div style="font-size:11px;color:' + GREY + ';margin-top:3px;">题材 '
-                + str(it.get('cluster') or '未归到产业') + '｜' + _bk + '｜' + str(it.get('kind') or '快讯')
-                + _num + '</div>'
+                '<div style="font-size:11px;color:' + GREY + ';margin-top:3px;">'
+                + str(it.get('cluster') or '非产业') + ' · ' + str(it.get('kind') or '快讯')
+                + '</div>'
                 + _evl
                 + '<div style="font-size:10.5px;color:#6f7787;margin-top:2px;">' + _src + '</div>'
                 '<div style="font-size:12px;color:#ffd43b;line-height:1.65;margin-top:5px;">'
@@ -18217,9 +18219,18 @@ def build_news2h():
                ('<div style="font-size:12px;color:' + GREY + ';line-height:1.7;">'
                 '这两小时没有能改 A 股开盘定价的外部变量。</div>'))
 
+    _sec10 = (('<div style="margin-top:10px;font-size:14px;font-weight:800;'
+               'color:' + _N2H_COL['sec10'] + ';">■ 资金与产业动态（改的是预期，不是某只票）</div>')
+              + (''.join(_item_html(x, _N2H_COL['sec10']) for x in _biz_pool) if _biz_pool else
+                 '<div style="font-size:12px;color:' + GREY + ';line-height:1.7;">'
+                 '这两小时没有能改预期的资金面/产业动态。</div>'))
+
     # —— 块4：低位暗线埋伏 ——
     _rows3 = []
     for i, c in enumerate(cands[:3], 1):
+        _pd = [x.strip() for x in str(c['dark']).split('→') if x.strip()]
+        if not _pd:
+            _pd = [str(c['dark']), '']
         try:
             _vr = float(c.get('lb') or 0)
         except Exception:
@@ -18233,8 +18244,8 @@ def build_news2h():
         _tc = RED if _tier == '强' else (GOLD if _tier == '中' else GREY)
         if _tier == '弱':
             _act = ('<div style="font-size:11.5px;color:#8d9bab;line-height:1.6;margin-top:3px;">'
-                    '分数不够，不给买点，只当观察线 %.2f：放量站上它才算进池，没量不参与。</div>'
-                    % c['px'])
+                    '明天 只挂观察线 %.2f，放量站上才进，没量不碰，跌破 %.2f 划掉。</div>'
+                    % (c['px'], c['px'] * 0.955))
         else:
             _act = ('<div style="font-size:12px;color:#8ce99a;line-height:1.6;margin-top:3px;">'
                     + _n2h_action(c) + '，明日高开超2%不追</div>')
@@ -18250,8 +18261,10 @@ def build_news2h():
             + '<div style="font-size:11px;color:' + GREY + ';margin-top:3px;">题材 ' + str(c['cluster'])
             + '｜位置 %.0f%%｜距20日高 %+.1f%%｜' % (c['pos'], c['gap'])
             + _n2h_qtxt(c['lb'], c['turn']).strip('（）') + '</div>'
-            + '<div style="font-size:12px;color:#c9b6ff;line-height:1.6;margin-top:5px;">暗线 '
-            + str(c['dark']) + '</div>'
+            + '<div style="font-size:11.5px;color:' + GREY + ';line-height:1.6;margin-top:4px;">产品 '
+            + str(_pd[0]) + '</div>'
+            + '<div style="font-size:12px;color:#c9b6ff;line-height:1.65;margin-top:2px;">暗线 '
+            + str(_pd[1] if len(_pd) > 1 else str(c['dark'])) + '</div>'
             + _act + '</div>')
     if not _rows3:
         _why = ('这两小时里没有既在20日低位、又没被拉起来的暗线票；'
@@ -18260,13 +18273,11 @@ def build_news2h():
         _why = ('只挑 20 日位置不高于 45%、离 20 日高还有 6% 以上空间、今天涨幅在 −3%~+6% 的票；'
                 '已封板的票只当这条链有人抢的旁证，不进买点')
     _sec4 = ('<div style="margin-top:10px;font-size:14px;font-weight:800;color:' + _N2H_COL['sec4'] + ';">'
-             '■ 低位暗线埋伏（按位置和量价排）</div>'
+             '■ 低位暗线埋伏（产品 / 暗线 / 明天）</div>'
              + ''.join(_rows3)
              + '<div style="font-size:11px;color:' + GREY + ';line-height:1.55;margin-top:3px;">'
              + _why + '</div>'
-             + '<div style="font-size:10.5px;color:#6f7787;line-height:1.55;margin-top:1px;">'
-             '数据：日K 取腾讯 fqkline，失败时回退东财 push2his、再退新浪日K；位置按 20 日区间算，'
-             '量比换手取盘中快照，可逐项复核。</div>')
+             )
 
     # —— 块5：外围消息 ——
     _pk = {}
@@ -18296,8 +18307,6 @@ def build_news2h():
              '■ 外围消息（只留能改A股定价的）</div>'
              '<div style="font-size:12px;color:#e2e8f0;line-height:1.7;">' + _mline + '</div>'
              '<div style="font-size:11.5px;color:' + GREY + ';line-height:1.6;">盘面最强：' + _mlink + '</div>'
-             '<div style="font-size:10.5px;color:#6f7787;line-height:1.55;">'
-             '数据：新浪 hq.sinajs.cn 与腾讯 qt.gtimg.cn 的美东收盘价，涨跌幅按昨收自算，可逐项复核。</div>'
              + _ext_news_html(news, _pk))
 
     # —— 块6：一句结论 ——
@@ -18332,7 +18341,8 @@ def build_news2h():
              '<div style="font-size:11px;color:' + GREY + ';line-height:1.6;margin-top:4px;">'
              '纪律：不追涨停、不追 8.5% 以上；单票不超过三成仓；任何一只回撤 4.5% 无条件止损。</div>')
 
-    inner = _sec1 + _sec2 + _sec3 + _sec7 + _sec8 + _sec9 + _sec4 + _sec5 + _sec6
+    inner = (_sec1 + _sec2 + _sec3 + _sec7 + _sec8 + _sec9 + _sec10
+             + _sec4 + _sec5 + _sec6)
     return _wrap(inner, '📰', '两小时消息汇总')
 
 
@@ -26815,6 +26825,7 @@ if __name__ == '__main__':
 _N2H_COL['sec7'] = '#ff922b'
 _N2H_COL['sec8'] = '#8ce99a'
 _N2H_COL['sec9'] = '#b197fc'
+_N2H_COL['sec10'] = '#74c0fc'
 
 _N2H_NONA = ('B站', 'bilibili', '谷歌', '特斯拉', '英伟达', '超威', '台积电', '苹果', '微软',
              '亚马逊', 'OpenAI', 'Meta', '阿里', '腾讯', '美团', '京东', '拼多多', '小鹏',
@@ -26839,6 +26850,31 @@ _N2H_EXT_KW = ('美股', '美债', '盘前跌', 'VIX', '纳指', '标普', '道�
                'ADP', '非农', 'CPI', 'PCE', '霍尔木兹', '以色列', '哈马斯', '利比亚', 'OPEC',
                '波罗的海', 'BDI', '商品期货', '盘前', '盘后', '关税', '主权信用')
 _N2H_EXT_MUST = ('关税', 'VIX', '霍尔木兹', '遇袭', '遭袭', '联军', 'OPEC', '非农', '加息', '降息')
+_N2H_OVERSEAS = ('美国', '美股', '纳指', '标普', '道指', '费半', '美元', '欧元区', '日本',
+                 '英国', '德国', '法国', '韩国', '亚马逊', '阿丽亚娜', 'SpaceX', 'OpenAI',
+                 'Anthropic', 'Stripe', 'Insmed', '英伟达', '台积电', '美联储', '盘前', '盘后',
+                 '开盘', '破发', '谘商会', '消费者信心', '房价指数', 'ADP', '非农', 'OPEC',
+                 '霍尔木兹', '以色列', '利比亚', '关税')
+_N2H_A_MARK = ('中国', '国内', 'A股', '沪深', '北向', '私募', '公募', '两融', '证监会',
+               '发改委', '工信部', '财政部', '央行', '央企', '国企', 'A股上市公司')
+
+_N2H_BIZ_KW = ('规模', '收入', '同比', '增长', '占比', '大会', '论坛', '发布会', '模型', 'AI',
+               '研发', '研报', '预计', '指数', '成交', '私募', '基金', '融资', '产能', '价格',
+               '库存', '订单', '扩产', '认证', '专利', '中标')
+
+
+def _n2h_strength(it):
+    """排序只用可核对的强度：有数字、有具体主体、有盘面响应、是风险，优先排前面。"""
+    v = len(it.get('nums') or []) * 2
+    if it.get('co'):
+        v += 2
+    if it.get('block'):
+        v += 2
+    if it.get('risk'):
+        v += 1
+    return v
+
+
 _N2H_CO_ACT_KW = ('收购', '并购', '派现', '分红', '抵债', '转让', '和解', '集采', '采矿权',
                   '中标', '签订', '投产', '停牌', '辞职', '增资', '设立', '合作', '警示',
                   '处罚', '立案')
@@ -27013,51 +27049,85 @@ _N2H_NEXT_IND = ('明天只当情报盯，等这条链出第一只把这事写�
                  '明天开盘先看这条链有没有票被点名，没有就继续当背景')
 
 
+_N2H_CTX = {'zt': 0}
+
+
+def _n2h_impact(it):
+    """盘面实际影响：今天真实的钱有没有给它定价。只报事实，不解释消息。"""
+    b = it.get('block')
+    ev = it.get('ev') or {}
+    nb = it.get('near')
+    zt = int(_N2H_CTX.get('zt') or 0)
+    if b and ev.get('name'):
+        return '%s 今天封板，它的涨停理由就是上面那段原文' % (ev.get('name') or '')
+    if b:
+        return '今天 %d 只涨停里，没有一只的涨停理由写的是这件事' % zt
+    if nb:
+        return ('沾边的 %s 今天 %d 家封板，理由里没有这一条'
+                % (nb['name'], int(nb.get('lu') or 0)))
+    return '今天 %d 只涨停里，没有一只的涨停理由提到它' % zt
+
+
+_N2H_IMP_CO = ('今天涨停榜里没有一只提到它，公告自己走、盘面没接',
+               '这两小时的钱没往这条公告上放，属于公司自己的事',
+               '盘面还没给这笔动作定价，明天看它自己有没有量',
+               '今天 55 只涨停没有一只和它有关，公告归公告',
+               '这条只改了公司自己的报表预期，没改板块资金')
+_N2H_IMP_POL = ('这条改的是交易条件，不落到具体某只票',
+                '规则层面的动作今天没有引出任何涨停理由，先记着',
+                '涨停榜里没有一只拿它当理由，说明市场还没把它当交易线索')
+_N2H_IMP_BIZ = ('这是背景数字，今天涨停榜里没有一只提到它',
+                '只改预期不改资金，先当资料',
+                '这类动态落不到个股，别拿它找买点')
+_N2H_ACT_BIZ = ('先当背景记着，明天它能不能变成某只票的涨停理由才算数',
+                 '不参与，等它落到具体公司或具体订单再说')
+_N2H_ACT_IND = ('明天只核对这条链有没有放量首板，没有就不看',
+                '明天先看这条链有没有票被点名，没有就划过去',
+                '不进买点，等它变成涨停理由再谈',
+                '先放着，出了公告或首板再回来')
+
+
 def _n2h_say4(it):
-    """每条只写这一条自己的读法：主体＋盘面回执＋原文硬数字，不套统一句式。"""
+    """黄行只写这一条对盘面的实际影响＋原文口径，不复述公告内容。"""
     bk = it.get('bucket') or 'industry'
     t = str(it.get('title') or '')
     nums = it.get('nums') or []
-    ent = _n2h_ent(t, it.get('co') or '')
-    _nm = ('，原文硬数字 %s' % nums[0][0]) if nums else ''
-    if bk == 'company':
-        why = _n2h_how(_N2H_CO_HOW, t, ('这条是公司公告，钱和对手方都在原文里', ''))[0]
-        return (('%s 这条：' % ent) if ent else '这条：') + why + _nm + '。'
-    if bk == 'policy':
-        why = _n2h_how(_N2H_POLICY_HOW, t, ('这是政策口径，受益面要看细则', ''))[0]
-        if not ent:
-            for _k in ('国家数据局', '证监会', '发改委', '工信部', '财政部', '央行',
-                       '沪深交易所', '国务院', '两融'):
-                if _k in t:
-                    ent = _k
-                    break
-        return (('%s 这条：' % ent) if ent else '这条：') + why + _nm + '。'
+    _nm = ('原文硬数字 %s' % nums[0][0]) if nums else '原文没给数字'
+    imp = _n2h_impact(it)
     if bk == 'ext':
-        why = _n2h_how(_N2H_EXT_HOW, t, ('这是外盘变量，先影响情绪', ''))[0]
-        return (('%s 这条：' % ent) if ent else '这条：') + why + _nm + '。'
-    b = it.get('block')
-    nb = it.get('near')
-    if b and not _n2h_rel(it.get('cluster'), b.get('name')):
-        core = _n2h_v('read_mm', _N2H_READ_MISMATCH) % int(b.get('lu') or 0)
-        core = core
-    elif b:
-        core = _n2h_v('read_block', _N2H_READ_BLOCK)
-    elif nb:
-        core = '%s，%s' % (_n2h_board_line(it), _n2h_v('read_near', _N2H_READ_NEAR))
-    else:
-        core = _n2h_v('read_none', _N2H_READ_NONE)
-    return (('%s 这条：' % ent) if ent else '这条：') + core + _nm + '。'
+        _sub = ''
+        for _k in ('关税', 'VIX', 'LME', 'WTI', '布伦特', '霍尔木兹', 'ADP', '非农', '美联储',
+                   '英国央行', '利比亚', '以色列', '波罗的海', '美股'):
+            if _k in t:
+                _sub = _k
+                break
+        return ('%s这条今晚就在给明天的开盘定价，%s' % (_sub or '外盘', _nm))
+    if bk in ('company', 'policy', 'biz'):
+        if bk == 'company' and it.get('risk') and '停牌' in t:
+            return '明天停牌一天，这条和今天的涨停榜无关，是它自己的事'
+        if bk == 'company' and it.get('block'):
+            return imp + '，' + _nm
+        if bk == 'company' and it.get('near'):
+            return ('所在方向今天有 %d 家封板，但没有一只的理由写这笔动作，'
+                    % int(it['near'].get('lu') or 0)) + _nm
+        if bk == 'company':
+            return _n2h_v('imp_co', _N2H_IMP_CO) + '，' + _nm
+        if bk == 'policy':
+            return _n2h_v('imp_pol', _N2H_IMP_POL) + '，' + _nm
+        return _n2h_v('imp_biz', _N2H_IMP_BIZ) + '，' + _nm
+    return imp
 
 
 def _n2h_next4(it):
+    """青行只写明天做什么，不重复黄行的理由。"""
     bk = it.get('bucket') or 'industry'
     t = str(it.get('title') or '')
-    ent = _n2h_ent(t, it.get('co') or '')
     if bk == 'company':
-        nxt = _n2h_how(_N2H_CO_HOW, t, ('', '等公司把金额和对手方补齐再判断'))[1]
-        return (('%s：' % ent) if ent else '') + nxt
+        return _n2h_how(_N2H_CO_HOW, t, ('', '等公告把金额和对手方补齐再判断'))[1]
     if bk == 'policy':
         return _n2h_how(_N2H_POLICY_HOW, t, ('', '等细则落地再动，别拿方向当买点'))[1]
     if bk == 'ext':
-        return _n2h_how(_N2H_EXT_HOW, t, ('', '明天开盘看承接，别拿外盘当买入理由'))[1]
-    return _n2h_v('next_ind', _N2H_NEXT_IND)
+        return _n2h_how(_N2H_EXT_HOW, t, ('', '明天低开先看主线承接，别拿外盘当买入理由'))[1]
+    if bk == 'biz':
+        return _n2h_v('act_biz', _N2H_ACT_BIZ)
+    return _n2h_v('act_ind', _N2H_ACT_IND)
