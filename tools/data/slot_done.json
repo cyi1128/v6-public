@@ -421,5 +421,6 @@
  "auction|2026-11-24": true,
  "open|2026-11-24": true,
  "hourly|2026-11-24|10": true,
- "news2h|2026-11-24|1001": true
+ "news2h|2026-11-24|1001": true,
+ "pulse|2026-11-24|1020": true
 }
