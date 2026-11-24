@@ -6556,6 +6556,17 @@ def _auction_rescan_html(cap=10):
             prev = {}
         same_day = (prev.get('date') == today)
         prev_list = (prev.get('list') or []) if same_day else []
+        _base_lab = '上一次复筛'
+        if not prev_list:
+            # 今天第一轮：对照 09:25 竞价卡写下的那份名单（同样是 10 只，口径一致）
+            try:
+                if os.path.exists(AUCTION_POOL_PATH):
+                    _ap = json.load(open(AUCTION_POOL_PATH, encoding='utf-8')) or {}
+                    prev_list = _ap.get(today) or []
+                    if prev_list:
+                        _base_lab = '09:25 竞价卡'
+            except Exception:
+                prev_list = []
         seq = (int(prev.get('seq') or 0) + 1) if same_day else 1
         prev_codes = [x.get('code') for x in prev_list]
         cur_codes = [s['code'] for s in top]
@@ -6576,9 +6587,12 @@ def _auction_rescan_html(cap=10):
         except Exception:
             pass
         _head = ('<div style="margin-top:7px;font-size:12.5px;color:#66d9e8;line-height:1.7;">'
-                 '🔁 竞价池复筛（今日第 %d 次 · %s）：涨幅榜 %d 只 → 过闸门 %d 只 → 池内 %d 只'
-                 % (seq, now.strftime('%H:%M'), len(rows), len(cands), len(top)))
+                 '🔁 竞价池复筛（今日第 %d 次 · %s，对照%s）：涨幅榜 %d 只 → 过闸门 %d 只 → 池内 %d 只'
+                 % (seq, now.strftime('%H:%M'), _base_lab, len(rows), len(cands), len(top)))
         _lines = []
+        if new and _base_lab == '09:25 竞价卡':
+            _lines.append('· 比 09:25 那张卡新冒出 %d 只，前 3 只给位子，其余只记名字'
+                          % len(new))
         if new:
             for s in new[:3]:
                 _px = float(s.get('price') or 0)
@@ -6592,8 +6606,8 @@ def _auction_rescan_html(cap=10):
                               % (s['name'], s['code'], _c(_pc), _pc, _lb, _sc,
                                  round(_px * 0.985, 2), RED, round(_px * 0.97, 2)))
             if len(new) > 3:
-                _lines.append('· 另外 %d 只新进：%s' % (len(new) - 3,
-                                                     '、'.join(x['name'] for x in new[3:])))
+                _lines.append('· 另外 %d 只：%s' % (len(new) - 3,
+                                                 '、'.join(x['name'] for x in new[3:])))
         else:
             _lines.append('· 没有新票进池，还是原来那几只，不用重复看')
         if gone:
