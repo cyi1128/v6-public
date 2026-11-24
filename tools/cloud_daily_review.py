@@ -7781,7 +7781,7 @@ def build_auction(title='竞价观察'):
                 _p3pt = '位置未取到'
             _ind3 = str(s_.get('industry') or '').strip()
             if _ind3 in ('', '其他'):
-                _ind3 = '同一板块'
+                _ind3 = '全市场'
                 _n3 = len(cands or [])
             else:
                 try:
