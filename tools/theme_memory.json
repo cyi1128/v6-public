@@ -1,4 +1,97 @@
 {
+ "2026-11-24": {
+  "汽车零部": {
+   "leaders": [
+    "克来机电",
+    "长华集团",
+    "一彬科技"
+   ],
+   "reason": "8只涨停·龙头克来机电",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 92501,
+   "divergence": false
+  },
+  "通用设备": {
+   "leaders": [
+    "汇洲智能",
+    "宁波东力",
+    "锋龙股份"
+   ],
+   "reason": "5只涨停·龙头汇洲智能",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "服装家纺": {
+   "leaders": [
+    "奥康国际",
+    "红豆股份",
+    "天创股份"
+   ],
+   "reason": "3只涨停·龙头奥康国际",
+   "strength": 9,
+   "max_lbc": 1,
+   "fbt": 93243,
+   "divergence": false
+  },
+  "计算机设": {
+   "leaders": [
+    "魅视科技",
+    "淳中科技"
+   ],
+   "reason": "2只涨停·龙头魅视科技",
+   "strength": 9,
+   "max_lbc": 2,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "光学光电": {
+   "leaders": [
+    "联创电子",
+    "维信诺"
+   ],
+   "reason": "2只涨停·龙头联创电子",
+   "strength": 9,
+   "max_lbc": 2,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "文娱用品": {
+   "leaders": [
+    "创源股份",
+    "高乐股份"
+   ],
+   "reason": "2只涨停·龙头创源股份",
+   "strength": 9,
+   "max_lbc": 2,
+   "fbt": 93000,
+   "divergence": false
+  },
+  "消费电子": {
+   "leaders": [
+    "科森科技",
+    "奥尼电子"
+   ],
+   "reason": "2只涨停·龙头科森科技",
+   "strength": 9,
+   "max_lbc": 2,
+   "fbt": 93011,
+   "divergence": false
+  },
+  "专用设备": {
+   "leaders": [
+    "威派格",
+    "东方精工"
+   ],
+   "reason": "2只涨停·龙头威派格",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93057,
+   "divergence": false
+  }
+ },
  "2026-11-23": {
   "汽车零部": {
    "leaders": [
@@ -672,104 +765,6 @@
    "strength": 10,
    "max_lbc": 3,
    "fbt": 101322,
-   "divergence": false
-  }
- },
- "2026-11-10": {
-  "汽车零部": {
-   "leaders": [
-    "光洋股份",
-    "华培动力",
-    "金杯汽车"
-   ],
-   "reason": "11只涨停·龙头光洋股份",
-   "strength": 10,
-   "max_lbc": 2,
-   "fbt": 93012,
-   "divergence": false
-  },
-  "通用设备": {
-   "leaders": [
-    "泰尔股份",
-    "冰山冷热",
-    "锋龙股份"
-   ],
-   "reason": "6只涨停·龙头泰尔股份",
-   "strength": 10,
-   "max_lbc": 2,
-   "fbt": 93012,
-   "divergence": false
-  },
-  "光学光电": {
-   "leaders": [
-    "盛洋科技",
-    "华体科技",
-    "联创电子"
-   ],
-   "reason": "6只涨停·龙头盛洋科技",
-   "strength": 10,
-   "max_lbc": 2,
-   "fbt": 105656,
-   "divergence": false
-  },
-  "影视院线": {
-   "leaders": [
-    "慈文传媒",
-    "金逸影视",
-    "上海电影"
-   ],
-   "reason": "4只涨停·龙头慈文传媒",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 93827,
-   "divergence": false
-  },
-  "专用设备": {
-   "leaders": [
-    "达 意 隆",
-    "林州重机",
-    "天奇股份"
-   ],
-   "reason": "4只涨停·龙头达 意 隆",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 94254,
-   "divergence": false
-  },
-  "消费电子": {
-   "leaders": [
-    "瀛通通讯",
-    "朝阳科技",
-    "国光电器"
-   ],
-   "reason": "4只涨停·龙头瀛通通讯",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 130345,
-   "divergence": false
-  },
-  "光伏设备": {
-   "leaders": [
-    "亚玛顿",
-    "永臻股份",
-    "钧达股份"
-   ],
-   "reason": "3只涨停·龙头亚玛顿",
-   "strength": 10,
-   "max_lbc": 2,
-   "fbt": 92500,
-   "divergence": false
-  },
-  "IT服务Ⅱ": {
-   "leaders": [
-    "新炬网络",
-    "佳创视讯",
-    "中青宝"
-   ],
-   "reason": "3只涨停·龙头新炬网络",
-   "strength": 9,
-   "max_lbc": 1,
-   "fbt": 93037,
    "divergence": false
   }
  }
