@@ -1404,3 +1404,11 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-24 10:35:54 >>> 计划槽时刻 1035（去重键按此生成，防补跑重复推）
 11-24 10:35:54 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-24 10:42:40     follow| SLOT follow PUSH True 执行成功
+11-24 10:42:40 状态推送失败（第1次）：To https://github.com/cyi1128/v6-public
+ ! [rejected]        HEAD -> main (fetch first)
+error: failed to push some refs to 'https://github.com/cyi1128/v6-public
+11-24 10:42:42 持久化(follow)：已推送
+11-24 10:42:42 <<< 完成槽位 follow，用时 408.6s
+11-24 10:45:12 >>> 执行槽位 watch @ 10:45:12
+11-24 10:45:12 >>> 预算：LLM 600s / 单模型 120s / 子进程上限 750s
+11-24 10:48:02     watch| SLOT watch: 无异动或构建失败，不推送
