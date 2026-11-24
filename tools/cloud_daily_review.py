@@ -3511,14 +3511,40 @@ def _clist_losers():
 # 过滤(2根/6根)、打分(130根)、共振预拉、近5日涨幅(40根)全部命中同一份缓存。
 # 评分口径、硬过滤规则、卡片结构零改动；缓存未命中一律回落 get_klines，行为与原实现一致。
 _AU_KL_CACHE = {}
+_AU_KL_FAIL = set()
+_AU_KL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+
+
+def _au_fetch(sym, n):
+    """竞价链路专用快拉：短超时、单次重试，避免限流时串行拖满 45 秒。"""
+    try:
+        url = f'https://ifzq.gtimg.cn/appstock/app/fqkline/get?param={sym},day,,,{n},qfq'
+        d = json.loads(_get(url, timeout=6, _retries=1))
+        _data = d.get('data') or {}
+        if isinstance(_data, dict):
+            node = _data.get(sym, {}) or {}
+            ks = node.get('qfqday') or node.get('day') or []
+            if ks:
+                return ks
+    except Exception:
+        pass
+    return []
 
 
 def _au_klines(sym, n):
-    """竞价链路K线读取：预取缓存命中直接切片，未命中回落 get_klines。"""
+    """缓存命中直接切片；当日已判失败的直接返回空（沿用K线失败放行的语义）；
+    成功一次就补缓存，同一只不再回源。"""
     bars = _AU_KL_CACHE.get(sym)
     if bars and len(bars) >= n:
         return bars[-n:]
-    return get_klines(sym, n)
+    if sym in _AU_KL_FAIL:
+        return []
+    arr = _au_fetch(sym, max(n, 30))
+    if arr:
+        _AU_KL_CACHE[sym] = arr
+        return arr[-n:]
+    _AU_KL_FAIL.add(sym)
+    return []
 
 
 def _auction_cheap_pass(s, today):
@@ -3560,30 +3586,81 @@ def _auction_cheap_pass(s, today):
     return True
 
 
-def _au_prefetch(rows, max_workers=12):
-    """并发预取粗滤后候选的 130 根日K（历史数据，09:25 前即可拉）。先清缓存防跨日串数据。"""
+def _au_cache_path():
+    return os.path.join(_AU_KL_PATH, 'au_kline_%s.json' % _bj_now().strftime('%Y%m%d'))
+
+
+def _au_cache_load():
+    """读当日已落盘的日K缓存（前一槽位预取过就不再重拉）。"""
+    try:
+        with open(_au_cache_path(), encoding='utf-8') as f:
+            for sym, arr in (json.load(f) or {}).items():
+                if arr:
+                    _AU_KL_CACHE[sym] = arr
+    except Exception:
+        pass
+
+
+def _au_cache_save():
+    try:
+        os.makedirs(_AU_KL_PATH, exist_ok=True)
+        tmp = _au_cache_path() + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(_AU_KL_CACHE, f)
+        os.replace(tmp, _au_cache_path())
+    except Exception:
+        pass
+
+
+def _au_prefetch(rows, max_workers=8):
+    """并发预取粗滤后候选的 130 根日K。先吃当日磁盘缓存，只补缺的；拉完落盘。"""
+    _AU_KL_FAIL.clear()
     _AU_KL_CACHE.clear()
+    _au_cache_load()
     syms = []
     for s in rows:
         c = s.get('code') or ''
         if c:
             syms.append(('sh' if c.startswith('6') else 'sz') + c)
     syms = list(dict.fromkeys(syms))
+    todo = [x for x in syms if len(_AU_KL_CACHE.get(x) or []) < 130]
     _t0 = time.time()
 
     def _one(sym):
-        try:
-            arr = get_klines(sym, 130)
-            if arr:
-                _AU_KL_CACHE[sym] = arr
-        except Exception:
-            pass
+        arr = _au_fetch(sym, 130)
+        if arr:
+            _AU_KL_CACHE[sym] = arr
+        elif sym not in _AU_KL_CACHE:
+            _AU_KL_FAIL.add(sym)
     try:
-        with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            list(ex.map(_one, syms))
+        if todo:
+            with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                list(ex.map(_one, todo))
     except Exception:
         pass
-    print('[auction] K线预取 %d/%d 只 用时 %.1fs' % (len(_AU_KL_CACHE), len(syms), time.time() - _t0))
+    _au_cache_save()
+    print('[auction] K线预取 %d/%d 只（补拉 %d）用时 %.1fs' % (
+        len(_AU_KL_CACHE), len(syms), len(todo), time.time() - _t0))
+
+
+def _au_pos_of(c6, px):
+    """备选行的真实位置：优先用已预取的 130 根日K，缺失时走短超时回源。
+    返回 (20日位置%, 距20日高%) 或 None。"""
+    try:
+        sym = ('sh' if str(c6).startswith('6') else 'sz') + str(c6)
+        kl = _AU_KL_CACHE.get(sym) or _au_klines(sym, 30)
+    except Exception:
+        return None
+    try:
+        if not kl or len(kl) < 15:
+            return None
+        hi = max(float(r[3]) for r in kl[-20:])
+        lo = min(float(r[4]) for r in kl[-20:])
+        if hi <= lo:
+            return None
+        return ((px - lo) / (hi - lo) * 100, (px / hi - 1) * 100)
+    except Exception:
+        return None
 
 
 def _auction_filter(rows, zt_lbc=None):
@@ -7621,7 +7698,7 @@ def build_auction(title='竞价观察'):
         _sc5 = float(s.get('score') or 0)
         _lb5 = float(s.get('lb') or 0)
         _pc5 = float(s.get('pct') or 0)
-        _pos5 = _ext_low(str(s.get('code') or ''), float(s.get('price') or 0))
+        _pos5 = _au_pos_of(str(s.get('code') or ''), float(s.get('price') or 0))
         if _pos5:
             _pp5, _pg5 = _pos5
             if _pp5 <= 30:
