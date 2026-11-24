@@ -2759,6 +2759,20 @@ def _ms_one(model, msgs, purpose, timeout):
     return (_txt or None), (_ch.get('finish_reason') or '')
 
 
+def _llm_selftest():
+    """模型通道自检：逐个候选模型发一条最小请求，打印 状态/耗时/结束原因/首字。
+    用途：云端 job 日志里一跑就知道「没 key / 模型名 404 / 429 限流 / 超时 / 正常」。"""
+    print('SELFTEST MODELSCOPE_KEY=%s URL=%s' % ('已注入(%d位)' % len(MODELSCOPE_KEY) if MODELSCOPE_KEY else '缺失', MODELSCOPE_URL))
+    if not MODELSCOPE_KEY:
+        print('SELFTEST 结果：密钥缺失，模型根本没被调用——这就是卡面全是规则兜底的原因')
+        return
+    msgs = [{'role': 'user', 'content': '只输出 JSON：{"ok":1}'}]
+    for mdl in list(_MODELSCOPE_MODELS) + ([os.environ['MODELSCOPE_MODEL']] if os.environ.get('MODELSCOPE_MODEL') else []):
+        t0 = time.time()
+        txt, tag = _ms_one(mdl, msgs, 'darkline', 60)
+        print('SELFTEST %-28s 用时%5.1fs 结果%-10s 首字%r' % (mdl, time.time() - t0, tag or 'EMPTY', (txt or '')[:40]))
+
+
 def _modelscope_chat(payload, purpose, system_text):
     """魔搭免费通道：多模型并发竞速，谁先给出非空正文就用谁。
 
@@ -14346,7 +14360,9 @@ def _dl_tape_desc(code):
             desc = '温和上行'
         else:
             desc = '横盘整理'
-        return {'cur': cur, 'chg': chg, 'cap': cap, 'desc': desc, 'ma20': ma20, 'vr': vr}
+        hi5 = max(closes[-5:]) if len(closes) >= 5 else cur
+        return {'cur': cur, 'chg': chg, 'cap': cap, 'desc': desc,
+                'ma20': ma20, 'vr': vr, 'hi5': hi5}
     except Exception:
         return None
 
@@ -14594,18 +14610,42 @@ def _dl_excerpt(text, nw, span=380):
 
 
 def _dl_text_parse(t):
-    """解析文本版 LLM 的 JSON，只校验 code 与 items 结构。src 由代码用真实 date/title 生成，不做护栏。"""
-    try:
-        m = re.search(r'\{.*\}', t or '', re.S)
-        o = json.loads(m.group(0)) if m else None
-    except Exception:
-        o = None
-    if not o or not isinstance(o.get('items'), list):
+    """解析文本版 LLM 的 JSON。模型常带 ```json 围栏、前后解释、中文引号、结尾截断，
+    原实现只有一条贪婪正则，答对了也会判失败，这里逐个消掉这些干扰再解析。"""
+    raw = str(t or '').strip()
+    if not raw:
         return None
-    items = [it for it in o['items'] if isinstance(it, dict) and it.get('code')]
-    if not items:
-        return None
-    return {'items': items, 'note': o.get('note') or ''}
+    cands = []
+    for x in re.findall(r'```(?:json)?\s*(.*?)```', raw, re.S):
+        if x.strip():
+            cands.append(x.strip())
+    cands.append(raw)
+    for c in list(cands):
+        i, j = c.find('{'), c.rfind('}')
+        if i >= 0 and j > i:
+            cands.append(c[i:j + 1])
+        i2, j2 = c.find('"items"'), c.rfind('}')
+        if i2 >= 0 and j2 > i2:
+            cands.append('{' + c[i2:j2 + 1] + '}')
+    seen = set()
+    for c in cands:
+        if not c or c in seen:
+            continue
+        seen.add(c)
+        v1 = c.replace('“', '"').replace('”', '"').replace('‘', "'").replace('’', "'")
+        v2 = re.sub(r',\s*}', '}', re.sub(r',\s*]', ']', c))
+        for variant in (c, v1, v2):
+            try:
+                o = json.loads(variant)
+            except Exception:
+                continue
+            if isinstance(o, list):
+                o = {'items': o}
+            if isinstance(o, dict) and isinstance(o.get('items'), list):
+                its = [it for it in o['items'] if isinstance(it, dict) and it.get('code')]
+                if its:
+                    return {'items': its, 'note': o.get('note') or ''}
+    return None
 
 
 def _dl_text_llm(cands, bj):
@@ -14654,7 +14694,12 @@ def _dl_text_llm(cands, bj):
                      purpose='darkline', system_text=sys_txt)
     data = _dl_text_parse(t)
     if data is None:
-        print('[dl] 文本LLM 未返回可解析 JSON | 前120字:', (t or '')[:120].replace(chr(10), ' '))
+        if not str(t or '').strip():
+            _why = ('模型通道没出内容（本机 MODELSCOPE_API_KEY %s）'
+                    % ('已注入' if MODELSCOPE_KEY else '缺失'))
+        else:
+            _why = '模型回了内容但不是合格 JSON，前120字:' + str(t)[:120].replace(chr(10), ' ')
+        print('[dl] 文本LLM 失败｜%s' % _why)
     return data
 def _dl_text_fallback(cands):
     """无 LLM 时规则兜底：正文命中实质动词给“中”，否则“弱”（弱项会被主流程剔除）。"""
@@ -14808,6 +14853,21 @@ def _dl_why(pg_rank, dp_note, direction=''):
         return '送样/定点阶段，' + base
     return base
 
+_DL_PAN_WORDS = ('涨停', '涨超', '拉升', '走高', '走强', '封板', '炸板', '领涨', '异动', '概念股')
+_DL_BIZ_WORDS = ('公司', '公告', '披露', '签订', '中标', '供货', '送样', '定点', '量产',
+                 '研报', '机构', '调研', '回答', '表示', '称', '产品', '订单', '客户')
+
+
+def _dl_ev_pan(t):
+    """这句子只有盘面异动、没有任何业务披露？这种不能当「依据原文」摆出来。"""
+    t = str(t or '')
+    if not t:
+        return False
+    pan = sum(1 for w in _DL_PAN_WORDS if w in t)
+    biz = sum(1 for w in _DL_BIZ_WORDS if w in t)
+    return pan >= 2 and biz == 0
+
+
 def _dl_ev(text, title=''):
     """依据行：只摘披露正文原句，新闻标题/媒体/日期这些元数据全部剥掉。"""
     t = str(text or '')
@@ -14815,12 +14875,18 @@ def _dl_ev(text, title=''):
         t = t.split('正文：', 1)[1]
     t = re.sub(r'[（(]免责声明[^）)]*[）)]', '', t)
     t = re.sub(r'本文[^。]{0,40}。', '', t)
+    # 研报/公告类文本里的机构、评级、行业、作者、日期都是元数据，只留标题或正文本身
+    t = re.sub(r'[；;，,]*\s*(研报机构|机构|评级|行业|作者|来源|日期|发布时间|研报日期|研报类型)\s*：[^；;，,。]{0,30}', '', t)
+    for _p in ('研报标题：', '公告标题：', '新闻标题：'):
+        t = t.replace(_p, '')
     t = re.sub(r'\s+', '', t)
     if len(t) < 8 and title:
         t = re.sub(r'\s+', '', str(title))
     if len(t) > 64:
         _k = t.rfind('。', 0, 64)
         t = t[:_k + 1] if _k >= 20 else t[:64] + '…'
+    if _dl_ev_pan(t):
+        return '当日只有盘面异动，公司没披露业务进展'
     return t
 
 def _dl_warn_text(desc):
@@ -14843,6 +14909,25 @@ def _dl_weak_text(src, desc='', chg=None):
         return '披露只写了方向，没写送样定点，还是破位状态，只记账'
     return '披露只写了方向或展品，没写送样定点，别当有单做'
 
+def _dl_watch(t):
+    """弱线索的观察位：不给买点，只给「什么价位放量站上才算暗线被认」。"""
+    try:
+        cur = float(t.get('cur') or 0)
+        ma20 = float(t.get('ma20') or 0)
+        hi5 = float(t.get('hi5') or 0)
+        vr = float(t.get('vr') or 0)
+    except Exception:
+        return ''
+    if cur <= 0 or ma20 <= 0:
+        return ''
+    if cur < ma20:
+        return ('观察位 %.2f（20 日线，现价在下面，放量站上才算启动）' % ma20)
+    if hi5 > cur * 1.005:
+        return ('观察位 %.2f（近 5 日高点，收盘站上且量比过 1.5 才算启动，今日量比 %.1f）'
+                % (hi5, vr))
+    return ('已站上 20 日线 %.2f，等缩量回踩再看，不追今天这根' % ma20)
+
+
 def _dl_card_html(r):
     """单只暗线卡片 v3：产品→非主营方向放主位，进展做色块，依据直接摘原文，破位按盘面警示。"""
     it = r.get('it') or {}
@@ -14863,6 +14948,11 @@ def _dl_card_html(r):
           % (gc, gc, grade)) if grade else ''
     _pill = ('<span style="display:inline-block;padding:0 6px;border-radius:6px;background:#22303f;'
              'color:#8ce99a;font-size:10.5px;font-weight:700;">%s</span>' % _dl_esc(pg)) if pg else ''
+    _watch_html = ''
+    _wt = _dl_watch(t) if int(r.get('prk') or 0) < 2 else ''
+    if _wt:
+        _watch_html = ('<div style="font-size:11.5px;color:#66d9e8;line-height:1.6;margin-top:3px;">%s</div>'
+                       % _dl_esc(_wt))
     _extra = ''
     if r.get('warn'):
         _extra += ('<div style="font-size:11px;color:#ffa94d;line-height:1.6;margin-top:3px;">%s</div>'
@@ -14883,16 +14973,18 @@ def _dl_card_html(r):
             '<div style="font-size:13px;color:#ffd43b;line-height:1.7;margin-top:6px;">'
             '%s <span style="color:#8ce99a;">→</span> %s　%s</div>'
             '%s'
-            '<div style="font-size:11px;color:#8b95a7;line-height:1.6;margin-top:4px;">依据原文「%s」　·　源头 %s</div>'
+            '<div style="font-size:11px;color:#8b95a7;line-height:1.6;margin-top:4px;">%s「%s」　·　源头 %s</div>'
             '<div style="font-size:11.5px;color:#c9d1e0;line-height:1.6;margin-top:3px;">%s ｜ %s</div>'
             '<div style="font-size:11.5px;color:#8ce99a;line-height:1.6;margin-top:3px;">证伪点 %s</div>'
+            '%s'
             '%s</div>'
             % (gc, _dl_esc(r.get('name') or ''), _g, pc, _price, _chg,
                _dl_esc(r.get('code') or ''), _cap,
                _dl_esc(dp[0]), _dl_esc(dp[1]), _pill, _note_html,
+               ('依据' if str(r.get('ev') or '').startswith('当日只有盘面') else '依据原文'),
                _dl_esc(str(r.get('ev') or '')), _dl_esc(str(r.get('src') or '')),
                _pos, _dl_esc(str(t.get('desc') or '') + '｜' + str(r.get('blast') or '')),
-               _dl_esc(str(r.get('why') or '')), _extra))
+               _dl_esc(str(r.get('why') or '')), _extra, _watch_html))
 
 
 def _dl_html_text(rows, mains_line):
@@ -25763,6 +25855,9 @@ if __name__ == '__main__':
         slot = {0: 'pre', 1: 'auction', 2: 'hourly', 3: 'noon',
                 5: 'hourly', 6: 'hourly', 7: 'eod'}.get(h, 'eod')
     # —— 演示模式（--demo-all）：跳过休市闸门/去重/静默，轮流构建核心槽位并推送。仅显式参数触发，不影响定时任务 ——
+    if '--llm-selftest' in args:
+        _llm_selftest()
+        raise SystemExit(0)
     if '--demo-all' in args or (force and force and force.startswith('demo-')):
         # 演示要看到「全部」卡：必须放行盘中/异动时段闸门，
         # 否则盘后或周末跑时 newsfire/risk/watch 会被 _in_session 全部拦成空。
