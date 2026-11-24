@@ -1453,3 +1453,8 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-24 13:00:06 >>> 计划槽时刻 1300（去重键按此生成，防补跑重复推）
 11-24 13:00:06 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-24 13:00:39     hourly| SLOT hourly PUSH True 执行成功
+11-24 13:00:41 持久化(hourly)：已推送
+11-24 13:00:41 <<< 完成槽位 hourly，用时 34.7s
+11-24 13:00:41 >>> 执行槽位 watch @ 13:00:41
+11-24 13:00:41 >>> 预算：LLM 600s / 单模型 120s / 子进程上限 750s
+11-24 13:05:43     watch| SLOT watch PUSH True 执行成功; 执行成功
