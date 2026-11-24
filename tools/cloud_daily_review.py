@@ -12294,7 +12294,7 @@ def _ext_dom_html(pack):
 _EXT_NEWS_KW = ('美股', '美联储', '道指', '纳指', '标普', '英伟达', '台积电', '特斯拉', '苹果',
                 '关税', 'OPEC', '原油', '黄金', '铜', '非农', 'CPI', '美债', '美元', '欧洲央行',
                 '日本央行', '加息', '降息', '费半', '阿斯麦', '博通', '超微')
-_EXT_NEWS_BAD = ('原糖', '白糖', '食糖', '出口配额', '招标', '拍卖', '天气预报')
+_EXT_NEWS_BAD = ('原糖', '白糖', '食糖', '出口配额', '招标', '拍卖', '天气预报', '接着奏乐', '助力', '刷屏', '沸腾', '狂欢', '炸裂', '涨超', '跌超', '创新高', '盘前', '盘后', '隔夜', '今夜', '凌晨', '更应', '呼吁')
 
 
 def _ext_news_html(news, pack=None):
@@ -12306,7 +12306,10 @@ def _ext_news_html(news, pack=None):
         t = str(nw.get('title') or '').strip().rstrip('?？')
         if len(t) < 8:
             continue
-        if any(k in t for k in ('二手', '网红', '明星', '综艺', '演唱会', '票房', '彩礼')):
+        if any(k in t for k in ('二手', '网红', '明星', '综艺', '演唱会', '票房', '彩礼',
+                                '照片', '晒出', '发文', '祝贺', '点赞', '转发',
+                                '哪些', '如何看', '为何', '能否', '怎么走', '展望', '前瞻',
+                                '解读', '观点', '建议')):
             continue
         if not any(k in t for k in _EXT_NEWS_KW):
             continue
@@ -16024,10 +16027,189 @@ def _n2h_prev_put(t):
         print('[news2h] 上轮判断写入失败:', str(e)[:60])
 
 
+_N2H_POOL = {
+    '机器人/减速器': (
+        ('002472', '双环传动', '齿轮主业 → 机器人减速器齿坯，已给头部减速器厂供货，机器人收入占比还很小'),
+        ('003021', '兆威机电', '微型传动 → 灵巧手/关节模组，已送样，量产订单没披露'),
+        ('002050', '三花智控', '制冷部件 → 车用热管理 → 机电执行器，机器人业务2024起小批量'),
+    ),
+    '汽车/智驾': (
+        ('002920', '德赛西威', '座舱 → 智驾域控，Orin方案已量产定点，域控收入在放量'),
+        ('002906', '华阳集团', 'HUD/座舱 → 智驾域控与电子外后视镜，定点在增加但没单列'),
+    ),
+    '算力/PCB': (
+        ('002436', '兴森科技', 'PCB样板 → ABF载板，芯片封装最卡的一层材料，国内能量产的不多'),
+        ('002463', '沪电股份', 'PCB → AI服务器/交换机高多层板，AI占比在升，公司没单列'),
+        ('600183', '生益科技', '覆铜板 → 高速高频材料，AI服务器板的上一环，涨价先落到它'),
+        ('301018', '申菱环境', '工业空调 → 数据中心液冷/温控，IDC订单没单列'),
+    ),
+    '半导体': (
+        ('300567', '精测电子', '面板检测 → 前道量检测设备，国产化率最低的一段，晶圆厂扩产绕不开'),
+        ('600460', '士兰微', '硅基功率器件 → 车规SiC产线，电车主驱上量才轮到它放利润'),
+    ),
+    '有色/资源': (
+        ('002155', '湖南黄金', '金 → 锑，光伏玻璃和阻燃剂都要，金价涨它跟、锑价涨它更猛'),
+        ('000878', '云南铜业', '铜冶炼 → 硫酸与贵金属副产，铜价一动副产跟着放大'),
+    ),
+    '电力/电网': (
+        ('002335', '科华数据', 'UPS → 数据中心供电与储能PCS，IDC和储能两条腿走路'),
+    ),
+    '化工/材料': (
+        ('600160', '巨化股份', '制冷剂 → 含氟新材料/PVDF，配额收紧时价差先扩'),
+        ('603225', '新凤鸣', '常规长丝 → 再生与差别化纤维，品牌再生料订单先落它头上'),
+    ),
+    '军工/低空': (
+        ('002179', '中航光电', '军工连接器 → 数据中心高速连接与新能源车高压连接'),
+        ('300699', '光威复材', '碳纤维 → 军机与低空复材，军品看订单公告'),
+    ),
+    '金融/并购': (
+        ('300803', '指南针', '金融信息 → 控股麦高证券，成交一放大经纪两融直接进表'),
+    ),
+    '医药': (),
+    '消费': (),
+    '农业/养殖': (),
+}
+
+
+def _n2h_board_pts(block):
+    """板块响应分：榜内封板家数与涨幅，决定资金是真信还是只轮动。"""
+    if not block:
+        return 4
+    lu = int(block.get('lu') or 0)
+    chg = float(block.get('chg') or 0)
+    if lu >= 5:
+        return 30
+    if lu >= 2:
+        return 22
+    if chg >= 2:
+        return 14
+    return 8
+
+
+def _n2h_score(grade, block, pos, pct, lb=0.0, turn=0.0):
+    """经验评分：消息强度40 + 板块响应30 + 位置20 + 量价10 = 100。
+    位置连续折算、量价看量比换手，所以"已经涨起来"的票天然拿不到这30分。"""
+    msg = {'S': 40, 'A': 30, 'B': 18}.get(grade, 18)
+    bd = _n2h_board_pts(block)
+    ps = int(round(20 * max(0.0, (45.0 - min(pos, 45.0)) / 45.0)))
+    if 2.5 <= pct <= 6.0 and lb >= 1.5:
+        vl = 10
+    elif 2.5 <= pct <= 6.0:
+        vl = 8
+    elif 0 <= pct < 2.5 and lb >= 1.2:
+        vl = 8
+    elif 0 <= pct < 2.5:
+        vl = 6
+    elif -3.0 <= pct < 0:
+        vl = 4
+    else:
+        vl = 2
+    if 1.0 <= turn <= 20.0 and turn >= 8 and vl < 10:
+        vl += 1
+    return msg + bd + ps + vl, (msg, bd, ps, vl)
+
+
+def _n2h_low_cands(items, cap=4):
+    """消息链 → 池内低位票：真K线闸门（20日位置<=45%、距高<=-6%）、今日-3%~+6%、不碰涨停。"""
+    out, seen = [], set()
+    for it in items:
+        for c6, nm, dark in _N2H_POOL.get(it['cluster'], ()):
+            if c6 in seen:
+                continue
+            try:
+                q = _qt(_code2qt(c6)) or {}
+            except Exception:
+                q = {}
+            px = float(q.get('price') or 0)
+            pct = float(q.get('pct') or 0)
+            lb = float(q.get('lb') or 0)
+            turn = float(q.get('turn') or 0)
+            if px <= 0:
+                continue
+            lim = 19.5 if c6[:2] in ('30', '68') else 9.8
+            if pct >= lim - 0.3 or pct > 6.0 or pct < -3.0:
+                continue
+            low = _ext_low(c6, px)
+            if not low or low[0] > 45 or low[1] > -6:
+                continue
+            sc, parts = _n2h_score(it['grade'], it['block'], low[0], pct, lb, turn)
+            seen.add(c6)
+            out.append({'code': c6, 'name': nm, 'dark': dark, 'px': px, 'pct': pct,
+                        'pos': low[0], 'gap': low[1], 'score': sc, 'parts': parts,
+                        'lb': lb, 'turn': turn, 'low': float(q.get('low') or 0),
+                        'cluster': it['cluster'], 'block': it['block'],
+                        'kind': _n2h_kind(it['title'])})
+    out.sort(key=lambda x: -x['score'])
+    picked, per = [], {}
+    for c in out:
+        if per.get(c['cluster'], 0) >= 2:
+            continue
+        per[c['cluster']] = per.get(c['cluster'], 0) + 1
+        picked.append(c)
+        if len(picked) >= cap:
+            break
+    return picked
+
+
+def _n2h_qtxt(lb, turn):
+    """量比/换手只在数值合理时显示，盘前 0 值或异常值不写进卡片。"""
+    parts = []
+    if 0.3 <= float(lb or 0) <= 20:
+        parts.append('量比 %.1f' % float(lb))
+    if 0.3 <= float(turn or 0) <= 30:
+        parts.append('换手 %.1f%%' % float(turn))
+    return ('（' + '、'.join(parts) + '）') if parts else ''
+
+
+def _n2h_kind(title):
+    t = str(title or '')
+    if any(k in t for k in ('中标', '签订', '签约', '合同', '订单', '采购', '供货', '定点')):
+        return '订单'
+    if any(k in t for k in ('涨价', '提价', '调价', '报价上调', '涨价函')):
+        return '涨价'
+    if any(k in t for k in ('获批', '注册证', '批准', '过审', '许可')):
+        return '获批'
+    if any(k in t for k in ('并购', '收购', '重组', '股权转让')):
+        return '重组'
+    if any(k in t for k in ('政策', '规划', '印发', '部委', '会议', '方案')):
+        return '政策'
+    if any(k in t for k in ('回购', '增持', '减持')):
+        return '资本动作'
+    if any(k in t for k in ('预计', '拟', '或将', '有望', '据悉', '传闻')):
+        return '预期'
+    return '公告'
+
+
+def _n2h_nums(title):
+    t = str(title or '')
+    out = []
+    for _m in re.finditer(r'\d+(?:\.\d+)?\s*(?:亿元|亿|万元|万|%|项|个|台|只|艘|架|枚)', t):
+        v = _m.group(0).replace(' ', '')
+        if v not in out:
+            out.append(v)
+    return out
+
+
+def _n2h_board_say(it):
+    b = it.get('block')
+    if b:
+        lu = int(b.get('lu') or 0)
+        cont = int(b.get('cont') or 0)
+        lead = b.get('leader') or '未标注龙头'
+        chg = float(b.get('chg') or 0)
+        if lu >= 3:
+            return ('%s 今天 %+.2f%%，%d 家封板、%d 家连板，龙头 %s，这条已经被资金认了'
+                    % (b['name'], chg, lu, cont, lead))
+        if lu >= 1:
+            return ('%s 涨 %+.2f%% 但只有 %d 家封板（%s），合力不够，只能算半个响应'
+                    % (b['name'], chg, lu, lead))
+        return ('%s 涨 %+.2f%% 却一家没封，资金在轮动不在建仓' % (b['name'], chg))
+    return '今天涨停榜里没有它，消息还停在预期层，明天要看它自己放量才作数'
+
+
 def build_news2h():
-    """两小时消息汇总（2026-11-23 重做）：先归产业主线，再按 S/A/B 分级，
-    一条主线只留一条（从源头掐掉同题材重复暗线），每条给传导链 + 盘面数字 + 绑定标的 + 专属判断。
-    全部规则生成，模型不回也不会整槽消失。"""
+    """两小时消息汇总（2026-11-24 重做）：这两小时发生了什么 → 题材/板块 → 评分 → 低位暗线埋伏。
+    只推 沪深主板/创业板、非涨停、20日低位的票；已封板的只当"这条链有人抢了"的旁证。"""
     news = []
     try:
         news = get_news(60)
@@ -16044,326 +16226,161 @@ def build_news2h():
     except Exception as e:
         print('[news2h] 未涨停扫描异常:', repr(e)[:50])
     blocks = _board_block_rows(rows, float(sn['score'][0] or 0), 6)
-    items, _stat = _n2h_pick(news, 5)
-
+    items, _stat = _n2h_pick(news, 4)
     for it in items:
         it['block'] = _n2h_block(it['cluster'], blocks)
-        it['stocks'] = _n2h_stocks(it['cluster'], rows, blocks, 2, kws=it.get('kws'))
-
-    _codes = []
-    for it in items:
-        for c in it['stocks']:
-            if not c['lu'] and c['code'] not in _codes:
-                _codes.append(c['code'])
-    _dir_of = {}
-    _ind_of = {str(s['code']): str(s.get('industry') or '') for s in (rows or [])}
-    if _codes:
-        try:
-            with ThreadPoolExecutor(max_workers=8) as ex:
-                fs = {ex.submit(_mainop_of, c): c for c in _codes}
-                for f in as_completed(fs, timeout=15):
-                    try:
-                        _mo = f.result()
-                        _d = _board_dark_link(_mo[1] if _mo else [])[0]
-                        if not _d:
-                            _d = _ext_from_text(_ind_of.get(fs[f], ''))[0]
-                        _dir_of[fs[f]] = _d
-                    except Exception:
-                        pass
-        except Exception as e:
-            print('[news2h] 主营预取异常:', repr(e)[:50])
-            for c in _codes:
-                try:
-                    _mo = _mainop_of(c)
-                    _d = _board_dark_link(_mo[1] if _mo else [])[0]
-                    if not _d:
-                        _d = _ext_from_text(_ind_of.get(c, ''))[0]
-                    _dir_of[c] = _d
-                except Exception:
-                    pass
-
-    _gc = {'S': RED, 'A': GOLD, 'B': GREY}
-    # 2026-11-23 二改（用户红框点名「盘面／判断／标的」三行逐条套模板）：
-    # ① 没进板块榜的条目不再复读同一句“没有资金合力”，总账只在顶部写一次；
-    # ② 每条先认这条新闻的主体票（标题里的公司名→代码→现价量比），再叠同链未涨停放量票；
-    # ③ 删掉按 S/A/B 套的固定“判断”，换成按本条数字算出来的打法，句句带价位。
-    _subj_cache = {}
-
-    def _lim_of(c6):
-        return 19.5 if str(c6 or '')[:2] in ('30', '68') else 9.8
-
-    def _n2h_kind(title):
-        """这条新闻属于哪种硬事件：回购/并购/获批/订单/涨价/政策/复牌/其他。"""
-        t = str(title or '')
-        if any(k in t for k in ('不涉及', '澄清', '未涉及', '不存在')):
-            return '澄清'
-        if any(k in t for k in ('增持', '减持')):
-            return '增减持'
-        if any(k in t for k in ('回购',)):
-            return '回购'
-        if any(k in t for k in ('收购', '并购', '重组', '股权转让', '控股', '要约')):
-            return '并购'
-        if any(k in t for k in ('注册证', '获批', '批准', '过审', '许可', '上市许可')):
-            return '获批'
-        if any(k in t for k in ('中标', '签订', '签约', '合同', '订单', '采购', '供货')):
-            return '订单'
-        if any(k in t for k in ('涨价', '提价', '调价', '报价上调')):
-            return '涨价'
-        if any(k in t for k in ('国务院', '政策', '规划', '印发', '部委', '会议', '方案')):
-            return '政策'
-        if any(k in t for k in ('复牌', '停牌')):
-            return '复牌'
-        return '公告'
-
-    def _n2h_nums(title):
-        """把标题里的硬数字拎出来（金额/数量/比例），塞进打法句子里。"""
-        t = str(title or '')
-        out = []
-        for _m in re.finditer(r'\d+(?:\.\d+)?\s*(?:亿元|亿|万元|万|%|项|个|台|只|艘|架|枚)', t):
-            v = _m.group(0).replace(' ', '')
-            if v not in out:
-                out.append(v)
-        return out
-
-    def _subj_of(title):
-        """标题 → 主体票：(名称, 6位代码, 行情)；认不出来返回 ('','',None)。"""
-        title = str(title or '')
-        if title in _subj_cache:
-            return _subj_cache[title]
-        res = ('', '', None)
-        try:
-            cand = ''
-            title = re.sub(r'^\d+连板|^首板|^\d+天\d+板', '', title)
-            _m = re.match(r'^([\u4e00-\u9fa5A-Za-z]{2,8})[：:，,\s]', title)
-            if _m:
-                cand = _m.group(1)
-            if not cand:
-                _m = _NM_CAND_RE.search(title)
-                if _m:
-                    cand = _m.group(0)
-            if cand:
-                c6 = _pure_code(_name_to_code(cand))
-                if c6:
-                    q = _qt(_code2qt(c6))
-                    if q and float(q.get('price') or 0) > 0:
-                        res = (cand, c6, q)
-        except Exception as e:  # noqa: BLE001
-            print('[news2h] 主体识别失败:', repr(e)[:60])
-        _subj_cache[title] = res
-        return res
-
-    _blocks_html = []
-    for it in items:
-        _b = it['block']
-        _chain = _N2H_CHAIN.get(it['cluster'])
-        _chain_txt = ''
-        if _chain:
-            _chain_txt = ('<div style="font-size:12px;color:#9aa4b8;line-height:1.62;margin-top:2px;">'
-                          '🔗 传导：%s<span style="color:#ffd43b;">｜%s</span></div>' % (_chain[0], _chain[1]))
-        # —— 资金只在本条真进板块榜时写，写的是本板块自己的数字，不重复总账 ——
-        _mkt_html = ''
-        if _b:
-            _mk = ('📊 资金：%s 今日 %+.2f%%，涨停 %d 家、连板 %d 家，龙头 %s'
-                   % (_b['name'], float(_b.get('chg') or 0), int(_b.get('lu') or 0),
-                      int(_b.get('cont') or 0), _b.get('leader') or '未标注'))
-            _reason = _pulse_hy_first(_b, 40) or _b.get('reason') or ''
-            if _reason and len(str(_reason)) > 40:
-                _reason = str(_reason)[:40] + '…'
-            if _reason:
-                _mk += '；催化原文：' + str(_reason)
-            _mkt_html = ('<div style="font-size:12px;color:#8ce99a;line-height:1.62;margin-top:2px;">%s</div>'
-                         % _mk)
-
-        # —— 标的：主体票 + 同链未涨停票；没有第二家就不印通稿（2026-11-23 二次去模板） ——
-        _subj = _subj_of(it['title'])
-        _subj_st = bool(_subj[0] and ('ST' in _subj[0].upper() or '退' in _subj[0]))
-        if _subj_st:
-            _subj = ('', '', None)          # ST 主体不给买点，只在句子里点出来
-        _stk = []
-        if _subj[0] and _subj[2]:
-            _q = _subj[2]
-            _stk.append('<div style="font-size:12px;color:#dfe4ee;line-height:1.68;margin-top:2px;">'
-                        '🧩 主体：<b>%s(%s)</b> %.2f（%+.2f%%）、量比 %.1f、换手 %.1f%%</div>'
-                        % (_subj[0], _subj[1], float(_q.get('price') or 0), float(_q.get('pct') or 0),
-                           float(_q.get('lb') or 0), float(_q.get('turn') or 0)))
-        _kind = _n2h_kind(it['title'])
-        _nums = _n2h_nums(it['title'])
-        _unsealed = []
-        for c in it['stocks']:
-            if _kind == '澄清':
-                break
-            if c['lu']:
-                _stk.append('<div style="font-size:12px;color:%s;line-height:1.65;margin-top:2px;">'
-                            '🔒 已封不追：%s(%s) %d板 %+.2f%%</div>'
-                            % (GREY, c['name'], c['code'], c['cont'], c['pct']))
-                continue
-            _unsealed.append(c)
-            _dir = _dir_of.get(c['code'], '')
-            _low = c.get('low') or c.get('price', 0) * 0.97
-            _stop = min(_low * 0.99, c.get('price', 0) * 0.955) if c.get('price') else _low * 0.99
-            _line = ('<div style="font-size:12px;color:#dfe4ee;line-height:1.68;margin-top:2px;">'
-                     '🎯 未涨停：<b>%s(%s)</b> %+.2f%%，量比 %.1f、换手 %.1f%%；买点 %.2f 附近，止损 %.2f'
-                     % (c['name'], c['code'], c['pct'], c['lb'], c['turn'],
-                        float(c.get('price') or 0), _stop))
-            if _dir:
-                _line += ('<br><span style="color:#a78bfa;">暗线：%s</span>' % _dir)
-            _line += '</div>'
-            _stk.append(_line)
-
-        # —— 打法：按新闻类型 + 本条数字写，S/A/B 只决定标签 ——
-        _act = ''
-        _q = _subj[2]
-        _nl = '、'.join(_nums[:2])
-        if _subj_st:
-            _act = ('ST 票不进池，这条只当行业层信号；明天看 %s 里谁第一个补涨，'
-                    '没有第二家就当消息消化' % it['cluster'])
-        elif _q:
-            _p = float(_q.get('price') or 0)
-            _pct = float(_q.get('pct') or 0)
-            _lbv = float(_q.get('lb') or 0)
-            _buy = round(_p * 0.98, 2)
-            _stp = round(_p * 0.955, 2)
-            if _pct >= _lim_of(_subj[1]):
-                _act = ('主体 %s 今天已经封板（%+.2f%%），当天不追封板，明天竞价看是接力还是补跌'
-                        % (_subj[0], _pct))
-            elif _pct == 0 and _lbv <= 0.1:
-                _act = ('主体 %s 今天复牌无量（%.2f、量比 %.1f），竞价没量前挂单等于白送；'
-                        '等开盘半小时的量出来，是补涨还是砸盘再定' % (_subj[0], _p, _lbv))
-            elif _kind == '回购':
-                _act = ('回购%s落在 %s 身上是护盘动作，按 %.2f 折算撑不起一根阳线；它量比 %.1f，'
-                        '明天开盘半小时不放量就当没这条消息' % (('（' + _nl + '）' if _nl else ''),
-                                                     _subj[0], _p, _lbv))
-            elif _kind == '增减持':
-                _act = ('股东%s是信心表态，不改基本面；它今天量比 %.1f，跟不上就只是护盘，'
-                        '别当催化追' % ('增持' if '增持' in str(it['title']) else '减持', _lbv))
-            elif _kind == '并购':
-                _act = ('%s 做的是资产重组，看标的评估值和问询回复，不看公告字数；重组票不追高，'
-                        '等方案落地看它开板后的量，回踩 %.2f 才算安全位' % (_subj[0], _buy))
-            elif _kind == '获批':
-                _act = ('%s在 %s 身上是产品线补位，不改当期利润；要等进院放量或集采中标才算数，'
-                        '它今天量比 %.1f，跟风盘不够就别当业绩买'
-                        % ((('注册证' + ('（' + _nl + '）' if _nl else '')) if '注册证' in str(it['title']) else '批文'),
-                           _subj[0], _lbv))
-            elif _kind == '订单':
-                _act = ('%s落到 %s，先分清是框架协议还是实单；回踩 %.2f 可试，'
-                        '跌破 %.2f 说明资金不认这张单' % ((_nl or '订单'), _subj[0], _buy, _stp))
-            elif _kind == '涨价':
-                _act = ('提价%s在 %s 身上要看第二家跟不跟，单家涨价当天容易一日游；'
-                        '回踩 %.2f 不破再跟，冲高不追' % (('（' + _nl + '）' if _nl else ''), _subj[0], _buy))
-            elif _kind == '政策':
-                _act = ('%s这条政策先看配套资金和细则，没有就只是情绪；今天这条链 0 家封板，'
-                        '明天看它自己能不能放量' % (_nl or '这条'))
-            else:
-                _act = ('%s 今天量比 %.1f，消息只落在它自己身上；回踩 %.2f 不破再跟，'
-                        '跌破 %.2f 走（-4.5%% 硬顶）' % (_subj[0], _lbv, _buy, _stp))
-        elif _unsealed:
-            _u = _unsealed[0]
-            _up = float(_u.get('price') or 0)
-            _act = ('这条链里现在能下手的只有 %s %+.2f%%（量比 %.1f），买 %.2f、止损 %.2f，'
-                    '跌破分时均价就不接' % (_u['name'], _u['pct'], _u['lb'],
-                                         _up, round(_up * 0.955, 2)))
-        elif _kind == '澄清':
-            _act = ('这是澄清公告，公司自己说不涉及，就没有产业链可挖；今天不要拿同题材的票去接，'
-                    '等它自己的量价说话')
-        elif _kind == '政策':
-            _act = ('这条政策今天没有能下手的票，明天只盯 %s 能不能出第一家封板，出不来就当情绪'
-                    % it['cluster'])
-        else:
-            _act = ('这条消息今天没有挂得上的放量票，明天只盯 %s 里谁第一个补涨，'
-                    '没有第二家就放弃' % it['cluster'])
-
-        _hold = ''
-        _h = _N2H_HOLD.get(it['cluster'])
-        if _h:
-            _hold = ('<div style="font-size:11.5px;color:#74c0fc;line-height:1.6;margin-top:2px;">'
-                     '🧷 和你持仓的关系：%s —— %s</div>' % _h)
-
-        _blocks_html.append(
-            '<div style="background:#1f2635;border-left:3px solid %s;border-radius:8px;padding:8px 10px;margin:7px 0;">'
-            '<div style="font-size:13px;font-weight:700;color:#fff;">'
-            '<span style="display:inline-block;background:%s;color:#fff;border-radius:4px;padding:0 5px;margin-right:4px;font-size:11px;">%s</span>'
-            '%s</div>'
-            '<div style="font-size:11px;color:%s;margin-top:2px;">%s · %s · %s%s</div>'
-            '%s%s%s'
-            '<div style="font-size:12px;color:#ffd43b;line-height:1.65;margin-top:3px;">⚔️ 打法：%s</div>'
-            '%s</div>'
-            % (_gc.get(it['grade'], GREY), _gc.get(it['grade'], GREY), it['grade'], it['title'],
-               GREY, it['src'], it['cluster'], it['tag'],
-               (' · ' + it['ts']) if it['ts'] else '',
-               _chain_txt, _mkt_html, ''.join(_stk), _act, _hold))
-
-
-    _macro = [nw for nw in news
-              if any(k in ((nw.get('title') or '') + (nw.get('summary') or '')) for k in _N2H_MACRO)
-              and not any(k in (nw.get('title') or '') for k in ('公告', '中标', '签订', '获批'))][:3]
-    _macro_html = ''
-    if _macro:
-        _macro_html = ('<div style="margin-top:7px;font-size:11.5px;color:%s;line-height:1.6;">'
-                       '📎 宏观/外盘（不计入分级，只看方向）：%s</div>'
-                       % (GREY, '；'.join((nw.get('title') or '')[:28] for nw in _macro)))
-    _money_html = ''
+    cands = []
     try:
-        _mp = (_c23_pick_theme(rows, blocks, [], float(sn['score'][0] or 0), 2.5, 8.5,
-                               1.5, 1.5, 5.0e7, 2, probe_n=20) if blocks else [])
+        cands = _n2h_low_cands(items)
     except Exception as e:
-        _mp = []
-        print('[news2h] 有钱没消息选票异常:', repr(e)[:50])
-    if _mp:
-        _mrows = []
-        for _it in _mp:
-            _lv = _it['low'] or _it['price'] * 0.97
-            _st = min(_lv * 0.985, _it['price'] * 0.975)
-            _mrows.append('<div style="font-size:12px;color:#dfe4ee;line-height:1.68;margin-top:2px;">'
-                          '💰 <b>%s(%s)</b> %+.2f%%，量比 %.1f、换手 %.1f%%，归在 %s；'
-                          '买点 %.2f 挂（不超 %.2f），止损 %.2f'
-                          % (_it['name'], _it['code'], _it['pct'], _it['lb'], _it['turn'],
-                             _it.get('hit') or '主线', _it['price'], _it['price'] * 1.01, _st))
-            if _it.get('dir'):
-                _mrows[-1] += '<br><span style="color:#a78bfa;">暗线：%s</span>' % _it['dir']
-            _mrows[-1] += '</div>'
-        _money_html = (_c23_sec('💰 有钱没消息的线（主力在买、新闻没提）')
-                       + ('<div style="font-size:12px;color:#9aa4b8;line-height:1.65;">'
-                          '这两只不在上面任何一条新闻链里，是 %s 的板块资金自己走出来的，'
-                          '不套故事，只按量价和买点做。</div>'
-                          % (blocks[0]['name'] if blocks else '今日主线'))
-                       + ''.join(_mrows))
-    _filter_txt = ('🧹 本轮 %d 条：入链 %d 条；剔掉同线索重复 %d 条、外资/宏观观点 %d 条、没归到产业链 %d 条。'
-                   % (_stat['total'], len(items), _stat['dup'], _stat['macro'], _stat['unknown']))
+        print('[news2h] 低位票评分异常:', repr(e)[:60])
 
-    _cnt = {'S': 0, 'A': 0, 'B': 0}
-    _cl = []
-    for it in items:
-        _cnt[it['grade']] = _cnt.get(it['grade'], 0) + 1
-        if it['grade'] == 'S' and it['cluster'] not in _cl:
-            _cl.append(it['cluster'])
-    if _cnt['S']:
-        _conc = ('S 级 %d 条，落在 %s；这几条是能落到订单/产能的，明天先看兑现，S 级没兑现就降级处理。'
-                 % (_cnt['S'], '、'.join(_cl)))
-    elif _cnt['A']:
-        _conc = '今天没有 S 级实锤，最高只有 A 级 %d 条，按政策/价格的节奏做，别把 A 当 S 追。' % _cnt['A']
+    # —— 段1：这两小时发生了什么 ——
+    _top2 = blocks[:2]
+    if _top2:
+        _money = '钱主要堆在 ' + '、'.join('%s（%+.2f%%，%d 家封板）'
+                                          % (b['name'], float(b['chg'] or 0), int(b['lu'] or 0))
+                                          for b in _top2)
     else:
-        _conc = '今天入链的都是 B 级（预计/传闻/拟），只记着、不配仓位，等公告或涨价函落地再说。'
-
-    _top = blocks[0] if blocks else None
-    _mkt_line = ('涨停 %d 家、炸板 %d 家、情绪 %.0f' % (sn['lu'], sn['zb'], float(sn['score'][0] or 0)))
-    if _top:
-        _mkt_line += ('；钱最集中的是 %s（涨停 %d 家、%+.2f%%）' % (_top['name'], int(_top['lu']), float(_top['chg'])))
-
-    inner = (
-        f'<div style="color:#c8d0de;font-size:12.5px;">{_live_idx_line(sn)}</div>'
-        + _c23_tiles([('S级', '%d' % _cnt['S'], RED), ('A级', '%d' % _cnt['A'], GOLD),
-                      ('B级', '%d' % _cnt['B'], GREY), ('涨停', '%d' % sn['lu'], RED)])
-        + f'<div style="font-size:12px;color:#9aa4b8;line-height:1.65;margin-top:4px;">{_mkt_line}</div>'
-        + _c23_sec('🏭 产业催化逐条拆（先看级别，再看传导）')
-        + (''.join(_blocks_html) if _blocks_html else
-           ('<div style="font-size:12px;color:%s;line-height:1.7;">这一轮 60 条新闻里没有能归到产业链的，'
-            '宏观嘴炮和重复消息都剔掉了，不硬凑版面。</div>' % GREY))
-        + f'<div style="font-size:11.5px;color:{GREY};line-height:1.65;margin-top:6px;">{_filter_txt}</div>'
-        + _macro_html
-        + _money_html
-        + _c23_sec('🧭 这一轮只记一句')
-        + f'<div style="font-size:12.5px;color:#ffd43b;line-height:1.75;">{_conc}</div>'
+        _money = '板块榜没取到，只能按涨停家数看结构'
+    _mx = 0
+    for _s0 in (rows or []):
+        try:
+            _mx = max(_mx, int(_s0.get('cont') or _s0.get('lbc') or 0))
+        except Exception:
+            pass
+    _zb_rate = sn['zb'] / max(1, sn['lu'] + sn['zb']) * 100
+    if _zb_rate >= 30:
+        _mood = '封板质量差（炸板率 %.0f%%），追板就是给别人送钱' % _zb_rate
+    elif _zb_rate <= 12 and _mx >= 3:
+        _mood = '炸板率 %.0f%%、最高 %d 板，接力土壤还在' % (_zb_rate, _mx)
+    else:
+        _mood = '炸板率 %.0f%%，中性偏暖，只做有量的低位' % _zb_rate
+    _sec1 = (
+        '<div style="font-size:14px;font-weight:800;color:#ff922b;">■ 这两小时发生了什么</div>'
+        f'<div style="font-size:12.5px;color:#c8d0de;">{_live_idx_line(sn)}</div>'
+        + _c23_tiles([('涨停', '%d' % sn['lu'], RED), ('炸板', '%d' % sn['zb'], GREEN),
+                      ('最高板', '%d' % _mx, GOLD), ('入链', '%d' % len(items), TEAL)])
+        + f'<div style="font-size:12px;color:#9aa4b8;line-height:1.65;margin-top:4px;">{_money}</div>'
+        + f'<div style="font-size:12px;color:{GREY};line-height:1.6;">{_mood}</div>'
+        + ('<div style="font-size:11.5px;color:%s;line-height:1.6;margin-top:2px;">'
+           '本轮 %d 条：能归到产业的 %d 条，剔掉宏观嘴炮 %d、同线索重复 %d、对不上链 %d。</div>'
+           % (GREY, _stat['total'], len(items), _stat['macro'], _stat['dup'], _stat['unknown']))
     )
+
+    # —— 段2：消息主线（题材/板块/评分） ——
+    _rows2 = []
+    _any_block = any(it.get('block') for it in items)
+    for it in items:
+        _b = it.get('block')
+        _k = _n2h_kind(it['title'])
+        _nums = _n2h_nums(it['title'])
+        _cl = it['cluster']
+        _bk = ('%s %+.2f%%，%d 家封板' % (_b['name'], float(_b['chg'] or 0), int(_b['lu'] or 0))
+               if _b else '未进涨停榜')
+        _msgp = {'S': 40, 'A': 30, 'B': 18}.get(it['grade'], 18)
+        _bdp = _n2h_board_pts(_b)
+        _score = _msgp + _bdp
+        _lc = RED if it['grade'] == 'S' else (GOLD if it['grade'] == 'A' else GREY)
+        _rows2.append(
+            '<div style="background:#1f2635;border-left:3px solid %s;border-radius:8px;padding:7px 10px;margin:6px 0;">'
+            '<div style="font-size:12.8px;font-weight:700;color:#fff;line-height:1.55;">'
+            '<span style="color:%s;">◆</span> [%s %d分] %s</div>'
+            '<div style="font-size:11.5px;color:%s;margin-top:2px;">题材 %s｜板块 %s｜%s%s</div>'
+            '<div style="font-size:11.5px;color:#8d9bab;line-height:1.6;margin-top:2px;">'
+            '强度%d＋板块响应%d＝%d分%s</div>'
+            '</div>'
+            % (_lc, _lc, it['grade'], _score, str(it['title'])[:46],
+               GREY, _cl, _bk, _k,
+               ('（' + '、'.join(_nums[:2]) + '）' if _nums else ''),
+               _msgp, _bdp, _score,
+               ('｜' + _n2h_board_say(it)) if _any_block else ''))
+    _sec2_head = ''
+    if items and not _any_block:
+        _sec2_head = ('<div style="font-size:11.5px;color:%s;line-height:1.6;margin-top:3px;">'
+                      '这 %d 条都没进今天的涨停榜，消息还没变成钱，所以分数普遍压在 40 分上下；'
+                      '明天先看哪条链能出第一家封板，再决定加不加。</div>' % (GREY, len(items)))
+    _sec2 = ('<div style="margin-top:10px;font-size:14px;font-weight:800;color:#ff922b;">'
+             '■ 消息主线（题材 → 板块 → 评分）</div>' + _sec2_head
+             + (''.join(_rows2) if _rows2 else
+                ('<div style="font-size:12px;color:%s;line-height:1.7;">这两小时没有能归到产业链的实质消息，'
+                 '全是观点和重复稿，不硬凑。</div>' % GREY)))
+
+    # —— 段3：低位暗线埋伏（评分排序） ——
+    _rows3 = []
+    for i, c in enumerate(cands[:3], 1):
+        m, bd, ps, vl = c['parts']
+        _rows3.append(
+            '<div style="margin-top:7px;font-size:12.5px;line-height:1.6;color:#e2e8f0;">'
+            '<b style="color:#ffd43b;">%d. %d分</b>　<b>%s</b> %s　%.2f '
+            '<span style="color:%s">%+.2f%%</span>'
+            '<div style="color:%s;font-size:11.5px;">题材 %s｜位置 %.0f%%·距20日高 %+.1f%%｜今日涨幅未涨停</div>'
+            '<div style="color:#c9b6ff;font-size:11.5px;line-height:1.55;">暗线 %s</div>'
+            '<div style="color:%s;font-size:11.5px;">评分：消息%d＋板块%d＋位置%d＋量价%d＝%d分%s</div>'
+            '<div style="color:#8ce99a;font-size:11.5px;">下手 %.2f（现价，不超 %.2f），止损 %.2f（−4.5%%），'
+            '明日高开超2%%不追</div></div>'
+            % (i, c['score'], c['name'], c['code'], c['px'], _c(c['pct']), c['pct'],
+               GREY, c['cluster'], c['pos'], c['gap'], c['dark'], GREY, m, bd, ps, vl,
+               c['score'], _n2h_qtxt(c['lb'], c['turn']),
+               c['px'], c['px'] * 1.01, c['px'] * 0.955))
+    if not _rows3:
+        _why = ('这两小时里没有既在20日低位、又没被拉起来的暗线票；'
+                '池子里的票要么今天已经涨过6%，要么位置已经过半，不硬凑买点')
+    else:
+        _why = ('只挑 20 日位置不高于 45%、离 20 日高还有 6% 以上空间、今天涨幅在 −3%~+6% 的票；'
+                '已封板的票只当这条链有人抢的旁证，不进买点')
+    _sec3 = ('<div style="margin-top:10px;font-size:14px;font-weight:800;color:#ff922b;">'
+             '■ 低位暗线埋伏（按评分排）</div>'
+             + ''.join(_rows3)
+             + '<div style="font-size:11px;color:%s;line-height:1.55;margin-top:3px;">%s</div>'
+             % (GREY, _why))
+
+    # —— 段4：外围消息（只取能改A股定价的） ——
+    _pk = {}
+    try:
+        _pk = _ext_pack()
+    except Exception as e:
+        print('[news2h] ext_pack 失败:', repr(e)[:50])
+    _parts = []
+    for nm, v in (_pk.get('us') or {}).items():
+        if v is None:
+            continue
+        _parts.append('%s %+.2f%%' % (nm, v))
+    _a50 = _pk.get('a50')
+    if _a50 is not None:
+        _parts.append('A50夜盘 %+.2f%%' % _a50)
+    _mov = [(nm, v) for nm, v in (_pk.get('stk') or {}).items()
+            if nm not in ('美元指数', '美债10Y', '美债20Y') and v is not None and v >= 2.0]
+    _mov.sort(key=lambda t: -t[1])
+    _mline = '｜'.join(_parts[:4]) or '外盘数据未取得'
+    _mlink = ('，'.join('%s %+.2f%%' % (nm, v) for nm, v in _mov[:2])
+              + ' 正面') if _mov else '外盘没有超过 2% 的产业股'
+    _sec4 = ('<div style="margin-top:10px;font-size:14px;font-weight:800;color:#ff922b;">'
+             '■ 外围消息（只留能改A股定价的）</div>'
+             f'<div style="font-size:12px;color:#e2e8f0;line-height:1.7;">{_mline}</div>'
+             f'<div style="font-size:11.5px;color:{GREY};line-height:1.6;">盘面最强：{_mlink}</div>'
+             + _ext_news_html(news, _pk))
+
+    # —— 段5：一句结论 ——
+    if cands:
+        _best = cands[0]
+        _tier = ('可以小仓试' if _best['score'] >= 55 else ('只挂不追、等它自己放量' if _best['score'] >= 45 else '分数不够，只看不做'))
+        _concl = ('评分最高的是 %s（%d分，%s），位置 %.0f%%、离20日高 %+.1f%%，位置是够的；'
+                  '明天不高开超2%%才动手，%s，破 %.2f 无条件走。'
+                  % (_best['name'], _best['score'], _best['cluster'], _best['pos'],
+                     _best['gap'], _tier, _best['px'] * 0.955))
+    elif items:
+        _concl = ('消息最多的 %s 这条链今晚没有符合位置和涨幅的票，明天只盯它能不能出第一家封板，'
+                  '出不来就当预期消化。' % items[0]['cluster'])
+    else:
+        _concl = '这两小时没有能落到产业链的消息，今天不建新仓，持仓按各自止损位管。'
+    _sec5 = ('<div style="margin-top:10px;font-size:14px;font-weight:800;color:#ff922b;">'
+             '■ 一句结论</div>'
+             f'<div style="font-size:12.5px;color:#ffd43b;line-height:1.75;">{_concl}</div>'
+             f'<div style="font-size:11px;color:{GREY};line-height:1.6;margin-top:4px;">'
+             '纪律：不追涨停、不追 8.5% 以上；单票不超过三成仓；任何一只回撤 4.5% 无条件止损。</div>')
+
+    inner = _sec1 + _sec2 + _sec3 + _sec4 + _sec5
     return _wrap(inner, '📰', '两小时消息汇总')
 
 
