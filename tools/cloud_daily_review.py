@@ -21773,6 +21773,17 @@ def build_preclose():
     return _wrap(inner, '🌙', '尾盘前决策·过不过夜')
 
 
+def _short2(t, n=26):
+    """暗线短句：切掉括号注解，超长时回退到上一个顿号，不在词中间断。"""
+    _t = re.split(r'[（(]', str(t or ''))[0].strip()
+    if len(_t) <= n:
+        return _t
+    _c = _t[:n]
+    if '、' in _c:
+        _c = _c[:_c.rfind('、')]
+    return _c
+
+
 def build_intraday():
     """盘中可交易机会推送（用户规格）：涨停池指纹门 → 情绪定性 → 主线判断 → 未涨停可上车候选（三件套）→ 风险。
     核心：已涨停股只做板块热度证据，不作为推荐主体；只找还没涨停、被主线资金点燃的票。
@@ -21855,6 +21866,8 @@ def build_intraday():
     _rank = _C2(x.get('hybk') or '其他' for x in pool).most_common()
     main_secs = [s for s, n in _rank[:2] if n >= 2] or ([_rank[0][0]] if _rank else [])
     _top_sec, _top_n = (_rank[0] if _rank else ('', 0))
+    _sec_disp = {'汽车零部': '汽车零部件', '通用设备': '通用设备', '电子元件': '电子元件'}.get(_top_sec, _top_sec)
+    _top_sec = _sec_disp
     _lu_all = max(int(d['lu']), 1)
     if _top_n >= 3 and _top_n * 1.0 / _lu_all >= 0.2:
         _main_desc = f'资金顺着一条线打，{_top_sec} 一家占 {_top_n} 只涨停（全场 {_lu_all} 只）'
@@ -21974,9 +21987,26 @@ def build_intraday():
             _seen_rs.add(_key)
         _ign_reason[str(_b.get('name') or '')] = _r
 
-    # —— 逐只可上车候选：共振类型 + 大白话 + 买点 + 止损 + 仓位 ——
-    _cards = []
-    for g in _cands:
+    # ═══════ 版面重做（2026-11-24 用户：内容过于模板 + 暗线单独成块） ═══════
+    _UP, _DN, _GOLD2, _BLUE, _PUR, _MUTE = ('#ff6b6b', '#4ecb8a', '#f4c542', '#5aa9e6',
+                                            '#b197fc', '#8d9bab')
+
+    def _cu2(v):
+        _v = float(v or 0)
+        return _UP if _v > 0 else (_DN if _v < 0 else _MUTE)
+
+    def _sec2(color, title, sub=''):
+        return ('<div style="margin-top:9px;background:#161d27;border-radius:10px;'
+                'border-left:3px solid %s;padding:8px 10px 9px;">'
+                '<div style="font-size:12px;font-weight:800;color:%s;">%s'
+                '<span style="font-size:10px;color:%s;font-weight:400;">　%s</span></div>'
+                % (color, color, title, _MUTE, sub))
+
+    _tone2 = {'强': _UP, '中上': _GOLD2, '中': _BLUE, '弱': _MUTE, '缺K线': _MUTE}
+
+    # —— 每只候选只算自己那份数据，模板段只出现一次 ——
+    _items = []
+    for g in (_cands or [])[:6]:
         code = str(g.get('code') or '')
         nm = str(g.get('name') or '')
         price = float(g.get('price') or 0)
@@ -21984,193 +22014,249 @@ def build_intraday():
         lb = float(g.get('lb') or 0)
         turn = float(g.get('turn') or 0)
         high = float(g.get('high') or 0)
+        low_i = float(g.get('low') or 0)
         sec = g.get('_sec') or ''
+        if not code or price <= 0:
+            continue
         _blk_i = _ign_of(sec)
         if _blk_i:
             _grp = int(_blk_i.get('lu') or 0)
             _lbc_max = int(_blk_i.get('cont') or 0)
+            _lead2 = _blk_i.get('leader') or '未标注'
         else:
             _grp = sec_cnt.get(sec, 0)
             _lbc_max = 0
             for x in pool:
                 if (x.get('hybk') or '') == sec:
                     _lbc_max = max(_lbc_max, int(x.get('lbc') or 0))
+            _lead2 = ''
         ma5, _near5 = _intra_ma5_price(code, price)
         pos60 = _intra_pos60(code, price)
-        if _grp >= 20:
-            _reso = '板块级共振（%d 家涨停、最高 %d 板，龙头封死后资金外溢同链）' % (_grp, _lbc_max)
-        elif _grp >= 5:
-            _reso = '主线扩散（%d 家涨停，二线补涨）' % _grp
-        elif _grp > 0:
-            _reso = '弱联动（这条线只有 %d 家涨停，跟着走不走独立行情）' % _grp
-        elif sec in (d.get('zb_names') or set()):
-            _reso = '补涨轮动（同板块高位炸板，资金找低位）'
-        else:
-            _reso = '个股量能先行（板块没合力，只按量价做）'
-        _blk = _blk_i
-        if _blk:
-            _rsn = _ign_reason.get(str(_blk.get('name') or '')) or ''
-            if len(str(_rsn)) > 46:
-                _rsn = str(_rsn)[:46] + '…'
-            _ign_txt = ('%s 板块 %+.2f%%，%d 家涨停、%d 家连板，龙头 %s'
-                        % (_blk['name'], float(_blk.get('chg') or 0), int(_blk.get('lu') or 0),
-                           int(_blk.get('cont') or 0), _blk.get('leader') or '未标注'))
-            if _rsn:
-                _ign_txt += '；催化：%s' % _rsn
-        else:
-            _ign_txt = '%s 今天 %d 只涨停；板块榜没对上，按涨停池口径看' % (sec, _grp)
+        try:
+            _tsc, _tlb, _tf, _tma = _tech_score({'code': code, 'price': price, 'pct': pct, 'lb': lb})
+        except Exception:
+            _tsc, _tlb, _tf, _tma = 0, '缺K线', {}, ''
         _mo = _mainop_of(code)
-        _d = _board_dark_link(_mo[1] if _mo else [])[0]
-        _dir_txt = _d or ''
-        _chain = _N2H_CHAIN.get(_n2h_cluster(sec))
-        if ma5 and 0 < (price - ma5) <= price * 0.03:
-            _buy = f'回踩 {ma5:.2f}（5日线）不破就买，或现价 {price:.2f} 直接挂'
-        elif high > price and (high / price - 1) <= 0.03:
-            _buy = f'站上 {high:.2f}（今日高点）放量才买，不站上不追'
-        elif ma5 and ma5 < price:
-            _buy = f'现价 {price:.2f} 分批进，回踩 {ma5:.2f}（5日线）不破再加，别等拉起来才追'
-        elif ma5:
-            _buy = f'现价 {price:.2f} 分批进；5日线在 {ma5:.2f}（现价上方），只有站上去站稳才加仓，不站稳不加'
-        else:
-            _buy = f'现价 {price:.2f} 附近分批，回踩不破分时均价线就进'
-        _low_i = float(g.get('low') or 0)
+        _dark = _board_dark_link(_mo[1] if _mo else [])[0]
         _floor = price * 0.955
-        _stop_px = _floor
-        _stop_lab = '硬止损 -4.5%'
+        _stop_px, _stop_lab = _floor, '硬止损 -4.5%'
         _cand_px = []
-        if _low_i > 0 and _floor < _low_i * 0.99 < price:
-            _cand_px.append((_low_i * 0.99, '今日低点 %.2f 下方' % _low_i))
+        if low_i > 0 and _floor < low_i * 0.99 < price:
+            _cand_px.append((low_i * 0.99, '今日低点 %.2f 下方' % low_i))
         if ma5 and _floor < ma5 * 0.985 < price:
             _cand_px.append((ma5 * 0.985, '5日线 %.2f 下沿' % ma5))
         if _cand_px:
             _stop_px, _stop_lab = max(_cand_px, key=lambda t: t[0])
         if _stop_px >= price:
-            _stop_px = price * 0.975
-            _stop_lab = '现价下方 2.5%'
-        _stop = '跌破 %.2f（%s）走人，距现价 -%.1f%%' % (_stop_px, _stop_lab,
-                                                          abs((1 - _stop_px / price) * 100))
-        if pct <= 5.0 and lb >= 2.0:
-            _pos = '2成'
-        elif pct <= 6.5:
-            _pos = '1成试探'
-        else:
-            _pos = '1成，别追高'
-        if pos60 is not None:
-            _pos_line = ('离60日高 {:.0f}% 分位，位置不高、还有空间'.format(pos60 * 100) if pos60 < 0.7
-                         else '离60日高 {:.0f}% 分位，位置偏高、只能快进快出'.format(pos60 * 100))
-        else:
-            _pos_line = '位置数据未取到，只按量价做'
-        _hgt = f'（最高 {_lbc_max} 板）' if _lbc_max >= 2 else ''
-        if _grp >= 5:
-            _why = (f'{sec}今天 {_grp} 家涨停{_hgt}，钱是真的在这条线上；'
-                    f'它自己还没封板、量比 {lb:.1f}、换手 {turn:.1f}%，{_pos_line}，'
-                    f'属于龙头封住后资金往下传的接力位，不是空想的故事')
-        elif _grp > 0:
-            _why = (f'{sec}今天只有 {_grp} 家涨停，合力一般；它还没封板、量比 {lb:.1f}、换手 {turn:.1f}%，'
-                    f'{_pos_line}，只能当弱联动做，别当主线龙头')
-        else:
-            _why = (f'{sec}今天没有板块合力；它是同链里还没涨停、量比 {lb:.1f}、换手 {turn:.1f}% 的前排，'
-                    f'{_pos_line}，只按这只票自己的量价做，不借板块的故事')
-        _cards.append(
-            '<div style="background:#1f2635;border-left:3px solid #ff922b;border-radius:8px;padding:9px 11px;margin:7px 0;">'
-            + f'<div style="font-size:14px;font-weight:700;color:#fff;">{nm}（{code}）'
-            + f'<span style="color:{RED};font-size:13px;font-weight:600;"> {pct:+.2f}%</span>'
-            + f'<span style="color:{GREY};font-size:11px;">｜量比{lb:.1f}｜换手{turn:.1f}%</span></div>'
-            + f'<div style="color:#ffd43b;font-size:12px;margin-top:4px;">共振类型：{_reso}</div>'
-            + f'<div style="color:#e9ecef;font-size:12.5px;margin-top:3px;">👉 {_why}</div>'
-            + f'<div style="color:#8ce99a;font-size:12.5px;margin-top:3px;">买点：{_buy}</div>'
-            + f'<div style="color:#ff8787;font-size:12.5px;margin-top:2px;">止损：{_stop}</div>'
-            + f'<div style="color:#74c0fc;font-size:12.5px;margin-top:2px;">仓位：{_pos}</div>'
-            + (f'<div style="color:#a78bfa;font-size:12px;margin-top:3px;">🔗 起爆源：{_ign_txt}</div>' if _ign_txt else '')
-            + (f'<div style="color:#a78bfa;font-size:12px;margin-top:2px;">🕳 暗线：{_dir_txt}</div>' if _dir_txt else '')
-            + ('<div style="color:#a78bfa;font-size:12px;margin-top:2px;">↕ 上下游：' + _chain[0] + '</div>' if _chain else '')
-            + '</div>')
+            _stop_px, _stop_lab = price * 0.975, '现价下方 2.5%'
+        _items.append({'code': code, 'name': nm, 'price': price, 'pct': pct, 'lb': lb,
+                       'turn': turn, 'high': high, 'low': low_i, 'sec': sec, 'grp': _grp,
+                       'lbc': _lbc_max, 'lead': _lead2, 'ma5': ma5, 'pos60': pos60,
+                       'ts': _tsc, 'tl': _tlb, 'tf': _tf, 'dark': _dark,
+                       'stop': _stop_px, 'stop_lab': _stop_lab})
+    _items.sort(key=lambda x: (str(x['tl']) == '缺K线', -int(x['ts'] or 0)))
 
-    # 起爆源三行（板块/涨停家数/龙头/催化 + 上下游链）
+    def _give2(it):
+        _f = it['tf'] or {}
+        _l = str(it['tl'])
+        if int(it['ts'] or 0) < 55 or _l not in ('强', '中上', '中'):
+            return False
+        if _l == '中' and (int(_f.get('vol') or 0) < 20 or int(_f.get('pos') or 0) < 12):
+            return False
+        return int(_f.get('vol') or 0) >= 14
+
+    _ok2 = [x for x in _items if _give2(x)]
+    _no2 = [x for x in _items if x not in _ok2]
+
+    def _prow2(it, idx):
+        _l = str(it['tl'])
+        _tc = _tone2.get(_l, _MUTE)
+        _f = it['tf'] or {}
+        _px, _pc = it['price'], it['pct']
+        _lb, _tn = it['lb'], it['turn']
+        _ma5 = it['ma5']
+        _p60 = it['pos60']
+        if _ma5 and 0 < (_px - _ma5) <= _px * 0.03:
+            _buy = ('回踩 <b style="color:%s;">%.2f</b>（5日线）不破就接，挂单不超过 %.2f'
+                    % (_GOLD2, _ma5, _px * 1.01))
+        elif it['high'] > _px and (it['high'] / _px - 1) <= 0.03:
+            _buy = ('站上 <b style="color:%s;">%.2f</b>（今日高点）放量才买，不站上不追'
+                    % (_GOLD2, it['high']))
+        elif _ma5 and _ma5 < _px:
+            _buy = ('现价 <b style="color:%s;">%.2f</b> 分批，回踩 %.2f（5日线）不破再加'
+                    % (_GOLD2, _px, _ma5))
+        elif _ma5:
+            _buy = ('先别接：5日线在 <b style="color:%s;">%.2f</b> 上方，只在站上站稳后加'
+                    % (_GOLD2, _ma5))
+        else:
+            _buy = '现价 <b>%.2f</b> 附近分批，跌破分时均价就不接' % _px
+        if it['grp'] >= 20:
+            _why = '龙头封住后资金往下传的承接位，还没封板，量能已经起来'
+        elif it['grp'] >= 5:
+            _why = '这条线的二线补涨位，主线不硬，只能快进快出'
+        else:
+            _why = '板块没合力，只按它自己的量价做，不借故事'
+        _pos_t = ('%d%% 位置' % int((_p60 or 0) * 100)) if _p60 is not None else '位置未取到'
+        _minitxt = ' · '.join('%s %s' % (lab, ('%d' % v) if isinstance(v, (int, float)) else '—')
+                              for lab, v in (('趋势', _f.get('trend')), ('量能', _f.get('vol')),
+                                             ('位置', _f.get('pos')), ('动量', _f.get('mom')),
+                                             ('形态', _f.get('shape'))))
+        _pos = ('2成' if _pc <= 5.0 and _lb >= 2.0 else ('1成试探' if _pc <= 6.5 else '1成，别追高'))
+        return ('<div style="margin-top:8px;padding-top:6px;border-top:1px solid #232b36;">'
+                '<div style="font-size:13px;font-weight:800;color:#fff;">%d %s'
+                '<span style="font-weight:400;font-size:10.5px;color:%s;"> %s</span>'
+                '<span style="font-size:13px;color:%s;margin-left:6px;">%+.2f%%</span>'
+                '<span style="float:right;font-size:18px;font-weight:800;color:%s;">%d</span>'
+                '<span style="float:right;font-size:9.5px;color:%s;margin:5px 3px 0 0;">技术分</span>'
+                '</div>'
+                '<div style="font-size:10.5px;color:%s;margin-top:1px;">'
+                '量比 %.2f　换手 %.1f%%　%s　评级 <b style="color:%s;">%s</b></div>'
+                '<div style="font-size:10px;color:#9aa7b5;margin-top:1px;">%s</div>'
+                '<div style="font-size:11.5px;color:#e9ecef;margin-top:3px;">买点　%s</div>'
+                '<div style="font-size:11.5px;color:%s;margin-top:1px;">'
+                '止损　跌破 <b>%.2f</b> 走人（%s，距现价 -%.1f%%）</div>'
+                '<div style="font-size:11px;color:%s;margin-top:1px;">'
+                '仓位 %s　·　%s</div></div>'
+                % (idx, it['name'], _MUTE, it['code'], _cu2(_pc), _pc, _tc,
+                   int(it['ts'] or 0), _MUTE, _MUTE, _lb, _tn, _pos_t, _tc, _l,
+                   _minitxt, _buy, _UP, it['stop'], it['stop_lab'],
+                   abs((1 - it['stop'] / _px) * 100), _MUTE, _pos, _why))
+
+    _idx_html = (_sec2(_BLUE, '① 盘面温度', '数据时点 ' + now.strftime('%H:%M'))
+                 + '<div style="margin-top:4px;">'
+                 + ('<span style="font-size:10.5px;color:%s;">涨停</span> '
+                    '<b style="font-size:16px;color:#fff;">%d</b>' % (_MUTE, int(d['lu'])))
+                 + ('　<span style="font-size:10.5px;color:%s;">炸板</span> '
+                    '<b style="font-size:16px;color:%s;">%d</b>' % (_MUTE, _GOLD2, int(d['zb'])))
+                 + ('　<span style="font-size:10.5px;color:%s;">炸板率</span> '
+                    '<b style="font-size:16px;color:%s;">%.0f%%</b>'
+                    % (_MUTE, _UP if zb_rate >= 0.40 else (_DN if zb_rate < 0.25 else _GOLD2),
+                       zb_rate * 100))
+                 + ('　<span style="font-size:10.5px;color:%s;">情绪</span> '
+                    '<b style="font-size:14px;color:%s;">%s</b>' % (_MUTE, _GOLD2, mood))
+                 + '</div></div>')
+
+    _main_html = (_sec2(_GOLD2, '② 主线硬不硬', '涨停家数就是证据，不靠猜')
+                  + ('<div style="font-size:11.5px;color:#e9ecef;margin-top:4px;">%s</div>' % _main_desc)
+                  + ('<div style="font-size:11px;color:%s;margin-top:2px;">%s</div>' % (_MUTE, _zb_desc))
+                  + ('<div style="font-size:11.5px;font-weight:700;color:%s;margin-top:4px;">'
+                     '能上车的只有还没封板、量能已经起来的那几只，封住的只当路标</div>' % _GOLD2)
+                  + '</div>')
+
     _ign_html = ''
     if _ign_blocks:
-        _ign_html = ('<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">'
-                     '🔥 现在在起爆的是哪条线</div>')
-        for _i, _b in enumerate(_ign_blocks[:3]):
-            _rsn2 = _ign_reason.get(str(_b.get('name') or '')) or ''
-            if len(str(_rsn2)) > 44:
-                _rsn2 = str(_rsn2)[:44] + '…'
+        _rows = []
+        for _i2, _b in enumerate(_ign_blocks[:2]):
+            _r2 = _ign_reason.get(str(_b.get('name') or '')) or ''
+            _toks = [x for x in re.split(r'[+＋]', _r2) if x]
+            _keep = []
+            for _t in sorted(_toks, key=len, reverse=True):
+                if not any(_t in _k for _k in _keep):
+                    _keep.append(_t)
+            _r2 = '+'.join([x for x in _toks if x in _keep])
             _ch2 = _N2H_CHAIN.get(_n2h_cluster(_b['name']))
-            _ign_html += ('<div style="background:#1f2635;border-left:3px solid %s;border-radius:8px;'
-                          'padding:7px 9px;margin:6px 0;">'
-                          '<div style="font-size:13px;font-weight:700;color:#fff;">%s %s'
-                          '<span style="color:%s;font-size:12px;font-weight:600;"> %+.2f%%</span>'
-                          '<span style="color:%s;font-size:11px;">｜涨停%d｜连板%d｜龙头%s</span></div>'
-                          '%s'
-                          '%s</div>'
-                          % (GOLD if _i == 0 else TEAL, '①②③'[_i], _b['name'],
-                             RED if float(_b.get('chg') or 0) >= 0 else GREEN, float(_b.get('chg') or 0),
-                             GREY, int(_b.get('lu') or 0), int(_b.get('cont') or 0),
-                             _b.get('leader') or '未标注',
-                             ('<div style="font-size:12px;color:#c8d0de;line-height:1.62;margin-top:2px;">'
-                              '为什么涨：%s</div>' % _rsn2) if _rsn2 else '',
-                             ('<div style="font-size:11.5px;color:#a78bfa;line-height:1.6;margin-top:2px;">'
-                              '↕ 联动链：%s</div>' % _ch2[0]) if _ch2 else ''))
+            _rows.append('<div style="margin-top:6px;">'
+                         '<span style="font-size:12.5px;font-weight:800;color:#fff;">%d %s</span>'
+                         '<span style="font-size:13px;font-weight:800;color:%s;margin-left:5px;">%+.2f%%</span>'
+                         '<div style="font-size:10.5px;color:%s;margin-top:1px;">'
+                         '涨停 %d　连板 %d　龙头 %s</div>'
+                         '%s%s</div>'
+                         % (_i2 + 1, _b['name'], _cu2(_b.get('chg')), float(_b.get('chg') or 0),
+                            _MUTE, int(_b.get('lu') or 0), int(_b.get('cont') or 0),
+                            _b.get('leader') or '未标注',
+                            ('<div style="font-size:11px;color:#e9ecef;margin-top:2px;">'
+                             '为什么涨：%s</div>' % _r2) if _r2 else '',
+                            ('<div style="font-size:10.5px;color:%s;margin-top:2px;">'
+                             '上下游：%s</div>' % (_PUR, _ch2[0])) if (_ch2 and _i2 == 0) else ''))
+        _ign_html = (_sec2('#ff922b', '③ 这条线怎么传下来的', '板块涨幅与家数，链只写一遍')
+                     + ''.join(_rows) + '</div>')
 
-    _head = (f'<div style="color:{RED};font-size:13px;font-weight:700;">⏰ 数据时点 {now.strftime("%H:%M")}'
-             f' · 涨停 {d["lu"]} / 炸板 {d["zb"]}</div>'
-             + f'<div style="color:#e9ecef;font-size:13px;margin-top:3px;">{mood_emoji} 情绪：{mood}'
-             + f'（涨停 {prev_lu}→{d["lu"]}，炸板率 {zb_rate * 100:.0f}%）</div>'
-             + f'<div style="color:#e9ecef;font-size:13px;margin-top:3px;">🧵 主线：{_main_desc}；{_zb_desc}</div>'
-             + f'<div style="color:{GREY};font-size:12px;margin-top:2px;">'
-             + '👉 大白话：涨停的只当路标看，真能上车的是还没板的那几个。</div>')
-    _title = '<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">🎯 可交易机会（未涨停股）</div>'
-    if _cards:
-        _body = _title + ''.join(_cards)
+    _reso_txt = ''
+    if _ok2 or _items:
+        _t0 = (_ok2 or _items)[0]
+        if _t0['grp'] >= 20:
+            _reso_txt = ('%s 所在 %s：%d 家涨停·最高 %d 板·龙头 %s，资金外溢同链'
+                         % (_t0['name'], _t0['sec'], _t0['grp'], _t0['lbc'], _t0['lead'] or '未标注'))
+        elif _t0['grp'] > 0:
+            _reso_txt = ('%s 所在 %s：%d 家涨停，没有龙头封死，只能算扩散'
+                         % (_t0['name'], _t0['sec'], _t0['grp']))
+        else:
+            _reso_txt = '%s 所在 %s：板块没合力，只按个股量价做' % (_t0['name'], _t0['sec'])
+    if _ok2:
+        _ok_html = ''.join(_prow2(x, _i3 + 1) for _i3, x in enumerate(_ok2[:3]))
+        if len(_ok2) > 3:
+            _ok_html += ('<div style="font-size:10.5px;color:%s;margin-top:6px;">'
+                         '另外 %d 只也在池里：%s</div>'
+                         % (_MUTE, len(_ok2) - 3, '、'.join(x['name'] for x in _ok2[3:])))
     else:
-        # 2026-11-22 用户红线「盘中机会在重复模版性回答」：删掉那段固定「没有…的票，硬凑就是接盘」，
-        # 改成实时盘面 + 差一条的观察名单（差多少、冲到什么条件才看），每轮数字都不一样。
-        _sn_i = _sn_brief(locals().get('idx'), d)
-        _near = []
-        for g in (_gain or []):
-            _c6 = str(g.get('code') or ''); _nm = str(g.get('name') or '')
-            _pc = float(g.get('price') or 0); _pp = float(g.get('pct') or 0)
-            _pl = float(g.get('lb') or 0); _pt = float(g.get('turn') or 0)
-            _am = float(g.get('amount') or 0); _in = str(g.get('industry') or '')
-            if not _c6 or not _nm or _pc <= 0 or 'ST' in _nm or '退' in _nm:
-                continue
-            if _pp < 1.5 or _pp > 9.8 or _pl < 1.0:
-                continue
-            _gp = []
-            if _pp < 2.5:
-                _gp.append('涨幅 %.1f%% 差 %.1f 个点' % (_pp, 2.5 - _pp))
-            elif _pp > 8.5:
-                _gp.append('涨幅 %.1f%% 已过热，只能等回踩' % _pp)
-            if _pl < 1.6:
-                _gp.append('量比 %.1f 差 %.1f' % (_pl, 1.6 - _pl))
-            if _pt < 1.2:
-                _gp.append('换手 %.1f%% 偏薄' % _pt)
-            if _am < 6.0e7:
-                _gp.append('成交 %.0f万 差 %.0f万' % (_am / 1e4, (6.0e7 - _am) / 1e4))
-            _near.append((len(_gp), -_pl, _nm, _c6, _pp, _in, _gp))
-        _near.sort()
-        _near = _near[:3]
-        _near_html = ''
-        for _k, _lb2, _nm2, _c62, _pp2, _in2, _gp in _near:
-            _gap = '；'.join(_gp) if _gp else '三件套只差主线归属，量价已经到位'
-            _near_html += ('<div style="font-size:12.5px;color:#dfe4ee;line-height:1.75;margin-top:4px;">'
-                           '· %s(%s) <span style="color:%s;">%+.2f%%</span> %s　差：%s</div>'
-                           % (_nm2, _c62, RED if _pp2 >= 0 else GREEN, _pp2,
-                              ('·' + _in2[:6]) if _in2 else '', _gap))
-        _body = (_title + _now_doing_html(_sn_i, 3, 4)
-                 + ('<div style="font-size:12px;color:#8b95a7;margin-top:5px;">差一条的观察名单（现在还不能买，'
-                    '满足条件才看分时回踩）</div>' + _near_html if _near_html else
-                    '<div style="font-size:12px;color:#8b95a7;margin-top:5px;">涨幅榜里连差一条的都没有，'
-                    '今天这条线没有第二梯队。</div>'))
+        _ok_html = ('<div style="font-size:11.5px;color:%s;margin-top:6px;font-weight:700;">'
+                    '这一轮没有能给位子的票：技术分不到 55、或量能没补上，不硬凑</div>' % _GOLD2)
+    if _no2:
+        _nl = []
+        for x in _no2[:4]:
+            _f2 = x['tf'] or {}
+            _s2, _l2 = int(x['ts'] or 0), str(x['tl'])
+            if _s2 < 55 or _l2 in ('弱', '缺K线'):
+                _w2 = '技术分 %d' % _s2
+            elif _l2 == '中':
+                _w2 = ('量能 %d／位置 %d 不够，日内不给位子'
+                       % (int(_f2.get('vol') or 0), int(_f2.get('pos') or 0)))
+            else:
+                _w2 = '量能 %d 不够' % int(_f2.get('vol') or 0)
+            _nl.append('%s %d 分（%s）' % (x['name'], _s2, _w2))
+        _ok_html += ('<div style="font-size:10.5px;color:%s;margin-top:6px;">'
+                     '进了池但不给位子：%s</div>' % (_MUTE, '；'.join(_nl)))
+    _pick_html = (_sec2('#66d9e8', '④ 可上车·技术评分榜',
+                        '只在 2.5~8.5%% 未涨停里选，给位子 %d 只' % min(len(_ok2), 3))
+                  + ('<div style="font-size:10px;color:%s;">共振口径：%s</div>' % (_MUTE, _reso_txt))
+                  + ('<div style="font-size:10px;color:%s;">技术分＝趋势30＋量能25＋位置20＋动量15＋形态10</div>'
+                     % _MUTE)
+                  + _ok_html + '</div>')
+
+    _dark_rows2 = []
+    for it in _ok2[:3]:
+        if it['dark']:
+            _dark_rows2.append((it['name'], _short2(it['dark'], 26), '只看不追'))
+    for h in HOLDINGS:
+        _dk = _TAIL_DARK.get(h['code'][-6:], '')
+        if _dk:
+            _dark_rows2.append((h['name'], _short2(_dk, 26), '只作情绪参考'))
+    if _dark_rows2:
+        _dark_html = (_sec2(_PUR, '🕵️ 暗线·不是主营的那条腿', '一行一只，只写非主营的产业方向')
+                      + ''.join('<div style="font-size:11px;color:#e9ecef;margin-top:3px;">'
+                                '<b>%s</b> <span style="color:%s;">→</span> %s'
+                                '<span style="color:%s;font-size:10px;">　%s</span></div>'
+                                % (nm, _PUR, dk, _MUTE, lb3) for nm, dk, lb3 in _dark_rows2[:5])
+                      + '</div>')
+    else:
+        _dark_html = ''
 
     if hold_hits:
-        _body += ('<div style="margin-top:8px;color:#ffd43b;font-size:12.5px;">🐉 持仓：'
-                  + '；'.join(hold_hits) + '（已涨停，别追，持有看明天）</div>')
-    html = _wrap(
-        _head + _ign_html + _body
-        + f'<div style="margin-top:8px;color:{RED};font-size:12px;">'
-        + '⚠️ 风险：盘中追涨最容易吃面，买点不成立就不做；单票仓位上限2成，破止损立刻走。</div>',
-        '🎯', '盘中机会', disclaimer=True)
+        _hold_line = ('<div style="font-size:11px;color:%s;margin-top:3px;">持仓：%s（已封板别追）</div>'
+                      % (_GOLD2, '；'.join(hold_hits)))
+    else:
+        _hold_line = ''
+    if _ok2:
+        _t1 = _ok2[0]
+        _concl = ('今天只做 %s 这一只：%s 一带进，跌破 %.2f 走人，仓位 %s；'
+                  '封住的票别追，等它回踩再说'
+                  % (_t1['name'], ('%.2f' % _t1['price']), _t1['stop'],
+                     ('2成' if _t1['pct'] <= 5.0 and _t1['lb'] >= 2.0 else '1成')))
+    else:
+        _concl = ('这一轮空仓不动：能涨停的路标不算机会，等回踩或等量能补上再看，不硬做')
+    _end_html = (_sec2('#8ce99a', '⑤ 一句话')
+                 + ('<div style="font-size:12.5px;font-weight:700;color:#8ce99a;margin-top:3px;">%s</div>'
+                    % _concl)
+                 + _hold_line
+                 + ('<div style="margin-top:8px;font-size:9.5px;color:%s;line-height:1.5;">'
+                    '口径：涨停/炸板取东财涨停池，个股取腾讯实时，技术分用前复权日K'
+                    '（MA5/10/20、MACD 8/21/5）＋实时量比＋20日区间位置</div>' % _MUTE)
+                 + '</div>')
+
+    html = _wrap(_idx_html + _main_html + _ign_html + _pick_html + _dark_html + _end_html
+                 + f'<div style="margin-top:8px;color:{_UP};font-size:11px;">'
+                 + '⚠️ 盘中追涨最容易吃面，买点不成立就不做；单票上限 2 成，破止损立刻走。</div>',
+                 '🎯', '盘中机会', disclaimer=True)
     ok, msg = push(html, f'🎯 盘中机会 {now.strftime("%H:%M")} · {mood}')
     print(f'[intra] 指纹变化 lu={prev_lu}→{d["lu"]} 新进{len(new_xs)}只 可上车{len(_cands)}只 → PUSH', ok, msg)
     return html
