@@ -7779,11 +7779,15 @@ def build_auction(title='竞价观察'):
                 _p3pt = '高位（%.0f%%），追高没溢价' % _p3pos[0]
             else:
                 _p3pt = '位置未取到'
-            _ind3 = str(s_.get('industry') or '').strip() or '同板块'
-            try:
-                _n3 = sum(1 for _x3 in cands if str(_x3.get('industry') or '') == str(s_.get('industry') or ''))
-            except Exception:
-                _n3 = 0
+            _ind3 = str(s_.get('industry') or '').strip()
+            if _ind3 in ('', '其他'):
+                _ind3 = '同一板块'
+                _n3 = len(cands or [])
+            else:
+                try:
+                    _n3 = sum(1 for _x3 in cands if str(_x3.get('industry') or '') == _ind3)
+                except Exception:
+                    _n3 = 0
             _fb3_html = ('<div style="color:#5aa9e6;font-size:13px;margin-top:2px;line-height:1.6;">'
                          '📊 没有可核实的延伸业务，只看盘面：竞价量比 <b>%.2f</b> 倍、%s今天过闸门 <b>%d</b> 只、位置 %s'
                          '——资金买的是板块，别替它编业务</div>'
