@@ -319,7 +319,14 @@ def _dark_fact(code, name, hot=None):
                   '，盘面热点跟它没关系，别硬套题材',
                   '，今天涨的不是它这条线，看点在自己身上')
         _rel = _rels2[_seed % len(_rels2)]
-    return '主营 %s（%s）——%s%s' % (_txt, _d or '最新报告期', _stage, _rel)
+    # 2026-11-24 用户铁律：兜底也必须是「产品/暗线/明天」三段，且不含占比、不拿主营冒充暗线
+    _pn = '、'.join(str(n) for n, _r in _it[:2])
+    if _rel:
+        _dkp = _rel.strip('，')
+    else:
+        _dkp = '非主营延伸这次没查到，公司没单独披露第二曲线的收入占比，不硬编'
+    return ('产品：%s｜暗线：%s｜明天：看它自己有没有量，放量站上再说，没量不碰'
+            % (_pn or '主营待补', _dkp))
 
 
 def _dark_solid(code, name):
@@ -333,7 +340,8 @@ def _dark_solid(code, name):
              '主营数据没返回，业绩靠什么吃饭要等下一期报表，涨的是盘面，不是业务变了',
              '主营构成接口这次没给，业务边界只能等财报说话，外延题材跟它没有合同关系',
              '主营拆分这次缺数据，先认它自己那块，风口是别人的，别拿热度当业绩')
-    return _tpls[_seed % len(_tpls)]
+    return ('产品：这次没取到主营构成｜暗线：%s｜明天：看它自己有没有量，没量不碰'
+            % _tpls[_seed % len(_tpls)])
 
 
 _NAME_CODE_CACHE = {'t': 0.0, 'm': {}}
@@ -2894,6 +2902,15 @@ _ANTI_TEMPLATE_BLOCK = ('''【反模板与空推送规则·全局铁律·输出�
 # v7.9x33：只留「一眼就是套话」的词。原表把『资金认可/结构改善/情绪回暖/市场有波动/
 # 或将刺激/当前市场情绪』也判成模板——这些是正常盘面叙述用语，模型一写就被整段作废，
 # 重试又撞 max_tokens 截断，最后返回空，卡面退回代码行（用户说的「规则化」）。
+_DARK_SPEC = ('''【暗线三段硬规范·全局强制·与上文所有暗线要求同时生效，冲突以本条为准】
+凡输出暗线（字段 dark / 暗线 / 暗线延伸 / 暗线方向 / 暗线贴合 / 第二曲线），只能写成一行三段、竖线分隔，段名原样出现，缺一段整条作废：
+产品：这只票明面上靠什么赚钱，一句话，只说做什么；不许写占比、收入结构、主营构成比例。
+暗线：非主营那条腿，必须落到具体产品名/客户/认证/供货事实（例：已给头部减速器厂批量供货、英伟达 Orin 方案量产上车、已进三大运营商集采、T800 级已批量供军机），并写清披露口径（公司自己写明占比极小／没单独披露收入占比／已量产但收入没单列）；禁止「相关、涉及、布局、受益于、概念龙头」这类词。
+明天：给可执行点位，句式固定「站稳 X 就持有，破 Y 减半，Z 是硬止损」；X 用当天真实价或最近收盘价，Y≈X×0.98，Z≈X×0.955；拿不到价格就写「明天看它自己有没有量」，不许编点位。
+格式范例（只抄格式，内容按自己的票换）：产品：齿轮与减速器毛坯｜暗线：机器人减速器齿坯已给头部减速器厂批量供货，机器人收入公司自己写明占比很小｜明天：站稳 32.60 就持有，破 31.95 减半，31.12 是硬止损。
+不许用明面主营冒充暗线、不许一句话糊过去、不许把三段写成一段长句。'''
+)
+
 _TEMPLATE_BLACKLIST = (
     '值得关注', '建议留意', '板块强势带动', '具备投资价值', '风险与机会并存',
     '建议谨慎', '板块刚萌芽', '情绪有点过热', '资金都在抢筹码', '没有安全垫',
@@ -2928,6 +2945,15 @@ def ask_deepseek(payload, purpose='eod', system_text=None):
         system_text = _DEEP_DIG_RULE + '\n' + system_text
     if '反模板强化' not in system_text:
         system_text += _ANTI_TEMPLATE_BLOCK
+    # 2026-11-24 用户铁律：晚间卡「产品/暗线/明天」口径强制到全云端所有推送
+    try:
+        _pk_txt = str(payload)[:200000]
+    except Exception:  # noqa: BLE001
+        _pk_txt = ''
+    if ('暗线' in system_text or '暗线' in _pk_txt or 'dark' in _pk_txt
+            or 'dark' in system_text):
+        if '【暗线三段硬规范' not in system_text:
+            system_text = system_text + '\n' + _DARK_SPEC
     if not MODELSCOPE_KEY:
         _DS_FAILED = True
         _diag_append('[ask_deepseek] MODELSCOPE_KEY 为空，purpose=%s' % purpose)
@@ -3230,6 +3256,37 @@ def _strip_bracket_heads(html):
     return html
 
 
+
+_DK_LAB_COL = {'产品': '#9aa4b8', '暗线': '#c9b6ff', '明天': '#8ce99a'}
+
+
+def _dk_html_fmt(html):
+    """把卡面里「暗线：产品…｜暗线…｜明天…」拆成三行（用户 2026-11-24 图五口径）。
+    只在暗线标签后的纯文本段内工作，不碰其它字段；没有竖线就原样返回。"""
+    import re as _re
+
+    def _one(m):
+        lab, txt = m.group(1), m.group(2)
+        if ('｜' not in txt) and ('|' not in txt):
+            return m.group(0)
+        segs = [_re.sub(r'^\s*(产品|暗线|明天)\s*[:：]\s*', '', x).strip()
+                for x in _re.split(r'[｜|]', txt)] 
+        segs = [x for x in segs if x]
+        if len(segs) < 2:
+            return m.group(0)
+        names = ['产品', '暗线', '明天'] if len(segs) >= 3 else ['产品', '暗线']
+        out = [lab.rstrip('：:').rstrip()]
+        for i, sg in enumerate(segs[:3]):
+            nm = names[i] if i < len(names) else '明天'
+            out.append('<br><span style="color:%s;font-weight:700;">%s</span> %s'
+                       % (_DK_LAB_COL.get(nm, '#c9b6ff'), nm, sg))
+        return ''.join(out)
+
+    try:
+        return _re.sub(r'([🔍🕳️]?\s*暗线[：:])([^<]{1,600})', _one, html)
+    except Exception:  # noqa: BLE001
+        return html
+
 def _wrap(inner, emoji, title, show_reson=False, disclaimer=False):
     """通用卡片壳。共振只作内部因子参与判定/打分，一律不上卡片（2026-11-07 用户指令）。
     参数 show_reson 仅为兼容历史调用保留，默认 False 即不渲染头部共振档位行。
@@ -3237,6 +3294,8 @@ def _wrap(inner, emoji, title, show_reson=False, disclaimer=False):
     出口统一过 _strip_meta：卡面不出现规则性元说明。"""
     # v80-A3（用户指令）：卡面不再拼模型状态自述、数据源健康、免责口径三样尾巴。
     _body = _strip_meta(_strip_bracket_heads(inner or ''))
+    # 2026-11-24 用户铁律：暗线一律按「产品 / 暗线 / 明天」三行出卡
+    _body = _dk_html_fmt(_body)
     # v80-A6：出口统一清掉免责口径词汇（用户反复要求卡面不出现口径/免责）
     for _kw in ('不构成投资建议', '（仅供参考）', '仅供参考'):
         _body = _body.replace(_kw, '')
@@ -11287,7 +11346,8 @@ def _eod_dark_of(code, name):
     _c6 = _pure_code(code)
     if _c6 in _EOD_DARK_OVR:
         _p0, _d0, _w0 = _EOD_DARK_OVR[_c6]
-        return '%s → %s｜%s' % (_p0, _d0, _w0)
+        return ('产品：%s｜暗线：%s（%s）｜明天：看它自己有没有量，没量不碰'
+                % (_p0, _d0, _w0))
     if _c6 in _TAIL_DARK:
         return _TAIL_DARK[_c6]
     _it = _mainop_of(code)[1]
@@ -22800,11 +22860,11 @@ def build_preclose():
     for it in _ok[:3]:
         _d = it.get('dir') or ''
         if _d:
-            _dark_rows.append((it['name'], _short(_d, 26), '只看不追'))
+            _dark_rows.append((it['name'], str(_d), '只看不追'))
     if _dark_rows:
         _dark_lines = ''.join(
             '<div style="font-size:11px;color:#e9ecef;margin-top:3px;">'
-            '<b>%s</b> <span style="color:%s;">→</span> %s'
+            '<b>%s</b> <span style="color:%s;">暗线：</span>%s'
             '<span style="color:%s;font-size:10px;">　%s</span></div>'
             % (nm, _PUR, dk, _MUTE, lb2) for nm, dk, lb2 in _dark_rows[:5])
         _dark_html = (_sec(_PUR, '🕵️ 暗线·不是主营的那条腿', '一行一只，只看不追，追进去是最后一棒')
@@ -23285,11 +23345,11 @@ def build_intraday():
     for h in HOLDINGS:
         _dk = _TAIL_DARK.get(h['code'][-6:], '')
         if _dk:
-            _dark_rows2.append((h['name'], _short2(_dk, 26), '只作情绪参考'))
+            _dark_rows2.append((h['name'], str(_dk), '只作情绪参考'))
     if _dark_rows2:
         _dark_html = (_sec2(_PUR, '🕵️ 暗线·不是主营的那条腿', '一行一只，只写非主营的产业方向')
                       + ''.join('<div style="font-size:11px;color:#e9ecef;margin-top:3px;">'
-                                '<b>%s</b> <span style="color:%s;">→</span> %s'
+                                '<b>%s</b> <span style="color:%s;">暗线：</span>%s'
                                 '<span style="color:%s;font-size:10px;">　%s</span></div>'
                                 % (nm, _PUR, dk, _MUTE, lb3) for nm, dk, lb3 in _dark_rows2[:5])
                       + '</div>')
@@ -25072,8 +25132,12 @@ def _pool_dark_line(code, name, blocks):
     if hit:
         _chg = float(hit.get('chg') or 0)
         if abs(_chg) >= 0.05:
-            return '%s｜今日主线 %s %+.2f%%、涨停 %d 家' % (base, hit['name'], _chg, int(hit.get('lu') or 0))
-        return '%s｜今日主线 %s、涨停 %d 家' % (base, hit['name'], int(hit.get('lu') or 0))
+            return ('产品：主营这次没拆到｜暗线：%s｜明天：看它自己有没有量，没量不碰'
+                % (base + '，今日主线 %s %+.2f%%、涨停 %d 家'
+                   % (hit['name'], _chg, int(hit.get('lu') or 0))))
+        return ('产品：主营这次没拆到｜暗线：%s｜明天：看它自己有没有量，没量不碰'
+                % (base + '，今日主线 %s、涨停 %d 家'
+                   % (hit['name'], int(hit.get('lu') or 0))))
     return base
 
 
