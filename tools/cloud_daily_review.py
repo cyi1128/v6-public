@@ -5411,8 +5411,16 @@ def _auction_pool_stats(date_str=None):
         return ''
 
 
+_DARK_BAN_RE = re.compile(r'(主营|主业|基本盘|核心业务|核心主业|饭碗|收入主要靠|营收主要靠|收入基本都|主营构成|占\s*(收入|营收|主营|业务)|(收入|营收|主营|业务)\s*占|占\s*[0-9一二三四五六七八九十百]+)')
+_EXT_OK = ('参股', '控股', '子公司', '并购', '收购', '入股', '供货', '供应链', '供应', '客户',
+           '订单', '中标', '签约', '签下', '产能', '扩产', '投建', '新建', '基地', '出海', '海外',
+           '新业务', '第二增长', '第二曲线', '转型', '切入', '进入', '打入', '技术路线', '专利',
+           '代工', '配套', '渠道', '认证', '下游', '上游', '合作', '绑定')
+
+
 def _auction_stock_facts(s, heat):
-    """喂给模型的真实素材：主营拆分（含报告期/占比/项目名）+ 量价事实；缺业务数据打标记，防编造。"""
+    """喂给模型的真实素材：量价事实 + 主营项目名（只作「禁写词」，不许当答案）。
+    2026-11-24 用户指令：竞价卡的暗线延伸禁止明面主营业务，主营只能用来避开，不能用来作答。"""
     code = s.get('code') or ''
     name = s.get('name') or ''
     hot = [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]]
@@ -5421,35 +5429,34 @@ def _auction_stock_facts(s, heat):
     except Exception:
         _d, _items = '', []
     terms = [n for n, _r in (_items or [])][:4]
-    biz = _dark_fact(code, name, hot)
     return {'name': name, 'code': code,
             'score': round(float(s.get('score') or 0), 1),
             'pct': s.get('pct'), 'industry': s.get('industry'),
             'vr': round(float(s.get('_vr') or 0), 1),
             'revise': round(float(s.get('_revise') or 0), 1),
             'rtag': s.get('_rtag', ''),
-            'biz': biz or '', 'biz_period': _d or '', 'biz_terms': terms,
-            'biz_missing': not bool(biz)}
+            'ban_terms': terms, 'ban_period': _d or '',
+            'hot_mainlines': hot}
 
 
 _DARK_LABELS = ('龙头', '概念', '受益', '相关', '涉及', '布局', '赛道', '风口')
 
 
-def _dark_fit_ok(txt, terms, biz_missing=False):
-    """暗线是否贴合：必须落到它自己财报里的业务词；纯标签、空话、太短一律判不贴合。
-
-    biz_missing=true（主营取不到）时，只接受如实写「未见明确暗线业务」，不许编。
-    """
+def _dark_fit_ok(txt, ban_terms=None, biz_missing=False):
+    """暗线延伸是否合格（2026-11-24 用户铁律：禁止明面主营业务）：
+    ① 出现主营/主业/基本盘/占比/收入主要靠这类明面表述 → 直接判不合格，不许上卡；
+    ② 必须落在延伸业务上（参股/子公司/供货/客户/订单/产能/技术路线/出海…），空话与标签不合格；
+    ③ 写不出就留空，卡面改出盘面事实，绝不拿主营顶。"""
     t = str(txt or '').strip()
-    if len(t) < 8:
+    if not t:
         return False
-    if biz_missing:
-        return ('未见' in t) or ('未取到' in t)
-    if '未见' in t:
+    if '未见' in t or ('没有' in t and '延伸' in t):
         return True
-    if not terms:
-        return not any(w in t for w in _DARK_LABELS)
-    return any(_bigram_hit(term, t) for term in terms)
+    if len(t) < 12:
+        return False
+    if _DARK_BAN_RE.search(t):
+        return False
+    return any(w in t for w in _EXT_OK)
 
 
 def _fill_missing_dark(out, tops, heat, zt_txt, mkt):
@@ -5461,7 +5468,7 @@ def _fill_missing_dark(out, tops, heat, zt_txt, mkt):
     miss = []
     for f in facts:
         _cur = (per.get(f['name']) or {}).get('dark')
-        if not _dark_fit_ok(_cur, f['biz_terms'], f['biz_missing']):
+        if not _dark_fit_ok(_cur, f.get('ban_terms'), f.get('biz_missing')):
             miss.append(f)
     if not miss:
         out['per'] = per
@@ -5483,13 +5490,13 @@ def _fill_missing_dark(out, tops, heat, zt_txt, mkt):
     payload = {'task': 'auction_dark_fix', 'stocks': miss,
                'hot_sectors': sorted(heat.items(), key=lambda kv: -kv[1])[:6],
                'zt_themes': zt_txt, 'mkt_ctx': mkt,
-               'format': ('这是补挖缺口：只给下面 stocks 里这几只写暗线，已有结论的不重写。\n'
-                          '每只 dark 必须同时做到三件事：①从 biz_terms 里原样挑一个它自己财报里的业务项目名写进去；'
-                          '②带该业务的收入占比（biz 里有数）或产业链环节；③说清跟今日最强主线是【实受益】【沾边】还是【纯蹭】。\n'
-                          '禁止「XX概念/XX龙头/受益于/布局/涉及/相关」这类不落到产品的空话；禁止把板块名当公司业务；'
-                          'biz_missing=true 的票只写「未见明确暗线业务（主营数据未取到）」，一个字都不许编。\n'
-                          '只输出 JSON：{"per":[{"name":"股票名称","dark":"15-35字，必须含业务词+占比或环节","'
-                          'logic":"这条暗线的因果：业务→订单/客户/产能→业绩兑现还是纯预期，至少50字","'
+               'format': ('这是补挖缺口：只给下面 stocks 里这几只写暗线延伸，已有结论的不重写。\n'
+                          '【铁律】不许写明面主营业务：ban_terms 那些主营项目名一个都不许写，也不许写「主营/主业/基本盘/收入主要靠/占比XX%」。\n'
+                          '只写延伸那一截：参股或控股了谁、给谁供货、拿了谁的订单、产能投到哪、技术路线换到哪、海外基地在哪、并购或子公司带来什么新业务——'
+                          '再说清跟今日最强主线是【实受益】【沾边】还是【纯蹭】。\n'
+                          '找不到可核实的延伸业务就把 dark 写成空字符串，一个字都不许编；禁止「XX概念/XX龙头/受益于/布局/涉及/相关」空话。\n'
+                          '只输出 JSON：{"per":[{"name":"股票名称","dark":"15-35字，只写延伸业务，不写主营，没有就空着","'
+                          'logic":"这条延伸的因果：延伸业务→订单/客户/产能→业绩兑现还是纯预期，至少50字","'
                           'why":"一句话戳穿真假+该不该追，至少20字"}]}，per 必须覆盖我给的每只。'),
                }
     t = ask_deepseek(payload, purpose='auction_dark_fix', system_text=_ASK_DS_SYS_AC)
@@ -5507,7 +5514,7 @@ def _fill_missing_dark(out, tops, heat, zt_txt, mkt):
             if not _f:
                 continue
             _dk = str(it.get('dark', '') or '').strip()
-            if not _dark_fit_ok(_dk, _f['biz_terms'], _f['biz_missing']):
+            if not _dark_fit_ok(_dk, _f.get('ban_terms'), _f.get('biz_missing')):
                 print('[auction] 补挖仍不贴合：%s' % nm)
                 continue
             _cur = per.get(nm) or {}
@@ -5542,24 +5549,15 @@ def _auction_dark_topup(miss, per, heat, zt_top, mkt, budget=12.0):
 
 
 def _auction_ensure_dark(ds_map, tops, extra, heat):
-    """三只重点 + 可关注列表的暗线最终兜底：模型没给就用手里的真实主营拆分写，绝不留空白。
-    只用 _mainop_of 拉到的业务项目名+占比（取不到才写 _dark_solid 的实话），不编业务。"""
+    """2026-11-24 用户铁律：竞价卡的暗线延伸禁止明面主营业务。
+    模型没给就让它空着，卡面改出盘面事实行（量比/板块家数/位置），
+    不再拿 _mainop_of 的主营拆分或 _dark_solid 的「靠什么吃饭」去填。"""
     ds_map = ds_map if isinstance(ds_map, dict) else {}
-    for s0 in list((tops or [])[:3]) + list(extra or []):
-        nm0 = str((s0 or {}).get('name') or '')
-        if not nm0:
-            continue
-        d0 = ds_map.get(nm0) or {}
-        if str(d0.get('dark') or '').strip():
-            continue
-        try:
-            f0 = _auction_stock_facts(s0, heat)
-        except Exception:
-            f0 = {}
-        fb0 = str((f0 or {}).get('biz') or '').strip() or _dark_solid(s0.get('code'), nm0)
-        d0['dark'] = fb0
-        d0['_src'] = 'biz'
-        ds_map[nm0] = d0
+    for nm0, d0 in list(ds_map.items()):
+        if isinstance(d0, dict) and _DARK_BAN_RE.search(str(d0.get('dark') or '')):
+            print('[auction] 暗线含明面主营，剔除：%s' % nm0)
+            d0['dark'] = ''
+            d0['_src'] = 'ban'
     return ds_map
 
 
@@ -5598,18 +5596,21 @@ def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, 
         'zt_themes': _zt_txt,
         'mkt_ctx': _mkt,
         'holding_diagnosis': '\n'.join(hold_txt) or '无持仓',
-        'format': ('你是A股竞价短线交易员。对以下每只竞价强票做「暗线业务深挖+题材+市场关联」多因素深挖（禁止单条件结论）：\n'
-                   '0.【暗线业务深挖·每只必做】先一句话说清公司本质（靠什么赚钱，禁「XX龙头/XX概念」标签）；再挖暗线业务——具体产品/技术/业务是什么、进展到哪个阶段、在产业链哪个环节、有没有卡位壁垒、对业绩是真实贡献还是纯故事/预期；然后判断跟今日最强主线（{hot_sectors}）是【实受益】【沾边】还是【纯蹭】、弹性大不大。挖不出来如实写「未见明确暗线业务」，禁止用「相关」「涉及」「布局」「受益于」等词糊弄。\n'
-                   '0.5【贴合硬规则·每条暗线必须落在它自己的业务上】stocks 里每只都带 biz（主营拆分：项目+占比+报告期）和 biz_terms（主营项目名）：\n'
-                   '   ① dark 必须从 biz_terms 里原样挑至少一个它自己财报的业务项目名写进去，并带占比或产业链环节；\n'
-                   '   ② 再说清这条业务跟今日主线是【实受益】【沾边】还是【纯蹭】、业绩是已兑现还是纯预期；\n'
-                   '   ③ 禁止只写「XX概念/XX龙头/受益于/布局/涉及/相关」这种不落到产品的空话，禁止把板块名当公司业务；\n'
-                   '   ④ biz_missing=true 的票只许写「未见明确暗线业务（主营数据未取到）」，一个字都不许编。\n'
+        'format': ('你是A股竞价短线交易员。对以下每只竞价强票做「暗线延伸深挖+题材+市场关联」多因素深挖（禁止单条件结论）：\n'
+                   '0.【暗线延伸·每只必做·禁止明面主营】不许写主营构成、主营占比、主业是什么、靠什么吃饭这类明面业务，'
+                   'ban_terms 里的主营项目名一个都不许出现在 dark 字段。只挖延伸那一截：参股/控股了谁、给谁供货、'
+                   '拿了谁的订单、产能投到哪、技术路线或产品线换到哪、海外基地在哪、并购或子公司带来什么新东西——'
+                   '说清进展阶段、在产业链哪个环节、对业绩是真实贡献还是纯预期，再判断跟今日最强主线（{hot_sectors}）'
+                   '是【实受益】【沾边】还是【纯蹭】。挖不到可核实的延伸业务就把 dark 留空字符串，禁止用「相关」「涉及」「布局」'
+                   '「受益于」糊弄，更不许拿主营顶上去。\n'
+                   '0.5【禁区硬规则】stocks 里每只都带 ban_terms（它财报里的主营项目名，含报告期）：这些词只用来避开，'
+                   '不许当答案。dark 里出现主营/主业/基本盘/收入主要靠/占比XX%这类句式即判废，卡面宁可不印也不拿主营充暗线。'
+                   '一条可核实的延伸业务都没有时，dark 留空字符串。\n'
                    '1. 题材归属：判断属于什么题材、是不是今日主线、题材里的地位（龙头/中军/跟风/补涨）。\n'
                    '2. 板块共振：看同题材几只一起动，判断是真合力还是一只独涨。\n'
                    '3. 资金逻辑：用量比/竞价量比/反推修正说明谁在抢，判断抢筹还是出货。\n'
                    '4. 位置与预期差：看60日位置高低，判断有没有市场还没消化的东西（业绩预期/错杀修复/政策外溢/龙头扩散）。\n'
-                   '5. 为什么是它：资金凭什么选它不选别人（主业匹配/位置/筹码/业绩/催化），用真实数据说。\n'
+                   '5. 为什么是它：资金凭什么选它不选别人（题材卡位/位置/筹码/量价/催化），用真实数据说。\n'
                    '6. 破灭点与动作：逻辑什么时候会破（催化兑现/业绩证伪/位置透支/主力出货），破了怎么走人；逻辑不硬就明确写「不碰」。\n'
                    '7. 禁止编新闻猜消息、禁止万能句（「回踩分时均线可轻仓试」等）及变体、禁止满仓/必涨/稳了。\n'
                    '7.5 周期适配：先判定每只票当前最适合的参与周期（超短线1-3日/短线3-10日/中长线1-6月/长线6月+），'
@@ -5619,7 +5620,7 @@ def _auction_ds(tops, heat, zt_themes=None, mkt_ctx=None, mscore=None, lu=None, 
                    '{"cap_advice":"当前档位建议：结合 mkt_ctx（涨停家数/炸板/情绪分/指数涨跌）直接给仓位档位建议与一句话理由，禁止万能句，至少20字",'
                    '"wind_strong":"最强题材的暗线原因：一句话说透它今天为什么最强（涨停家数/催化/资金逻辑），至少20字",'
                    '"wind_weak":"最弱题材的暗线原因：一句话说透它为什么最弱（为什么别碰），至少15字",'
-                   '"per":[{"name":"股票名称","dark":"一句话暗线（必须含 biz_terms 里一个真实业务项目名+占比或环节定位，禁标签糊弄，15-35字）","reason":"选中原因/暗线逻辑：为什么筛出它（主业匹配+位置+筹码+业绩+催化，真实数据，至少20字）","logic":"暗线业务深挖+题材归属+市场关联：公司本质→暗线业务(产品/技术/阶段/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+资金逻辑+位置+预期差+共振判断(主题X家+量价共振强/弱+板块热度共振强/中/无)→破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件","stop":"具体止损条件","drop":"放弃条件：什么情况出现就不做（破位/量能/情绪/高开透支等具体条件，10-25字）"}]}，'
+                   '"per":[{"name":"股票名称","dark":"一句话暗线延伸（只写参股/子公司/供货/客户/订单/产能/技术路线/出海这类延伸，禁写主营与占比，找不到就留空字符串，15-35字）","reason":"选中原因：为什么筛出它（题材卡位+位置+筹码+量价+催化，真实数据，至少20字）","logic":"暗线延伸深挖+题材归属+市场关联：延伸业务(是什么/进展/环节/业绩贡献)→与今日主线相关性(实受益/沾边/纯蹭+弹性)→题材地位+板块共振+资金逻辑+位置+预期差+共振判断(主题X家+量价共振强/弱+板块热度共振强/中/无)→破灭点，为什么值得看/不看不碰，多因素连贯大白话，至少60字，禁止单条件、禁止相关/涉及/布局/受益于糊弄","why":"大白话：一句话戳穿真假+该不该追，至少20字，禁止万能句","op":"别追/看/轻仓试/观望/不碰","buy":"具体买点条件","stop":"具体止损条件","drop":"放弃条件：什么情况出现就不做（破位/量能/情绪/高开透支等具体条件，10-25字）"}]}，'
                    'per 必须覆盖我给的每只股票。'),
     }
     t = ask_deepseek(payload, purpose='auction', system_text=_ASK_DS_SYS_AC)
@@ -7636,7 +7637,7 @@ def build_auction(title='竞价观察'):
         ds_map = _auction_ensure_dark(ds_map, tops, [], heat)
         _lst0 = list((tops or [])[:3])
         _cov0 = sum(1 for _x0 in _lst0 if str(((ds_map or {}).get(_x0.get('name')) or {}).get('dark') or '').strip())
-        print('[auction] 暗线兜底后覆盖 %d/%d' % (_cov0, len(_lst0)))
+        print('[auction] 暗线延伸覆盖 %d/%d（其余改出盘面事实，不印主营）' % (_cov0, len(_lst0)))
     except Exception as _e:
         print('[auction] 暗线主营兜底异常:', _e)
     ds_overall = _ds_res.get('overall') or ''
@@ -7666,11 +7667,13 @@ def build_auction(title='竞价观察'):
         if _deep and (_deep.get('logic') or _deep.get('dark')):
             _opcol = {'别追': RED, '轻仓试': TEAL, '看': GOLD, '观望': GREY, '不碰': RED}.get(_deep.get('op', ''), GOLD)
             _dk = str(_deep.get('dark') or '').strip()
+            if _dk and _DARK_BAN_RE.search(_dk):
+                _dk = ''
             _rsn = str(_deep.get('reason') or '').strip()
             # 2026-11-22：暗线兜底只回填 dark 时，不印空的 🧠/👉 行
             _dp = []
             if _dk:
-                _dp.append('<div style="color:#a78bfa;font-size:13px;margin-top:4px;">🔍 暗线：%s</div>' % _dk)
+                _dp.append('<div style="color:#a78bfa;font-size:13px;margin-top:4px;">🔍 暗线延伸：%s</div>' % _dk)
             _lg0 = str(_deep.get('logic') or '').strip()
             _wy0 = str(_deep.get('why') or '').strip()
             if _lg0:
@@ -7746,9 +7749,12 @@ def build_auction(title='竞价观察'):
             _d3 = (ds_map or {}).get(s_['name']) or {}
             # v80-D：暗线只认模型，删掉 _dark_fact/_dark_solid 两个主营兜底
             _dk3 = str(_d3.get('dark') or '').strip()
+            # 2026-11-24 用户铁律：暗线延伸禁止明面主营业务
+            if _dk3 and _DARK_BAN_RE.search(_dk3):
+                print('[auction] %s 暗线含主营，改出盘面事实' % s_['name'])
+                _dk3 = ''
             _lg3 = str(_d3.get('logic') or '').strip() or str(_d3.get('why') or '').strip()
-            _dk3_lab = ('主营构成（模型未回，只当背景）' if (_d3.get('_src') == 'biz') else '暗线')
-            _dk3_html = ('<div style="color:#a78bfa;font-size:13px;margin-top:2px;">🔍 %s：%s</div>' % (_dk3_lab, _dk3)
+            _dk3_html = ('<div style="color:#a78bfa;font-size:13px;margin-top:2px;">🔍 暗线延伸：%s</div>' % _dk3
                          if _dk3 else '')
             # v80-D（用户 2026-11-10「三只要显示竞价涨幅、现价、竞价量比，评分也消失了」）：
             # 现价/竞价涨幅/竞价量比走腾讯实时快照，综合分直接取 _auction_score_v3 的 score
@@ -7764,6 +7770,24 @@ def build_auction(title='竞价观察'):
             _lb3 = _q3.get('lb') or s_.get('lb') or 0
             _sc3 = float(s_.get('score') or 0)
             _pcn3 = float(_pc3 or 0)
+            _p3pos = _au_pos_of(str(s_.get('code') or ''), float(_p3 or 0))
+            if _p3pos and _p3pos[0] <= 30:
+                _p3pt = '低位（%.0f%%）' % _p3pos[0]
+            elif _p3pos and _p3pos[0] <= 55:
+                _p3pt = '中位（%.0f%%）' % _p3pos[0]
+            elif _p3pos:
+                _p3pt = '高位（%.0f%%），追高没溢价' % _p3pos[0]
+            else:
+                _p3pt = '位置未取到'
+            _ind3 = str(s_.get('industry') or '').strip() or '同板块'
+            try:
+                _n3 = sum(1 for _x3 in cands if str(_x3.get('industry') or '') == str(s_.get('industry') or ''))
+            except Exception:
+                _n3 = 0
+            _fb3_html = ('<div style="color:#5aa9e6;font-size:13px;margin-top:2px;line-height:1.6;">'
+                         '📊 没有可核实的延伸业务，只看盘面：竞价量比 <b>%.2f</b> 倍、%s今天过闸门 <b>%d</b> 只、位置 %s'
+                         '——资金买的是板块，别替它编业务</div>'
+                         % (float(_lb3 or 0), _ind3, _n3, _p3pt))
             _fact3 = ('<div style="color:#ced4da;font-size:12.5px;margin-top:3px;line-height:1.62;">'
                       '💰 现价 <b style="color:#fff;">%.2f</b>　竞价 %s%.2f%%　竞价量比 <b>%.2f</b>　'
                       '综合分 <b style="color:%s;">%.0f</b>（%s）</div>'
@@ -7773,7 +7797,7 @@ def build_auction(title='竞价观察'):
                        + '<b style="color:%s;font-size:14px;">%d. %s</b> <span style="color:%s;font-size:12px;">%s</span>'
                        % (_col, i, s_['name'], GREY, s_.get('code') or '')
                        + _fact3
-                       + _dk3_html
+                       + (_dk3_html if _dk3_html else _fb3_html)
                        + ('<div style="color:#e9ecef;font-size:13px;margin-top:2px;">👉 %s</div>' % _lg3 if _lg3 else '')
                        + '</div>')
         top3_txt = (f'<div style="margin-top:10px;padding:9px 11px;background:#1c2830;border-left:4px solid #a78bfa;'
