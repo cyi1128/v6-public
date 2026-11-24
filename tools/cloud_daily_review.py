@@ -11211,6 +11211,14 @@ def _eod_cause_txt(block, news, used=None):
 
 
 _EOD_DARK_OVR = {
+    '002600': ('消费电子精密功能件/结构件', 'AI服务器液冷板、人形机器人结构件',
+               '散热与结构件同一套工艺，服务器和机器人放量就直接加单'),
+    '603596': ('线控制动/线控转向', '人形机器人丝杠、关节执行器',
+               '丝杠与制动执行器同精度等级，机器人定点比车规快'),
+    '300307': ('针织横机', '人形机器人本体与关节模组',
+               '机械本体自己做，机器人这条腿早就在走，等订单'),
+    '301252': ('换热器/冷凝器', '数据中心液冷、储能温控',
+               '换热工艺同源，液冷订单还没披露'),
     '300324': ('嵌入式测试/数据智能', '低空经济飞控、军工电子',
                '军工与低空测试是它第二块业务，等订单公告'),
     '688078': ('煤矿智能化软件', 'AI应用/算力租赁',
@@ -14731,40 +14739,160 @@ def _dl_line_text(c, it):
 
 _DL_GRADE_COL = {'强': '#ffd43b', '中': '#66d9e8', '弱': '#8b95a7'}
 
+# 进展档位：只认披露里写死的字眼，没有就按「只有展品/只有研报」处理，一律不进卡
+_DL_PROG = (
+    (('已量产', '量产', '批量供货', '大批量', '规模供货', '批量交付'), '已量产供货', 3),
+    (('中标', '签订', '签署', '合同', '订单', '签约', '定点通知', '供货协议'), '已签单/中标', 3),
+    (('定点', '客户认证', '通过认证', '导入', '认证通过'), '已定点/认证', 2),
+    (('小批量', '试产', '中试', '小规模'), '小批量试产', 2),
+    (('送样', '样品', '试样', '送检', '验证阶段'), '已送样', 2),
+    (('展出', '展会', '亮相', '发布'), '只有展品', 1),
+    (('研报', '预计', '预期', '有望', '规划', '布局'), '只有研报预期', 0),
+)
+
+
+def _dl_progress(body):
+    """从披露正文里定进展档位，返回 (说法, 档位)。档位 3=已量产/已签单，2=送样/定点/试产，0~1=展品/研报。"""
+    b = str(body or '')
+    best = ('', 0)
+    for kws, lab, rk in _DL_PROG:
+        if any(k in b for k in kws) and rk > best[1]:
+            best = (lab, rk)
+    return best
+
+
+def _dl_dark_parts(code, name, theme, body, old=None):
+    """暗线三分量：(产品/技术, 非主营方向, 说明)。取不到真延伸就返回空，不硬凑。"""
+    s = ''
+    try:
+        s = _eod_dark_of(code, name)
+    except Exception:
+        s = ''
+    if s:
+        m = re.match(r'^(.+?)\s*→\s*(.+)$', s)
+        if m:
+            _p = m.group(1).strip()
+            _rest = m.group(2).strip()
+            _d = re.split(r'｜|\||（|\(', _rest)[0].strip()
+            _note = _rest[len(_d):].strip(' ｜|（）()')
+            if _p and _d:
+                return (_p, _d, _note)
+    # 兜底不再拿候选的题材词当方向：主营词必须能对上产业交叉表才算暗线，
+    # 「通用照明 → 机器人」这种跨太远的组合一律不写。
+    return ('', '', '')
+
+
+_DL_FALSIFY = (
+    (('封装', '芯片', '半导体', '集成电路', '国产替代'),
+     '先进封装产能爬不上来、客户验证不过，就算证伪'),
+    (('液冷', '散热', '温控'), '液冷只签框架不见交付、客户认证拖过两个季度，就算证伪'),
+    (('机器人', '丝杠', '关节', '灵巧手', '皮肤', '结构件'),
+     '机器人侧只有样品没有定点时间表、半年不量产，就算证伪'),
+    (('光模块', 'CPO', '互联', '速率'), '大客户速率升级没跟上、砍单一次，就算证伪'),
+    (('低空', '军工', '航天'), '低空与军品订单停在测试、批产计划没落地，就算证伪'),
+    (('固态', '电池'), '中试线跑不出良率、装车验证不过，就算证伪'),
+)
+
+def _dl_why(pg_rank, dp_note, direction=''):
+    """证伪点：按产业方向给具体证伪条件，不复述「为什么能延伸」。"""
+    base = ''
+    for kws, t in _DL_FALSIFY:
+        if any(k in str(direction or '') for k in kws):
+            base = t
+            break
+    if not base:
+        base = '这条延伸始终没有订单或收入落地，就算伪暗线'
+    if pg_rank >= 3:
+        return '单已在手，' + base.replace('就算证伪', '收入确认不及预期即证伪')
+    if pg_rank >= 2:
+        return '送样/定点阶段，' + base
+    return base
+
+def _dl_ev(text, title=''):
+    """依据行：只摘披露正文原句，新闻标题/媒体/日期这些元数据全部剥掉。"""
+    t = str(text or '')
+    if '正文：' in t:
+        t = t.split('正文：', 1)[1]
+    t = re.sub(r'[（(]免责声明[^）)]*[）)]', '', t)
+    t = re.sub(r'本文[^。]{0,40}。', '', t)
+    t = re.sub(r'\s+', '', t)
+    if len(t) < 8 and title:
+        t = re.sub(r'\s+', '', str(title))
+    if len(t) > 64:
+        _k = t.rfind('。', 0, 64)
+        t = t[:_k + 1] if _k >= 20 else t[:64] + '…'
+    return t
+
+def _dl_warn_text(desc):
+    """破位警示按盘面分措辞，别六只票同一句。"""
+    d = str(desc or '')
+    if '放量' in d:
+        return '放量跌破 20 日线，跌势没走完，先别接'
+    if '缩量' in d:
+        return '缩量阴跌破 20 线，等放量站回再谈'
+    return '跌破 20 日线还没收复，只记账不参与'
+
+
+def _dl_weak_text(src, desc='', chg=None):
+    """弱线索提示：研报预期 / 股价还在跌 / 只有方向三种说法，别整卡一句。"""
+    if '研报' in str(src or ''):
+        return '研报里的预期，公司自己没写进展，别当实锤'
+    if chg is not None and chg < 0:
+        return '股价今天还在跌，市场没把它当暗线，别自己上头'
+    if '破位' in str(desc or ''):
+        return '披露只写了方向，没写送样定点，还是破位状态，只记账'
+    return '披露只写了方向或展品，没写送样定点，别当有单做'
 
 def _dl_card_html(r):
-    """单只暗线卡片（2026-11-22 版式重做）：标题行 / 暗线正文 / 旧主业+源头 / 主线·盘面·爆发 / 预期差，
-    五层分开排，不再把 12px 长串全塞进一个 div 里用竖线硬分。"""
+    """单只暗线卡片 v3：产品→非主营方向放主位，进展做色块，依据直接摘原文，破位按盘面警示。"""
     it = r.get('it') or {}
     t = r.get('tape') or {}
+    dp = r.get('dp') or ('', '', '')
+    pg = str(r.get('pg') or '')
     chg = t.get('chg')
     pc = '#ff6b6b' if (chg is not None and chg >= 0) else '#51cf66'
     grade = str(it.get('grade') or '')
     gc = _DL_GRADE_COL.get(grade, '#8b95a7')
     hit = r.get('mh')
-    _pos = ('主线第%d（%.0f分）' % (hit[1], hit[2])) if hit else '不在今日主线榜'
+    _pos = ('%s 第%d（%.0f分）' % (hit[0], hit[1], hit[2])) if hit else '不在今日主线榜'
     _cap = ('%.0f亿' % t['cap']) if t.get('cap') else '市值待补'
     _price = ('%.2f' % t['cur']) if t.get('cur') else '—'
     _chg = ('%+.2f%%' % chg) if chg is not None else '待补'
-    _g = ('<span style="display:inline-block;padding:0 6px;border-radius:8px;border:1px solid %s;'
-          'color:%s;font-size:10.5px;font-weight:800;line-height:1.5;">%s</span>' % (gc, gc, grade)) if grade else ''
+    _g = ('<span style="display:inline-block;padding:0 5px;border-radius:7px;border:1px solid %s;'
+          'color:%s;font-size:10px;font-weight:800;line-height:1.5;margin-left:4px;">%s</span>'
+          % (gc, gc, grade)) if grade else ''
+    _pill = ('<span style="display:inline-block;padding:0 6px;border-radius:6px;background:#22303f;'
+             'color:#8ce99a;font-size:10.5px;font-weight:700;">%s</span>' % _dl_esc(pg)) if pg else ''
+    _extra = ''
+    if r.get('warn'):
+        _extra += ('<div style="font-size:11px;color:#ffa94d;line-height:1.6;margin-top:3px;">%s</div>'
+                   % _dl_esc(_dl_warn_text(t.get('desc'))))
+    if int(r.get('prk') or 0) < 2:
+        _wk = _dl_weak_text(str(r.get('src') or ''), str(t.get('desc') or ''), t.get('chg'))
+        _extra += ('<div style="font-size:11px;color:#ffa94d;line-height:1.6;margin-top:3px;">%s</div>'
+                   % _dl_esc(_wk))
+    _note = _dl_esc(str(dp[2] or ''))
+    _note_html = ('<div style="font-size:11px;color:#9aa5b8;line-height:1.6;margin-top:2px;">%s</div>'
+                  % _note) if _note else ''
     return ('<div style="background:#1b2130;border-left:4px solid %s;border-radius:10px;padding:8px 10px;margin:7px 0;">'
             '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;">'
-            '<span style="font-size:14.5px;font-weight:900;color:#fff;">%s %s</span>'
+            '<span style="font-size:14.5px;font-weight:900;color:#fff;">%s%s</span>'
             '<span style="font-size:14px;font-weight:800;color:%s;">%s '
             '<span style="font-size:11.5px;font-weight:700;">%s</span></span></div>'
-            '<div style="font-size:11px;color:#8b95a7;margin-top:2px;">%s · 流通%s · %s</div>'
-            '<div style="font-size:13px;color:#ffd43b;line-height:1.65;margin-top:6px;">%s</div>'
-            '<div style="font-size:11.5px;color:#9aa5b8;line-height:1.65;margin-top:5px;">旧主业 %s　·　源头 %s</div>'
-            '<div style="font-size:11.5px;color:#c9d1e0;line-height:1.65;margin-top:3px;">%s ｜ %s ｜ %s</div>'
-            '<div style="font-size:11.5px;color:#8ce99a;line-height:1.65;margin-top:3px;">预期差 %s</div>'
-            '</div>'
+            '<div style="font-size:11px;color:#8b95a7;margin-top:2px;">%s · 流通%s</div>'
+            '<div style="font-size:13px;color:#ffd43b;line-height:1.7;margin-top:6px;">'
+            '%s <span style="color:#8ce99a;">→</span> %s　%s</div>'
+            '%s'
+            '<div style="font-size:11px;color:#8b95a7;line-height:1.6;margin-top:4px;">依据原文「%s」　·　源头 %s</div>'
+            '<div style="font-size:11.5px;color:#c9d1e0;line-height:1.6;margin-top:3px;">%s ｜ %s</div>'
+            '<div style="font-size:11.5px;color:#8ce99a;line-height:1.6;margin-top:3px;">证伪点 %s</div>'
+            '%s</div>'
             % (gc, _dl_esc(r.get('name') or ''), _g, pc, _price, _chg,
-               _dl_esc(r.get('code') or ''), _cap, _dl_esc(str(it.get('theme') or '题材待补')),
-               _dl_esc(str(it.get('newlogic') or '')[:110]),
-               _dl_esc(str(it.get('oldtag') or '主业未标注')), _dl_esc(str(r.get('src') or '')),
-               _pos, _dl_esc(str(t.get('desc') or '')), _dl_esc(str(r.get('blast') or '')),
-               _dl_esc(str(it.get('why') or ''))))
+               _dl_esc(r.get('code') or ''), _cap,
+               _dl_esc(dp[0]), _dl_esc(dp[1]), _pill, _note_html,
+               _dl_esc(str(r.get('ev') or '')), _dl_esc(str(r.get('src') or '')),
+               _pos, _dl_esc(str(t.get('desc') or '') + '｜' + str(r.get('blast') or '')),
+               _dl_esc(str(r.get('why') or '')), _extra))
 
 
 def _dl_html_text(rows, mains_line):
@@ -14804,47 +14932,49 @@ def build_darkline():
             continue
         grade = str(it.get('grade') or '')
         nlogic = str(it.get('newlogic') or '')
+        # 进展定档：没有送样/定点以上的实进展，一律不进卡（研报预期、展会亮展都不算暗线）
+        _pg = _dl_progress((c.get('text') or '') + ' ' + nlogic)
+        it['grade'] = ('强' if _pg[1] >= 3 else ('中' if _pg[1] >= 2 else '弱'))
         # 公司自己下场澄清降温（收入不足/占比极低/不构成重大影响…）：命中两条即逻辑已证伪
         deny_hits = [k for k in _DL_DENY if k in (c.get('text') or '')]
         if len(deny_hits) >= 2:
             print('[dl] 剔除公司自证否认 %s %s' % (c['name'], '/'.join(deny_hits[:2])))
             continue
-        subs = ('送样', '定点', '供货', '小批量', '量产', '重大合同', '中标', '订单', '验收', '签订')
-        if grade not in ('强', '中') and not any(k in nlogic for k in subs):
-            print('[dl] 剔除无实质进展 %s grade=%s' % (c['name'], grade or '空'))
-            continue
+        # 弱线索不再按「nlogic 里有没有送样/定点」一刀切，改由进展档位 + 暗线拆解判断
         tape = _dl_tape_desc(code)
         if tape is None:
             continue
-        # oldtag 防幻觉：按词拆开逐个校验，只保留能在该候选正文或公司名里找到的词
-        oldtag = str(it.get('oldtag') or '').strip()
-        if oldtag:
-            parts = [w for w in re.split(r'[、,，/；;&]|及|和|与', oldtag) if w.strip()]
-            body = str(c.get('text') or '') + str(c.get('name') or '')
-            keep = [w for w in parts if w in body]
-            if keep:
-                oldtag = '、'.join(keep[:3])
-            else:
-                print('[dl] oldtag 幻觉丢弃 %s -> %s' % (c['name'], oldtag))
-                oldtag = ''
+        # 铁律：涨幅 8.5% 以上（含涨停）一律不进情报，只做回踩不做追高
+        _c0 = tape.get('chg')
+        if _c0 is not None and _c0 >= 8.5:
+            print('[dl] 剔除涨幅超8.5%% %s %+.2f%%' % (c['name'], _c0))
+            continue
+        # 暗线必须能拆成「产品 → 非主营方向」，拆不出来就不写
+        _dp = _dl_dark_parts(code, c['name'], str(it.get('theme') or ''),
+                             (c.get('text') or '') + ' ' + nlogic, c.get('old') or [])
+        if not _dp[0] or not _dp[1]:
+            print('[dl] 剔除暗线对不上延伸 %s theme=%s' % (c['name'], it.get('theme')))
+            continue
+        # 旧主业只用东财主营构成（真实披露），不拿新闻关键词冒充主业
+        oldtag = ''
+        try:
+            _rep, _its = _mainop_of(code)
+            for _nm, _rt in sorted(_its, key=lambda x: -float(x[1] or 0))[:2]:
+                oldtag = (oldtag + '、' + _short2(str(_nm), 12)) if oldtag else _short2(str(_nm), 12)
+        except Exception:
+            oldtag = ''
         if not oldtag:
-            # 新闻正文短，常常没写原主营：用东财主营构成（真实披露数据）补，补不到才认旧词表
-            try:
-                _rep, _its = _mainop_of(code)
-                _top = [nm for nm, rt in _its if rt >= 5.0][:2]
-                if _top:
-                    oldtag = '、'.join(_top)
-            except Exception:
-                pass
-        if not oldtag:
-            oldtag = ('、'.join(c['old'][:3]) if c['old'] else '主业未标注')
+            oldtag = ('、'.join(c['old'][:3]) if c['old'] else '主业未披露')
         it['oldtag'] = oldtag
         cap = tape.get('cap')
         if cap is not None and cap < 30:
             print('[dl] 剔除流通市值<30亿 %s %.1f亿' % (c['name'], cap))
             continue
         rows.append({'code': code, 'name': c['name'], 'src': '%s·%s' % (c['date'], c['src_tag']),
-                     'it': it, 'tape': tape})
+                     'it': it, 'tape': tape,                      'dp': _dp, 'pg': (_pg[0] or '只有说法，没写进展'), 'prk': _pg[1],
+                     'ev': _dl_ev(c.get('text'), c.get('title')),
+                     'why': _dl_why(_pg[1], _dp[2], _dp[1]),
+                     'warn': bool(tape.get('ma20') and (tape.get('cur') or 0) < tape['ma20'])})
     # 按 grade 强弱、再按流通市值大小排；赛道不强制分散，同赛道多只一并保留
     grade_rank = {'强': 3, '中': 2, '弱': 1}
     rows.sort(key=lambda r: (grade_rank.get(str(r['it'].get('grade') or ''), 0),
@@ -14863,10 +14993,25 @@ def build_darkline():
                               ('主线第%d' % r['mh'][1]) if r.get('mh') else '非主线') for r in rows))
     mains_line = '；'.join('%s(%.0f分)' % (m[0], m[1] or 0) for m in mains[:5]) or '主线未取得'
     inner = ('<div style="font-size:12px;color:%s;margin-top:2px;">今日新增 %d 条（%s 发布）　留下 %d 只｜'
-             '已剔流通市值&lt;30亿、无实质进展、公司自证否认</div>'
+             '已剔流通市值&lt;30亿、涨幅超8.5%%或已涨停、只有展品或研报预期、暗线对不上主营延伸、'
+             '公司自证否认</div>'
              % (GREY, len(cands), today, len(rows)))
-    inner += ('<div style="margin-top:6px;font-size:13px;line-height:1.7;color:#e2e8f0;">'
-              + _dl_html_text(rows, mains_line) + '</div>')
+    inner += ('<div style="color:#8b95a7;font-size:11.5px;margin-top:5px;">今日主线：%s</div>' % mains_line)
+    _live = [r for r in rows if r.get('mh') and (r['tape'].get('chg') or 0) >= 3]
+    _lat = [r for r in rows if not (r.get('mh') and (r['tape'].get('chg') or 0) >= 3)]
+    if _live:
+        inner += ('<div style="margin-top:8px;font-size:12.5px;font-weight:800;color:#ff922b;'
+                  'line-height:1.6;">已经在主线里动了 · 这批只看回踩，不追高</div>')
+        for r in _live:
+            inner += _dl_card_html(r)
+    if _lat:
+        inner += ('<div style="margin-top:8px;font-size:12.5px;font-weight:800;color:#b197fc;'
+                  'line-height:1.6;">潜伏 · 还没动 · 等信号</div>')
+        for r in _lat:
+            inner += _dl_card_html(r)
+    if not rows:
+        inner += ('<div style="font-size:13px;line-height:1.8;color:#e2e8f0;margin-top:6px;">'
+                  '今天没有能对上产品暗线的票，宁可不报也不硬凑。</div>')
     inner += '<div style="margin-top:8px;color:%s;font-size:11px;">以上只做情报与变量提示，不构成投资建议</div>' % GREY
     return _wrap(inner, '🔍', '暗线情报')
 # ============ 跟涨三步走·埋伏补涨（follow） ============
