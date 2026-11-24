@@ -6940,7 +6940,7 @@ def build_hourly():
     _adv = []
     _upn0 = sum(1 for _, p, _ in idx if p > 0)
     if zbr >= 0.40 and _upn0 >= 2:
-        _adv.append('指数在涨但接力脏，别再往跟风板上加钱；手上有的冲高就减，新仓只等回踩窗口')
+        _adv.append('指数没怎么跌但接力很脏，别再往跟风板上加钱；手上有的冲高就减，新仓只等回踩窗口')
     elif zbr >= 0.40 or _umax < 1.0:
         _adv.append('这个时段是防守时间，别在这个位置加新仓；有浮盈的先落袋，深亏的不在低点割')
     elif _umax >= 2.0 and zbr < 0.28:
@@ -7311,7 +7311,8 @@ def _auction_rescan_html(cap=10):
                      % (tag, s_['name'], s_['code'], _upc, _pc, _tc, _ts, _lb,
                         _tc, _tl, _mini_head(s_)))
             _tf = s_.get('tfac') or {}
-            _give = (_tl in ('强', '中上')) or (_tl == '中' and (_tf.get('trend') or 0) >= 16)
+            _give = ((_tl in ('强', '中上')) or (_tl == '中' and (_tf.get('trend') or 0) >= 16)) \
+                and (_tf.get('vol') or 0) >= 14
             if _give:
                 _tail = ('<div style="font-size:11.5px;color:#e9ecef;margin-top:2px;">回踩 '
                          '<b style="color:#f4c542;">%.2f</b> 不破可接，跌破 '
@@ -7335,9 +7336,15 @@ def _auction_rescan_html(cap=10):
         _lines = []
         if not top:
             _lines.append('<div style="font-size:11.5px;color:#f4c542;margin-top:5px;">'
-                          '过闸门的票全被拉到 8.5% 以上，今天没有能埋伏的位子；'
-                          '硬凑就是追高，等它回踩到窗口里再看。</div>')
-        elif new:
+                          '过闸门的 %d 只全在 8.5%% 以上，今天没有能埋的位子；不硬凑，等回踩。</div>'
+                          % len(cands))
+            if _hot:
+                _hl = ['%s %+.2f%%' % (x.get('name'), float(x.get('pct') or 0))
+                       for x in sorted(_hot, key=lambda y: -float(y.get('pct') or 0))[:4]]
+                _lines.append('<div style="font-size:10.5px;color:#ff6b6b;margin-top:4px;">'
+                              '已冲高不追：%s 等 %d 只</div>' % ('、'.join(_hl), len(_hot)))
+            return _head + ''.join(_lines) + "</div>"
+        if new:
             _lines.append('<div style="font-size:11px;color:#f4c542;margin-top:5px;">'
                           + (('新进 %d 只，全给位子</div>' % len(new)) if len(new) <= 3
                              else ('新进 %d 只，前 3 只给位子，其余只记名字</div>' % len(new))))
@@ -7355,7 +7362,7 @@ def _auction_rescan_html(cap=10):
             for x in sorted(_hot, key=lambda y: -float(y.get('pct') or 0))[:6]:
                 _hl.append('%s %+.2f%%' % (x.get('name'), float(x.get('pct') or 0)))
             _lines.append('<div style="font-size:10.5px;color:#ff6b6b;margin-top:6px;">'
-                          '已冲高/涨停不追 %d 只：%s</div>' % (len(_hot), '、'.join(_hl)))
+                          '已冲高/涨停不追 %d 只：%s</div>' % (len(_hot), '、'.join(_hl[:4])))
         if gone:
             for x in gone[:2]:
                 try:
@@ -7371,7 +7378,7 @@ def _auction_rescan_html(cap=10):
             if len(gone) > 2:
                 _lines.append('<div style="font-size:10.5px;color:#8d9bab;">'
                               '另外 %d 只掉出：%s</div>'
-                              % (len(gone) - 2, '、'.join(str(x.get('name')) for x in gone[2:])))
+                              % (len(gone) - 2, '、'.join(str(x.get('name')) for x in gone[2:6])))
         return _head + ''.join(_lines) + "</div>"
     except Exception as _e:
         print('[auc_rescan] 复筛异常:', str(_e)[:80])
