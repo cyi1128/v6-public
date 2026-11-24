@@ -506,8 +506,8 @@ RED, GREEN, GOLD, TEAL, GREY = '#c2504a', '#3e9863', '#b1852e', '#2f8fa1', '#6b7
 # ============ 小白友好版新增配置（可调） ============
 AUCTION_TOP_N = 10         # 竞价输出数量（v3：Top10，尾盘用）
 AUCTION_TOP_MAIN = 3      # 早盘竞价只出 Top3（用户指令：回到小白速判 TOP3 口径，因子加太多走势反而差）
-AUCTION_TOP_LIST = 5      # 2026-11-21 用户指令「今天可关注改成top5，只筛选五只」：
-                          #   卡尾「今日可关注」名单从 10 只收回到 5 只，三只重点口径不动
+AUCTION_TOP_LIST = 10     # 2026-11-24 用户指令：行情好还只给 5 只太少 -> 名单放到 10 只，
+                          #   前 3 只做重点深挖，第 4-10 只做备选（带触发位），两段不重复
 TRACK_POOL_N = 6           # 收盘可跟踪池数量（可配置）
 FOCUS_N = 6                # 盘前重点个股数（可配置）
 
@@ -6462,6 +6462,7 @@ def build_hourly():
     else:
         _adv.append('两票今天都在正常波动区间，按上面各自的量价条件执行，不用急着动')
 
+    _rescan_html = _auction_rescan_html()
     inner = (
         f'<div style="font-size:14px;font-weight:700;color:#e9ecef;">📈 指数：{_bits}</div>'
         f'<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">{_up_head}</div>'
@@ -6478,6 +6479,7 @@ def build_hourly():
         + (('<div style="margin-top:7px;font-size:12.5px;color:#66d9e8;line-height:1.7;">'
             '🧠 盘面读数：<br>· ' + '<br>· '.join(_exp_rows) + '</div>')
            if _exp_rows else '')
+        + _rescan_html
         + f'<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">⚠️ 持仓</div>'
         f'<div style="font-size:12.5px;color:#e9ecef;line-height:1.7;">'
         + '<br>'.join(_holds) + '</div>'
@@ -6489,6 +6491,128 @@ def build_hourly():
     # builder 内再推一次会导致每小时发两条（双推修复口径）。
     print(f'[hourly] 指数={[(n, round(p, 2)) for n, p, _ in idx]} 定性={_mood[:6]} → 已出卡')
     return html
+
+
+_AUC_SCAN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'auction_scan.json')
+
+
+def _auc_drop_reason(pct, lb):
+    """掉出池子的真实原因（按数据分档，不套话）。"""
+    if pct > 7.0:
+        return f'现在 {pct:+.2f}%，冲过 7% 上限，已经不是埋伏位子'
+    if pct > 4.0:
+        return f'现在 {pct:+.2f}%，涨破了高开区间，追进去就是接最后一棒'
+    if pct < 2.0:
+        return f'现在 {pct:+.2f}%，高开被吃掉，竞价那口气没续上'
+    if pct < 0:
+        return f'现在 {pct:+.2f}%，翻绿了，竞价买盘撤了'
+    if lb < 1.5:
+        return f'量比掉到 {lb:.2f}，没量撑着'
+    return f'现在 {pct:+.2f}%、量比 {lb:.2f}，评分被后来者挤出去了'
+
+
+def _auction_rescan_html(cap=10):
+    """盘中滚动复筛（10:00/11:00/13:00/14:00 各一次）：全市场涨幅榜重跑同一套硬闸门与同一个评分，
+    与上一份快照比对，只报「新进/掉出」，新进的给回踩位与放弃位。失败静默返回 ''。"""
+    try:
+        now = _bj_now()
+        if not FORCE_SLOT and not _in_session(now):
+            return ''
+        rows = _clist_gainers()
+        if not rows or len(rows) < 30:
+            return ''
+        from datetime import date as _d2
+        _t = _d2(*map(int, now.strftime('%Y-%m-%d').split('-')))
+        _cheap = [s for s in rows if _auction_cheap_pass(s, _t)]
+        _au_prefetch(_cheap)
+        d = get_pools()
+        zt_lbc = {}
+        for _sec, _sts in (d.get('sectors') or {}).items():
+            for _st in _sts:
+                zt_lbc[_st.get('c')] = int(_st.get('lbc') or 0)
+        cands = _auction_filter(rows, zt_lbc)
+        if not cands:
+            return ''
+        heat, cnt = _theme_heat(cands)
+        try:
+            _calc_resonance(cands, heat, cnt, load_memory(), is_tail=False)
+        except Exception:
+            pass
+        for s in cands[:40]:
+            try:
+                s['score'] = _auction_score_v3(s, heat, cnt, None)
+            except Exception:
+                s['score'] = 0
+        for s in cands:
+            s.setdefault('score', 0)
+        cands.sort(key=lambda x: -x['score'])
+        top = cands[:cap]
+        today = now.strftime('%Y-%m-%d')
+        prev = {}
+        try:
+            if os.path.exists(_AUC_SCAN_PATH):
+                prev = json.load(open(_AUC_SCAN_PATH, encoding='utf-8')) or {}
+        except Exception:
+            prev = {}
+        same_day = (prev.get('date') == today)
+        prev_list = (prev.get('list') or []) if same_day else []
+        seq = (int(prev.get('seq') or 0) + 1) if same_day else 1
+        prev_codes = [x.get('code') for x in prev_list]
+        cur_codes = [s['code'] for s in top]
+        new = [s for s in top if s['code'] not in prev_codes]
+        gone = [x for x in prev_list if x.get('code') not in cur_codes]
+        # 落快照（每次复筛覆盖当日名单，seq 递增）
+        try:
+            if not os.path.isdir(os.path.dirname(_AUC_SCAN_PATH)):
+                os.makedirs(os.path.dirname(_AUC_SCAN_PATH), exist_ok=True)
+            json.dump({'date': today, 'ts': now.strftime('%H:%M'), 'seq': seq,
+                       'n_all': len(rows), 'n_cheap': len(_cheap), 'n_cands': len(cands),
+                       'list': [{'code': s['code'], 'name': s['name'],
+                                 'price': round(float(s.get('price') or 0), 2),
+                                 'pct': round(float(s.get('pct') or 0), 2),
+                                 'lb': round(float(s.get('lb') or 0), 2),
+                                 'score': round(float(s.get('score') or 0), 1)} for s in top]},
+                      open(_AUC_SCAN_PATH, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+        except Exception:
+            pass
+        _head = ('<div style="margin-top:7px;font-size:12.5px;color:#66d9e8;line-height:1.7;">'
+                 '🔁 竞价池复筛（今日第 %d 次 · %s）：涨幅榜 %d 只 → 过闸门 %d 只 → 池内 %d 只'
+                 % (seq, now.strftime('%H:%M'), len(rows), len(cands), len(top)))
+        _lines = []
+        if new:
+            for s in new[:3]:
+                _px = float(s.get('price') or 0)
+                _pc = float(s.get('pct') or 0)
+                _lb = float(s.get('lb') or 0)
+                _sc = float(s.get('score') or 0)
+                _lines.append('· <b style="color:#fff;">新进 %s（%s）</b>'
+                              '<span style="color:%s;">%+.2f%%</span> 量比 %.2f 评分 <b>%.0f</b><br>'
+                              '　回踩 <b style="color:#ffd43b;">%.2f</b> 不破可接，跌破 '
+                              '<b style="color:%s;">%.2f</b> 放弃'
+                              % (s['name'], s['code'], _c(_pc), _pc, _lb, _sc,
+                                 round(_px * 0.985, 2), RED, round(_px * 0.97, 2)))
+            if len(new) > 3:
+                _lines.append('· 另外 %d 只新进：%s' % (len(new) - 3,
+                                                     '、'.join(x['name'] for x in new[3:])))
+        else:
+            _lines.append('· 没有新票进池，还是原来那几只，不用重复看')
+        if gone:
+            for x in gone[:2]:
+                try:
+                    _q = _qt(('sh' if str(x.get('code'))[:1] == '6' else 'sz') + str(x.get('code')) or '') or {}
+                    _gp = float(_q.get('pct') if _q.get('pct') is not None else x.get('pct') or 0)
+                    _gl = float(_q.get('lb') or x.get('lb') or 0)
+                except Exception:
+                    _gp, _gl = float(x.get('pct') or 0), float(x.get('lb') or 0)
+                _lines.append('· <span style="color:%s;">掉出 %s（%s）</span>：%s'
+                              % (GREY, x.get('name'), x.get('code'), _auc_drop_reason(_gp, _gl)))
+            if len(gone) > 2:
+                _lines.append('· 另外 %d 只掉出：%s' % (len(gone) - 2,
+                                                     '、'.join(str(x.get('name')) for x in gone[2:])))
+        return (_head + '<br>' + '<br>'.join(_lines) + '</div>')
+    except Exception as _e:
+        print('[auc_rescan] 复筛异常:', str(_e)[:80])
+        return ''
 
 
 def _fx(code):
@@ -7323,8 +7447,12 @@ def build_auction(title='竞价观察'):
         _today = _dt_date(_yy, _mm, _dd)
     except Exception:
         _today = None
-    _au_prefetch([s for s in rows_all if _auction_cheap_pass(s, _today)])
+    _cheap = [s for s in rows_all if _auction_cheap_pass(s, _today)]
+    _au_prefetch(_cheap)
+    _n_all = len(rows_all)
+    _n_cheap = len(_cheap)
     cands = _auction_filter(rows_all, zt_lbc)
+    _n_cands = len(cands)
     heat, cnt = _theme_heat(cands)
     # v80-A36：弱共振剔除已取消（这条会把「同题材只有它一家、题材还没热」的独苗启动票砍掉，
     # 而那恰恰是竞价最好做的形态）。热度/家数只作为加分项参与打分，不再一票否决。
@@ -7383,10 +7511,10 @@ def build_auction(title='竞价观察'):
     _mkt_ctx = (f'大盘：涨停{_lu}家/炸板{_zb}家({_zbr:.0f}%) 情绪分{int(_mscore)}({_mlabel}) '
                 f'最强板块{(_zt_top[0][0] if _zt_top else "—")}')
     # 2026-11-21：深挖覆盖 TOP5 可关注全名单（原只传重点3只，第4名起永远没有暗线）
-    _ds_fut = _ex.submit(_auction_ds, _list10, heat, _zt_top, _mkt_ctx, _mscore, _lu, _zb)
+    _ds_fut = _ex.submit(_auction_ds, tops, heat, _zt_top, _mkt_ctx, _mscore, _lu, _zb)
     _cf_fut = _ex.submit(_confirm_ds, _cinfos, _mkt_ctx)
     try:
-        _auction_pool_record(tops)
+        _auction_pool_record(_list10)
     except Exception:
         pass
     # —— LLM 时间门双轨：竞价窗口 09:25-09:27 保推送(短预算)；非竞价/尾盘给足 LLM 时间(禁规则回退) ——
@@ -7414,8 +7542,8 @@ def build_auction(title='竞价观察'):
     except Exception as _e:
         print('[auction] 重点暗线补挖异常:', _e)
     try:
-        ds_map = _auction_ensure_dark(ds_map, tops, _list10, heat)
-        _lst0 = list((tops or [])[:3]) + list(_list10)
+        ds_map = _auction_ensure_dark(ds_map, tops, [], heat)
+        _lst0 = list((tops or [])[:3])
         _cov0 = sum(1 for _x0 in _lst0 if str(((ds_map or {}).get(_x0.get('name')) or {}).get('dark') or '').strip())
         print('[auction] 暗线兜底后覆盖 %d/%d' % (_cov0, len(_lst0)))
     except Exception as _e:
@@ -7438,7 +7566,7 @@ def build_auction(title='竞价观察'):
             print(f'[factor-auction] 情绪分异常 {str(_je)[:60]}')
     _hot_names = [k for k, _v in sorted(heat.items(), key=lambda kv: -kv[1])[:4]]
     rows = ''
-    for i, s in enumerate(_list10, 1):
+    for i, s in enumerate(_list10[3:], 4):
         buy_low = round(max(0.0, s['price'] * 0.995), 2)
         buy_high = round(min(10.0, s['price'] * 1.01), 2)
         stop = round(buy_low * 0.97, 2)
@@ -7476,8 +7604,25 @@ def build_auction(title='竞价观察'):
         else:
             _c5a_html = ('<div style="color:%s;font-size:12px;margin-top:4px;">'
                          '📈 近5日收盘涨幅：数据未取得</div>' % GREY)
-        rows += f"""<div style="background:#1f2635;border-left:3px solid #a78bfa;border-radius:8px;padding:10px 12px;margin:7px 0;">
-<div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span></div>
+        _sc5 = float(s.get('score') or 0)
+        _lb5 = float(s.get('lb') or 0)
+        _pc5 = float(s.get('pct') or 0)
+        _pos5 = _ext_low(str(s.get('code') or ''), float(s.get('price') or 0))
+        if _pos5:
+            _pp5, _pg5 = _pos5
+            if _pp5 <= 30:
+                _pos5_txt = '位置 %.0f%%·距20日高 %+.1f%%，还在低位' % (_pp5, _pg5)
+            elif _pp5 <= 55:
+                _pos5_txt = '位置 %.0f%%·距20日高 %+.1f%%，中位，追高没溢价' % (_pp5, _pg5)
+            else:
+                _pos5_txt = '位置 %.0f%%·距20日高 %+.1f%%，已在高位，只能当强度参考' % (_pp5, _pg5)
+        else:
+            _pos5_txt = '位置：K线未取得'
+        rows += f"""<div style="background:#1f2635;border-left:3px solid {GOLD};border-radius:8px;padding:10px 12px;margin:7px 0;">
+<div style="font-size:14px;font-weight:700;color:#fff;">{i}. {s['name']} <span style="color:{GREY};font-size:12px;">{s['code']}</span> <span style="color:{_c(_pc5)};font-size:13px;font-weight:700;">{_pc5:+.2f}%</span></div>
+<div style="color:#ced4da;font-size:12.5px;margin-top:3px;">评分 <b style="color:{_c(_sc5)};">{_sc5:.0f}</b>　量比 <b>{_lb5:.2f}</b>　现价 <b style="color:#fff;">{float(s.get('price') or 0):.2f}</b></div>
+<div style="color:#ced4da;font-size:12.5px;margin-top:2px;">触发位：回踩 <b style="color:#ffd43b;">{round(float(s.get('price') or 0) * 0.985, 2):.2f}</b> 不破可接，跌破 <b style="color:{RED};">{round(float(s.get('price') or 0) * 0.97, 2):.2f}</b> 放弃</div>
+<div style="color:{GREY};font-size:12px;margin-top:2px;">📍 {_pos5_txt}</div>
 {_c5a_html}{_deep_html}</div>"""
     try:
         _sig_rows = []
@@ -7511,7 +7656,8 @@ def build_auction(title='竞价观察'):
             # v80-D：暗线只认模型，删掉 _dark_fact/_dark_solid 两个主营兜底
             _dk3 = str(_d3.get('dark') or '').strip()
             _lg3 = str(_d3.get('logic') or '').strip() or str(_d3.get('why') or '').strip()
-            _dk3_html = ('<div style="color:#a78bfa;font-size:13px;margin-top:2px;">🔍 暗线：%s</div>' % _dk3
+            _dk3_lab = ('主营构成（模型未回，只当背景）' if (_d3.get('_src') == 'biz') else '暗线')
+            _dk3_html = ('<div style="color:#a78bfa;font-size:13px;margin-top:2px;">🔍 %s：%s</div>' % (_dk3_lab, _dk3)
                          if _dk3 else '')
             # v80-D（用户 2026-11-10「三只要显示竞价涨幅、现价、竞价量比，评分也消失了」）：
             # 现价/竞价涨幅/竞价量比走腾讯实时快照，综合分直接取 _auction_score_v3 的 score
@@ -7547,8 +7693,14 @@ def build_auction(title='竞价观察'):
         _pool_prev = _auction_pool_stats()
     except Exception:
         _pool_prev = ''
-    pick = f"""{top3_txt}<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 今日可关注 TOP{AUCTION_TOP_LIST}（综合评分排序）</div>
-{rows or '<div style="color:' + GREY + ';font-size:13px;">今日无符合硬过滤条件的竞价票（涨幅榜未取得或全被过滤）</div>'}{_pool_prev}"""
+    _funnel_txt = ('<div style="margin-top:6px;font-size:12px;color:%s;line-height:1.65;">'
+                   '全市场涨幅榜 <b style="color:#e9ecef;">%d</b> 只 → 过板块/ST/次新/高开/换手 <b style="color:#e9ecef;">%d</b> 只 '
+                   '→ 过量能/近5日涨幅 <b style="color:#e9ecef;">%d</b> 只 → 评分取前 %d</div>'
+                   % (GREY, _n_all, _n_cheap, _n_cands, min(AUCTION_TOP_LIST, max(_n_cands, 0))))
+    pick = f"""{_funnel_txt}{top3_txt}<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 备选 {max(min(AUCTION_TOP_LIST, max(_n_cands, 0)) - 3, 0)} 只（第 4 名起，只在回踩/放量时才有位子）</div>
+{rows or '<div style="color:' + GREY + ';font-size:13px;">今日无符合硬过滤条件的竞价票（涨幅榜未取得或全被过滤）</div>'}{_pool_prev}
+<div style="margin-top:8px;font-size:12px;color:{GREY};line-height:1.65;">📌 这是今天的第 1 筛（09:25 竞价）。10:00、11:00、13:00、14:00、14:55 还会用同一套闸门和同一个评分各筛一次，
+盘中那几张卡只写「新进几只、掉出几只」，不重复贴同一份名单。</div>"""
     # —— 行业/题材风向（8项修复⑤：补涨停板块题材数据 + 最强/最弱暗线原因）——
     hot = sorted(heat.items(), key=lambda kv: -kv[1])[:3]
     hot_txt = '、'.join(k for k, _ in hot) or '暂无'
@@ -7590,6 +7742,12 @@ def build_auction(title='竞价观察'):
                 _crows.append(f'<div style="margin:4px 0;font-size:13px;background:#1f2635;border-left:3px solid {GREY};border-radius:8px;padding:6px 10px;">📊 <b style="color:#fff;">{_nm2}({_cf["code"]})</b> 高开{_cf["op"]:+.1f}% 量比{_cf["lb"]:.1f} — AI 未返回确认深挖，仅展示数据</div>')
         if _mkt_sum:
             _crows.insert(0, f'<div style="margin:4px 0;font-size:13px;background:#1a2029;border-left:3px solid {GOLD};border-radius:8px;padding:6px 10px;">🌍 大盘实时：{_mkt_sum}</div>')
+        if _crows and not _mkt_sum:
+            _n_ok = sum(1 for _x in _cinfos if _x.get('ok'))
+            _n_hi = sum(1 for _x in _cinfos if _x.get('ok') and float(_x.get('lb') or 0) >= 3.0)
+            _crows.insert(0, ('<div style="margin:4px 0;font-size:12.5px;color:%s;">'
+                              '这三只里 %d 只高开与量比同时达标，其中 %d 只量比过 3；没达标的那几只按三只重点里的回踩位等，不追竞价位。</div>'
+                              % (GREY, _n_ok, _n_hi)))
         if _crows:
             _confirm_block = ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🔔 竞价实盘确认</div>'
                               + ''.join(_crows))
