@@ -6645,10 +6645,18 @@ def build_hourly():
     _dmax = abs(float(_neg[0]['change'])) if _neg else 0.0
     _sh = next((p for n, p, _ in idx if n == '沪指'), 0.0)
     _cy = next((p for n, p, _ in idx if n == '创业板'), 0.0)
-    if zbr >= 0.40 or _sh <= -1.5 or _cy <= -3.0:
+    _upn = sum(1 for _, p, _ in idx if p > 0)
+    _hot_brake = zbr >= 0.40
+    if _sh <= -1.5 or _cy <= -3.0 or (_hot_brake and _upn <= 1):
         _mood = '退潮式下跌：指数破位、涨停质量差，钱在往外撤，别伸手接'
-    elif _cy >= 1.0 and _umax >= 2.0:
+    elif _cy >= 1.0 and _umax >= 2.0 and not _hot_brake:
         _mood = '进攻状态：指数在涨、领涨板块有幅度，资金敢往里打'
+    elif _cy >= 1.0 and _umax >= 2.0 and _hot_brake:
+        _mood = ('指数在涨但接力很脏：炸板率 %.0f%%，封住的有一半被砸开，'
+                 '这种日子只有最强的那只能拿，跟风首板明天大概率没溢价' % (zbr * 100))
+    elif _hot_brake:
+        _mood = ('横着磨但炸板率 %.0f%%：高度在掉，钱只敢做日内，'
+                 '赚三个点就得跑，别当成趋势拿' % (zbr * 100))
     elif _sh < 0:
         _mood = '防御为主：指数在跌，钱只敢躲进个别方向，涨的也不持久'
     else:
@@ -6902,7 +6910,10 @@ def build_hourly():
         else:
             _where = '开盘价未取到'
         _ref = _op if _op else _pv
-        if lb >= 2.0 and pct > 3:
+        if pct >= 5.0:
+            _vol = f'量比{lb:.1f}，{pct:.2f}% 已经在高位区'
+            _act = '涨超5%不再加，冲高先落一半锁利润，剩下的盯开盘价'
+        elif lb >= 2.0 and pct > 3:
             _vol = f'量比{lb:.1f}放量，是真有资金在推'
             _act = f'放量上攻可持有，拉到 +{max(pct + 2, 6):.0f}% 一带先减一半锁利润'
         elif pct > 0 and lb < 1.2:
@@ -6927,7 +6938,10 @@ def build_hourly():
 
     # —— 建议：一两句大白话 ——
     _adv = []
-    if zbr >= 0.40 or _umax < 1.0:
+    _upn0 = sum(1 for _, p, _ in idx if p > 0)
+    if zbr >= 0.40 and _upn0 >= 2:
+        _adv.append('指数在涨但接力脏，别再往跟风板上加钱；手上有的冲高就减，新仓只等回踩窗口')
+    elif zbr >= 0.40 or _umax < 1.0:
         _adv.append('这个时段是防守时间，别在这个位置加新仓；有浮盈的先落袋，深亏的不在低点割')
     elif _umax >= 2.0 and zbr < 0.28:
         _adv.append('这个时段能做多，但只打领涨板块里还没涨停的头部票，已涨停的进去就是接盘')
@@ -6939,30 +6953,125 @@ def build_hourly():
         _adv.append('两票今天都在正常波动区间，按上面各自的量价条件执行，不用急着动')
 
     _rescan_html = _auction_rescan_html()
-    inner = (
-        f'<div style="font-size:14px;font-weight:700;color:#e9ecef;">📈 指数：{_bits}</div>'
-        f'<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">{_up_head}</div>'
-        f'<div style="font-size:12.5px;color:#e9ecef;line-height:1.75;">'
-        + '<br>'.join(_up_rows) + '</div>'
-        + (f'<div style="margin-top:4px;font-size:12.5px;color:#ced4da;">{_ind_row}</div>' if _ind_row else '')
-        + f'<div style="margin-top:4px;font-size:12.5px;color:#ced4da;">领跌：{_dn_row}</div>'
-        + f'<div style="margin-top:4px;font-size:12.5px;color:{GOLD};">定性：{_mood}</div>'
-        + (('<div style="margin-top:7px;font-size:12.5px;color:#ffd43b;line-height:1.7;">'
-            '🕵️ 暗线（表面炒 A、实质 B，已涨停只看别追）：<br>'
-            + '<span style="color:#adb5bd;font-size:11.5px;">' + _dl_logic + '</span><br>'
-            + '<br>'.join(_dl_rows) + '</div>')
-           if _dl_rows else '')
-        + (('<div style="margin-top:7px;font-size:12.5px;color:#66d9e8;line-height:1.7;">'
-            '🧠 盘面读数：<br>· ' + '<br>· '.join(_exp_rows) + '</div>')
-           if _exp_rows else '')
-        + _rescan_html
-        + f'<div style="margin-top:8px;font-size:14px;font-weight:800;color:#ff922b;">⚠️ 持仓</div>'
-        f'<div style="font-size:12.5px;color:#e9ecef;line-height:1.7;">'
-        + '<br>'.join(_holds) + '</div>'
-        f'<div style="margin-top:8px;font-size:13px;color:#8ce99a;">💡 建议：' + '；'.join(_adv) + '</div>'
-        f'<div style="margin-top:6px;color:{GREY};font-size:11px;">口径：指数与个股取腾讯实时，'
-        f'题材涨幅取同花顺涨停板块榜、行业取新浪全量榜；炸板率 {zbr * 100:.0f}%、涨停 {d["lu"]} 只</div>')
+    # ═══════════ 版面重做（2026-11-24 用户：内容太乱看不懂、要技术派评分） ═══════════
+    _UP, _DN = '#ff6b6b', '#4ecb8a'
+    _GOLD, _BLUE, _PUR, _MUTE = '#f4c542', '#5aa9e6', '#b197fc', '#8d9bab'
+
+    def _cu(v):
+        _vv = float(v or 0)
+        return _UP if _vv > 0 else (_DN if _vv < 0 else _MUTE)
+
+    def _sec(color, title, sub=''):
+        return ('<div style="margin-top:9px;background:#161d27;border-radius:10px;'
+                'border-left:3px solid %s;padding:8px 10px 9px;">'
+                '<div style="font-size:12px;font-weight:800;color:%s;">%s'
+                '<span style="font-size:10px;color:%s;font-weight:400;">　%s</span></div>'
+                % (color, color, title, _MUTE, sub))
+
+    _idx_html = (_sec(_BLUE, '① 指数温度')
+                 + '<div style="margin-top:3px;">'
+                 + ''.join(('<span style="display:inline-block;margin-right:8px;">'
+                            '<span style="font-size:10.5px;color:%s;">%s</span> '
+                            '<span style="font-size:16px;font-weight:800;color:%s;">%+.2f%%</span>'
+                            '</span>' % (_MUTE, n, _cu(p), p)) for n, p, _ in idx)
+                 + '</div></div>')
+
+    _main_rows = []
+    for _i2, _b2 in enumerate((_show_pos or [])[:3]):
+        _ch2 = float(_b2.get('change') or 0)
+        _lead2 = str(_b2.get('leader') or '').strip()
+        _why2 = '、'.join([x for x in re.split(r'[+＋|]', _bwhy(_b2) or '') if x][:2])[:18]
+        _main_rows.append(
+            '<div style="margin-top:6px;">'
+            '<span style="font-size:13px;font-weight:800;color:#fff;">%d %s</span>'
+            '<span style="font-size:15px;font-weight:800;color:%s;margin-left:5px;">%+.2f%%</span>'
+            '<div style="font-size:10.5px;color:%s;margin-top:1px;">涨停 %d 只%s　驱动 %s</div>'
+            '</div>'
+            % (_i2 + 1, _b2['name'], _cu(_ch2), _ch2, _MUTE, int(_b2.get('lu') or 0),
+               ('｜龙头 ' + _lead2) if _lead2 else '', _why2 or '无硬催化，资金普涨'))
+    _ind_plain = '｜'.join('%s %+.2f%%%s' % (n, p, ('（' + ld + '领涨）') if ld else '')
+                           for n, p, ld in ((_ind_up or _ind_least)[:2]))
+    _main_html = (_sec('#ff922b', '② 主线题材', '只列前三，看力度')
+                  + ''.join(_main_rows)
+                  + ('<div style="font-size:10.5px;color:%s;margin-top:6px;">行业：%s</div>'
+                     % (_MUTE, _ind_plain) if _ind_plain else '')
+                  + '</div>')
+
+    _zb = zbr * 100.0
+    _zbc = _UP if _zb >= 40 else (_DN if _zb <= 15 else _GOLD)
+    _emo_html = (_sec(_GOLD, '③ 情绪温度', '炸板率越低越安全，两板以上代表高度')
+                 + '<div style="margin-top:4px;">'
+                 + ('<span style="font-size:10.5px;color:%s;">炸板率</span> '
+                    '<b style="font-size:15px;color:%s;">%.0f%%</b>' % (_MUTE, _zbc, _zb))
+                 + ('　<span style="font-size:10.5px;color:%s;">涨停</span> '
+                    '<b style="font-size:15px;color:#fff;">%d</b>' % (_MUTE, int(d.get('lu') or 0)))
+                 + ('　<span style="font-size:10.5px;color:%s;">两板以上</span> '
+                    '<b style="font-size:15px;color:%s;">%d</b>'
+                    % (_MUTE, _PUR if _hi_n else _MUTE, _hi_n))
+                 + '</div>'
+                 + ('<div style="margin-top:4px;font-size:11.5px;font-weight:700;color:%s;">%s</div>'
+                    % (_GOLD, _mood))
+                 + '</div>')
+
+    _dl_mini = ''
+    if _dl_all:
+        _dl_lines = []
+        for (_h2, _cn2, _nm2, _cd2, _rt2, _hi2, _bn2, _px2, _st2) in _dl_all[:2]:
+            _rt_s = '、'.join([x for x in re.split(r'[+＋|]', _rt2 or '') if x][:2])[:20] or '只有连板高度'
+            _dl_lines.append('<div style="font-size:11px;color:#e9ecef;margin-top:3px;">'
+                             '<b>%s</b> <span style="color:%s;">%s·%s</span> '
+                             '<span style="color:%s;">%s</span></div>'
+                             % (_nm2, _MUTE, _cd2, _hi2 or '首板', _PUR, _rt_s))
+        _dl_mini = (_sec(_PUR, '🕵️ 已涨停里的暗线', '只看不追，追进去是最后一棒')
+                    + ''.join(_dl_lines) + '</div>')
+
+    _hold_rows = []
+    for h in HOLDINGS:
+        q = _qt(h['code'])
+        if not q:
+            _hold_rows.append('<div style="font-size:12px;color:%s;">%s：行情未取得</div>'
+                              % (_MUTE, h['name']))
+            continue
+        _hp = float(q['price'])
+        _hpc = float(q['pct'])
+        _hlb = float(q.get('lb') or 0)
+        _prof = (_hp / h['cost'] - 1) * 100 if h.get('cost') else 0.0
+        _hop = float(q.get('open') or 0)
+        if _hpc >= 5:
+            _act, _ac = ('涨超5%不再加，冲高先落一半锁利润', _DN)
+        elif _hlb >= 2 and _hpc > 3:
+            _act, _ac = ('放量上攻，持有；拉到 +%d%% 先减一半' % max(int(_hpc + 2), 6), _DN)
+        elif _hpc > 0 and _hlb < 1.2:
+            _act, _ac = ('缩量反弹，别加仓，等补量', _GOLD)
+        elif _hpc <= -2 and _hlb >= 1.5:
+            _act, _ac = (('放量破位，反抽 %.2f 减仓' % _hop) if _hop else '放量破位，反抽就减', _UP)
+        elif _hpc <= -2:
+            _act, _ac = ('没量的跌，别在低点割，等反抽', _GOLD)
+        else:
+            _act, _ac = ('不动，等量能给方向', _MUTE)
+        _hold_rows.append(
+            '<div style="margin-top:6px;padding-top:5px;border-top:1px solid #232b36;">'
+            '<span style="font-size:13px;font-weight:800;color:#fff;">%s</span>'
+            '<span style="font-size:10.5px;color:%s;"> %s</span>'
+            '<span style="font-size:15px;font-weight:800;color:%s;margin-left:6px;">%.2f</span>'
+            '<span style="font-size:12px;color:%s;"> %+.2f%%</span>'
+            '<span style="font-size:10.5px;color:%s;margin-left:6px;">较成本 %+.1f%%</span>'
+            '<div style="font-size:11.5px;color:%s;margin-top:1px;">%s</div></div>'
+            % (h['name'], _MUTE, h['code'][2:], _cu(_hpc), _hp, _cu(_hpc), _hpc,
+               _MUTE, _prof, _ac, _act))
+
+    inner = (_idx_html + _main_html + _emo_html + (_dl_mini or '') + _rescan_html
+             + _sec('#ff922b', '⑤ 持仓', '只看两票的量价条件')
+             + ''.join(_hold_rows) + '</div>'
+             + _sec('#8ce99a', '⑥ 一句话')
+             + ('<div style="font-size:12.5px;font-weight:700;color:#8ce99a;">%s</div></div>'
+                % ('；'.join(_adv),))
+             + ('<div style="margin-top:8px;font-size:9.5px;color:%s;line-height:1.5;">'
+                '口径：指数与个股取腾讯实时，题材取同花顺板块榜、行业取新浪全量榜；'
+                '技术分用前复权日K（MA5/10/20、MACD 8/21/5）＋实时量比＋20日区间位置</div>'
+                % _MUTE))
     html = _wrap(inner, '⏱️', '盘中体检', disclaimer=True)
+
     # 这里不自己 push：main() 拿到 html 后统一 push(html, TITLES[slot])，
     # builder 内再推一次会导致每小时发两条（双推修复口径）。
     print(f'[hourly] 指数={[(n, round(p, 2)) for n, p, _ in idx]} 定性={_mood[:6]} → 已出卡')
@@ -6972,19 +7081,117 @@ def build_hourly():
 _AUC_SCAN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'auction_scan.json')
 
 
-def _auc_drop_reason(pct, lb):
-    """掉出池子的真实原因（按数据分档，不套话）。"""
-    if pct > 7.0:
-        return f'现在 {pct:+.2f}%，冲过 7% 上限，已经不是埋伏位子'
+def _auc_drop_reason(pct, lb, code=''):
+    """掉出池子的真实原因（按数据分档，不套话）。上限按板块给：主板 7%、创业板 8.5%。"""
+    _lim = 8.5 if str(code)[:3] in ('300', '301') else 7.0
+    if pct > _lim:
+        return f'现在 {pct:+.2f}%，冲过 {_lim:g}% 上限，已经不是埋伏位子'
+    if pct >= _lim - 1.5:
+        return f'现在 {pct:+.2f}%，贴着窗口上沿，这个位置进性价比差，等它回踩再看'
     if pct > 4.0:
-        return f'现在 {pct:+.2f}%，涨破了高开区间，追进去就是接最后一棒'
+        return f'现在 {pct:+.2f}%，位置偏高，只等回踩不追'
     if pct < 2.0:
         return f'现在 {pct:+.2f}%，高开被吃掉，竞价那口气没续上'
     if pct < 0:
         return f'现在 {pct:+.2f}%，翻绿了，竞价买盘撤了'
     if lb < 1.5:
         return f'量比掉到 {lb:.2f}，没量撑着'
-    return f'现在 {pct:+.2f}%、量比 {lb:.2f}，评分被后来者挤出去了'
+    return f'现在 {pct:+.2f}%、量比 {lb:.2f}，两样都还在窗口里，只是技术分被后来者挤出去了'
+
+
+def _tech_score(s):
+    """技术派五因子（盘中用）：趋势30 / 量能25 / 位置20 / 动量15 / 形态10。
+    只用真实前复权日K（MA5/10/20、MACD 8/21/5）＋实时量比与20日区间位置；
+    取不到的因子记 None 并按可用满分归一，不给假分。"""
+    _s = s or {}
+    _c = str(_s.get('code') or '')
+    _px = float(_s.get('price') or 0)
+    _pct = float(_s.get('pct') or 0)
+    _lb = float(_s.get('lb') or 0)
+    _fac = {'trend': None, 'vol': None, 'pos': None, 'mom': None, 'shape': None}
+    _ma = ''
+    _bars = []
+    try:
+        _sym = ('sh' if _c[:1] == '6' else 'sz') + _c
+        _arr = _au_klines(_sym, 90) or []
+        _td = _bj_now().strftime('%Y-%m-%d')
+        _bars = _arr[:-1] if _arr and str(_arr[-1][0]) == _td else _arr
+    except Exception:
+        _bars = []
+    _posn = None
+    if _bars and len(_bars) >= 25:
+        _cl = [float(r[2]) for r in _bars]
+        _ma5 = sum(_cl[-5:]) / 5.0
+        _ma10 = sum(_cl[-10:]) / 10.0
+        _ma20 = sum(_cl[-20:]) / 20.0
+        _ma = 'MA5 %.2f／MA10 %.2f／MA20 %.2f' % (_ma5, _ma10, _ma20)
+        if _px > _ma5 > _ma10 > _ma20:
+            _fac['trend'] = 30
+        elif _px > _ma20 and _ma5 > _ma10:
+            _fac['trend'] = 22
+        elif _px > _ma20:
+            _fac['trend'] = 16
+        elif _px > _ma10:
+            _fac['trend'] = 10
+        else:
+            _fac['trend'] = 4
+        try:
+            _m = _macd(_cl[-60:])
+        except Exception:
+            _m = None
+        if _m:
+            _up = _cl[-1] >= _cl[-2]
+            _h = float(_m.get('macd') or 0)
+            _fac['mom'] = 15 if (_h > 0 and _up) else (11 if _h > 0 else (6 if _up else 2))
+    if _lb >= 3:
+        _fac['vol'] = 25
+    elif _lb >= 2:
+        _fac['vol'] = 20
+    elif _lb >= 1.5:
+        _fac['vol'] = 14
+    elif _lb >= 1:
+        _fac['vol'] = 8
+    elif _lb > 0:
+        _fac['vol'] = 3
+    try:
+        _pos = _au_pos_of(_c, _px)
+    except Exception:
+        _pos = None
+    if _pos:
+        _posn = float(_pos[0])
+        _fac['pos'] = 20 if 55 <= _posn < 80 else (15 if 30 <= _posn < 55 else (12 if _posn >= 80 else 9))
+    if _fac['trend'] is not None:
+        if _pct >= 2.5 and _fac['trend'] >= 22:
+            _fac['shape'] = 10
+        elif _pct >= 2.5:
+            _fac['shape'] = 7
+        elif _pct >= 0:
+            _fac['shape'] = 5
+        elif _fac['trend'] >= 16:
+            _fac['shape'] = 3
+        else:
+            _fac['shape'] = 0
+    _MAX = {'trend': 30, 'vol': 25, 'pos': 20, 'mom': 15, 'shape': 10}
+    _got = [(_MAX[k], v) for k, v in _fac.items() if v is not None]
+    _tot = float(sum(v for _, v in _got))
+    _cap = sum(m for m, _ in _got)
+    # 只有趋势、位置这两个硬因子都取到了才算「技术分成立」才归一；
+    # 否则只剩量比一项，归一后能刷到 90+，等于把「没数据」写成「强」，绝对不行。
+    _core = (_fac['trend'] is not None) and (_fac['pos'] is not None)
+    if _core and _cap > 0 and _cap < 100:
+        _tot = _tot * 100.0 / _cap
+    elif not _core:
+        _tot = min(_tot, 55.0)
+    if _pct >= 9.0:
+        _tot -= 6
+    if _posn is not None and _posn >= 90:
+        _tot -= 4
+    _tot = int(round(max(0.0, min(100.0, _tot))))
+    if not _core:
+        _lab = '缺K线'
+    else:
+        _lab = '强' if _tot >= 85 else ('中上' if _tot >= 70 else ('中' if _tot >= 55 else '弱'))
+    return _tot, _lab, _fac, _ma
 
 
 def _auction_rescan_html(cap=10):
@@ -7021,8 +7228,20 @@ def _auction_rescan_html(cap=10):
                 s['score'] = 0
         for s in cands:
             s.setdefault('score', 0)
-        cands.sort(key=lambda x: -x['score'])
-        top = cands[:cap]
+        for s in cands[:40]:
+            try:
+                s['tscore'], s['tlab'], s['tfac'], s['tma'] = _tech_score(s)
+            except Exception:
+                s['tscore'], s['tlab'], s['tfac'], s['tma'] = 0, '—', {}, ''
+        for s in cands:
+            s.setdefault('tscore', 0)
+        # 铁律：只做未涨停。涨幅 ≥9.4%（封板或一字附近）的不进榜，只在下面记名字，
+        # 避免把「已经涨停」的票写成「回踩可接」——那是在教人接最后一棒。
+        _hot = [x for x in cands if float(x.get('pct') or 0) > 8.5]
+        _safe = [x for x in cands if 2.5 <= float(x.get('pct') or 0) <= 8.5]
+        _safe.sort(key=lambda x: (str(x.get('tlab') or '') == '缺K线',
+                                  -x.get('tscore', 0), -x['score']))
+        top = _safe[:cap]
         today = now.strftime('%Y-%m-%d')
         prev = {}
         try:
@@ -7062,30 +7281,81 @@ def _auction_rescan_html(cap=10):
                       open(_AUC_SCAN_PATH, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
         except Exception:
             pass
-        _head = ('<div style="margin-top:7px;font-size:12.5px;color:#66d9e8;line-height:1.7;">'
-                 '🔁 竞价池复筛（今日第 %d 次 · %s，对照%s）：涨幅榜 %d 只 → 过闸门 %d 只 → 池内 %d 只'
-                 % (seq, now.strftime('%H:%M'), _base_lab, len(rows), len(cands), len(top)))
+        _tone = {'强': '#ff6b6b', '中上': '#f4c542', '中': '#5aa9e6',
+                 '弱': '#8d9bab', '缺K线': '#8d9bab'}
+
+        def _mini_head(s_):
+            _f = s_.get('tfac') or {}
+            _p4 = (('趋势', 'trend'), ('量能', 'vol'), ('位置', 'pos'), ('动量', 'mom'), ('形态', 'shape'))
+            return ' · '.join('%s %s' % (lab, ('%d' % v) if isinstance(v, (int, float)) else '—')
+                              for lab, v in ((lab, _f.get(k)) for lab, k in _p4))
+
+        def _srow(s_, tag):
+            _px = float(s_.get('price') or 0)
+            _pc = float(s_.get('pct') or 0)
+            _lb = float(s_.get('lb') or 0)
+            _ts = int(s_.get('tscore') or 0)
+            _tl = str(s_.get('tlab') or '—')
+            _tc = _tone.get(_tl, '#8d9bab')
+            _upc = '#ff6b6b' if _pc > 0 else ('#4ecb8a' if _pc < 0 else '#8d9bab')
+            _body = ('<div style="margin-top:8px;padding-top:6px;border-top:1px solid #232b36;">'
+                     '<div style="font-size:12.5px;font-weight:800;color:#e9ecef;">%s %s'
+                     '<span style="font-weight:400;font-size:10.5px;color:#8d9bab;"> %s</span>'
+                     '<span style="color:%s;margin-left:6px;">%+.2f%%</span>'
+                     '<span style="float:right;font-size:17px;font-weight:800;color:%s;">%d</span>'
+                     '<span style="float:right;font-size:9.5px;color:#8d9bab;margin:4px 3px 0 0;">技术分</span>'
+                     '</div>'
+                     '<div style="font-size:10.5px;color:#8d9bab;margin-top:1px;">'
+                     '量比 %.2f｜评级 <b style="color:%s;">%s</b></div>'
+                     '<div style="font-size:10px;color:#9aa7b5;margin-top:1px;">%s</div>'
+                     % (tag, s_['name'], s_['code'], _upc, _pc, _tc, _ts, _lb,
+                        _tc, _tl, _mini_head(s_)))
+            _tf = s_.get('tfac') or {}
+            _give = (_tl in ('强', '中上')) or (_tl == '中' and (_tf.get('trend') or 0) >= 16)
+            if _give:
+                _tail = ('<div style="font-size:11.5px;color:#e9ecef;margin-top:2px;">回踩 '
+                         '<b style="color:#f4c542;">%.2f</b> 不破可接，跌破 '
+                         '<b style="color:#ff6b6b;">%.2f</b> 放弃</div></div>'
+                         % (round(_px * 0.985, 2), round(_px * 0.97, 2)))
+            else:
+                _tail = ('<div style="font-size:11.5px;color:#8d9bab;margin-top:2px;">'
+                         '技术分不够，今天不给买点；等量能补上、分进到 55 以上再看</div></div>')
+            return _body + _tail
+
+        _head = ('<div style="margin-top:9px;background:#161d27;border-radius:10px;'
+                 'border-left:3px solid #66d9e8;padding:8px 10px 9px;">'
+                 '<div style="font-size:12px;font-weight:800;color:#66d9e8;">'
+                 '④ 技术评分榜 <span style="font-size:10px;color:#8d9bab;font-weight:400;">'
+                 '第 %d 次复筛 %s</span></div>'
+                 '<div style="font-size:10px;color:#8d9bab;margin-top:2px;">'
+                 '涨幅榜 %d → 过闸门 %d → 可做 %d 只（只在 2.5~8.5%% 未涨停里选）</div>'
+                 '<div style="font-size:10px;color:#8d9bab;">'
+                 '技术分＝趋势30＋量能25＋位置20＋动量15＋形态10</div>'
+                 % (seq, now.strftime('%H:%M'), len(rows), len(cands), len(top)))
         _lines = []
-        if new and _base_lab == '09:25 竞价卡':
-            _lines.append('· 比 09:25 那张卡新冒出 %d 只，前 3 只给位子，其余只记名字'
-                          % len(new))
-        if new:
+        if not top:
+            _lines.append('<div style="font-size:11.5px;color:#f4c542;margin-top:5px;">'
+                          '过闸门的票全被拉到 8.5% 以上，今天没有能埋伏的位子；'
+                          '硬凑就是追高，等它回踩到窗口里再看。</div>')
+        elif new:
+            _lines.append('<div style="font-size:11px;color:#f4c542;margin-top:5px;">'
+                          + (('新进 %d 只，全给位子</div>' % len(new)) if len(new) <= 3
+                             else ('新进 %d 只，前 3 只给位子，其余只记名字</div>' % len(new))))
             for s in new[:3]:
-                _px = float(s.get('price') or 0)
-                _pc = float(s.get('pct') or 0)
-                _lb = float(s.get('lb') or 0)
-                _sc = float(s.get('score') or 0)
-                _lines.append('· <b style="color:#fff;">新进 %s（%s）</b>'
-                              '<span style="color:%s;">%+.2f%%</span> 量比 %.2f 评分 <b>%.0f</b><br>'
-                              '　回踩 <b style="color:#ffd43b;">%.2f</b> 不破可接，跌破 '
-                              '<b style="color:%s;">%.2f</b> 放弃'
-                              % (s['name'], s['code'], _c(_pc), _pc, _lb, _sc,
-                                 round(_px * 0.985, 2), RED, round(_px * 0.97, 2)))
+                _lines.append(_srow(s, '新进'))
             if len(new) > 3:
-                _lines.append('· 另外 %d 只：%s' % (len(new) - 3,
-                                                 '、'.join(x['name'] for x in new[3:])))
+                _lines.append('<div style="font-size:10.5px;color:#8d9bab;margin-top:5px;">'
+                              '另外 %d 只：%s</div>' % (len(new) - 3,
+                                                      '、'.join(x['name'] for x in new[3:])))
         else:
-            _lines.append('· 没有新票进池，还是原来那几只，不用重复看')
+            _lines.append('<div style="font-size:11px;color:#8d9bab;margin-top:5px;">'
+                          '没有新票进池，还是原来那几只，不用重复看。</div>')
+        if _hot:
+            _hl = []
+            for x in sorted(_hot, key=lambda y: -float(y.get('pct') or 0))[:6]:
+                _hl.append('%s %+.2f%%' % (x.get('name'), float(x.get('pct') or 0)))
+            _lines.append('<div style="font-size:10.5px;color:#ff6b6b;margin-top:6px;">'
+                          '已冲高/涨停不追 %d 只：%s</div>' % (len(_hot), '、'.join(_hl)))
         if gone:
             for x in gone[:2]:
                 try:
@@ -7094,12 +7364,15 @@ def _auction_rescan_html(cap=10):
                     _gl = float(_q.get('lb') or x.get('lb') or 0)
                 except Exception:
                     _gp, _gl = float(x.get('pct') or 0), float(x.get('lb') or 0)
-                _lines.append('· <span style="color:%s;">掉出 %s（%s）</span>：%s'
-                              % (GREY, x.get('name'), x.get('code'), _auc_drop_reason(_gp, _gl)))
+                _lines.append('<div style="font-size:11px;color:#8d9bab;margin-top:4px;">'
+                              '掉出 %s %s：%s</div>'
+                              % (x.get('name'), x.get('code'),
+                                 _auc_drop_reason(_gp, _gl, str(x.get('code') or ''))))
             if len(gone) > 2:
-                _lines.append('· 另外 %d 只掉出：%s' % (len(gone) - 2,
-                                                     '、'.join(str(x.get('name')) for x in gone[2:])))
-        return (_head + '<br>' + '<br>'.join(_lines) + '</div>')
+                _lines.append('<div style="font-size:10.5px;color:#8d9bab;">'
+                              '另外 %d 只掉出：%s</div>'
+                              % (len(gone) - 2, '、'.join(str(x.get('name')) for x in gone[2:])))
+        return _head + ''.join(_lines) + "</div>"
     except Exception as _e:
         print('[auc_rescan] 复筛异常:', str(_e)[:80])
         return ''
