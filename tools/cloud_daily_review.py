@@ -10933,7 +10933,10 @@ def _eod_elite_pick(scored, tpool):
                 '<div style="background:#232a3a;border-left:4px solid %s;border-radius:10px;padding:10px 12px;'
                 'font-size:13px;color:#e2e8f0;">可跟踪池为空，今天不给票。</div>' % (GOLD, GREY))
     _rows = []
+    global _EOD_PICK_LAST
+    _EOD_PICK_LAST = []
     for _cn, s, _g, _p, _pos, _sok in _hard:
+        _EOD_PICK_LAST.append((str(s.get('code') or ''), str(s.get('name') or ''), _p))
         _bad = [n for n, _, ok, _ in _g if not ok]
         _gts = []
         for n, v, ok, th in _g:
@@ -10956,9 +10959,7 @@ def _eod_elite_pick(scored, tpool):
         if _bad:
             _warn = ('<div style="color:%s;font-size:12px;margin-top:2px;">⚠ 放宽入榜：%s</div>'
                      % ('#ff9f43', '、'.join(_bad)))
-        _dz = _dark_fact(s.get('code') or '', s.get('name') or '')
-        _dz_line = ('<div style="color:#a78bfa;font-size:12px;margin-top:2px;line-height:1.7;">🏷 主业：%s</div>'
-                    % _dz) if _dz else ''
+        _dz_line = ''  # v2：主营构成移到⑤暗线块，个股行不再复述「主业占比」
         _rows.append('<div style="background:#1f2635;border-left:3px solid %s;border-radius:8px;padding:8px 11px;margin:5px 0;">'
                      '%s<div style="color:#e9ecef;font-size:12px;margin-top:2px;line-height:1.8;">%s</div>%s%s'
                      '<div style="color:%s;font-size:12px;margin-top:2px;">买点 %.2f~%.2f ｜ 止损 %.2f（-3%%）｜ 仓位 1 成</div></div>'
@@ -11129,6 +11130,127 @@ def _eod_fit_parts(parts, fit=18000):
     return _pp, _dropped
 
 
+
+# ============ 收盘复盘 v2（2026-11-24）：六块分色渲染助手 ============
+_EOD_COL = {'temp': '#5aa9e6', 'cause': '#f4c542', 'chain': '#ff922b',
+            'pick': '#66d9e8', 'dark': '#b197fc', 'one': '#8ce99a'}
+_EOD_PICK_LAST = []
+_DARK_OK = ('机器人', '算力', '液冷', '固态', '低空', 'BIPV', '智驾', '感知', '电机',
+            '结构件', '关节', '皮肤', '储能', 'AI', '航天', '机床', '设备更新', '数据中心',
+            '冷链', '光伏', '半导体', '军工', '种业', '创新药', '出海', '代工')
+
+
+def _eod_sec_card(title, sub, col, body):
+    """六块统一外壳：左侧色条 + 块标题 + 小字口径 + 内容。"""
+    return ('<div style="margin-top:10px;background:#1b2230;border-left:4px solid %s;'
+            'border-radius:10px;padding:10px 12px;">'
+            '<div style="font-size:15px;font-weight:800;color:%s;line-height:1.35;">%s'
+            '<span style="color:#8d9bab;font-size:11px;font-weight:400;">%s</span></div>%s</div>'
+            % (col, col, title, ('　' + sub) if sub else '', body))
+
+
+def _eod_cause_txt(block, news, used=None):
+    """板块真涨因：先取涨停股披露原因(reason_type 共性 + reason_info 原文)，再取当日快讯，
+    都没有就直说「纯资金接力」——绝不自己编一段因果。
+    used：本轮已用过的「行业原因」段，同一条消息只允许归一个板块，后面的板块走自己的公司原因。"""
+    lst = block.get('list') or []
+    cnt = {}
+    info = ''
+    ind = ''
+    for st in lst:
+        ri0 = re.sub(r'\s+', ' ', str(st.get('reason_info') or '')).strip()
+        if ri0 and not ind and '行业原因' in ri0:
+            _seg = ri0.split('行业原因：', 1)[1]
+            _seg = re.split(r'公司原因', _seg)[0]
+            _seg = re.split(r'（免责声明', _seg)[0]
+            _seg = _seg.strip(' ：')
+            _dup = False
+            for _u in (used or []):
+                if _u[:18] and _u[:18] == _seg[:18]:
+                    _dup = True
+                    break
+            if not _dup:
+                ind = _seg
+        if ri0 and not info and '公司原因' in ri0:
+            _co = ri0.split('公司原因：', 1)[1]
+            _co = re.split(r'（免责声明', _co)[0]
+            info = _co.strip(' ：')
+        rt = str(st.get('reason_type') or '').strip()
+        if rt:
+            for w in re.split(r'[+、＋/|｜]', rt):
+                w = w.strip()
+                if 2 <= len(w) <= 14:
+                    cnt[w] = cnt.get(w, 0) + 1
+        if not info:
+            ri = re.sub(r'\s+', ' ', str(st.get('reason_info') or '')).strip()
+            if len(ri) >= 8:
+                info = ri
+    if ind:
+        if used is not None:
+            used.append(ind)
+        _cut = re.split(r'。', ind)[0] or ind
+        if len(_cut) > 72:
+            _cut = _cut[:72].rstrip('，、 ') + '…'
+        return '涨因（板块级·披露原文）：%s' % _cut
+    if cnt:
+        _tp = sorted(cnt.items(), key=lambda x: (-x[1], -len(x[0])))[:2]
+        _m = '、'.join(('%s %d家' % (w, c)) if c >= 2 else w for w, c in _tp)
+        _t = '涨因：' + _m
+        if info:
+            _t += '｜披露原文「%s…」' % info[:40]
+        return _t
+    _nm = re.sub(r'(概念|板块|行业|指数)$', '', str(block.get('name') or ''))
+    _names = [str(st.get('name') or '') for st in lst[:5]]
+    for nw in (news or []):
+        _t2 = str(nw.get('title') or '') + ' ' + str(nw.get('summary') or '')
+        if (_nm and _nm in _t2) or any(_n and _n in _t2 for _n in _names):
+            _ts = str(nw.get('ts') or '')[-8:-3]
+            return '涨因：快讯「%s」%s' % (str(nw.get('title') or '')[:38],
+                                          ('（%s）' % _ts) if _ts else '')
+    return '涨因：这批涨停没有披露级原因，今天走的是纯资金接力，不硬安故事'
+
+
+_EOD_DARK_OVR = {
+    '300324': ('嵌入式测试/数据智能', '低空经济飞控、军工电子',
+               '军工与低空测试是它第二块业务，等订单公告'),
+    '688078': ('煤矿智能化软件', 'AI应用/算力租赁',
+               '软件底座能接算力与AI应用，看新签订单'),
+    '603040': ('冷锻精密件', '人形机器人丝杠/关节',
+               '冷锻替切削、成本低，机器人放量先加单'),
+    '603266': ('精密注塑结构件', '人形机器人关节外壳/灵巧手',
+               '外壳与灵巧手部件，客户认证过就是放量点'),
+    '300068': ('锂电与铅酸电池', '固态电池中试线',
+               '产线可复用，固态中试是唯一看点'),
+    '000811': ('低温制冷/换热器', '数据中心液冷、储能温控',
+               '工艺同源，订单还没披露'),
+}
+
+
+def _eod_dark_of(code, name):
+    """非主营的那条腿：产品/技术 → 产业延伸方向。取不到真对应就返回空，不拿主营占比凑数。"""
+    _c6 = _pure_code(code)
+    if _c6 in _EOD_DARK_OVR:
+        _p0, _d0, _w0 = _EOD_DARK_OVR[_c6]
+        return '%s → %s｜%s' % (_p0, _d0, _w0)
+    if _c6 in _TAIL_DARK:
+        return _TAIL_DARK[_c6]
+    _it = _mainop_of(code)[1]
+    if not _it:
+        return ''
+    for kws, direction, why in _BOARD_DARK_LINK:
+        for n, r0 in _it:
+            try:
+                if float(r0 or 0) < 15:
+                    continue
+            except Exception:
+                continue
+            if any(str(k).lower() in str(n).lower() for k in kws):
+                if not any(_k in direction for _k in _DARK_OK):
+                    return ''    # 成本/涨价这一类不是「非主营的那条腿」
+                return '%s → %s｜%s' % (_short2(str(n), 16), direction, why)
+    return ''
+
+
 def build_eod():
     idx = get_indices()
     d = get_pools()
@@ -11189,12 +11311,8 @@ def build_eod():
     _sec2_end = min(_dsec2, _tsec2 + 90.0)
 
     def _sec2_worker():
-        try:
-            _llm_set_deadline(_sec2_end)
-            return _sec2_deep(scored)
-        except Exception as _e2:
-            print('[eod] 板块深挖异常:', _e2)
-            return {}
+        # v2：板块「上涨逻辑」不再由模型编，涨因改取涨停股披露原文/当日快讯（见②块）
+        return {}
 
     _sec2_map = {}
     _rv = {}
@@ -11449,14 +11567,204 @@ def build_eod():
         _reson_sec = ''
 
     _llm_reopen(share=0.95)
-    _ev = build_events('eod', cap=3, light=True)
+    _ev = ''  # v2：事件并入②真涨因，不单列
     _cap = pos_cap_line(sentiment(idx, d)[0], hl)
-    _parts = [('overall', _overall), ('health', health_bar(idx, d, fin, fout)), ('s1', sec1),
-              ('s2', sec2), ('s8', sec8), ('s2b', sec2b), ('s4', sec4), ('s45', sec45),
-              ('s5', sec5), ('sds', sec_ds), ('sell', sec_sell), ('s7', sec7), ('ev', _ev),
-              ('s6', sec6), ('pool', _pool_today), ('cap', _cap),
-              ('st', (f'<div style="margin-top:6px;font-size:12px;color:{GREY};">{_st_line}</div>' if _st_line else '')),
-              ('fac', _factor_board_top(d, topn=3)), ('reson', _reson_sec), ('miss', _miss_block)]
+    # ============ v2 版型：① 温度 ② 真涨因 ③ 传导 ④ 可上车 ⑤ 暗线 ⑥ 一句话 ============
+    _news2 = []
+    try:
+        _news2 = get_news(40) or []
+    except Exception as _env2:
+        print('[eod2] 新闻取数失败:', str(_env2)[:50])
+    try:
+        _pulse_boards(10)   # v2：先落存真实板块榜（涨幅/涨停/连板/涨停股披露原因）
+    except Exception as _epb:
+        print('[eod2] 板块榜取数失败:', str(_epb)[:60])
+    _pb = [x for x in (_PULSE_BOARDS_ALL or []) if x.get('name')][:3]
+    if not _pb:
+        _pb = [{'name': n, 'change': 0.0, 'lu': len(s0), 'list': []}
+               for n, s0, _sc, _lv, _ol in scored[:3]]
+
+    # ① 收盘温度：只放实盘数字 + 一句按炸板率给的硬动作
+    _idx_bits = '　'.join('<span style="color:%s;">%s <b>%+.2f%%</b></span>'
+                         % (_c(x['pct']), x['name'], x['pct']) for x in idx)
+    _nums = ''.join(
+        '<div style="flex:1;text-align:center;background:#141b26;border-radius:8px;padding:7px 1px;">'
+        '<div style="font-size:25px;font-weight:900;color:%s;line-height:1.05;">%s</div>'
+        '<div style="font-size:11px;color:#8d9bab;margin-top:1px;">%s</div></div>' % (c0, v0, l0)
+        for c0, v0, l0 in (('#ff6b6b', d['lu'], '涨停'), ('#f4c542', d['zb'], '炸板'),
+                           ('#8d9bab', '%.0f%%' % (zbr * 100), '炸板率'),
+                           ('#66d9e8', d.get('max_lbc') or 0, '最高板')))
+    if zbr >= 0.5:
+        _tm = '炸板率过半，板封不结实，明天不打板、不接力，只做低开回踩确认的前排'
+    elif zbr >= 0.35:
+        _tm = '炸板率三成半以上，接力只挑龙头，跟风票明天先看竞价量能'
+    else:
+        _tm = '炸板率不高，情绪接得住，明天可以按回踩位低吸强势线前排'
+    _b_temp = ('<div style="font-size:12px;color:#ced4da;margin-top:6px;line-height:1.7;">%s</div>'
+               '<div style="display:flex;gap:5px;margin-top:6px;">%s</div>'
+               '<div style="font-size:12px;color:#e9ecef;margin-top:6px;line-height:1.65;">%s</div>'
+               % (_idx_bits, _nums, _tm))
+
+    # ② 今天涨的线：每块给家数/连板/龙头 + 真涨因
+    _b_cause = ''
+    _used_ind = []
+    _first_lead = ''
+    for _i, _blk in enumerate(_pb, 1):
+        _lst = _blk.get('list') or []
+        _lbn, _lnm, _lcn = 0, '', -1
+        for _st in _lst:
+            try:
+                _cn = int(_st.get('continue_num') or 0)
+            except Exception:
+                _cn = 0
+            if _cn >= 2:
+                _lbn += 1
+            if _cn > _lcn:
+                _lcn, _lnm = _cn, str(_st.get('name') or '')
+        if not _lst:
+            _lbn = int(_blk.get('cont') or 0)
+            _lnm, _lcn = str(_blk.get('leader') or ''), int(_blk.get('cont') or 0)
+        try:
+            _chg = float(_blk.get('change') or 0)
+        except Exception:
+            _chg = 0.0
+        _lead = ('%s %d板' % (_lnm, _lcn)) if (_lnm and _lcn >= 2) else (_lnm or '未标注')
+        if _i > 1 and _lnm and _lnm == _first_lead:
+            _leadline = ''          # 同一条龙头不重复画，第 1 条已写清
+        else:
+            _leadline = ('<div style="font-size:11px;color:#8d9bab;margin-top:2px;">龙头 %s</div>'
+                         % _lead)
+            if _lnm and not _first_lead:
+                _first_lead = _lnm
+        _b_cause += ('<div style="margin-top:7px;padding-top:6px;border-top:1px dashed #2c3648;">'
+                     '<div style="font-size:13px;font-weight:700;color:#fff;line-height:1.5;">%d %s '
+                     '<span style="color:%s;">%+.2f%%</span>'
+                     '<span style="color:#8d9bab;font-size:11px;">　%d家涨停·%d家连板</span></div>'
+                     '<div style="font-size:12px;color:#ffe8a3;line-height:1.65;margin-top:3px;">%s</div>'
+                     '%s</div>'
+                     % (_i, _blk.get('name'), _c(_chg), _chg,
+                        _blk.get('lu') or len(_lst), _lbn,
+                        _eod_cause_txt(_blk, _news2, _used_ind), _leadline))
+
+    # ③ 传导：只给第一条线画一次上下游 + 今日跟风却未封板的票
+    _k0 = _n2h_cluster(_pb[0].get('name') or '') if _pb else ''
+    _chain = _N2H_CHAIN.get(_k0, ('', '')) if _k0 else ('', '')
+    if _chain[0]:
+        _tips = re.sub(r'^卡位(看)?：?', '', _chain[1])
+        _b_chain = ('<div style="font-size:12px;color:#ffd8a8;line-height:1.75;">%s</div>'
+                    '<div style="font-size:11px;color:#8d9bab;margin-top:3px;line-height:1.6;">卡位看：%s</div>'
+                    % (_chain[0], _tips))
+    else:
+        _b_chain = ('<div style="font-size:12px;color:#8d9bab;line-height:1.75;">'
+                    '这条线的上下游这次没对上，不硬画一条链</div>')
+    _fg = []
+    try:
+        _ztc = {str(x.get('code') or '') for x in ((_pb[0] or {}).get('list') or [])}
+        _nm0 = re.sub(r'(概念|板块|行业|指数)$', '', _pb[0].get('name') or '')
+        for _g in (_clist_gainers() or []):
+            if str(_g.get('code') or '') in _ztc or float(_g.get('lb') or 0) < 1.5:
+                continue
+            if float(_g.get('pct') or 0) >= 9.0:      # 已涨停/准涨停的不算「还没封板」
+                continue
+            _ind = str(_g.get('industry') or '')
+            if _nm0 and (_nm0 in _ind or _ind in _nm0):
+                _fg.append('%s %+.1f%%' % (_g['name'], _g['pct']))
+            if len(_fg) >= 3:
+                break
+    except Exception:
+        _fg = []
+    if _fg:
+        _b_chain += ('<div style="font-size:12px;color:#e9ecef;margin-top:5px;line-height:1.65;">'
+                     '同一时间跟着放量、还没封板的：%s</div>' % '、'.join(_fg))
+
+    # ④ 明日可上车：沿用五闸量化入榜，但个股行不再写「主业占比」
+    _pick_html = _eod_elite_pick(scored, tpool)
+    _pick_html = re.sub(r'<div style="margin-top:12px;font-size:15px;font-weight:800;color:[^"]+;">'
+                        r'🎯 明日精选[^<]*</div>', '', _pick_html, count=1)
+    try:
+        _main0 = re.sub(r'(概念|板块|行业|指数)$', '', (_pb[0].get('name') or '')) if _pb else ''
+        _off, _blog = [], {}
+        for _x9 in (_clist_gainers() or []):
+            _blog[str(_x9.get('code') or '')] = str(_x9.get('industry') or '')
+        for _c9, _n9, _p9 in (_EOD_PICK_LAST or []):
+            _ind9 = _blog.get(_pure_code(_c9), '')
+            if _main0 and _ind9 and _main0 not in _ind9 and _ind9 not in _main0:
+                _off.append(_n9)
+        if _off and len(_off) == len(_EOD_PICK_LAST):
+            _pick_html += ('<div style="font-size:12px;color:#ff9f43;line-height:1.65;margin-top:5px;">'
+                           '这几只都不在今天的主线（%s）里，是闸门从全市场筛出来的独立票，'
+                           '明天按自己的量价做，不借主线仓位加</div>' % _main0)
+    except Exception as _eoff:
+        print('[eod2] 主线归属判断失败:', str(_eoff)[:50])
+
+    # ⑤ 暗线：产品 → 非主营产业方向，一行一只
+    _dset, _seen_d = [], set()
+
+    def _add_d(_code, _name):
+        _c6 = _pure_code(_code)
+        if not _c6 or _c6 in _seen_d:
+            return
+        _lk = _eod_dark_of(_code, _name)
+        if not _lk:
+            return
+        _seen_d.add(_c6)
+        _dset.append((str(_name or _c6), _c6, _lk))
+    for _blk in _pb:
+        for _st in (_blk.get('list') or [])[:2]:
+            _add_d(_st.get('code'), _st.get('name'))
+    for _cc, _nn, _pp in (_EOD_PICK_LAST or []):
+        _add_d(_cc, _nn)
+    for _h in HOLDINGS:
+        _add_d(_h.get('code'), _h.get('name'))
+    _b_dark = ''.join(
+        '<div style="font-size:12px;color:#e5d4ff;line-height:1.8;margin-top:4px;">'
+        '<b>%s</b> %s</div>' % (n1, lk1) for n1, c1, lk1 in _dset)
+    if not _b_dark:
+        _b_dark = '<div style="font-size:12px;color:#8d9bab;">今天这几只没有产品级对得上的非主营方向，不硬写</div>'
+
+    # ⑥ 一句话：明天干什么 + 持仓怎么看 + 口径 + 风险
+    _pn = '、'.join(n2 for _c2, n2, _p2 in (_EOD_PICK_LAST or [])[:3])
+    if _pn:
+        _one_a = '明天只做 %s，按上面的买点分批进，跌破止损就不做' % _pn
+    else:
+        _one_a = '明天没有一只过闸，先空仓等竞价，不做不对'
+    _holds_txt = []
+    for _h in HOLDINGS:
+        try:
+            _q = _qt(_h['code']) or {}
+        except Exception:
+            _q = {}
+        if not _q or not _q.get('price'):
+            continue
+        _px0 = float(_q.get('price') or 0)
+        _pc0 = float(_q.get('pct') or 0)
+        _cs0 = float(_h.get('cost') or 0)
+        _rt0 = (_px0 / _cs0) if _cs0 else 1.0
+        _los = (_px0 - _cs0) / _cs0 * 100 if _cs0 else 0.0
+        if _rt0 < 0.6:
+            _adv = '深套 %.0f%%，别在缩量横盘里割，等放量反抽日减一半' % abs(_los)
+        elif _rt0 < 0.8:
+            _adv = '亏 %.0f%%，反抽站上 5 日线先减一半，剩下等站回成本区' % abs(_los)
+        elif _rt0 < 1.0:
+            _adv = '亏 %.0f%%，反弹到成本区先减一半' % abs(_los)
+        else:
+            _adv = '还在成本上方，跌破 5 日线就减'
+        _holds_txt.append('%s %.2f（%+.1f%%）成本 %.2f，%s' % (_h['name'], _px0, _pc0, _cs0, _adv))
+    _b_one = ('<div style="font-size:14px;color:#8ce99a;font-weight:800;line-height:1.7;">%s</div>' % _one_a)
+    if _holds_txt:
+        _b_one += ('<div style="font-size:12px;color:#e9ecef;margin-top:5px;line-height:1.7;">持仓：%s</div>'
+                   % '；'.join(_holds_txt))
+    _b_one += ('<div style="font-size:11px;color:#8d9bab;margin-top:5px;line-height:1.6;">'
+               '口径：涨停/炸板取东财涨停池，板块与涨因取同花顺涨停板块榜(涨停股披露原因原文)＋当日快讯，个股取腾讯实时，暗线取东财主营构成与产业交叉表</div>')
+    _b_one += ('<div style="font-size:11px;color:#ff9f43;margin-top:3px;line-height:1.6;">风险：%s</div>'
+               % ('；'.join(risk) if risk else ('炸板率 %.0f%%，接力资金不坚决，单票不超过 2 成，日总仓不超过 4 成' % (zbr * 100))))
+
+    _parts = [('temp', _eod_sec_card('① 收盘温度', '指数·涨停·炸板率', _EOD_COL['temp'], _b_temp)),
+              ('cause', _eod_sec_card('② 今天涨的线·钱为什么进去', '涨因取涨停股披露原文，不取模型编的', _EOD_COL['cause'], _b_cause)),
+              ('chain', _eod_sec_card('③ 这条线怎么传下来的', '上下游只写一遍', _EOD_COL['chain'], _b_chain)),
+              ('pick', _eod_sec_card('④ 明日可上车', '五闸过滤·未涨停·点位止损', _EOD_COL['pick'], _pick_html)),
+              ('dark', _eod_sec_card('⑤ 暗线·不是主营的那条腿', '只写能对上的产品延伸', _EOD_COL['dark'], _b_dark)),
+              ('one', _eod_sec_card('⑥ 一句话', '', _EOD_COL['one'], _b_one))]
     # v7.9v2：预算走真实成品长度闭环（_style_upgrade 按元素膨胀约 7%，写死阈值必然算漏）
     inner, _fit_drop = _eod_fit_styled(
         _parts, lambda h: len(_style_upgrade(_wrap(h, '🌆', '收盘复盘'))))
@@ -11481,6 +11789,7 @@ def build_eod():
         else:
             _idxword = '平盘'
         _top_sec = (scored[0][0] if scored else '')
+        _top_sec = {'汽车零部': '汽车零部件'}.get(_top_sec, _top_sec)
         _eod_title = '收盘复盘：指数' + _idxword + (('，' + _top_sec + '方向相对活跃') if _top_sec else '')
     except Exception:
         _eod_title = '收盘复盘'
@@ -12721,7 +13030,7 @@ def _pulse_boards(top_n=8):
                 best, leader = cn, str(s.get('name') or '').strip()
         stage = '一致期' if ((lu >= 8 and chg > 0) or cont >= 3) else ('分歧期' if lu >= 3 else '退潮期')
         out.append({'code': str(x.get('code') or ''), 'name': nm, 'change': round(chg, 2),
-                    'lu': lu, 'leader': leader, 'stage': stage,
+                    'lu': lu, 'cont': cont, 'leader': leader, 'stage': stage,
                     'list': (x.get('stock_list') or [])})
     out.sort(key=lambda t: -t['lu'])
     global _PULSE_BOARDS_ALL
