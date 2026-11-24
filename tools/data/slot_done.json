@@ -424,5 +424,6 @@
  "news2h|2026-11-24|1001": true,
  "pulse|2026-11-24|1020": true,
  "newsfire|2026-11-24": true,
- "follow|2026-11-24|1035": true
+ "follow|2026-11-24|1035": true,
+ "hourly|2026-11-24|11": true
 }
