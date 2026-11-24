@@ -5760,7 +5760,7 @@ def _chain_dark(s, short=False):
         if _kind == 'main':
             if _leg:
                 return '「%s」%+.1f%%，这条腿（%s）本来就是它的产线，属明面逻辑' % (_con, _pct, _leg)
-            return '「%s」%+.1f%%，这条腿就是它自家产品，属明面逻辑' % (_con, _pct)
+            return '「%s」%+.1f%%，这条腿跟它的行业口径重合，属明面逻辑' % (_con, _pct)
         return '「%s」%+.1f%%，这条链上它供哪一截没核到，只能算蹭' % (_con, _pct)
     try:
         _pos = _au_pos_of(code, float(_s.get('price') or 0))
@@ -5791,8 +5791,9 @@ def _chain_dark(s, short=False):
             _tail = '量比 %.2f 倍，量能是真的，按题材节奏做，别给延伸溢价'
         else:
             _tail = '量比 %.2f 倍，量能一般，只在回踩时接，别给延伸溢价'
-        return (('「%s」%+.1f%% 这条腿%s就是它自己的产品线，属明面逻辑；' + _tail)
-                % (_con, _pct, _lt, _lb))
+        _lm = ('就是它自己的产品线' if _leg else '跟它的行业口径重合')
+        return (('「%s」%+.1f%% 这条腿%s%s，属明面逻辑；' + _tail)
+                % (_con, _pct, _lt, _lm, _lb))
     return ('挂的是「%s」(%+.1f%%)，这条链上它供的是哪一截没核到，只能算蹭；它%s，盘面强才跟，别当逻辑买'
             % (_con, _pct, _ptxt))
 
