@@ -12303,8 +12303,10 @@ def _ext_news_html(news, pack=None):
     rows = []
     stk = (pack or {}).get('stk') or {}
     for nw in (news or []):
-        t = str(nw.get('title') or '').strip()
+        t = str(nw.get('title') or '').strip().rstrip('?？')
         if len(t) < 8:
+            continue
+        if any(k in t for k in ('二手', '网红', '明星', '综艺', '演唱会', '票房', '彩礼')):
             continue
         if not any(k in t for k in _EXT_NEWS_KW):
             continue
@@ -15570,6 +15572,176 @@ def build_notice():
 BUILDERS['notice'] = build_notice      # 全市场公告利好晚报（每晚 20:05）
 
 
+_EVE_CHAIN_WHY = {
+    '算力硬件': '算力的钱先花在光模块、PCB和载板上，这三样是扩产的必经件',
+    '半导体': '费半一动，A股先看设备与封测，设计股跟的是情绪',
+    '半导体制造': '晶圆厂扩产，先落到封测和功率器件，再看设备',
+    '机器人/汽零': '特斯拉一动，A股炒的是汽零转机器人的产能复用',
+    '消费电子': '苹果链看备货与创新点，组装和结构件最先反应',
+    '石化/航空': '油价跌是成本端松，航司和化纤先受益，油服受伤',
+    '黄金': '金价上行先给矿端，成本固定的弹性最大',
+    '有色': '铜价看库存和加工费，冶炼副产跟着放大',
+    '出口链': '美元走弱利好海外收入占比高的出口股，汇率弹性大于业绩',
+    '久期/成长': '长端利率下行，成交放大时券商和成长弹性最大',
+}
+_EVE_NEWS_MAP = (
+    (('英伟达', '算力', 'AI服务器', '数据中心', 'HBM'), '算力', '算力硬件',
+     '算力资本开支的订单先落到光模块和载板，明天看这两条链有没有承接'),
+    (('美联储', '降息', '加息', 'CPI', '非农', '美债'), '海外流动性', '久期/成长',
+     '利率方向改的是外资风险偏好，A股先反映在成交和券商上，不改公司业绩'),
+    (('半导体', '芯片', '存储', '晶圆', '光刻'), '半导体', '半导体',
+     '芯片链看设备与封测的订单，设计股只跟情绪'),
+    (('机器人', '人形', '灵巧手', '减速器'), '机器人', '机器人/汽零',
+     '机器人消息先炒丝杠、减速器和关节模组，看有没有定点和送样'),
+    (('关税', '制裁', '实体清单', '出口管制'), '外部政策', '半导体',
+     '外部限制双刃：卡脖子环节利空、国产替代环节反而受益，看盘面选边'),
+    (('原油', 'OPEC', '油价', '天然气'), '能源', '石化/航空',
+     '油价下行是航空与化纤的成本利好，油气开采反而是收入受损'),
+    (('黄金', '金价', '避险'), '贵金属', '黄金',
+     '金价上行先落到矿端，成本固定的弹性最大'),
+    (('光伏', '储能', '锂', '固态电池', '风电'), '新能源', '新能源/储能',
+     '新能源看装机与价格，消息面利好要等排产验证'),
+    (('做市', '交易制度'), '资本市场', '久期/成长',
+     '交易制度改的是券商和流动性，明天看成交能不能放大'),
+    (('医疗器械', '影像', '手术机器人', '医疗AI'), '医疗器械', '',
+     '医疗器械看审批和入院节奏，单条技术突破不改业绩，只影响情绪'),
+    (('医药', '集采', '医保', '创新药'), '医药', '创新药/医疗',
+     '医药看临床与放量，政策类消息短期只影响情绪'),
+)
+
+
+def _eve_pct(qm, c6):
+    q = qm.get(c6)
+    if not q or not q[1]:
+        return None, None
+    px, prev = q
+    return px, (px / prev - 1) * 100
+
+
+def _eve_fmt(c6, name, qm):
+    px, pct = _eve_pct(qm, c6)
+    if px is None:
+        return '%s %s' % (name, c6)
+    return '%s %s %.2f %s' % (name, c6, px,
+                              '<span style="color:%s">%+.2f%%</span>' % (_c(pct), pct))
+
+
+def _eve_quotes(codes):
+    try:
+        return _qt_px_map([_code2qt(c) for c in codes if c]) or {}
+    except Exception:
+        return {}
+
+
+def _eve_chain_block(pack, qm, chain, movers, used_low, cap_low=3):
+    """一条外盘链条 → A股已反应票 + 低位埋伏票（真K线闸门 + 暗线 + 下手位）。"""
+    why = _EVE_CHAIN_WHY.get(chain, '')
+    head = ('<div style="margin-top:8px;font-size:13.5px;font-weight:700;color:#f1f3f5;">'
+            '◆ %s　<span style="color:%s;font-weight:400;font-size:11.5px;">外盘 %s</span></div>'
+            '<div style="font-size:11.5px;color:%s;line-height:1.55;">%s</div>'
+            % (chain, GREY, '、'.join('%s %+.2f%%' % (n, v) for n, v in movers), GREY, why))
+    dom = (_EXT_DOM.get(movers[0][0]) or ('',))[1:]
+    # 已反应：同链候选里今天已经大涨的
+    hot = []
+    for c6, nm in dom:
+        px, pct = _eve_pct(qm, c6)
+        if pct is None:
+            continue
+        if pct >= 8.5:
+            hot.append('%s %s %.2f %s' % (nm, c6, px,
+                                          '<span style="color:%s">%+.2f%%</span>' % (_c(pct), pct)))
+    if hot:
+        head += ('<div style="font-size:11.5px;color:%s;margin-top:2px;">'
+                 '● 已反应　%s　<span style="color:#6b7280;">今天已经抬起来，明天只做回踩不追</span></div>'
+                 % (RED, '｜'.join(hot[:2])))
+    # 低位埋伏
+    amb = _EXT_AMBUSH.get(chain)
+    if amb and chain not in used_low:
+        c6, nm, dark = amb
+        px, pct = _eve_pct(qm, c6)
+        if px and pct is not None and -3.0 <= pct <= 6.0:
+            low = _ext_low(c6, px) if '_ext_low' in globals() else None
+            if low and low[0] <= 45 and low[1] <= -6:
+                used_low.add(chain)
+                head += ('<div style="margin-top:3px;font-size:12px;color:#a78bfa;font-weight:700;">'
+                         '◇ 低位埋伏　%s　%s　<span style="color:#8d9bab;font-weight:400;">位置 %.0f%%·距20日高 %+.1f%%</span></div>'
+                         '<div style="font-size:11.5px;color:#c9b6ff;line-height:1.55;">暗线 %s</div>'
+                         '<div style="font-size:11.5px;color:%s;">下手 %.2f 附近（现价即可），破 %.2f 走（-4.5%%），'
+                         '明天若高开超 2%% 不追</div>'
+                         % (nm, c6, low[0], low[1], dark, GREY, px, px * 0.955))
+                return head
+    head += ('<div style="font-size:11.5px;color:%s;margin-top:2px;">'
+             '◇ 这条链今晚没有低位位子，同链票都在20日高位，明天只观察不动手</div>' % GREY)
+    return head
+
+
+def _eve_news_html(news, qm):
+    """突发新闻：真标题 + 类别 + 落到哪条链/哪只票；对不上链的也列出来，明写只影响情绪。"""
+    _DOMKEY = {'算力硬件': '英伟达', '半导体': '费半', '半导体制造': '台积电',
+               '机器人/汽零': '特斯拉', '消费电子': '苹果', '黄金': '黄金',
+               '有色': '伦铜', '石化/航空': '原油', '出口链': '美元指数',
+               '久期/成长': '美债10Y'}
+    rows, plain = [], []
+    for nw in (news or []):
+        t = str(nw.get('title') or '').strip().rstrip('?？')
+        if len(t) < 8:
+            continue
+        if any(k in t for k in ('二手', '网红', '明星', '综艺', '演唱会', '票房', '彩礼')):
+            continue
+        hit = None
+        for kws, lab, chain, imp in _EVE_NEWS_MAP:
+            if any(k in t for k in kws):
+                hit = (lab, chain, imp)
+                break
+        ttl = t if len(t) <= 42 else t[:41] + '…'
+        if not hit:
+            if len(plain) < 3 and any(k in t for k in ('政策', '发布', '发改委', '工信部', '证监会', '装机', '产能', '扩产', '订单', '中标', '开工', '投产', '出口', '关税', '牌照', '试点', '价格', '涨价', '收储', '补贴', '规划', '重组')):
+                plain.append(ttl)
+            continue
+        lab, chain, imp = hit
+        dom = (_EXT_DOM.get(_DOMKEY.get(chain, '')) or ('',))[1:]
+        names = '、'.join(nm for _, nm in dom[:2]) if dom else ''
+        rows.append('<div style="margin-top:5px;font-size:12.5px;line-height:1.6;color:#e2e8f0;">'
+                    '<span style="color:%s;font-size:11px;">［%s］</span>%s'
+                    '<div style="color:%s;font-size:11.5px;">→ %s%s</div></div>'
+                    % (TEAL, lab, ttl, GREY, imp, ('，对照票 %s' % names) if names else ''))
+        if len(rows) >= 4:
+            break
+    for ttl in plain:
+        rows.append('<div style="margin-top:5px;font-size:12.5px;line-height:1.6;color:#e2e8f0;">'
+                    '<span style="color:%s;font-size:11px;">［要闻］</span>%s'
+                    '<div style="color:%s;font-size:11.5px;">→ 跟A股产业链没有直接对应，明天只看情绪，'
+                    '不拿这条当买入理由</div></div>' % (GREY, ttl, GREY))
+    if not rows:
+        return ('<div style="font-size:12px;color:%s;">今晚没有能直接落到产业链的实质新闻，'
+                '消息面只影响情绪，明天按盘面走</div>' % GREY)
+    return ''.join(rows)
+
+
+def _eve_hold_html(qm):
+    rows = []
+    for h in HOLDINGS:
+        c6 = str(h['code'])[-6:]
+        px, pct = _eve_pct(qm, c6)
+        hit = _PRODUCT_HARD.get(c6)
+        prod = hit[0] if hit else h.get('sector', '')
+        dark = hit[1] if hit else ''
+        if px is None:
+            rows.append('<div style="margin-top:6px;font-size:12.5px;">%s %s　价格未取得</div>'
+                        % (h['name'], c6))
+            continue
+        stop = px * 0.955
+        act = ('站稳 %.2f 就持有，破 %.2f 减半，%.2f 是硬止损'
+               % (px * 0.98, px * 0.96, stop))
+        rows.append('<div style="margin-top:7px;font-size:12.5px;line-height:1.6;color:#e2e8f0;">'
+                    '<b>%s</b> %s　%.2f <span style="color:%s">%+.2f%%</span>'
+                    '<div style="color:%s;font-size:11.5px;">产品　%s</div>'
+                    '<div style="color:#c9b6ff;font-size:11.5px;line-height:1.55;">暗线　%s</div>'
+                    '<div style="color:%s;font-size:11.5px;">明天　%s</div></div>'
+                    % (h['name'], c6, px, _c(pct), pct, GREY, prod, dark, GREY, act))
+    return ''.join(rows)
+
+
 def build_evening():
     """晚间消息汇总（北京 22:50）：今日A股全景 + 全球晚间行情/消息 → DS 大白话
     「今日大事 + 明日关注」。DS 失败/用尽 → 规则兜底（行情+新闻列表）。"""
@@ -15660,12 +15832,125 @@ def build_evening():
         news_rows, _used_ds = _news_html_lines(ev_news, n=8, purpose_key='eve_news', max_show=12)
         _msg_html = ('<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">'
                      '📰 今日消息汇总（按事件强度）</div>' + news_rows)
-    inner = (f'<div style="font-size:15px;font-weight:800;color:#ff922b;">🇨🇳 今日A股全景</div>' + a_sec
-             + f'<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🌐 全球晚间行情</div>'
-             + _global_markets_html(gl)
-             + (f'<div style="margin-top:10px;padding:10px;background:#1c2230;border-left:4px solid {GOLD};border-radius:8px;font-size:13px;line-height:1.8;color:#e2e8f0;">🤖 今日大事 & 明日关注 & 最大风险：{ds_html}</div>' if ds_html else '')
-             + _lhb_html_block
-             + _msg_html)
+    # —— 外盘真数据（复用外盘窗口那套接口，失败就缺项，不编） ——
+    _pk = {}
+    try:
+        _pk = _ext_pack()
+    except Exception as _pe:
+        print('[evening] ext_pack 失败:', type(_pe).__name__, str(_pe)[:50])
+    # 外盘在涨什么：个股取 >=2% 的正向，指数只取费半
+    _mov = []
+    for nm, v in (_pk.get('stk') or {}).items():
+        if nm in ('美元指数', '美债10Y', '美债20Y'):
+            continue
+        chain = (_EXT_DOM.get(nm) or ('',))[0]
+        if chain and v is not None and v >= 2.0:
+            _mov.append((nm, v, chain))
+    _fei = (_pk.get('us') or {}).get('费半')
+    if _fei is not None and _fei >= 2.0 and '半导体' not in [c for _, _, c in _mov]:
+        _mov.append(('费半', _fei, '半导体'))
+    _mov.sort(key=lambda t: -t[1])
+    _chains, _by_chain = [], {}
+    for nm, v, chain in _mov:
+        if chain not in _by_chain:
+            _chains.append(chain)
+            _by_chain[chain] = []
+        _by_chain[chain].append((nm, v))
+    # 半导体与半导体制造是同一条大链，合成一条，避免同一晚把两条都写一遍
+    if '半导体' in _chains and '半导体制造' in _chains:
+        _keep = max(('半导体', '半导体制造'), key=lambda c: max(v for _, v in _by_chain[c]))
+        _drop = '半导体制造' if _keep == '半导体' else '半导体'
+        _by_chain[_keep] = sorted(_by_chain[_keep] + _by_chain[_drop], key=lambda t: -t[1])
+        _chains = [c for c in _chains if c != _drop]
+    _chains = _chains[:3]
+    _codes = []
+    for ch in _chains:
+        for c6, _nm in (_EXT_DOM.get(_by_chain[ch][0][0]) or ('',))[1:]:
+            _codes.append(c6)
+        _amb = _EXT_AMBUSH.get(ch)
+        if _amb:
+            _codes.append(_amb[0])
+    for h in HOLDINGS:
+        _codes.append(str(h['code'])[-6:])
+    _qm = _eve_quotes(_codes)
+    _used_low = set()
+    _infect = ''.join(_eve_chain_block(_pk, _qm, ch, _by_chain[ch], _used_low)
+                      for ch in _chains) or ('<div style="font-size:12px;color:%s;">'
+                                             '外盘今晚没有超过 2%% 的产业级上涨，传染链为空，不硬凑</div>' % GREY)
+    # 外盘夜间行情：分风险偏好与商品两组，缺项不显示
+    _g = {nm: (pct, note) for nm, pct, note in gl}
+    def _mk(items):
+        out = []
+        for nm, pct, note in items:
+            if pct is None:
+                continue
+            out.append('<span style="margin-right:8px;white-space:nowrap;color:%s;">%s %+.2f%%</span>'
+                       % (_c(pct), nm, pct))
+        return ''.join(out) or '<span style="color:%s;">未取得</span>' % GREY
+    _risk_row = _mk([(nm, pct, note) for nm, pct, note in gl
+                     if nm in ('纳指', '道指', '标普', '恒生')])
+    _comm_row = _mk([(nm, pct, note) for nm, pct, note in gl
+                     if nm in ('原油', '黄金')])
+    _a50 = _pk.get('a50')
+    _extra = []
+    if _a50 is not None:
+        _extra.append('<span style="margin-right:8px;white-space:nowrap;color:%s;">A50夜盘 %+.2f%%</span>'
+                      % (_c(_a50), _a50))
+    _usd = (_pk.get('stk') or {}).get('美元指数')
+    if _usd is not None:
+        _extra.append('<span style="margin-right:8px;white-space:nowrap;color:%s;">美元 %+.2f%%</span>'
+                      % (_c(_usd), _usd))
+    # 定盘一句判断
+    _zb_rate = (d['zb'] / max(1, d['lu'] + d['zb']) * 100) if d else 0
+    if d and _zb_rate < 15 and d['max_lbc'] >= 3:
+        _verdict = '连板高度还在，炸板率不高，明天有接力土壤'
+    elif d and _zb_rate >= 30:
+        _verdict = '炸板率偏高，明天高开就是兑现窗口，不接第二波'
+    else:
+        _verdict = '情绪中性，明天只做有量的低位，不接高位'
+    _has_d = bool(d) and (d['lu'] + d['zb'] + d['dt'] > 0)
+    if not _has_d:
+        _lu = _zb = _dt = _mx_txt = '—'
+        _tops = '未取得'
+        _verdict = '盘面数据没取到（盘前或休市），今晚不定调，明天看竞价'
+    else:
+        _lu = d['lu']
+        _zb = d['zb']
+        _dt = d['dt']
+        _mx_txt = '%s板' % d['max_lbc']
+        _tops = '、'.join(n for n, _ in d['tops'][:3]) or '未取得'
+        _zb_rate = d['zb'] / max(1, d['lu'] + d['zb']) * 100
+        if _zb_rate < 15 and d['max_lbc'] >= 3:
+            _verdict = '连板高度还在，炸板率不高，明天有接力土壤'
+        elif _zb_rate >= 30:
+            _verdict = '炸板率偏高，明天高开就是兑现窗口，不接第二波'
+        else:
+            _verdict = '情绪中性，明天只做有量的低位，不接高位'
+    inner = (
+        '<div style="font-size:14px;font-weight:800;color:#ff922b;">■ 今日定盘</div>'
+        '<div style="margin-top:3px;font-size:12.5px;color:#e2e8f0;">'
+        f'涨停 <b style="color:{RED}">{_lu}</b>｜炸板 <b style="color:{GREEN}">{_zb}</b>'
+        f'｜跌停 <b style="color:{GREEN}">{_dt}</b>｜最高 <b style="color:{GOLD}">{_mx_txt}</b></div>'
+        f'<div style="font-size:11.5px;color:{GREY};margin-top:2px;">{_verdict}</div>'
+        f'<div style="font-size:11.5px;color:{GREY};margin-top:2px;">今日主线　{_tops}</div>'
+        '<div style="margin-top:9px;font-size:14px;font-weight:800;color:#ff922b;">■ 外盘夜间</div>'
+        f'<div style="margin-top:3px;font-size:12px;line-height:1.8;">{_risk_row}{"".join(_extra)}</div>'
+        f'<div style="font-size:12px;line-height:1.8;">{_comm_row}</div>'
+        '<div style="margin-top:10px;font-size:14px;font-weight:800;color:#ff922b;">■ 外盘在涨什么，会传到A股哪条链</div>'
+        + _infect +
+        '<div style="margin-top:10px;font-size:14px;font-weight:800;color:#ff922b;">■ 突发新闻（能落到产业链的）</div>'
+        + _eve_news_html(ev_news, _qm) +
+        '<div style="margin-top:10px;font-size:14px;font-weight:800;color:#ff922b;">■ 你的持仓，明天怎么处理</div>'
+        + _eve_hold_html(_qm) +
+        '<div style="margin-top:10px;font-size:14px;font-weight:800;color:#ff922b;">■ 明天开盘的执行顺序</div>'
+        '<div style="font-size:12px;line-height:1.7;color:#e2e8f0;">'
+        '① 9:25 竞价只看上面那几条链条里标了低位埋伏的票，没高开超 2% 才算符合；'
+        '② 9:30-10:00 只做第一只放量不漏的单子，破当日低点立刻走；'
+        '③ 手上涨停票一律不加，明天冲高就是减仓机会；'
+        '④ 任何一只从买入价回撤 4.5% 无条件止损，不扛。</div>'
+        f'<div style="margin-top:6px;color:{GREY};font-size:11px;">外盘涨跌只当线索，A股买点看自己的量价；'
+        '暗线是产业延伸不是订单</div>'
+    )
     return _wrap(inner, '🌙', '晚间消息汇总')
 
 
