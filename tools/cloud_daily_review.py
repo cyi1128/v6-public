@@ -5755,8 +5755,8 @@ def _chain_dark(s, short=False):
         if _kind == 'ext' and _leg:
             _cut = _lg if len(_lg) <= 38 else _lg[:37].rstrip('，、') + '…'
             if _cut:
-                return '%s——%s（「%s」%+.1f%%）' % (_leg, _cut, _con, _pct)
-            return '%s（「%s」%+.1f%%）' % (_leg, _con, _pct)
+                return '（「%s」%+.1f%%）%s——%s' % (_con, _pct, _leg, _cut)
+            return '（「%s」%+.1f%%）%s' % (_con, _pct, _leg)
         if _kind == 'main':
             if _leg:
                 return '「%s」%+.1f%%，这条腿（%s）本来就是它的产线，属明面逻辑' % (_con, _pct, _leg)
