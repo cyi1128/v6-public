@@ -4426,3 +4426,9 @@
 06:47:41 [llm] OK purpose=link_confirm len=98
 06:57:24 [llm] OK purpose=tail len=1984
 06:58:18 [llm] OK purpose=tail len=1009
+07:09:44 [llm] OK purpose=theme_health_card len=622
+07:11:12 [llm] OK purpose=signal_review len=237
+07:12:23 [llm] OK purpose=eod_review_ds len=998
+07:13:17 [llm] OK purpose=eod len=1196
+07:15:43 [llm] OK purpose=miss_deep len=404
+07:17:09 [llm] OK purpose=resonance_verdict len=169
