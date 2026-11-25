@@ -4424,3 +4424,5 @@
 06:17:13 [llm] OK purpose=link_confirm len=105
 06:32:58 [llm] OK purpose=link_confirm len=100
 06:47:41 [llm] OK purpose=link_confirm len=98
+06:57:24 [llm] OK purpose=tail len=1984
+06:58:18 [llm] OK purpose=tail len=1009
