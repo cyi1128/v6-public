@@ -1798,3 +1798,9 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public
 11-25 09:27:05     auction| [auction] 暗线补挖跳过（剩余 1s 不足）
 11-25 09:27:05     auction| SLOT auction PUSH True 执行成功
 11-25 09:27:05     auction| [auction] 暗线补挖跳过（剩余 -15s 不足）
+11-25 09:27:06 持久化(auction)：已推送
+11-25 09:27:06 <<< 完成槽位 auction，用时 119.1s
+11-25 09:30:06 >>> 执行槽位 watch @ 09:30:06
+11-25 09:30:06 >>> 预算：LLM 600s / 单模型 120s / 子进程上限 750s
+11-25 09:32:37     watch| [git] push fail attempt1: b'remote: Internal Server Error        \nremote: Request ID 2849:145EC8:BE9AF:172B0E:6B063A2A        \nremote: Time 2026-11-'
+11-25 09:32:37     watch| SLOT watch PUSH True 执行成功
