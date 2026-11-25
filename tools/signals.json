@@ -845,7 +845,7 @@
   "name": "*ST仕净",
   "close": 4.57,
   "pct": 15.7,
-  "next_open_pct": null
+  "next_open_pct": -5.908096280087538
  },
  {
   "date": "2026-11-24",
@@ -853,7 +853,7 @@
   "name": "*ST开元",
   "close": 1.96,
   "pct": 20.25,
-  "next_open_pct": null
+  "next_open_pct": 1.0204081632652962
  },
  {
   "date": "2026-11-24",
@@ -861,7 +861,7 @@
   "name": "*ST动力",
   "close": 1.24,
   "pct": 19.23,
-  "next_open_pct": null
+  "next_open_pct": -8.064516129032262
  },
  {
   "date": "2026-11-24",
@@ -869,7 +869,7 @@
   "name": "和仁科技",
   "close": 16.8,
   "pct": 17.73,
-  "next_open_pct": null
+  "next_open_pct": -0.4761904761904856
  },
  {
   "date": "2026-11-24",
@@ -877,7 +877,7 @@
   "name": "*ST泉为",
   "close": 13.16,
   "pct": 19.53,
-  "next_open_pct": null
+  "next_open_pct": -2.9635258358662653
  },
  {
   "date": "2026-11-24",
@@ -885,6 +885,6 @@
   "name": "*ST天喻",
   "close": 3.55,
   "pct": 19.93,
-  "next_open_pct": null
+  "next_open_pct": 0.5633802816901401
  }
 ]
