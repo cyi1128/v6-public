@@ -4401,3 +4401,4 @@
 01:27:05 [ask_deepseek] 首轮无返回即止损 purpose=auction
 01:27:05 [ask_deepseek] ModelScope 两次尝试均失败，purpose=auction
 01:36:44 [llm] OK purpose=open_check len=178
+02:30:49 [llm] OK purpose=warn_news_ds len=1724
