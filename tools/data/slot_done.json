@@ -469,5 +469,6 @@
  "pulse|2026-11-25|1350": true,
  "hourly|2026-11-25|14": true,
  "preclose|2026-11-25": true,
- "tail|2026-11-25": true
+ "tail|2026-11-25": true,
+ "cycle|2026-11-25": true
 }
