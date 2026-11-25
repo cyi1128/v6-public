@@ -458,5 +458,6 @@
  "hourly|2026-11-25|10": true,
  "pulse|2026-11-25|1020": true,
  "newsfire|2026-11-25": true,
- "follow|2026-11-25|1035": true
+ "follow|2026-11-25|1035": true,
+ "hourly|2026-11-25|11": true
 }
