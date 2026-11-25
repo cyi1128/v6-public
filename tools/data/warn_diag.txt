@@ -4400,3 +4400,4 @@
 01:27:05 [llm] 两波并发均无返回 purpose=auction
 01:27:05 [ask_deepseek] 首轮无返回即止损 purpose=auction
 01:27:05 [ask_deepseek] ModelScope 两次尝试均失败，purpose=auction
+01:36:44 [llm] OK purpose=open_check len=178
