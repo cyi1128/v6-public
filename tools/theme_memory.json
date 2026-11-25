@@ -1,4 +1,97 @@
 {
+ "2026-11-25": {
+  "化学制药": {
+   "leaders": [
+    "天圣制药",
+    "石药景峰",
+    "亨迪药业"
+   ],
+   "reason": "8只涨停·龙头天圣制药",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "一般零售": {
+   "leaders": [
+    "杭州解百",
+    "中央商场",
+    "家家悦"
+   ],
+   "reason": "4只涨停·龙头杭州解百",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 93003,
+   "divergence": false
+  },
+  "中药Ⅱ": {
+   "leaders": [
+    "特一药业",
+    "盘龙药业",
+    "桂林三金"
+   ],
+   "reason": "3只涨停·龙头特一药业",
+   "strength": 9,
+   "max_lbc": 1,
+   "fbt": 93133,
+   "divergence": false
+  },
+  "通用设备": {
+   "leaders": [
+    "汇洲智能",
+    "宁波东力"
+   ],
+   "reason": "2只涨停·龙头汇洲智能",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "饲料": {
+   "leaders": [
+    "金新农",
+    "正虹科技"
+   ],
+   "reason": "2只涨停·龙头金新农",
+   "strength": 10,
+   "max_lbc": 4,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "汽车零部": {
+   "leaders": [
+    "克来机电",
+    "铁流股份"
+   ],
+   "reason": "2只涨停·龙头克来机电",
+   "strength": 10,
+   "max_lbc": 4,
+   "fbt": 92501,
+   "divergence": false
+  },
+  "化学原料": {
+   "leaders": [
+    "金牛化工",
+    "钛能化学"
+   ],
+   "reason": "2只涨停·龙头金牛化工",
+   "strength": 9,
+   "max_lbc": 2,
+   "fbt": 133626,
+   "divergence": false
+  },
+  "渔业": {
+   "leaders": [
+    "好当家",
+    "獐子岛"
+   ],
+   "reason": "2只涨停·龙头好当家",
+   "strength": 8,
+   "max_lbc": 1,
+   "fbt": 93133,
+   "divergence": false
+  }
+ },
  "2026-11-24": {
   "汽车零部": {
    "leaders": [
@@ -667,104 +760,6 @@
    "strength": 8,
    "max_lbc": 1,
    "fbt": 105309,
-   "divergence": false
-  }
- },
- "2026-11-11": {
-  "汽车零部": {
-   "leaders": [
-    "光洋股份",
-    "天普股份",
-    "襄阳轴承"
-   ],
-   "reason": "10只涨停·龙头光洋股份",
-   "strength": 10,
-   "max_lbc": 3,
-   "fbt": 94345,
-   "divergence": false
-  },
-  "通用设备": {
-   "leaders": [
-    "锋龙股份",
-    "日发精机",
-    "申科股份"
-   ],
-   "reason": "8只涨停·龙头锋龙股份",
-   "strength": 10,
-   "max_lbc": 3,
-   "fbt": 93021,
-   "divergence": false
-  },
-  "专用设备": {
-   "leaders": [
-    "达 意 隆",
-    "中重科技",
-    "海源复材"
-   ],
-   "reason": "7只涨停·龙头达 意 隆",
-   "strength": 10,
-   "max_lbc": 2,
-   "fbt": 92500,
-   "divergence": false
-  },
-  "通信设备": {
-   "leaders": [
-    "日海智能",
-    "剑桥科技",
-    "华脉科技"
-   ],
-   "reason": "7只涨停·龙头日海智能",
-   "strength": 10,
-   "max_lbc": 2,
-   "fbt": 93009,
-   "divergence": false
-  },
-  "元件": {
-   "leaders": [
-    "东山精密",
-    "沪电股份",
-    "奥士康"
-   ],
-   "reason": "5只涨停·龙头东山精密",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 131139,
-   "divergence": false
-  },
-  "游戏Ⅱ": {
-   "leaders": [
-    "文投控股",
-    "凯撒文化",
-    "名臣健康"
-   ],
-   "reason": "4只涨停·龙头文投控股",
-   "strength": 10,
-   "max_lbc": 3,
-   "fbt": 92500,
-   "divergence": false
-  },
-  "光伏设备": {
-   "leaders": [
-    "亚玛顿",
-    "金辰股份",
-    "泽润新能"
-   ],
-   "reason": "3只涨停·龙头亚玛顿",
-   "strength": 10,
-   "max_lbc": 3,
-   "fbt": 92500,
-   "divergence": false
-  },
-  "燃气Ⅱ": {
-   "leaders": [
-    "东方环宇",
-    "胜通能源",
-    "胜利股份"
-   ],
-   "reason": "3只涨停·龙头东方环宇",
-   "strength": 10,
-   "max_lbc": 3,
-   "fbt": 101322,
    "divergence": false
   }
  }
