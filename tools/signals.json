@@ -886,5 +886,53 @@
   "close": 3.55,
   "pct": 19.93,
   "next_open_pct": 0.5633802816901401
+ },
+ {
+  "date": "2026-11-25",
+  "code": "300927",
+  "name": "江天化学",
+  "close": 21.86,
+  "pct": 19.13,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-25",
+  "code": "002190",
+  "name": "成飞集成",
+  "close": 20.81,
+  "pct": 8.84,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-25",
+  "code": "002737",
+  "name": "葵花药业",
+  "close": 11.73,
+  "pct": 8.11,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-25",
+  "code": "300290",
+  "name": "ST荣科",
+  "close": 5.1,
+  "pct": 20.0,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-25",
+  "code": "300338",
+  "name": "*ST开元",
+  "close": 2.16,
+  "pct": 10.2,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-25",
+  "code": "000078",
+  "name": "ST海王",
+  "close": 1.18,
+  "pct": 10.28,
+  "next_open_pct": null
  }
 ]
