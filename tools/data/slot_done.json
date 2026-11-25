@@ -462,5 +462,6 @@
  "hourly|2026-11-25|11": true,
  "noon|2026-11-25": true,
  "news|2026-11-25|1140": true,
- "hourly|2026-11-25|13": true
+ "hourly|2026-11-25|13": true,
+ "pmopen|2026-11-25": true
 }
