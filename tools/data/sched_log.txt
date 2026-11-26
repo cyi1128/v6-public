@@ -2251,3 +2251,8 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public'
 11-26 09:28:06     auction| [auction] 暗线补挖跳过（剩余 -65s 不足）
 11-26 09:28:06     auction| [auction] 暗线补挖跳过（剩余 -65s 不足）
 11-26 09:28:06     auction| SLOT auction PUSH True 执行成功
+11-26 09:28:07 持久化(auction)：已推送
+11-26 09:28:07 <<< 完成槽位 auction，用时 183.2s
+11-26 09:30:08 滚动段调度结束（09:30），退出
+11-26 09:30:08 退出原因：roll-end
+11-26 09:30:08 今日已过窗未推 1 个槽：07:50ext
