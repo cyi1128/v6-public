@@ -934,5 +934,53 @@
   "close": 1.18,
   "pct": 10.28,
   "next_open_pct": -2.5423728813559365
+ },
+ {
+  "date": "2026-11-26",
+  "code": "002148",
+  "name": "北纬科技",
+  "close": 11.3,
+  "pct": 10.03,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-26",
+  "code": "301041",
+  "name": "金百泽",
+  "close": 27.63,
+  "pct": 16.88,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-26",
+  "code": "301316",
+  "name": "慧博云通",
+  "close": 32.21,
+  "pct": 13.42,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-26",
+  "code": "301107",
+  "name": "瑜欣电子",
+  "close": 18.5,
+  "pct": 14.91,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-26",
+  "code": "301119",
+  "name": "正强股份",
+  "close": 21.33,
+  "pct": 14.31,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-26",
+  "code": "301282",
+  "name": "金禄电子",
+  "close": 34.98,
+  "pct": 19.39,
+  "next_open_pct": null
  }
 ]
