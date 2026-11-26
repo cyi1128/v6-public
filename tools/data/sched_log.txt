@@ -2426,3 +2426,8 @@ error: failed to push some refs to 'https://github.com/cyi1128/v6-public'
 11-26 14:02:42     news2h| [pulse] 板块榜第1次失败: URLError(TimeoutError('_ssl.c:994: The handshake operation timed out'))
 11-26 14:02:42     news2h| [pulse] 板块榜第2次失败: URLError(TimeoutError('_ssl.c:994: The handshake operation timed out'))
 11-26 14:02:42     news2h| SLOT news2h: 构建失败，不推送
+11-26 14:02:44 持久化(news2h)：已推送
+11-26 14:02:44 <<< 完成槽位 news2h，用时 91.4s
+11-26 14:15:14 >>> 执行槽位 watch @ 14:15:14
+11-26 14:15:14 >>> 预算：LLM 600s / 单模型 120s / 子进程上限 750s
+11-26 14:18:02     watch| SLOT watch: 无异动或构建失败，不推送
