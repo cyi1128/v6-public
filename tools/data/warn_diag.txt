@@ -4455,3 +4455,7 @@
 00:38:34 [llm] OK purpose=pre_main_dark len=1446
 00:40:27 [llm] OK purpose=focus_deep len=1526
 00:41:30 [llm] OK purpose=event_dark len=421
+01:12:15 [build_warn] 进入；新闻条数=20
+01:12:15 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
+01:13:29 [llm] OK purpose=warn_news_ds len=1454
+01:13:29 [build_warn] LLM 返回长度=1454
