@@ -4464,3 +4464,5 @@
 01:27:55 [llm] 全局预算用尽 used=170s purpose=auction
 01:36:37 [llm] OK purpose=open_check len=192
 02:30:51 [llm] OK purpose=warn_news_ds len=2130
+02:39:16 [llm] OK purpose=follow len=579
+02:40:58 [llm] OK purpose=follow len=854
