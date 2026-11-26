@@ -1,4 +1,102 @@
 {
+ "2026-11-26": {
+  "元件": {
+   "leaders": [
+    "骏亚科技",
+    "东晶电子",
+    "贤丰控股"
+   ],
+   "reason": "5只涨停·龙头骏亚科技",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 93102,
+   "divergence": false
+  },
+  "化学制品": {
+   "leaders": [
+    "金三江",
+    "北化股份",
+    "江南化工"
+   ],
+   "reason": "5只涨停·龙头金三江",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 95457,
+   "divergence": false
+  },
+  "通用设备": {
+   "leaders": [
+    "雪人集团",
+    "大业股份",
+    "神驰机电"
+   ],
+   "reason": "5只涨停·龙头雪人集团",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 103206,
+   "divergence": false
+  },
+  "一般零售": {
+   "leaders": [
+    "杭州解百",
+    "中央商场",
+    "家家悦"
+   ],
+   "reason": "4只涨停·龙头杭州解百",
+   "strength": 10,
+   "max_lbc": 4,
+   "fbt": 92501,
+   "divergence": false
+  },
+  "汽车零部": {
+   "leaders": [
+    "克来机电",
+    "襄阳轴承",
+    "福达股份"
+   ],
+   "reason": "4只涨停·龙头克来机电",
+   "strength": 10,
+   "max_lbc": 5,
+   "fbt": 93114,
+   "divergence": false
+  },
+  "农化制品": {
+   "leaders": [
+    "赤天化",
+    "泸天化",
+    "金正大"
+   ],
+   "reason": "4只涨停·龙头赤天化",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 134201,
+   "divergence": false
+  },
+  "装修装饰": {
+   "leaders": [
+    "全筑股份",
+    "东易日盛",
+    "金 螳 螂"
+   ],
+   "reason": "3只涨停·龙头全筑股份",
+   "strength": 10,
+   "max_lbc": 3,
+   "fbt": 95515,
+   "divergence": false
+  },
+  "造纸": {
+   "leaders": [
+    "青山纸业",
+    "山鹰国际",
+    "岳阳林纸"
+   ],
+   "reason": "3只涨停·龙头青山纸业",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 101952,
+   "divergence": false
+  }
+ },
  "2026-11-25": {
   "化学制药": {
    "leaders": [
@@ -679,87 +777,6 @@
    "strength": 8,
    "max_lbc": 1,
    "fbt": 95006,
-   "divergence": false
-  }
- },
- "2026-11-12": {
-  "一般零售": {
-   "leaders": [
-    "大东方",
-    "广百股份",
-    "宁波中百"
-   ],
-   "reason": "3只涨停·龙头大东方",
-   "strength": 10,
-   "max_lbc": 5,
-   "fbt": 145647,
-   "divergence": false
-  },
-  "专用设备": {
-   "leaders": [
-    "中重科技",
-    "中捷资源",
-    "沈鼓集团"
-   ],
-   "reason": "3只涨停·龙头中重科技",
-   "strength": 10,
-   "max_lbc": 2,
-   "fbt": 111246,
-   "divergence": false
-  },
-  "光伏设备": {
-   "leaders": [
-    "亚玛顿",
-    "金辰股份"
-   ],
-   "reason": "2只涨停·龙头亚玛顿",
-   "strength": 10,
-   "max_lbc": 4,
-   "fbt": 92500,
-   "divergence": false
-  },
-  "基础建设": {
-   "leaders": [
-    "成都路桥",
-    "龙建股份"
-   ],
-   "reason": "2只涨停·龙头成都路桥",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 93200,
-   "divergence": false
-  },
-  "水泥": {
-   "leaders": [
-    "国统股份",
-    "福建水泥"
-   ],
-   "reason": "2只涨停·龙头国统股份",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 94506,
-   "divergence": false
-  },
-  "燃气Ⅱ": {
-   "leaders": [
-    "东方环宇",
-    "洪通燃气"
-   ],
-   "reason": "2只涨停·龙头东方环宇",
-   "strength": 10,
-   "max_lbc": 4,
-   "fbt": 110046,
-   "divergence": false
-  },
-  "服装家纺": {
-   "leaders": [
-    "哈森股份",
-    "九牧王"
-   ],
-   "reason": "2只涨停·龙头哈森股份",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 105309,
    "divergence": false
   }
  }
