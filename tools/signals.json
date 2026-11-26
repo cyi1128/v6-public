@@ -893,7 +893,7 @@
   "name": "江天化学",
   "close": 21.86,
   "pct": 19.13,
-  "next_open_pct": null
+  "next_open_pct": -7.227813357731005
  },
  {
   "date": "2026-11-25",
@@ -901,7 +901,7 @@
   "name": "成飞集成",
   "close": 20.81,
   "pct": 8.84,
-  "next_open_pct": null
+  "next_open_pct": -0.48053820278710635
  },
  {
   "date": "2026-11-25",
@@ -909,7 +909,7 @@
   "name": "葵花药业",
   "close": 11.73,
   "pct": 8.11,
-  "next_open_pct": null
+  "next_open_pct": -2.728047740835471
  },
  {
   "date": "2026-11-25",
@@ -917,7 +917,7 @@
   "name": "ST荣科",
   "close": 5.1,
   "pct": 20.0,
-  "next_open_pct": null
+  "next_open_pct": -3.137254901960773
  },
  {
   "date": "2026-11-25",
@@ -925,7 +925,7 @@
   "name": "*ST开元",
   "close": 2.16,
   "pct": 10.2,
-  "next_open_pct": null
+  "next_open_pct": -6.481481481481488
  },
  {
   "date": "2026-11-25",
@@ -933,6 +933,6 @@
   "name": "ST海王",
   "close": 1.18,
   "pct": 10.28,
-  "next_open_pct": null
+  "next_open_pct": -2.5423728813559365
  }
 ]
