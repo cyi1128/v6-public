@@ -4478,3 +4478,5 @@
 03:45:00 [反模板放行:batch_deep] 没有安全垫
 03:45:01 [llm] OK purpose=batch_deep len=1779
 03:49:05 [llm] OK purpose=event_dark len=445
+05:40:27 [llm] OK purpose=follow len=506
+05:42:34 [llm] OK purpose=follow len=1054
