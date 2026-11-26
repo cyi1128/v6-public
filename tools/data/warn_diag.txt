@@ -4462,3 +4462,4 @@
 01:27:50 [llm] 全局预算用尽 used=166s purpose=hold_deep
 01:27:53 [llm] 全局预算用尽 used=168s purpose=confirm_ds
 01:27:55 [llm] 全局预算用尽 used=170s purpose=auction
+01:36:37 [llm] OK purpose=open_check len=192
