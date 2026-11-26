@@ -4459,3 +4459,6 @@
 01:12:15 [build_warn] LLM key: MODELSCOPE=True DEEPSEEK=True
 01:13:29 [llm] OK purpose=warn_news_ds len=1454
 01:13:29 [build_warn] LLM 返回长度=1454
+01:27:50 [llm] 全局预算用尽 used=166s purpose=hold_deep
+01:27:53 [llm] 全局预算用尽 used=168s purpose=confirm_ds
+01:27:55 [llm] 全局预算用尽 used=170s purpose=auction
