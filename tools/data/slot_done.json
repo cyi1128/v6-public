@@ -525,5 +525,6 @@
  "pulse|2026-11-27|1350": true,
  "hourly|2026-11-27|14": true,
  "preclose|2026-11-27": true,
- "tail|2026-11-27": true
+ "tail|2026-11-27": true,
+ "news|2026-11-27|1510": true
 }
