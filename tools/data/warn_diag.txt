@@ -4500,3 +4500,14 @@
 14:52:15 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-122B-A10B tag=http_429
 14:53:21 [llm] OK purpose=holiday_ds len=1127
 23:51:22 [llm] OK purpose=ext_window len=566
+00:32:10 [llm] OK purpose=sec_wind_dark len=242
+00:33:12 [llm] OK purpose=pre_news_deep len=2224
+00:34:00 [llm] OK purpose=pre_news_deep len=1514
+00:35:08 [llm] OK purpose=pre_news_deep len=1808
+00:36:07 [llm] OK purpose=pre_news_deep len=1957
+00:38:31 [llm] OK purpose=focus_deep len=1668
+00:40:05 [反模板放行:pre] 管住手
+00:40:05 [llm] OK purpose=pre len=315
+00:41:14 [llm] OK purpose=pre_main_dark len=1343
+00:43:55 [llm] OK purpose=focus_deep len=1424
+00:45:37 [llm] OK purpose=event_dark len=559
