@@ -1,4 +1,102 @@
 {
+ "2026-11-27": {
+  "半导体": {
+   "leaders": [
+    "三佳科技",
+    "大港股份",
+    "金海通"
+   ],
+   "reason": "42只涨停·龙头三佳科技",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 93410,
+   "divergence": false
+  },
+  "IT服务Ⅱ": {
+   "leaders": [
+    "常山北明",
+    "浙大网新",
+    "大位科技"
+   ],
+   "reason": "31只涨停·龙头常山北明",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 92500,
+   "divergence": false
+  },
+  "通用设备": {
+   "leaders": [
+    "泰嘉股份",
+    "汇洲智能",
+    "宁波东力"
+   ],
+   "reason": "19只涨停·龙头泰嘉股份",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 111754,
+   "divergence": false
+  },
+  "汽车零部": {
+   "leaders": [
+    "克来机电",
+    "光洋股份",
+    "成飞集成"
+   ],
+   "reason": "17只涨停·龙头克来机电",
+   "strength": 10,
+   "max_lbc": 6,
+   "fbt": 131003,
+   "divergence": false
+  },
+  "元件": {
+   "leaders": [
+    "骏亚科技",
+    "东晶电子",
+    "崇达技术"
+   ],
+   "reason": "15只涨停·龙头骏亚科技",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 92502,
+   "divergence": false
+  },
+  "软件开发": {
+   "leaders": [
+    "拓维信息",
+    "天源迪科",
+    "法本信息"
+   ],
+   "reason": "14只涨停·龙头拓维信息",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 93345,
+   "divergence": false
+  },
+  "专用设备": {
+   "leaders": [
+    "南兴股份",
+    "芯碁微装",
+    "洪田股份"
+   ],
+   "reason": "13只涨停·龙头南兴股份",
+   "strength": 10,
+   "max_lbc": 1,
+   "fbt": 110212,
+   "divergence": false
+  },
+  "通信设备": {
+   "leaders": [
+    "楚天龙",
+    "鼎信通讯",
+    "意华股份"
+   ],
+   "reason": "12只涨停·龙头楚天龙",
+   "strength": 10,
+   "max_lbc": 2,
+   "fbt": 94336,
+   "divergence": false
+  }
+ },
  "2026-11-26": {
   "元件": {
    "leaders": [
@@ -718,65 +816,6 @@
    "strength": 8,
    "max_lbc": 1,
    "fbt": 104254,
-   "divergence": false
-  }
- },
- "2026-11-13": {
-  "汽车零部": {
-   "leaders": [
-    "天普股份",
-    "中马传动",
-    "美晨科技"
-   ],
-   "reason": "6只涨停·龙头天普股份",
-   "strength": 10,
-   "max_lbc": 4,
-   "fbt": 93034,
-   "divergence": false
-  },
-  "影视院线": {
-   "leaders": [
-    "金逸影视",
-    "横店影视",
-    "中国电影"
-   ],
-   "reason": "5只涨停·龙头金逸影视",
-   "strength": 10,
-   "max_lbc": 1,
-   "fbt": 93212,
-   "divergence": false
-  },
-  "通用设备": {
-   "leaders": [
-    "东方中科",
-    "日发精机"
-   ],
-   "reason": "2只涨停·龙头东方中科",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 93018,
-   "divergence": false
-  },
-  "游戏Ⅱ": {
-   "leaders": [
-    "文投控股",
-    "凯撒文化"
-   ],
-   "reason": "2只涨停·龙头文投控股",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 93040,
-   "divergence": false
-  },
-  "IT服务Ⅱ": {
-   "leaders": [
-    "华胜天成",
-    "南威软件"
-   ],
-   "reason": "2只涨停·龙头华胜天成",
-   "strength": 8,
-   "max_lbc": 1,
-   "fbt": 95006,
    "divergence": false
   }
  }
