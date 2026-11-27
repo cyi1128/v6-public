@@ -982,5 +982,53 @@
   "close": 34.98,
   "pct": 19.39,
   "next_open_pct": -1.0863350485991852
+ },
+ {
+  "date": "2026-11-27",
+  "code": "688605",
+  "name": "先锋精科",
+  "close": 63.78,
+  "pct": 20.0,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-27",
+  "code": "688593",
+  "name": "新相微",
+  "close": 20.94,
+  "pct": 20.0,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-27",
+  "code": "688820",
+  "name": "盛合晶微",
+  "close": 121.32,
+  "pct": 20.0,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-27",
+  "code": "688668",
+  "name": "鼎通科技",
+  "close": 95.58,
+  "pct": 20.0,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-27",
+  "code": "300684",
+  "name": "中石科技",
+  "close": 58.42,
+  "pct": 20.01,
+  "next_open_pct": null
+ },
+ {
+  "date": "2026-11-27",
+  "code": "688313",
+  "name": "仕佳光子",
+  "close": 87.22,
+  "pct": 20.01,
+  "next_open_pct": null
  }
 ]
