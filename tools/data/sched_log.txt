@@ -921,3 +921,9 @@
 11-27 20:05:39     notice| [ann_prof] conception 失败 001260 TimeoutError('The read operation timed out')
 11-27 20:05:39     notice| [ann_prof] conception 失败 600420 JSONDecodeError('Expecting value: line 1 column 1
 11-27 20:05:39     notice| SLOT notice PUSH True 执行成功; 执行成功
+11-27 20:05:41 持久化(notice)：已推送
+11-27 20:05:41 <<< 完成槽位 notice，用时 40.4s
+11-27 20:05:41 本段剩余时间内已无待跑槽位，提前让位退出
+11-27 20:05:41 滚动段调度结束（20:05），退出
+11-27 20:05:41 退出原因：roll-end
+11-27 20:05:41 今日已过窗未推 9 个槽：07:50ext、10:35risk、10:00news2h、12:00news2h、13:35risk、14:01news2h、15:20cycle、16:00news2h、18:00news2h
