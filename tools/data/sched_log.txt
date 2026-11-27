@@ -911,3 +911,13 @@
 11-27 20:00:13 >>> 计划槽时刻 2000（去重键按此生成，防补跑重复推）
 11-27 20:00:13 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
 11-27 20:00:58     news2h| SLOT news2h: 构建失败，不推送
+11-27 20:01:00 持久化(news2h)：已推送
+11-27 20:01:00 <<< 完成槽位 news2h，用时 47.1s
+11-27 20:05:00 >>> 执行槽位 notice @ 20:05:00
+11-27 20:05:00 >>> 计划槽时刻 2005（去重键按此生成，防补跑重复推）
+11-27 20:05:00 >>> 预算：LLM 1800s / 单模型 300s / 子进程上限 2400s
+11-27 20:05:39     notice| [ann_prof] conception 失败 603306 JSONDecodeError('Expecting value: line 1 column 1
+11-27 20:05:39     notice| [ann_prof] conception 失败 603661 JSONDecodeError('Expecting value: line 1 column 1
+11-27 20:05:39     notice| [ann_prof] conception 失败 001260 TimeoutError('The read operation timed out')
+11-27 20:05:39     notice| [ann_prof] conception 失败 600420 JSONDecodeError('Expecting value: line 1 column 1
+11-27 20:05:39     notice| SLOT notice PUSH True 执行成功; 执行成功
