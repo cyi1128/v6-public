@@ -3686,10 +3686,9 @@ def _auction_cheap_pass(s, today):
     lo, hi = (2, 7) if s['board'] == 'main' else (4, 14)
     if not (lo <= s['pct'] <= hi):
         return False
-    # 换手率：主板 0.15%~15%，创业板 ≤30%（09:25 竞价换手本就只有零点几个点，原 0.5% 下限砍掉大半）
+    # 换手率：主板 0.5%~15%，创业板 ≤30%
     turn_max = 30.0 if s['board'] == 'gem' else 15.0
-    turn_min = 0.15 if s['board'] == 'main' else 0.20
-    if not (turn_min <= s['turn'] <= turn_max):
+    if not (0.5 <= s['turn'] <= turn_max):
         return False
     return True
 
@@ -3771,7 +3770,7 @@ def _au_pos_of(c6, px):
         return None
 
 
-def _auction_filter(rows, zt_lbc=None, tier=0):
+def _auction_filter(rows, zt_lbc=None):
     """硬过滤：仅沪深主板+创业板；剔除ST/退市、次新(<365天)、高开/换手区间外、
     竞价量/昨量不足（主板<8%/创业<12%）、近5日累计涨幅>25%（连板龙头除外）。
     不设市值限制、不设均线（MA20）硬限制（用户指令：早盘/尾盘竞价取消市值与MA20限制）。"""
@@ -3792,12 +3791,9 @@ def _auction_filter(rows, zt_lbc=None, tier=0):
             arr = _au_klines(sym, 2)
             if len(arr) >= 2 and float(arr[-2][5]) > 0:
                 vq = (s['vol'] * 100) / float(arr[-2][5]) * 100
-                s['_vq'] = round(vq, 1)
-                # 竞价量/昨日全天量：09:25 竞价量只占昨日几个点，原 8%/12% 会把合格票砍光
-                if tier == 0:
-                    vq_min = 3.0 if s['board'] == 'main' else 4.0
-                else:
-                    vq_min = 1.5 if s['board'] == 'main' else 2.0
+                # 显示用同口径换算成真实占比%（原式把「手/手」又乘了 100，是真实值的 100 倍；闸门判定不动）
+                s['_vqr'] = round(vq / 100.0, 2)
+                vq_min = 8.0 if s['board'] == 'main' else 12.0
                 if vq < vq_min:
                     continue
         except Exception:
@@ -3807,8 +3803,7 @@ def _auction_filter(rows, zt_lbc=None, tier=0):
             arr = _au_klines(sym, 6)
             if len(arr) >= 6 and float(arr[-6][2]) > 0:
                 chg5 = (float(arr[-1][2]) / float(arr[-6][2]) - 1) * 100
-                _c5max = 25.0 if tier == 0 else 35.0
-                if chg5 > _c5max and not (zt_lbc and zt_lbc.get(code, 0) >= 2):
+                if chg5 > 25 and not (zt_lbc and zt_lbc.get(code, 0) >= 2):
                     continue
         except Exception:
             pass
@@ -8357,21 +8352,6 @@ def build_auction(title='竞价观察'):
     _n_cheap = len(_cheap)
     cands = _auction_filter(rows_all, zt_lbc)
     _n_cands = len(cands)
-    # 数量兜底：严格闸门不足时放一档补池（只补位子，不动评分口径），补进来的标「量能偏弱」
-    _n_tier1 = 0
-    try:
-        if len(cands) < AUCTION_TOP_LIST - 2:
-            _seen = {x.get('code') for x in cands}
-            _relax = [x for x in _auction_filter(rows_all, zt_lbc, tier=1) if x.get('code') not in _seen]
-            _relax.sort(key=lambda x: (-(float(x.get('turn') or 0)), -(float(x.get('lb') or 0))))
-            _add = _relax[:max(0, AUCTION_TOP_LIST - len(cands))]
-            for _x in _add:
-                _x['_tier1'] = True
-            cands = cands + _add
-            _n_tier1 = len(_add)
-            print('[auction] 严格闸门 %d 只，放档补 %d 只（量能偏弱，只当回踩备选）' % (_n_cands, _n_tier1))
-    except Exception as _e:
-        print('[auction] 补池异常:', _e)
     heat, cnt = _theme_heat(cands)
     # v80-A36：弱共振剔除已取消（这条会把「同题材只有它一家、题材还没热」的独苗启动票砍掉，
     # 而那恰恰是竞价最好做的形态）。热度/家数只作为加分项参与打分，不再一票否决。
@@ -8384,9 +8364,6 @@ def build_auction(title='竞价观察'):
             print(f'[auction] 打分截止 {_bj_now()}，已算 {i} 只，截断保证 09:27 前推送')
             break
         s['score'] = _auction_score_v3(s, heat, cnt, mem)
-        if s.get('_tier1'):
-            # 放宽闸门补进来的票降权 8 分：只占备选位子，不许顶掉严格闸门里的重点
-            s['score'] = round(float(s['score']) - 8.0, 1)
     # 兜底：被截断未打分的候选补 0 分，避免后续 sort 访问缺失键抛 KeyError('score')
     for s in cands:
         s.setdefault('score', 0)
@@ -8541,11 +8518,10 @@ def build_auction(title='竞价观察'):
         _sc5 = float(s.get('score') or 0)
         _lb5 = float(s.get('lb') or 0)
         _lbt5 = ('%.2f' % _lb5) if _lb5 > 0 else '未就绪'
-        _vq5 = float(s.get('_vq') or 0)
+        _vq5 = float(s.get('_vqr') or 0)
         _vq5_html = ('<div style="color:%s;font-size:12px;margin-top:2px;">竞价量/昨日全天量 %s</div>'
-                     % (GREY, ('%.1f%%' % _vq5) if _vq5 else '未取得'))
-        _tier_html = ('<div style="color:#e6a23c;font-size:12px;margin-top:2px;">⚠ 放宽闸门补位（量能偏弱），只当回踩备选</div>'
-                      if s.get('_tier1') else '')
+                     % (GREY, ('%.2f%%' % _vq5) if _vq5 else '未取得'))
+        _tier_html = ''
         _pc5 = float(s.get('pct') or 0)
         _pos5 = _au_pos_of(str(s.get('code') or ''), float(s.get('price') or 0))
         if _pos5:
@@ -8626,7 +8602,7 @@ def build_auction(title='竞价观察'):
                 _pc3 = float(s_.get('pct') or 0)
             _lb3 = _q3.get('lb') or s_.get('lb') or 0
             _lb3t = ('%.2f' % float(_lb3)) if float(_lb3 or 0) > 0 else '未就绪'
-            _vq3 = float(s_.get('_vq') or 0)
+            _vq3 = float(s_.get('_vqr') or 0)
             _sc3 = float(s_.get('score') or 0)
             _pcn3 = float(_pc3 or 0)
             _p3pos = _au_pos_of(str(s_.get('code') or ''), float(_p3 or 0))
@@ -8650,7 +8626,7 @@ def build_auction(title='竞价观察'):
             _fb3_html = ('<div style="color:#5aa9e6;font-size:13px;margin-top:2px;line-height:1.6;">'
                          '📊 没有可核实的延伸业务，只看盘面：竞价量比 <b>%s</b>%s、%s今天过闸门 <b>%d</b> 只、位置 %s'
                          '——资金买的是板块，别替它编业务</div>'
-                         % (_lb3t, ('（竞价量/昨日全天量 %.1f%%）' % _vq3) if _vq3 else '', _ind3, _n3, _p3pt))
+                         % (_lb3t, ('（竞价量/昨日全天量 %.2f%%）' % _vq3) if _vq3 else '', _ind3, _n3, _p3pt))
             _fact3 = ('<div style="color:#ced4da;font-size:12.5px;margin-top:3px;line-height:1.62;">'
                       '💰 现价 <b style="color:#fff;">%.2f</b>　竞价 %s%.2f%%　竞价量比 <b>%s</b>　'
                       '综合分 <b style="color:%s;">%.0f</b>（%s）</div>'
@@ -8673,11 +8649,9 @@ def build_auction(title='竞价观察'):
         _pool_prev = ''
     _funnel_txt = ('<div style="margin-top:6px;font-size:12px;color:%s;line-height:1.65;">'
                    '全市场涨幅榜 <b style="color:#e9ecef;">%d</b> 只 → 过板块/ST/次新/高开/换手 <b style="color:#e9ecef;">%d</b> 只 '
-                   '→ 过量能/近5日涨幅 <b style="color:#e9ecef;">%d</b> 只（严格）%s → 评分取前 %d</div>'
-                   % (GREY, _n_all, _n_cheap, _n_cands,
-                      ('，不足再放一档补 <b style="color:#e9ecef;">%d</b> 只' % _n_tier1) if _n_tier1 else '',
-                      min(AUCTION_TOP_LIST, max(len(cands), 0))))
-    pick = f"""{_funnel_txt}{top3_txt}<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 备选 {max(len(_list10) - 3, 0)} 只（第 4 名起，只在回踩/放量时才有位子）</div>
+                   '→ 过量能/近5日涨幅 <b style="color:#e9ecef;">%d</b> 只 → 评分取前 %d</div>'
+                   % (GREY, _n_all, _n_cheap, _n_cands, min(AUCTION_TOP_LIST, max(_n_cands, 0))))
+    pick = f"""{_funnel_txt}{top3_txt}<div style="margin-top:10px;font-size:15px;font-weight:800;color:#ff922b;">🎯 备选 {max(min(AUCTION_TOP_LIST, max(_n_cands, 0)) - 3, 0)} 只（第 4 名起，只在回踩/放量时才有位子）</div>
 {rows or '<div style="color:' + GREY + ';font-size:13px;">今日无符合硬过滤条件的竞价票（涨幅榜未取得或全被过滤）</div>'}{_pool_prev}
 <div style="margin-top:8px;font-size:12px;color:{GREY};line-height:1.65;">📌 这是今天的第 1 筛（09:25 竞价）。10:00、11:00、13:00、14:00、14:55 还会用同一套闸门和同一个评分各筛一次，
 盘中那几张卡只写「新进几只、掉出几只」，不重复贴同一份名单。</div>"""
