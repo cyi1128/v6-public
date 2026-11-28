@@ -4580,3 +4580,6 @@
 02:04:57 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.8-27B tag=timeout
 02:04:58 [llm] 未返回 purpose=holiday_ds model=ZhipuAI/GLM-4.7-Flash tag=http_429
 02:06:33 [llm] OK purpose=holiday_ds len=2502
+04:01:18 [llm] OK purpose=holiday_ds len=1370
+04:02:29 [llm] OK purpose=holiday_ds len=1556
+04:03:24 [llm] OK purpose=holiday_ds len=1415
