@@ -83,8 +83,10 @@ PY = sys.executable or 'python3'
 FIXED_SLOTS = [
     (9, 12, 'warn', 8, 45),      # 消息面点火预判（v80-E2：08:20 -> 09:12，竞价前最后一枪，
                                    #   09:25 竞价卡接着做验证；08:20 时点离竞价太远，点火无法验证）
-    (7, 50, 'ext', 20, 60),        # 外盘窗口·早盘（2026-11-25 用户要求：07:50 隔夜外盘先落地，
-                                   #   原来只有 21:38/22:38 两档，早上 07:5x 根本没有外盘卡可推）
+    (7, 50, 'ext', 80, 10),       # 外盘窗口·早盘（2026-11-28 修：窗口只有 20 分钟根本轮不到——
+                                   #   凌晨段多在 07:2x 让位、下一段 08:4x 才起跑，pick_slot 又先选 lag 更小的
+                                   #   pre，ext 连续三天只在 09:31 留「漏推」痕。窗口放到 07:50-09:00，pre 跑完
+                                   #   （约 08:58）本段下一轮就轮到 ext，卡仍在 09:12 warn 之前落地）
     (8, 30, 'pre', 20, 60),        # 盘前速递
     (9, 25, 'auction', 3, 2),      # 竞价观察：严格 09:25-09:27，超窗绝不补
     (9, 35, 'open', 5, 10),       # 开盘验证·30分钟定调（过点不补：10 分钟后已没意义）
@@ -439,7 +441,7 @@ def slot_done_key(hour: int, minute: int, slot: str) -> str | None:
         tag = {(10, 20): '1020', (13, 50): '1350'}.get((hour, minute))
         return 'pulse|%s|%s' % (today, tag) if tag else None
     if slot == 'ext':
-        tag = {(21, 38): '2135', (22, 38): '2235'}.get((hour, minute))
+        tag = {(21, 38): '2135', (22, 38): '2235', (7, 50): '0750'}.get((hour, minute))
         return 'ext|%s|%s' % (today, tag) if tag else None
     if slot == 'news2h':
         tag = {(12, 0): '1200', (14, 1): '1400', (16, 0): '1600'}.get((hour, minute))
@@ -627,7 +629,8 @@ def run_slot(slot: str, hour: int | None = None, minute: int | None = None) -> N
             print(f'    | {line}', flush=True)
         # 关键行落盘：云端 job 日志取不到，这几行是"到底推没推"的唯一云端证据
         key_hits = [ln.strip() for ln in tail
-                    if any(k in ln for k in ('SLOT', 'PUSH', 'Traceback', 'Error', '异常', '跳过', '已推送', 'FAIL'))]
+                    if any(k in ln for k in ('SLOT', 'PUSH', 'Traceback', 'Error', 'exception',
+                                              '异常', '失败', '跳过', '已推送', 'FAIL'))]
         for ln in key_hits[-6:]:
             log(f'    {slot}| {ln[:170]}')
         if proc.returncode != 0:

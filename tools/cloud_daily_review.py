@@ -10075,6 +10075,7 @@ def build_cycle(title='多周期视角研判'):
     except Exception:
         rows_all = None
     if not rows_all:
+        print('[cycle] 尾盘候选为空，本档不推')
         return None
     try:
         rows_all = _tail_qt_fill(rows_all)
@@ -10098,6 +10099,7 @@ def build_cycle(title='多周期视角研判'):
     except Exception:
         return None
     if not cands:
+        print('[cycle] 尾盘量价过滤后无合格标的（%d 只粗选），本档不推' % len(rows_all))
         return None
     heat, cnt = _theme_heat(cands)
 
@@ -10773,7 +10775,7 @@ def _slot_window_key(slot):
             return 'follow|%s|1335' % today
         return 'follow|%s|%s' % (today, _bj_now().strftime('%H%M'))
     if slot == 'ext':
-        if _ph in ('2135', '2235'):
+        if _ph in ('2135', '2235', '0750'):   # 0750=早盘外盘档（2026-11-28 从 07:50 起补的档，去重键必须稳）
             return 'ext|%s|%s' % (today, _ph)
         if '21:38' <= hm <= '21:39':
             return 'ext|%s|2135' % today
@@ -18030,7 +18032,7 @@ def _n2h_action(c):
     return '回到 %.2f 附近接，%s' % (px, st)
 
 
-def build_news2h():
+def _build_news2h_full():
     """两小时消息汇总（2026-11-24 二版）：六块分色，判断句按每条自己的板块与数字生成。"""
     news = []
     try:
@@ -18409,6 +18411,101 @@ def build_news2h():
              + _sec4 + _sec5 + _sec6)
     return _wrap(inner, '📰', '两小时消息汇总')
 
+
+
+def build_news2h_slim(note=False):
+    """两小时汇总·基础版（2026-11-28 云端兜底）：完整版构建异常时必出的底卡。
+    只写真实取到的指数/三池/标题，取不到的字段整块不出现，不摆 0.00%，不编因果。"""
+    news, sn = [], {}
+    try:
+        news = get_news(60) or []
+    except Exception:
+        news = []
+    try:
+        sn = _live_snap() or {}
+    except Exception:
+        sn = {}
+    _idx = []
+    for x in (sn.get('idx') or []):
+        try:
+            _p = float(x.get('pct') or 0)
+        except Exception:
+            continue
+        _idx.append('<span style="font-size:12px;color:#c8d0e0;">' + str(x.get('name'))
+                    + ' <b style="color:' + (RED if _p >= 0 else GREEN) + ';">%+.2f%%</b></span>' % _p)
+    _head = ('<div style="font-size:12px;color:#c8d0e0;line-height:1.7;">'
+             + ('　'.join(_idx) if _idx else '指数这次没取到') + '</div>')
+    _cnt = []
+    _lu, _zb = sn.get('lu'), sn.get('zb')
+    if isinstance(_lu, int) and _lu > 0:
+        _cnt.append('涨停 <b style="color:' + RED + ';">%d</b> 家' % _lu)
+    if isinstance(_zb, int) and _zb > 0:
+        _cnt.append('炸板 <b>%d</b> 家' % _zb)
+    if _cnt:
+        _head += ('<div style="font-size:12px;color:#e9ecef;margin-top:3px;">'
+                  + '　'.join(_cnt) + '</div>')
+    _lab = ''
+    try:
+        _sc = sn.get('score') or ()
+        _lab = str(_sc[1] or '') if len(_sc) > 1 else ''
+    except Exception:
+        _lab = ''
+    if _lab:
+        _head += ('<div style="font-size:12px;color:#ffd43b;margin-top:3px;">情绪 '
+                  + _lab + '</div>')
+    _rows = []
+    for nw in news[:8]:
+        t = str(nw.get('title') or '').strip()
+        if len(t) < 8:
+            continue
+        _ts = str(nw.get('ts') or '')
+        _mm = _ts[11:16] if len(_ts) >= 16 else (_ts[-5:] if len(_ts) >= 5 else '')
+        _src = str(nw.get('src') or '')
+        _meta = '　'.join([s for s in (_mm, _src) if s])
+        _rows.append('<div style="background:#1b2130;border-left:4px solid ' + _N2H_COL['sec2'] + ';'
+                     'border-radius:9px;padding:7px 9px;margin:6px 0;">'
+                     '<div style="font-size:12.5px;color:#e2e8f0;line-height:1.6;">' + t + '</div>'
+                     + ('<div style="font-size:10px;color:#6f7787;margin-top:2px;">' + _meta + '</div>'
+                        if _meta else '')
+                     + '</div>')
+    if not _rows:
+        _rows.append('<div style="font-size:12px;color:' + GREY + ';line-height:1.7;">'
+                     '这两小时的快讯一条都没取到，不拿旧闻充数。</div>')
+    _note = ('<div style="font-size:10.5px;color:#6b7280;margin-top:8px;">'
+             '完整版这次没构建起来，先发基础版。</div>') if note else ''
+    inner = (_head
+             + '<div style="margin-top:10px;font-size:14px;font-weight:800;color:' + _N2H_COL['sec2'] + ';">'
+             '■ 这两小时的真实标题</div>'
+             + ''.join(_rows)
+             + '<div style="margin-top:9px;font-size:11px;color:' + GREY + ';line-height:1.65;">'
+             '纪律：不追涨停、不追 8.5% 以上；单票不超过三成仓；任何一只回撤 4.5% 无条件止损。</div>'
+             + _note)
+    return _wrap(inner, '📰', '两小时消息汇总·基础版')
+
+
+def build_news2h():
+    """两小时消息汇总统一入口（2026-11-28）：完整版优先，异常退基础版，保证每档必出卡。
+    11-25 16:00 起云端连续三天 34 次「构建失败不推送」，根因异常文本被日志过滤掉了，
+    这里把异常就地记进 warn_diag + 打印带「异常」字样（调度器会往 sched_log 落盘）。"""
+    try:
+        h = _build_news2h_full()
+        if h:
+            return h
+        _diag_append('[news2h] 完整版返回空，转基础版')
+    except Exception as e:
+        import traceback as _tb
+        _diag_append('[news2h] 完整版异常 %s: %s' % (type(e).__name__, str(e)[:180]))
+        print('[news2h] 完整版构建异常:', type(e).__name__, str(e)[:200])
+        try:
+            print('[news2h] 异常最后一行:', _tb.format_exc().strip().splitlines()[-1][:180])
+        except Exception:
+            pass
+    try:
+        return build_news2h_slim(True)
+    except Exception as e:
+        _diag_append('[news2h] 基础版也异常 %s: %s' % (type(e).__name__, str(e)[:120]))
+        print('[news2h] 基础版也异常:', type(e).__name__, str(e)[:160])
+        return None
 
 
 def _parse_ds_json(t):
@@ -24475,8 +24572,8 @@ def build_risk():
     if not r:
         print('[risk] 引擎数据不可得，不推送')
         return None
-    if r['level'] == '绿':
-        print(f"[risk] 当前无风险（绿，{r['score']:.0f}分），不打扰推送")
+    if r['level'] == '绿' and bj.hour < 12:   # 2026-11-28：绿档上午静默，下午照出卡，避免整档无声
+        print(f"[risk] 当前无风险（绿，{r['score']:.0f}分），上午不打扰；13:35 那档照推")
         return None
     try:
         _mscore, _mlabel, _ = market_score(idx, d) if idx else (50, '—', '')
