@@ -11380,9 +11380,17 @@ def _tpo_html(compact=False):
     任何一步失败都返回空串，不影响本档推送。"""
     try:
         import tpo_profile as _tpo
-    except Exception as _e:
-        print('[tpo] 模块导入失败:', _e)
-        return ''
+    except Exception:
+        try:
+            import importlib.util
+            import os as _os
+            _p = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'tpo_profile.py')
+            _spec = importlib.util.spec_from_file_location('tpo_profile', _p)
+            _tpo = importlib.util.module_from_spec(_spec)
+            _spec.loader.exec_module(_tpo)
+        except Exception as _e:
+            print('[tpo] 模块导入失败:', _e)
+            return ''
     try:
         if compact:
             rows = [('sz002838', '道恩股份', 'hold'), ('sz000811', '冰轮环境', 'hold')]
