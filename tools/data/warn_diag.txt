@@ -4573,3 +4573,10 @@
 00:01:14 [llm] OK purpose=holiday_ds len=1944
 00:02:06 [llm] OK purpose=holiday_ds len=1417
 00:03:01 [llm] OK purpose=holiday_ds len=1485
+02:01:28 [llm] OK purpose=holiday_ds len=1783
+02:02:55 [llm] OK purpose=holiday_ds len=1667
+02:04:56 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-35B-A3B tag=timeout
+02:04:56 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.5-122B-A10B tag=timeout
+02:04:57 [llm] 未返回 purpose=holiday_ds model=Qwen/Qwen3.8-27B tag=timeout
+02:04:58 [llm] 未返回 purpose=holiday_ds model=ZhipuAI/GLM-4.7-Flash tag=http_429
+02:06:33 [llm] OK purpose=holiday_ds len=2502
