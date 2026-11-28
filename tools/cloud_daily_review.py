@@ -11369,6 +11369,42 @@ def _eod_dark_of(code, name):
     return ''
 
 
+_TPO_NOTE = {
+    'sz002838': '止损仍按 19.14（破 19.24 减半），上面三个数是结构位，不当止损',
+    'sz000811': '止损仍按 18.95（破 19.05 减半），上面三个数是结构位，不当止损',
+}
+
+
+def _tpo_html(compact=False):
+    """四度空间 TPO 段（2026-11-28 接入）。compact=True 只出两只持仓（尾盘决策用）。
+    任何一步失败都返回空串，不影响本档推送。"""
+    try:
+        import tpo_profile as _tpo
+    except Exception as _e:
+        print('[tpo] 模块导入失败:', _e)
+        return ''
+    try:
+        if compact:
+            rows = [('sz002838', '道恩股份', 'hold'), ('sz000811', '冰轮环境', 'hold')]
+        else:
+            rows = [('sh000001', '上证', 'idx'), ('sz002838', '道恩股份', 'hold'),
+                    ('sz000811', '冰轮环境', 'hold')]
+        items = []
+        for cd, nm, kind in rows:
+            a = _tpo.analyze(cd, nm, None)
+            if not a:
+                continue
+            a['kind'] = kind
+            a['note'] = _TPO_NOTE.get(cd, '')
+            items.append(a)
+        if not items:
+            return ''
+        return _tpo.html_block(items)
+    except Exception as _e:
+        print('[tpo] 构建异常:', _e)
+        return ''
+
+
 def build_eod():
     idx = get_indices()
     d = get_pools()
@@ -11894,6 +11930,10 @@ def build_eod():
               + ' total=%d' % len(inner))
     except Exception:
         pass
+    # 2026-11-28：四度空间 TPO 段（后置追加，不参与字数裁剪，不挤掉原有六段）
+    _tpo_sec = _tpo_html()
+    if _tpo_sec:
+        inner = inner + _tpo_sec
     # v80-E10：标题动态化——「收盘复盘：指数分化，XX方向相对活跃」，让用户不点开就知道今天什么天
     try:
         _pos_n = sum(1 for x in idx if (x.get('pct') or 0) > 0)
@@ -22996,6 +23036,10 @@ def build_preclose():
                 '口径：指数与个股取腾讯实时，涨停/炸板取东财涨停池，技术分用前复权日K'
                 '（MA5/10/20、MACD 8/21/5）＋全天量比＋20日区间位置</div>' % _MUTE)
              + '</div>')
+    # 2026-11-28：尾盘前只出两只持仓的 TPO 结构位（不含指数，控制长度）
+    _tpo_sec = _tpo_html(compact=True)
+    if _tpo_sec:
+        inner = inner + _tpo_sec
     return _wrap(inner, '🌙', '尾盘前决策·过不过夜')
 
 
