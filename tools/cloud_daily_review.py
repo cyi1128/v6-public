@@ -8697,8 +8697,15 @@ def build_auction(title='竞价观察'):
         _hold_map = {}
         print('[auction] 持仓深挖超时/失败，只印数据:', repr(_he)[:60])
     _own_html = _render_own(_hold_map)
+    _tpo_auc = ''
+    try:
+        if _bj_now().hour < 12:
+            _tpo_auc = _tpo_html_auction()
+    except Exception as _e:
+        print('[tpo] 竞价接入异常:', _e)
     inner = (sec_sent_html + sec_ov_html + _own_html
-             + pick + wind + _cap_advice_row + pos_cap_line(emotion, None) + _confirm_block + _alt_note)
+             + pick + wind + _cap_advice_row + pos_cap_line(emotion, None) + _confirm_block + _alt_note
+             + _tpo_auc)
     _ex.shutdown(wait=False)
     return _wrap(inner, '🔔', title, show_reson=False)
 
@@ -11373,6 +11380,8 @@ _TPO_NOTE = {
     'sz002838': '止损仍按 19.14（破 19.24 减半），上面三个数是结构位，不当止损',
     'sz000811': '止损仍按 18.95（破 19.05 减半），上面三个数是结构位，不当止损',
 }
+# 收盘复盘把当日全天轮廓落盘，次日竞价直接读，避免竞价窗口现拉分时（零网络、零延时）
+_TPO_SNAP = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'tpo_last.json')
 
 
 def _tpo_html(compact=False):
@@ -11407,9 +11416,37 @@ def _tpo_html(compact=False):
             items.append(a)
         if not items:
             return ''
+        if not compact:
+            _tpo.save_last(items, _TPO_SNAP)
         return _tpo.html_block(items)
     except Exception as _e:
         print('[tpo] 构建异常:', _e)
+        return ''
+
+
+def _tpo_html_auction():
+    """竞价观察用：上一交易日全天轮廓 + 今晨竞价价对位。
+    优先读收盘复盘落盘的快照；快照缺失/过期再走东财上日分时（限 4 秒、无重试、总预算 7 秒）。
+    任何一步失败返回空串，不影响竞价卡出卡。"""
+    try:
+        import tpo_profile as _tpo
+    except Exception:
+        try:
+            import importlib.util
+            import os as _os
+            _p = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'tpo_profile.py')
+            _spec = importlib.util.spec_from_file_location('tpo_profile', _p)
+            _tpo = importlib.util.module_from_spec(_spec)
+            _spec.loader.exec_module(_tpo)
+        except Exception as _e:
+            print('[tpo] 模块导入失败:', _e)
+            return ''
+    try:
+        rows = [('sz002838', '道恩股份', None, 'hold', _TPO_NOTE.get('sz002838', '')),
+                ('sz000811', '冰轮环境', None, 'hold', _TPO_NOTE.get('sz000811', ''))]
+        return _tpo.auction_section(rows, snap_path=_TPO_SNAP)
+    except Exception as _e:
+        print('[tpo] 竞价段构建异常:', _e)
         return ''
 
 

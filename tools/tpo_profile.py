@@ -16,8 +16,10 @@
   1) 腾讯 minute/query：当日 1 分钟（vm 与云端均通，生产已在用 qt.gtimg.cn）
   2) 东财 trends2：近 N 日 1 分钟（云端可用，vm 不通则自动落回腾讯）
 """
+import io
 import json
 import math
+import os
 import sys
 import time
 import urllib.request
@@ -82,14 +84,14 @@ def fetch_tencent(code):
     return {'date': date, 'preclose': pc, 'bars': out}
 
 
-def fetch_em(code, ndays=4):
+def fetch_em(code, ndays=4, timeout=15, tries=2):
     """东财近 N 日 1 分钟：{'2026-11-27': [(hhmm, px, vol)], ...}"""
     sym = _sym(code)
     secid = ('1.' if sym.startswith('sh') else '0.') + sym[2:]
     u = ('https://push2his.eastmoney.com/api/qt/stock/trends2/get?secid=%s'
          '&fields1=f1,f2,f3,f4,f5,f6,f7,f8&fields2=f51,f52,f53,f54,f55,f56,f57,f58'
          '&iscr=0&ndays=%d' % (secid, ndays))
-    d = json.loads(_http(u))
+    d = json.loads(_http(u, timeout=timeout, tries=tries))
     data = (d.get('data') or {})
     prev = float(data.get('preClose') or 0)
     rows = data.get('trends') or []
@@ -106,10 +108,10 @@ def fetch_em(code, ndays=4):
     return {'days': days, 'preclose': prev or None}
 
 
-def quote(code):
+def quote(code, timeout=15, tries=2):
     """qt.gtimg.cn 快照：{'price','preclose','high','low'}，用来交叉校验分时源对不对。"""
     sym = _sym(code)
-    q = _http('http://qt.gtimg.cn/q=%s' % sym).split('~')
+    q = _http('http://qt.gtimg.cn/q=%s' % sym, timeout=timeout, tries=tries).split('~')
     if len(q) < 35:
         return {}
     try:
@@ -386,12 +388,12 @@ def analyze(code, name, price=None, ndays=4):
         pp = profile(em_prev[0], None)
         if pp and q and abs(pp['close'] - q.get('preclose', 0)) <= max(0.02, q.get('preclose', 1) * 0.003):
             mig = migrate(prof, pp)
-    return {'name': name, 'price': price if price is not None else prof['close'],
+    return {'code': _sym(code), 'name': name, 'price': price if price is not None else prof['close'],
             'prof': prof, 'mig': mig, 'date': date, 'src': src}
 
 
-def section_html(codes=None, title='📐 四度空间·TPO'):
-    """云端接入点：codes=[(code,name,price)]；默认上证 + 两只持仓。失败返回空串。"""
+def build_items(codes=None):
+    """逐个分析，返回可用条目（失败的跳过，绝不出假数）。"""
     if codes is None:
         codes = [('sh000001', '上证', None, 'idx'),
                  ('sz002838', '道恩股份', None, 'hold'),
@@ -403,9 +405,138 @@ def section_html(codes=None, title='📐 四度空间·TPO'):
         a = analyze(c, n, p)
         if a:
             a['kind'] = kind
+            if len(row) > 4 and row[4]:
+                a['note'] = row[4]
             items.append(a)
+    return items
+
+
+def save_last(items, path):
+    """把当日全天轮廓落盘，给次日竞价直接读（零网络、零延时）。"""
+    if not items or not path:
+        return
+    try:
+        d = os.path.dirname(path)
+        if d and not os.path.isdir(d):
+            os.makedirs(d)
+        payload = {'date': items[0].get('date') or '', 'ts': time.strftime('%Y-%m-%d %H:%M'),
+                   'items': [{'code': it.get('code'), 'name': it.get('name'), 'date': it.get('date'),
+                              'prof': it.get('prof'), 'mig': it.get('mig') or {},
+                              'price': it.get('price')} for it in items]}
+        with io.open(path, 'w', encoding='utf-8') as f:
+            f.write(json.dumps(payload, ensure_ascii=False, indent=1))
+    except Exception as e:
+        print('[tpo] 快照落盘失败: %r' % (e,), file=sys.stderr)
+
+
+def load_last(path):
+    try:
+        with io.open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _age_days(d1, d2):
+    try:
+        return (time.mktime(time.strptime(d2, '%Y-%m-%d'))
+                - time.mktime(time.strptime(d1, '%Y-%m-%d'))) / 86400.0
+    except Exception:
+        return 999
+
+
+def analyze_prev(code, name, today=None, ndays=6, timeout=6, tries=1):
+    """上一交易日全天轮廓（竞价时段用）：东财近 N 日里取早于今天的最后一天，
+    用「昨日收盘 vs 今日快照昨收」校验，对不上就不用。"""
+    today = today or time.strftime('%Y-%m-%d')
+    q = {}
+    try:
+        q = quote(code, timeout=timeout, tries=tries)
+    except Exception:
+        q = {}
+    try:
+        em = fetch_em(code, ndays, timeout=timeout, tries=tries)
+    except Exception as e:
+        print('[tpo] 昨日轮廓取数失败 %s: %r' % (code, e), file=sys.stderr)
+        return {}
+    days = em.get('days') or {}
+    cand = sorted(d for d in days if d < today)
+    if not cand:
+        return {}
+    day = cand[-1]
+    prof = profile(days[day], None)
+    if not prof:
+        return {}
+    pc = q.get('preclose')
+    if pc and abs(prof['close'] - pc) > max(0.02, pc * 0.003):
+        print('[tpo] %s %s 昨日收盘 %.2f 与今晨快照昨收 %.2f 对不上，弃用'
+              % (code, day, prof['close'], pc), file=sys.stderr)
+        return {}
+    mig = {}
+    if len(cand) >= 2:
+        pp = profile(days[cand[-2]], None)
+        if pp:
+            mig = migrate(prof, pp)
+    return {'code': _sym(code), 'name': name,
+            'price': (q.get('price') or prof['close']), 'prof': prof, 'mig': mig,
+            'date': day, 'src': 'em-prev'}
+
+
+def auction_section(codes=None, snap_path=None, title='📐 四度空间·TPO', max_age_days=12, budget_s=7.0):
+    """竞价观察接入点：用上一交易日全天轮廓 + 今晨竞价价对位。
+    优先读收盘复盘落盘的快照（零网络），快照缺失/过期再用东财上日分时兜底。"""
+    if codes is None:
+        codes = [('sz002838', '道恩股份', None, 'hold'),
+                 ('sz000811', '冰轮环境', None, 'hold')]
+    today = time.strftime('%Y-%m-%d')
+    snap = load_last(snap_path) if snap_path else {}
+    smap = {}
+    for it in (snap.get('items') or []):
+        if it.get('code'):
+            smap[_sym(it['code'])] = it
+    items = []
+    t0 = time.time()
+    for row in codes:
+        if time.time() - t0 > budget_s:
+            print('[tpo] 竞价取数超预算 %.1fs，停止补下一只' % (time.time() - t0), file=sys.stderr)
+            break
+        c, n = row[0], row[1]
+        sym = _sym(c)
+        note = row[4] if len(row) > 4 else ''
+        q = {}
+        try:
+            q = quote(c, timeout=4, tries=1)
+        except Exception:
+            q = {}
+        it = None
+        s = smap.get(sym)
+        if s and s.get('prof'):
+            d = str(s.get('date') or '')
+            if d < today and _age_days(d, today) <= max_age_days:
+                pc = q.get('preclose')
+                if (not pc) or abs(s['prof']['close'] - pc) <= max(0.02, pc * 0.003):
+                    it = {'code': sym, 'name': n, 'price': (q.get('price') or s['prof']['close']),
+                          'prof': s['prof'], 'mig': s.get('mig') or {}, 'date': d, 'src': 'snap'}
+        if not it:
+            it = analyze_prev(c, n, today=today)
+        if not it:
+            continue
+        it['kind'] = 'hold'
+        if note:
+            it['note'] = note
+        items.append(it)
     if not items:
         return ''
+    return html_block(items, title=title, sub='昨日全天轮廓 · 今晨竞价对位')
+
+
+def section_html(codes=None, title='📐 四度空间·TPO', dump_path=None):
+    """云端接入点：codes=[(code,name,price,kind)]；默认上证 + 两只持仓。失败返回空串。"""
+    items = build_items(codes)
+    if not items:
+        return ''
+    if dump_path:
+        save_last(items, dump_path)
     return html_block(items, title=title)
 
 
